@@ -40,6 +40,8 @@ assert.ok(preview.includes("guide.model_section_introductions||{}"),"Timeline an
 assert.ok(preview.includes("guide.page_metadata?.description"),"Preview metadata description must come from Supabase");
 assert.ok(preview.includes("guide.supplemental_factory_colours||{}"),"2026 colour additions must originate in Supabase");
 assert.ok(preview.includes("guide.section_rendering_rules?.hidden_legacy_sections"),"Suppressed duplicate sections must come from Supabase");
+assert.ok(preview.includes("window.__anybikeV2ModelIdentity={make:actualMake,model:actualModel}"),"Enquiry model identity must be database-derived");
+assert.ok(preview.includes('eq("manufacturer",captionRow?.editorial?.make||"")'),"Gallery identity must be database-derived");
 assert.ok(preview.includes("guide.section_rendering_rules?.highlight_last_section"),"Final editorial card treatment must come from Supabase");
 assert.ok(preview.includes("guide.production?.reference_model_year"),"Reference technical year must be model data, not fixed to 2024");
 assert.ok(!preview.includes('if(!(actualMake==="BMW"&&actualModel==="R 1300 GS"))el("summary")'),"Hero summary must not be gated by literal model identity");
