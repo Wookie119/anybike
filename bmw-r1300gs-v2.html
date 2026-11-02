@@ -325,6 +325,8 @@ const {data:publishedEditorial,error:editorialError}=await editorialClient
  .eq("model_id",77).eq("slug","bmw-r-1300-gs").eq("preview_visible",true).single();
 if(editorialError||!publishedEditorial?.editorial)throw Error("Published BMW model editorial data unavailable");
 const guide=publishedEditorial.editorial;
+window.__anybikeV2Editorial=guide;
+window.__anybikeV2EditorialClient=editorialClient;
 if(!guide.make||!guide.model||publishedEditorial.model_id!==77||publishedEditorial.slug!=="bmw-r-1300-gs")throw Error("Model editorial identity mismatch");
 const row={make:guide.make,model:guide.model,category:guide.page_metadata?.category||""};
 
@@ -542,14 +544,17 @@ if(guide){
 })();</script><script>
 (function(){
 const ENDPOINT="https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/";
+// Model identity is available only after the read-only editorial query succeeds.
 const form=document.getElementById("internationalGuestRequestForm"),status=document.getElementById("internationalGuestRequestStatus");
 form.addEventListener("submit",async e=>{
 e.preventDefault();const button=form.querySelector('button[type="submit"]');button.disabled=true;status.textContent="Sending enquiry…";
+const modelIdentity=window.__anybikeV2ModelIdentity;
+if(!modelIdentity?.make||!modelIdentity?.model){status.textContent="Motorcycle information is unavailable. Please refresh the page.";button.disabled=false;return;}
 const values=Object.fromEntries(new FormData(form).entries());
 const checks=[["name","full name"],["email","email address"],["country","country"],["message","message"]];const missing=checks.filter(([key])=>!String(values[key]||"").trim()).map(([,label])=>label);
 if(missing.length){status.textContent="Please enter your "+missing.join(", ")+". ";button.disabled=false;return;}
 if(String(values.message).trim().length<5){status.textContent="Please add a little more detail to your message.";button.disabled=false;return;}
-try{const userClient=window.supabase?.createClient?.("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");const token=(await userClient?.auth.getSession())?.data?.session?.access_token;const response=await fetch(ENDPOINT+"international-guest-enquiry",{method:"POST",headers:{"Content-Type":"application/json",...(token?{"Authorization":"Bearer "+token}:{})},body:JSON.stringify({...values,make:window.__anybikeV2ModelIdentity?.make||"",model:window.__anybikeV2ModelIdentity?.model||"",page:location.href})});const result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||"Could not send enquiry");status.textContent="Your enquiry has been received"+(result.reference?" · Reference "+result.reference:"")+". AnyBike will contact you. Registration is only required before completing a purchase.";form.reset();}
+try{const userClient=window.supabase?.createClient?.("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");const token=(await userClient?.auth.getSession())?.data?.session?.access_token;const response=await fetch(ENDPOINT+"international-guest-enquiry",{method:"POST",headers:{"Content-Type":"application/json",...(token?{"Authorization":"Bearer "+token}:{})},body:JSON.stringify({...values,make:modelIdentity.make,model:modelIdentity.model,page:location.href})});const result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||"Could not send enquiry");status.textContent="Your enquiry has been received"+(result.reference?" · Reference "+result.reference:"")+". AnyBike will contact you. Registration is only required before completing a purchase.";form.reset();}
 catch(error){status.textContent=error.message||"Could not send enquiry. Please try again.";}finally{button.disabled=false;}
 });
 (async()=>{
@@ -599,10 +604,10 @@ catch(e){document.getElementById("internationalGuestRequest").hidden=true;consol
  // Existing image/placeholder remains intact if the request fails.
  (async()=>{
   try{
-   const factory=window.supabase?.createClient;
-   if(!factory)return;
-   const client=factory("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
-   const {data:captionRow,error:captionError}=await client.from("motorcycle_model_v2_editorial").select("editorial").eq("model_id",77).eq("slug","bmw-r-1300-gs").single();
+   const client=window.__anybikeV2EditorialClient;
+   const editorialData=window.__anybikeV2Editorial;
+   if(!client||!editorialData)return;
+   const captionRow={editorial:editorialData},captionError=null;
    const editorialPhotoCaptions=!captionError&&captionRow?.editorial?.photo_edition_captions&&typeof captionRow.editorial.photo_edition_captions==="object"?captionRow.editorial.photo_edition_captions:{};
    const modelDisplayCopy=captionRow?.editorial?.gallery_display_copy||{};
    window.__r1300EngineeringMedia=captionRow?.editorial?.engineering_gallery_media||{};
