@@ -508,12 +508,11 @@ if(guide){
  if(colours.length){
   const groups=new Map();
   colours.forEach(x=>{const recordedYear=String(x.model_year||"Year not specified");const year=recordedYear==="2023"?"2024 model year (announced 2023)":recordedYear;if(!groups.has(year))groups.set(year,[]);groups.get(year).push(x)});
-  if(actualMake==="BMW"&&actualModel==="R 1300 GS"){
-   const src="https://www.press.bmwgroup.com/global/article/detail/T0451071EN/bmw-motorrad-model-revision-measures-for-the-model-year-2026";
-   const additions=[{name:"Racingred non-metallic",variant:"Standard",source:src},{name:"Imperial Blue metallic / White Aluminium metallic matt",variant:"Option 719 Biscaya",source:src}];
-   const existing=groups.get("2026")||[];
-   additions.forEach(item=>{if(!existing.some(x=>String(x.name||"").toLowerCase().includes(item.name.toLowerCase().slice(0,12))))existing.push(item)});
-   groups.set("2026",existing);
+  for(const [year,additions] of Object.entries(guide.supplemental_factory_colours||{})){
+   if(!Array.isArray(additions))continue;
+   const existing=groups.get(year)||[];
+   additions.forEach(item=>{if(!item||typeof item.name!=="string")return;if(!existing.some(x=>String(x.name||"").toLowerCase()===item.name.toLowerCase()))existing.push(item)});
+   groups.set(year,existing);
   }
   const sections=[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).map(([year,items])=>
    '<h3 class="factory-colour-year">'+esc(year)+'</h3><div class="factory-colour-grid">'+items.map(x=>
