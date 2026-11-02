@@ -36,6 +36,7 @@ assert.ok(preview.includes("guide.hero||{}"),"Hero editorial content must origin
 assert.ok(preview.includes('id="databaseHeroPhoto"'),"Hero photo must use database metadata");
 assert.ok(preview.includes("guide.development_cards"),"Development cards must originate from Supabase");
 assert.ok(preview.includes("guide.development_section_labels||{}"),"Timeline and card section labels must originate from Supabase");
+assert.ok(preview.includes("guide.model_section_introductions||{}"),"Timeline and documented specification introductions must come from Supabase");
 assert.ok(preview.includes("data-v2-development-label=\"engineering_label\""),"Engineering label must have a database hook");
 assert.ok(preview.includes("engineering_card_references"),"Engineering-card manufacturer references must be database-driven");
 assert.ok(preview.includes("engineering_gallery_media"),"Engineering-card media metadata must come from Supabase");
