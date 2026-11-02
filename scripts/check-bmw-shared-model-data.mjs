@@ -41,6 +41,7 @@ for(const section of ["related_models","motorcycle_types","country_markets"]){as
 assert.ok(preview.includes("guide.navigation_copy||{}"),"Navigation copy must come from Supabase");
 assert.ok(preview.includes("guide.action_links"),"Model-specific customer CTAs must come from Supabase");
 assert.ok(preview.includes("guide.enquiry_form_copy||{}"),"Enquiry form display copy must come from Supabase");
+assert.ok(preview.includes("gallery_display_copy||{}"),"Gallery headings must come from Supabase");
 assert.ok(preview.includes('data-form-label="name"'),"Form labels must be rendered from data");
 assert.ok(preview.includes('data-form-placeholder="message"'),"Form placeholders must be rendered from data");
 assert.ok(preview.includes('id="v2UkSellAction"'),"UK sell action must be database-rendered");
