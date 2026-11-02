@@ -28,10 +28,10 @@ function classify(rel){
  if(c&&c!==self)reason.push('different canonical');
  const privatePage=!publicExceptions.has(rel)&&(protectedNames.test(path.posix.basename(rel))||protectedTerms.test(path.posix.basename(rel)));
  if(privatePage)reason.push('private, workflow or preview');
- if(/<title[^>]*>[^<]*(preview|test only|draft)[^<]*<\/title>/i.test(html))reason.push('preview');
- const publicCandidate=!privatePage&&!reason.includes('redirect')&&!reason.includes('different canonical')&&!reason.includes('preview');
- const published=publicCandidate&&!reason.includes('noindex')&&/<h1\b/i.test(html);
- const review=publicCandidate&&reason.includes('noindex');
+ if(/<title[^>]*>[^<]*(preview|test only|draft)[^<]*<\/title>/i.test(html))reason.push('review title (not proof of unsuitable content)');
+ const publicCandidate=!privatePage&&!reason.includes('redirect')&&!reason.includes('different canonical');
+ const published=publicCandidate&&!reason.includes('noindex')&&!reason.includes('review title (not proof of unsuitable content)')&&/<h1\b/i.test(html);
+ const review=publicCandidate&&(reason.includes('noindex')||reason.includes('review title (not proof of unsuitable content)'));
  return {path:rel,url:self,robots:robots||'(none)',canonical:c,classification:published?'indexable':review?'review-public-noindex':'excluded',reason:reason.join('; '),inSitemap:false};
 }
 const items=walk().map(classify);
@@ -44,7 +44,7 @@ const stale=[...existing].filter(url=>!published.some(p=>p.url===url));
 const review=items.filter(x=>x.classification==='review-public-noindex');
 const report={generated_at:new Date().toISOString(),counts:{html_files:items.length,indexable:published.length,missing_from_sitemap:missing.length,stale_sitemap_entries:stale.length,public_noindex_review:review.length},missing:missing.map(x=>x.path),stale,review:review.map(x=>({path:x.path,reason:x.reason})),pages:items};
 console.log(JSON.stringify({counts:report.counts,missing:report.missing,stale:report.stale,review:report.review},null,2));
-if(process.argv.includes('--write')){
+// Safety: never silently rewrite sitemap based on filename heuristics or an incomplete audit.\nif(process.argv.includes('--write')&&!process.argv.includes('--approved')){console.error('Sitemap write blocked: inspect audit and explicitly pass --approved after review.');process.exit(2)}\nif(process.argv.includes('--write')){
  fs.writeFileSync('sitemap.xml','<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+published.sort((a,b)=>a.url.localeCompare(b.url)).map(x=>'  <url><loc>'+x.url.replace(/&/g,'&amp;')+'</loc></url>').join('\n')+'\n</urlset>\n');
  fs.mkdirSync('reports',{recursive:true});fs.writeFileSync('reports/public-seo-inventory.json',JSON.stringify(report,null,2)+'\n');
  console.log('Saved sitemap.xml and reports/public-seo-inventory.json');
