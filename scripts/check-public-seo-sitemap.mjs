@@ -12,6 +12,14 @@ const blocked=/(^|\/)(admin[^/]*|private[^/]*|customer[^/]*|dashboard[^/]*|avail
 for(const url of locs){
  if(!url.startsWith(host)){issues.push('Noncanonical host: '+url);continue}
  const pathname=decodeURIComponent(url.slice(host.length).split(/[?#]/)[0])||'index.html';
+ const parsed=new URL(url);
+ const isManufacturerView=pathname==='motorcycle-brand.html'&&parsed.searchParams.has('make');
+ if(parsed.search&&!isManufacturerView)issues.push('Unexpected query URL in sitemap: '+url);
+ if(isManufacturerView){
+  const make=parsed.searchParams.get('make');
+  const directory=fs.readFileSync('motorcycle-manufacturers.html','utf8');
+  if(!make||!directory.includes('/motorcycle-brand.html?make='+encodeURIComponent(make)))issues.push('Manufacturer not linked in A-Z: '+url);
+ }
  if(pathname.includes('..')||blocked.test(pathname)){issues.push('Private or unsafe sitemap entry: '+url);continue}
  if(!fs.existsSync(pathname)){issues.push('Missing page: '+pathname);continue}
  const html=fs.readFileSync(pathname,'utf8');
@@ -23,7 +31,7 @@ for(const url of locs){
  const canonTag=[...html.matchAll(/<link\b[^>]*>/gi)].map(x=>x[0]).find(x=>/\brel\s*=\s*["']canonical["']/i.test(x));
  if(canonTag){
   const canon=canonTag.match(/\bhref\s*=\s*["']([^"']*)/i)?.[1]||'';
-  if(canon&&canon!==url)issues.push('Non-self canonical sitemap entry: '+pathname+' -> '+canon);
+  if(canon&&canon!==url&&!isManufacturerView)issues.push('Non-self canonical sitemap entry: '+pathname+' -> '+canon);
  }
  if(!/<h1\b/i.test(html))issues.push('Missing H1: '+pathname);
 }
