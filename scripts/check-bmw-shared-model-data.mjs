@@ -39,6 +39,9 @@ assert.ok(preview.includes("guide.development_section_labels||{}"),"Timeline and
 assert.ok(preview.includes("guide.model_section_introductions||{}"),"Timeline and documented specification introductions must come from Supabase");
 assert.ok(preview.includes("guide.page_metadata?.description"),"Preview metadata description must come from Supabase");
 assert.ok(preview.includes("window.__anybikeV2Editorial=guide"),"Shared editorial data must originate from verified model query");
+assert.ok(preview.includes("norm(b.make)===norm(identity.make)"),"Public stock must match Supabase model identity");
+assert.ok(preview.includes("norm(b.model)===norm(identity.model)"),"Public stock must match the exact model, not a fixed string");
+assert.ok(!preview.includes('norm(b.make)==="bmw"'),"Public stock filter must not hardcode BMW");
 assert.ok(preview.includes("const editorialData=window.__anybikeV2Editorial"),"Gallery must reuse verified editorial data");
 assert.ok(!preview.includes('.from("motorcycle_model_v2_editorial").select("editorial")'),"Gallery must not run a duplicate unscoped editorial query");
 assert.ok(preview.includes("if(!modelIdentity?.make||!modelIdentity?.model)"),"Enquiry must refuse to submit without verified model identity");
