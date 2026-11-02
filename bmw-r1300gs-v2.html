@@ -326,15 +326,19 @@ const el=id=>document.getElementById(id);const esc=x=>String(x??"").replace(/[&<
 const p=new URLSearchParams(location.search),make="BMW",model="R 1300 GS";
 if(!make||!model){document.querySelector('link[rel="canonical"]').href="https://www.anybike.co.uk/motorcycle-manufacturers.html";el("summary").textContent="Choose a motorcycle from a manufacturer page.";el("nextAction").hidden=true;return}
 try{
-const [catalogueResult,guideResult]=await Promise.allSettled([fetch("/data/motorcycle-catalogue-base.json",{cache:"default"}),fetch("/data/motorcycle-model-guides.json",{cache:"default"})]);
-if(guideResult.status!=="fulfilled"||!guideResult.value.ok)throw Error("Guides unavailable");
-const guides=await guideResult.value.json();
-let catalogue={models:[]};
-if(catalogueResult.status==="fulfilled"&&catalogueResult.value.ok){try{const value=await catalogueResult.value.json();if(Array.isArray(value.models))catalogue=value}catch(error){console.warn("Model catalogue fallback",error)}}
-const row=catalogue.models.find(x=>x.make?.toLowerCase()===make.toLowerCase()&&x.model?.toLowerCase()===model.toLowerCase());
-const guide=Object.values(guides.models).find(g=>g.make.toLowerCase()===make.toLowerCase()&&(g.model.toLowerCase()===model.toLowerCase()||(make.toLowerCase()==="honda"&&model.toLowerCase()==="africa twin crf1100l"&&g.model==="Africa Twin")))||null;
-if(!row&&!guide){el("heading").textContent=make+" "+model;el("summary").textContent="We could not find this motorcycle in our model library.";el("nextAction").hidden=true;return}
-const actualMake=row?.make||guide.make,actualModel=row?.model||guide.model;
+// Production editorial source: read-only RLS-protected Supabase record for this preview only.
+const editorialClient=window.supabase?.createClient?.("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
+if(!editorialClient)throw Error("Supabase client unavailable");
+const {data:publishedEditorial,error:editorialError}=await editorialClient
+ .from("motorcycle_model_v2_editorial")
+ .select("model_id,slug,editorial")
+ .eq("model_id",77).eq("slug","bmw-r-1300-gs").eq("preview_visible",true).single();
+if(editorialError||!publishedEditorial?.editorial)throw Error("Published BMW model editorial data unavailable");
+const guide=publishedEditorial.editorial;
+if(guide.make!=="BMW"||guide.model!=="R 1300 GS")throw Error("BMW editorial identity mismatch");
+const row={make:"BMW",model:"R 1300 GS",category:"Adventure"};
+const catalogue={models:[]};
+const actualMake=guide.make,actualModel=guide.model;
 // Shared, model-identity-checked editorial contract. Never loads unpublished or private data.
 const {normalizeModelGuide}=await import("/model-template/bmw-model-data.mjs");
 const editorial=normalizeModelGuide("bmw-r1300gs",guide,row);
