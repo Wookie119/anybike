@@ -47,6 +47,9 @@ for(const section of ["related_models","motorcycle_types","country_markets"]){as
 assert.ok(preview.includes("guide.navigation_copy||{}"),"Navigation copy must come from Supabase");
 assert.ok(preview.includes("guide.technical_section_copy?.colours?.heading"),"Factory colours introduction must be database-driven");
 assert.ok(preview.includes("guide.technical_section_copy?.engineering?.heading"),"Engineering overview introduction must be database-driven");
+assert.ok(preview.includes("guide.original_generation_description"),"Generation introduction must be Supabase-driven");
+assert.ok(preview.includes("guide.global_stories||{}"),"AnyBike Global story section must be Supabase-driven");
+assert.ok(preview.includes("guide.model_year_timeline_reference"),"Model timeline manufacturer source must come from Supabase");
 assert.ok(preview.includes("guide.action_links"),"Model-specific customer CTAs must come from Supabase");
 assert.ok(preview.includes("guide.enquiry_form_copy||{}"),"Enquiry form display copy must come from Supabase");
 assert.ok(preview.includes("gallery_display_copy||{}"),"Gallery headings must come from Supabase");
