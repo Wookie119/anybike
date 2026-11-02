@@ -32,6 +32,8 @@ assert.ok(preview.includes('id="databaseRelatedModels"'),"Related model pills mu
 assert.ok(preview.includes("guide.related_model_links"),"Related BMW models must come from Supabase");
 assert.ok(preview.includes('id="databaseMotorcycleTypes"'),"Motorcycle types must retain the approved pills container");
 assert.ok(preview.includes("guide.motorcycle_type_links"),"Motorcycle type links must load from Supabase");
+assert.ok(preview.includes("editorialPhotoCaptions"),"Approved edition photo captions must use Supabase data");
+assert.ok(!preview.includes("const descriptions={"),"Photo edition captions must not remain hardcoded");
 assert.ok(preview.includes('normalizeModelGuide("bmw-r1300gs",guide,row)'),"V2 must validate published model identity");
 assert.ok(preview.includes('editorial.specifications.find('),"Technical figures must consume source-backed shared specifications");
 for(const section of ["generations","milestones","specifications","colours"]){
