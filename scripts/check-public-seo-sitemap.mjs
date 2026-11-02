@@ -15,7 +15,16 @@ for(const url of locs){
  if(pathname.includes('..')||blocked.test(pathname)){issues.push('Private or unsafe sitemap entry: '+url);continue}
  if(!fs.existsSync(pathname)){issues.push('Missing page: '+pathname);continue}
  const html=fs.readFileSync(pathname,'utf8');
- if(/<meta\s+name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(html))issues.push('Noindex page in sitemap: '+pathname);
+ const tags=[...html.matchAll(/<meta\b[^>]*>/gi)].map(x=>x[0]);
+ const robotTag=tags.find(x=>/\bname\s*=\s*["']robots["']/i.test(x))||'';
+ const robotContent=robotTag.match(/\bcontent\s*=\s*["']([^"']*)/i)?.[1]||'';
+ if(/\bnoindex\b/i.test(robotContent))issues.push('Noindex page in sitemap: '+pathname);
+ if(/http-equiv\s*=\s*["']refresh["']/i.test(html))issues.push('Redirect page in sitemap: '+pathname);
+ const canonTag=[...html.matchAll(/<link\b[^>]*>/gi)].map(x=>x[0]).find(x=>/\brel\s*=\s*["']canonical["']/i.test(x));
+ if(canonTag){
+  const canon=canonTag.match(/\bhref\s*=\s*["']([^"']*)/i)?.[1]||'';
+  if(canon&&canon!==url)issues.push('Non-self canonical sitemap entry: '+pathname+' -> '+canon);
+ }
  if(!/<h1\b/i.test(html))issues.push('Missing H1: '+pathname);
 }
 for(const prefix of ['bmw-','harley-davidson-']){
