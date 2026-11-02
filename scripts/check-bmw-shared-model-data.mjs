@@ -36,7 +36,8 @@ assert.ok(preview.includes("editorialPhotoCaptions"),"Approved edition photo cap
 assert.ok(preview.includes("captionRow?.editorial?.gallery_edition_asset_keys"),"Approved editions must be selected from Supabase");
 assert.ok(preview.includes("captionRow?.editorial?.engineering_photo_categories"),"Engineering photo slots must be selected from Supabase");
 assert.ok(preview.includes("const approvedPhotos=data.filter("),"Gallery photos must be verified for images and attribution");
-assert.ok(preview.includes("const variants=approvedPhotos.filter("),"Edition gallery must use validated photo records");
+assert.ok(preview.includes("editionKeys.map(key=>approvedPhotos.find("),"Edition gallery must retain database ordering and approved photos");
+assert.ok(preview.includes("asset_key,title,model,subject_category"),"Gallery must load the actual approved photograph title");
 assert.ok(preview.includes("const chosen=approvedPhotos.find("),"Engineering cards must use validated photo records");
 assert.ok(!preview.includes("const descriptions={"),"Photo edition captions must not remain hardcoded");
 assert.ok(preview.includes('normalizeModelGuide("bmw-r1300gs",guide,row)'),"V2 must validate published model identity");
