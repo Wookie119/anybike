@@ -38,6 +38,8 @@ assert.ok(preview.includes("guide.development_cards"),"Development cards must or
 assert.ok(preview.includes("guide.development_section_labels||{}"),"Timeline and card section labels must originate from Supabase");
 assert.ok(preview.includes("guide.model_section_introductions||{}"),"Timeline and documented specification introductions must come from Supabase");
 assert.ok(preview.includes("guide.page_metadata?.description"),"Preview metadata description must come from Supabase");
+assert.ok(preview.includes("guide.supplemental_factory_colours||{}"),"2026 colour additions must originate in Supabase");
+assert.ok(!preview.includes('const additions=[{name:"Racingred non-metallic"'),"Factory colour additions cannot be hardcoded in the preview");
 assert.ok(preview.includes('id="modelStructuredData"'),"JSON-LD script must be dynamically populated from Supabase");
 assert.ok(preview.includes("structuredData.textContent=JSON.stringify"),"Structured data must be sourced from model metadata");
 assert.ok(!preview.includes('"name":"BMW R 1300 GS motorcycle model guide"'),"Structured data may not hardcode model name");
