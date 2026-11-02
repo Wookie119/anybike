@@ -949,10 +949,10 @@ async function addMyDealershipMenuIfEligible(user){
             if(label==="trade"||label==="vmoto")item.style.display="none";
           });
         }
-        // UK dealership header: the Tour replaces research menus here only.
+        // UK dealership header: keep Markets and Manufacturers for research alongside the Tour; retain export-buyer restrictions.
         const desktopNav=document.querySelector(".public-nav");
         if(desktopNav){
-          for(const selector of [".public-manufacturers-menu",".public-markets-menu",".public-export-menu"]){
+          for(const selector of [".public-export-menu"]){
             const el=desktopNav.querySelector(selector);
             if(el)el.style.display="none";
           }
@@ -974,7 +974,7 @@ async function addMyDealershipMenuIfEligible(user){
         if(mobileNav){
           for(const el of [...mobileNav.children]){
             const label=(el.querySelector(":scope > summary")?.textContent||el.textContent||"").trim().toLowerCase();
-            if(label==="manufacturers"||label==="markets"||label==="export"||label==="export services"||label==="freight forwarders"||el.classList.contains("mobile-manufacturers-menu"))el.style.display="none";
+            if(label==="export"||label==="export services"||label==="freight forwarders")el.style.display="none";
           }
           if(!mobileNav.querySelector('[data-uk-dealer-tour="true"]')){
             const tour=document.createElement("a");
