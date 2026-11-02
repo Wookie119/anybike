@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>AnyBike Universal Model Development</title><style>
+*{box-sizing:border-box}body{margin:0;background:#141414;color:white;font:16px/1.6 Arial,sans-serif}header{background:#222;border-bottom:3px solid #ed1c24;padding:20px}header strong{font-size:25px}main{max-width:1100px;margin:auto;padding:24px}.card{background:#222;border:1px solid #555;border-left:3px solid #ed1c24;border-radius:9px;padding:22px;margin-bottom:18px}h1{font-size:36px}h2{font-size:23px;margin:0 0 14px}a{display:inline-block;border:1px solid #ed1c24;color:#fff;border-radius:30px;padding:6px 12px;text-decoration:none;margin:5px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.mini{border:1px solid #555;border-radius:8px;padding:12px}.muted{color:#ccc}p{margin:7px 0}
+</style></head><body><header><strong>ANYBIKE</strong> — Universal Motorcycle Development</header><main><section class="card"><h1 id="heading">Loading model</h1><p id="summary"></p></section><div id="sections"></div></main>
+<script type="module">
+import {normalizeMotorcycleV2,REQUIRED_V2_SECTIONS,auditMotorcycleV2} from "/model-template/universal-motorcycle-v2.mjs";
+const e=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const arr=v=>Array.isArray(v)?v:[],txt=v=>typeof v==="string"?v:"";
+const para=v=>txt(v)?'<p>'+e(v)+'</p>':"";
+const cards=a=>'<div class="grid">'+arr(a).map(x=>'<div class="mini"><strong>'+e(x.label||x.title||x.name||x.model_year||"")+'</strong>'+para(x.description||x.change||x.text||"")+'</div>').join("")+'</div>';
+const pills=a=>arr(a).map(x=>/^\/[a-z0-9/-]+\.html(?:[?#][a-zA-Z0-9%=&#._-]+)?$/.test(x.url||"")?'<a href="'+e(x.url)+'">'+e(x.label)+'</a>':"").join("");
+const section=(heading,body)=>'<section class="card"><h2>'+e(heading)+'</h2>'+(body||'<p class="muted">Approved content not yet available.</p>')+'</section>';
+try{
+ const slug=new URLSearchParams(location.search).get("model")||"bmw-r-1300-gs";
+ if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))throw Error("Invalid model slug");
+ const base="https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/motorcycle_model_v2_editorial";
+ const response=await fetch(base+"?slug=eq."+encodeURIComponent(slug)+"&preview_visible=eq.true&select=model_id,slug,preview_visible,editorial&limit=1",{headers:{apikey:"sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK"}});
+ if(!response.ok)throw Error("Model data unavailable");
+ const records=await response.json();if(records.length!==1)throw Error("This model has no approved V2 editorial record");
+ const record=records[0],m=normalizeMotorcycleV2(record),g=record.editorial,p=g.production||{};
+ document.getElementById("heading").textContent=m.title;
+ document.getElementById("summary").textContent=g.summary||g.hero?.summary||"";
+ const blocks={
+ introduction:section("Introduction",para(g.summary)+para(g.hero?.description)),
+ model_development:section("Model development",cards(p.generations)),
+ engineering_gallery:section("Engineering and gallery",para(g.engineering_reference?.description)),
+ stories_and_comparisons:section("Stories and comparisons",m.stories?para(m.stories.description)+pills([{label:m.stories.link_label||m.stories.title,url:m.stories.url}]):""),
+ factory_colours:section("Factory colours",cards(m.colours)),
+ technical_specifications:section("Technical specifications",cards(m.specifications)),
+ heritage:section("Factory, ownership and heritage",cards(m.heritage)),
+ related_models:section("Related models",pills(m.relatedModels)),
+ motorcycle_types:section("Motorcycle types",pills(m.motorcycleTypes)),
+ country_markets:section("Country markets",para(m.navigation?.country_markets?.description)),
+ customer_action:section("Customer actions",pills(m.customerActions)),
+ production_evidence:section("Production evidence",cards(p.documented_production_evidence)),
+ sources_and_references:section("Sources and references",para(g.source_methodology?.description))
+ };
+ document.getElementById("sections").innerHTML=REQUIRED_V2_SECTIONS.map(x=>blocks[x]).join("");
+ document.documentElement.dataset.sectionCount=String(document.querySelectorAll("#sections .card").length);
+ document.documentElement.dataset.auditErrors=String(auditMotorcycleV2(record).errors.length);
+}catch(err){document.getElementById("summary").textContent=err.message;}
+</script></body></html>
