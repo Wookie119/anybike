@@ -26,6 +26,8 @@ assert.ok(preview.includes('.from("motorcycle_model_v2_editorial")'),"V2 must re
 assert.ok(!preview.includes('fetch("/data/motorcycle-model-guides.json"'),"V2 must not load editorial JSON at runtime");
 assert.ok(preview.includes('id="databaseModelTimeline"'),"Timeline container must be database-driven");
 assert.ok(preview.includes("guide.model_year_timeline"),"Timeline must be read from Supabase editorial");
+assert.ok(preview.includes('id="databaseDeepDive"'),"Deep-dive panel must use database content");
+assert.ok(preview.includes("guide.deep_dive"),"Factory, ownership and heritage content must be read from Supabase");
 assert.ok(preview.includes('normalizeModelGuide("bmw-r1300gs",guide,row)'),"V2 must validate published model identity");
 assert.ok(preview.includes('editorial.specifications.find('),"Technical figures must consume source-backed shared specifications");
 for(const section of ["generations","milestones","specifications","colours"]){
