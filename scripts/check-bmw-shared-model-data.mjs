@@ -35,6 +35,8 @@ assert.ok(preview.includes("guide.motorcycle_type_links"),"Motorcycle type links
 assert.ok(preview.includes("guide.hero||{}"),"Hero editorial content must originate from Supabase");
 assert.ok(preview.includes('id="databaseHeroPhoto"'),"Hero photo must use database metadata");
 assert.ok(preview.includes("guide.development_cards"),"Development cards must originate from Supabase");
+for(const section of ["uk_selling","international_stock","international_enquiry","international_sourcing"]){assert.ok(preview.includes(`data-v2-copy="${section}:heading"`),`Missing Supabase customer content hook: ${section}`);}
+assert.ok(preview.includes("guide.customer_copy||{}"),"Customer editorial content must be loaded from Supabase");
 assert.ok(!preview.includes("motorcycle-model-market-links.json"),"Country links must not use bundled JSON fallback");
 assert.ok(preview.includes('from("motorcycle_model_country_links")'),"Country links must read Supabase");
 assert.ok(preview.includes('<nav class="guide-links" aria-label="Country market links"></nav>'),"Country links must not be hardcoded into HTML");
