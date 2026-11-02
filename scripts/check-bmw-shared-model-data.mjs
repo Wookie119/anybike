@@ -38,6 +38,8 @@ assert.ok(preview.includes("guide.development_cards"),"Development cards must or
 assert.ok(preview.includes("guide.development_section_labels||{}"),"Timeline and card section labels must originate from Supabase");
 assert.ok(preview.includes("guide.model_section_introductions||{}"),"Timeline and documented specification introductions must come from Supabase");
 assert.ok(preview.includes("guide.page_metadata?.description"),"Preview metadata description must come from Supabase");
+assert.ok(!preview.includes('guide.make!=="BMW"'),"Editorial model identity must come from selected Supabase row");
+assert.ok(!preview.includes("const catalogue={models:[]}"),"Unused hardcoded catalogue must be removed");
 assert.ok(preview.includes("guide.supplemental_factory_colours||{}"),"2026 colour additions must originate in Supabase");
 assert.ok(preview.includes("guide.colour_year_labels?.[recordedYear]"),"Colour year labels must come from database");
 assert.ok(!preview.includes('if(false && related.length)'),"Dead hardcoded related-model generator must be absent");
