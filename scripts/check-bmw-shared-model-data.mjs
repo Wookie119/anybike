@@ -35,6 +35,10 @@ assert.ok(preview.includes("guide.motorcycle_type_links"),"Motorcycle type links
 assert.ok(preview.includes("guide.hero||{}"),"Hero editorial content must originate from Supabase");
 assert.ok(preview.includes('id="databaseHeroPhoto"'),"Hero photo must use database metadata");
 assert.ok(preview.includes("guide.development_cards"),"Development cards must originate from Supabase");
+assert.ok(preview.includes('document.querySelector("#r1300gsModelHistory [data-model-card-group=\'engineering\']")'),"Engineering card selector must be valid");
+assert.ok(preview.includes('document.querySelector("#r1300gsModelHistory [data-model-card-group=\'buying\']")'),"Buying card selector must be valid");
+assert.ok(!preview.includes('heading.textContent=modelDisplayCopy.model_development_heading||""'),"Gallery must not read asynchronously loaded copy before initialization");
+
 for(const section of ["uk_selling","international_stock","international_enquiry","international_sourcing"]){assert.ok(preview.includes(`data-v2-copy="${section}:heading"`),`Missing Supabase customer content hook: ${section}`);}
 assert.ok(preview.includes("guide.customer_copy||{}"),"Customer editorial content must be loaded from Supabase");
 for(const section of ["related_models","motorcycle_types","country_markets"]){assert.ok(preview.includes(`data-v2-section="${section}:heading"`),`Navigation section ${section} must use Supabase editorial copy`);}
