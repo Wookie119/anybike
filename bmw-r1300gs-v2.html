@@ -564,4 +564,33 @@ catch(e){document.getElementById("internationalGuestRequest").hidden=true;consol
  new MutationObserver(update).observe(stock,{attributes:true,attributeFilter:['hidden']});
  update();
 })();
+</script><script id="anybike-model-country-data">
+/* Model-country links are read from a shared data source; existing rendered links remain as fallback. */
+(async function(){
+  const section=document.getElementById("r1300CountryMarkets");
+  const nav=section?.querySelector('nav[aria-label="Country market links"]');
+  if(!nav)return;
+  try{
+    const response=await fetch("/data/motorcycle-model-market-links.json",{cache:"default"});
+    if(!response.ok)throw Error("Country data unavailable");
+    const data=await response.json();
+    const list=(data.model_overrides?.["bmw-r-1300-gs"]||data.default_countries||[]);
+    if(!Array.isArray(list)||!list.length) return;
+    const fragment=document.createDocumentFragment();
+    for(const market of list.slice(0,16)){
+      if(!market||!/^\/markets\/[a-z0-9-]+\.html$/.test(market.href)||!market.name)continue;
+      const link=document.createElement("a");
+      link.href=market.href;
+      link.textContent=(market.flag?market.flag+" ":"")+market.name;
+      link.setAttribute("aria-label","Explore AnyBike motorcycle market information for "+market.name);
+      fragment.append(link);
+    }
+    if(!fragment.children.length)return;
+    const all=document.createElement("a");
+    all.href="/international-markets.html";
+    all.textContent="More countries →";
+    fragment.append(all);
+    nav.replaceChildren(fragment);
+  }catch(error){console.warn("Country market data unavailable; keeping verified country links",error);}
+})();
 </script><script src="/public-header.js?v=202610112205"></script></body></html>
