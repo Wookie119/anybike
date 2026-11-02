@@ -35,6 +35,9 @@ assert.ok(preview.includes("guide.motorcycle_type_links"),"Motorcycle type links
 assert.ok(preview.includes("guide.hero||{}"),"Hero editorial content must originate from Supabase");
 assert.ok(preview.includes('id="databaseHeroPhoto"'),"Hero photo must use database metadata");
 assert.ok(preview.includes("guide.development_cards"),"Development cards must originate from Supabase");
+assert.ok(!preview.includes("motorcycle-model-market-links.json"),"Country links must not use bundled JSON fallback");
+assert.ok(preview.includes('from("motorcycle_model_country_links")'),"Country links must read Supabase");
+assert.ok(preview.includes('<nav class="guide-links" aria-label="Country market links"></nav>'),"Country links must not be hardcoded into HTML");
 assert.ok(!preview.includes("Unveiled in September 2023 for the 2024 model year, with an all-new"),"Development copy must not remain embedded in HTML");
 assert.ok(preview.includes("editorialPhotoCaptions"),"Approved edition photo captions must use Supabase data");
 assert.ok(preview.includes("captionRow?.editorial?.gallery_edition_asset_keys"),"Approved editions must be selected from Supabase");
