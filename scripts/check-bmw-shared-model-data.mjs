@@ -35,6 +35,8 @@ assert.ok(preview.includes("guide.motorcycle_type_links"),"Motorcycle type links
 assert.ok(preview.includes("guide.hero||{}"),"Hero editorial content must originate from Supabase");
 assert.ok(preview.includes('id="databaseHeroPhoto"'),"Hero photo must use database metadata");
 assert.ok(preview.includes("guide.development_cards"),"Development cards must originate from Supabase");
+assert.ok(preview.includes("engineering_card_references"),"Engineering-card manufacturer references must be database-driven");
+assert.ok(!preview.includes("const sources={"),"Engineering-card sources must not be hardcoded");
 assert.ok(preview.includes("window.__r1300CardsReady=true"),"Database cards must signal when ready");
 assert.ok(preview.includes('document.addEventListener("anybike:r1300-cards-ready",renderUkGallery'),"UK gallery must wait until database cards exist");
 assert.ok(preview.includes('document.querySelector("#r1300gsModelHistory [data-model-card-group=\'engineering\']")'),"Engineering card selector must be valid");
