@@ -40,6 +40,8 @@ assert.ok(preview.includes("guide.model_section_introductions||{}"),"Timeline an
 assert.ok(preview.includes("guide.page_metadata?.description"),"Preview metadata description must come from Supabase");
 assert.ok(preview.includes('id="modelStructuredData"'),"JSON-LD script must be dynamically populated from Supabase");
 assert.ok(preview.includes("structuredData.textContent=JSON.stringify"),"Structured data must be sourced from model metadata");
+assert.ok(!preview.includes('"name":"BMW R 1300 GS motorcycle model guide"'),"Structured data may not hardcode model name");
+assert.ok(!preview.includes('img.alt="BMW R 1300 GS"'),"Photo alternate text may not hardcode the model name");
 assert.ok(preview.includes("guide.page_metadata?.manufacturer_url"),"Manufacturer navigation must come from Supabase");
 assert.ok(preview.includes("data-v2-development-label=\"engineering_label\""),"Engineering label must have a database hook");
 assert.ok(preview.includes("engineering_card_references"),"Engineering-card manufacturer references must be database-driven");
