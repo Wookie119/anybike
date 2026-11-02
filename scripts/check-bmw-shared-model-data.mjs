@@ -32,6 +32,10 @@ assert.ok(preview.includes('id="databaseRelatedModels"'),"Related model pills mu
 assert.ok(preview.includes("guide.related_model_links"),"Related BMW models must come from Supabase");
 assert.ok(preview.includes('id="databaseMotorcycleTypes"'),"Motorcycle types must retain the approved pills container");
 assert.ok(preview.includes("guide.motorcycle_type_links"),"Motorcycle type links must load from Supabase");
+assert.ok(preview.includes("guide.hero||{}"),"Hero editorial content must originate from Supabase");
+assert.ok(preview.includes('id="databaseHeroPhoto"'),"Hero photo must use database metadata");
+assert.ok(preview.includes("guide.development_cards"),"Development cards must originate from Supabase");
+assert.ok(!preview.includes("Unveiled in September 2023 for the 2024 model year, with an all-new"),"Development copy must not remain embedded in HTML");
 assert.ok(preview.includes("editorialPhotoCaptions"),"Approved edition photo captions must use Supabase data");
 assert.ok(preview.includes("captionRow?.editorial?.gallery_edition_asset_keys"),"Approved editions must be selected from Supabase");
 assert.ok(preview.includes("captionRow?.editorial?.engineering_photo_categories"),"Engineering photo slots must be selected from Supabase");
