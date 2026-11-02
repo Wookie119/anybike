@@ -15,6 +15,7 @@ for(const [key,name] of [["bmw-r1300gs","R 1300 GS"],["bmw-r1250gs","R 1250 GS"]
  assert.ok(result.history.length>40,"Missing model history "+name);
  assert.equal(result.gallery.length,0,"Unlicensed photographs must not publish");
  assert.equal(result.publicationStatus,"preview-only");
+ if(key==="bmw-r1300gs")assert.equal(result.engineeringRows.length,14,"Engineering detail must be sourced from shared editorial data");
  console.log("PASS",result.heading,"milestones:",result.milestones.length,"specifications:",result.specifications.length);
 }
 assert.throws(()=>normalizeModelGuide("bmw-unknown",{},{}));
