@@ -35,6 +35,17 @@ for(const url of locs){
  }
  if(!/<h1\b/i.test(html))issues.push('Missing H1: '+pathname);
 }
+// Check that model guides linked from the approved BMW and Harley manufacturer pages are discoverable.
+for(const parent of ['bmw-motorcycles.html','harley-davidson-motorcycles.html']){
+ const html=fs.readFileSync(parent,'utf8');
+ const linked=[...html.matchAll(/href=["'](?:https:\/\/www\.anybike\.co\.uk)?\/?((?:bmw|harley-davidson)-[^"'?#]+\.html)(?:[?#][^"']*)?["']/gi)].map(m=>m[1]);
+ for(const model of new Set(linked)){
+  if(model===parent||!fs.existsSync(model))continue;
+  const body=fs.readFileSync(model,'utf8');
+  if(/<meta\b[^>]*content=["'][^"']*noindex/i.test(body))continue;
+  if(!locs.includes(host+model))issues.push('Published model linked from '+parent+' missing sitemap: '+model);
+ }
+}
 for(const prefix of ['bmw-','harley-davidson-']){
  const matching=locs.filter(x=>x.startsWith(host+prefix));
  if(matching.length<15)issues.push('Unexpectedly few '+prefix+' model guides in sitemap: '+matching.length);
