@@ -40,6 +40,9 @@ assert.ok(preview.includes("guide.customer_copy||{}"),"Customer editorial conten
 for(const section of ["related_models","motorcycle_types","country_markets"]){assert.ok(preview.includes(`data-v2-section="${section}:heading"`),`Navigation section ${section} must use Supabase editorial copy`);}
 assert.ok(preview.includes("guide.navigation_copy||{}"),"Navigation copy must come from Supabase");
 assert.ok(preview.includes("guide.action_links"),"Model-specific customer CTAs must come from Supabase");
+assert.ok(preview.includes("guide.enquiry_form_copy||{}"),"Enquiry form display copy must come from Supabase");
+assert.ok(preview.includes('data-form-label="name"'),"Form labels must be rendered from data");
+assert.ok(preview.includes('data-form-placeholder="message"'),"Form placeholders must be rendered from data");
 assert.ok(preview.includes('id="v2UkSellAction"'),"UK sell action must be database-rendered");
 assert.ok(!preview.includes("motorcycle-model-market-links.json"),"Country links must not use bundled JSON fallback");
 assert.ok(preview.includes('from("motorcycle_model_country_links")'),"Country links must read Supabase");
