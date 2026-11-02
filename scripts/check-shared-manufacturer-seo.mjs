@@ -21,10 +21,10 @@ const dynamic=[...sitemap.matchAll(/<loc>(https:\/\/www\.anybike\.co\.uk\/motorc
 // Query URLs are permitted only for manufacturers linked by the approved A-Z directory.
 // This is a source-level consistency check, not proof that search engines render client-side SEO.
 const directory=fs.readFileSync('motorcycle-manufacturers.html','utf8');
-const allowed=new Set([...directory.matchAll(/href=["']\\/motorcycle-brand\\.html\\?make=([^"']+)["']/g)].map(m=>'https://www.anybike.co.uk/motorcycle-brand.html?make='+m[1].replace(/&amp;/g,'&')));
+const allowed=new Set([...directory.matchAll(/motorcycle-brand[.]html[?]make=([A-Za-z0-9%+-]+)/g)].map(m=>'https://www.anybike.co.uk/motorcycle-brand.html?make='+m[1]));
 require(allowed.size===47,'Expected 47 approved shared manufacturer links; found '+allowed.size);
 require(new Set(dynamic).size===dynamic.length,'Duplicate manufacturer query URLs in sitemap');
 for(const url of dynamic)require(allowed.has(url),'Unapproved manufacturer sitemap URL: '+url);
 for(const url of allowed)require(dynamic.includes(url),'Approved manufacturer missing from sitemap: '+url);
 if(issues.length){issues.forEach(x=>console.error('FAIL '+x));process.exitCode=1}
-else console.log('PASS: shared manufacturer page retains unique headings, dynamic SEO tags and no premature query-URL sitemap entries.');
+else console.log('PASS: shared manufacturer page retains unique headings, dynamic SEO tags and approved A-Z query URLs checked against the sitemap.');
