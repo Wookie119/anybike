@@ -576,16 +576,7 @@ catch(e){document.getElementById("internationalGuestRequest").hidden=true;consol
   picture.alt=index===0&&imageSrc?"BMW R 1300 GS motorcycle photograph":index===1?"BMW R 1300 GS boxer engine cutaway at BMW Motorrad Welt":"AnyBike image placeholder — motorcycle photograph not yet available";
   picture.addEventListener("error",()=>{if(!picture.src.endsWith("/anybike-logo-new.jpg")){picture.src="/anybike-logo-new.jpg";picture.alt="AnyBike placeholder — approved feature photograph not available";picture.classList.add("model-card-placeholder");const credit=card.querySelector(".model-card-photo-credit");if(credit)credit.remove();}});picture.loading=index===1?"lazy":"eager";picture.decoding="async";picture.className="model-card-bike-photo"+(index===0&&imageSrc||index===1?"":" model-card-placeholder");
   card.insertBefore(picture,card.firstChild);
-  if(index>=2&&index<=4){
-   const sources={
-    2:{url:"https://www.press.bmwgroup.com/global/photo/topic/13459/r-1300-gs/",label:"BMW R 1300 GS factory photographs"},
-    3:{url:"https://www.bmw-motorrad.co.uk/en/models/adventure/r1300gs/technicaldata.html",label:"BMW DSA and equipment information"},
-    4:{url:"https://www.bmw-motorrad.co.uk/en/engineering/automated-shift-assistant.html",label:"BMW automated shifting information"}
-   };
-   const source=sources[index],link=document.createElement("a");
-   link.href=source.url;link.target="_blank";link.rel="noopener noreferrer";link.className="model-feature-official-source";
-   link.textContent="View "+source.label+" ↗";card.appendChild(link);
-  }
+
   if(index===1){
    const credit=document.createElement("a");credit.className="model-card-photo-credit";credit.href="https://commons.wikimedia.org/wiki/File:Engine_BMW_R1300-GS.jpg";credit.target="_blank";credit.rel="noopener noreferrer";credit.textContent="Engine photograph: Wikisympathisant · CC BY-SA 4.0";
    card.insertBefore(credit,picture.nextSibling);
@@ -607,6 +598,13 @@ catch(e){document.getElementById("internationalGuestRequest").hidden=true;consol
    const {data:captionRow,error:captionError}=await client.from("motorcycle_model_v2_editorial").select("editorial").eq("model_id",77).eq("slug","bmw-r-1300-gs").single();
    const editorialPhotoCaptions=!captionError&&captionRow?.editorial?.photo_edition_captions&&typeof captionRow.editorial.photo_edition_captions==="object"?captionRow.editorial.photo_edition_captions:{};
    const modelDisplayCopy=captionRow?.editorial?.gallery_display_copy||{};
+   const referenceRows=Array.isArray(captionRow?.editorial?.engineering_card_references)?captionRow.editorial.engineering_card_references:[];
+   copy.querySelectorAll(".model-note-cards article").forEach((card,index)=>{
+    const source=referenceRows.find(x=>x.index===index);
+    if(!source||typeof source.url!=="string"||!/^https:\/\//.test(source.url)||typeof source.label!=="string")return;
+    const link=document.createElement("a");link.href=source.url;link.target="_blank";link.rel="noopener noreferrer";link.className="model-feature-official-source";link.textContent="View "+source.label+" ↗";card.append(link);
+   });
+
    if(heading&&typeof modelDisplayCopy.model_development_heading==="string")heading.textContent=modelDisplayCopy.model_development_heading;
    const {data,error}=await client.from("anybike_editorial_photo_bank")
     .select("asset_key,title,model,subject_category,image_url,source_page_url,attribution,model_year_start,model_year_end")
