@@ -16,7 +16,7 @@ function walk(dir=''){
   else if(entry.isFile()&&entry.name.endsWith('.html'))out.push(rel);
  }return out;
 }
-function meta(html,name){let m=[...html.matchAll(/<meta\b[^>]*>/gi)].find(x=>new RegExp('name=["\\\']'+name+'["\\\']','i').test(x[0]));return m?.[0].match(/content=["']([^"']*)/i)?.[1]||'';}
+function meta(html,name){const tag=[...html.matchAll(/<meta\b[^>]*>/gi)].map(x=>x[0]).find(x=>x.toLowerCase().includes('name="'+name.toLowerCase()+'"')||x.toLowerCase().includes("name='"+name.toLowerCase()+"'"));return tag?.match(/content=["']([^"']*)/i)?.[1]||'';}
 function canonical(html){return [...html.matchAll(/<link\b[^>]*>/gi)].map(x=>x[0]).filter(x=>/rel=["']canonical["']/i.test(x)).map(x=>x.match(/href=["']([^"']*)/i)?.[1]).filter(Boolean)[0]||'';}
 function classify(rel){
  const html=fs.readFileSync(path.join(ROOT,rel),'utf8');
