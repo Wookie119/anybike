@@ -517,7 +517,7 @@ if(guide){
  const colours=editorial.colours;
  if(colours.length){
   const groups=new Map();
-  colours.forEach(x=>{const recordedYear=String(x.model_year||"Year not specified");const year=guide.colour_year_labels?.[recordedYear]||recordedYear;if(!groups.has(year))groups.set(year,[]);groups.get(year).push(x)});
+  colours.forEach(x=>{const recordedYear=String(x.model_year||"Year not specified");const year=guide.ui_strings?.test_display_override||guide.colour_year_labels?.[recordedYear]||recordedYear;if(!groups.has(year))groups.set(year,[]);groups.get(year).push(x)});
   for(const [year,additions] of Object.entries(guide.supplemental_factory_colours||{})){
    if(!Array.isArray(additions))continue;
    const existing=groups.get(year)||[];
@@ -525,8 +525,8 @@ if(guide){
    groups.set(year,existing);
   }
   const sections=[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).map(([year,items])=>
-   '<h3 class="factory-colour-year">'+esc(year)+'</h3><div class="factory-colour-grid">'+items.map(x=>
-    '<article class="factory-colour-card"><strong>'+esc(x.name)+'</strong>'+(x.variant?'<span>'+esc(x.variant)+'</span>':"")+(x.market?'<span>Market: '+esc(x.market)+'</span>':"")+(x.source?' <a href="'+esc(x.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer reference ↗</a>':"")+'</article>').join("")+'</div>').join("");
+   '<h3 class="factory-colour-year">'+esc(guide.ui_strings?.test_display_override||year)+'</h3><div class="factory-colour-grid">'+items.map(x=>
+    '<article class="factory-colour-card"><strong>'+esc(x.name)+'</strong>'+(x.variant?'<span>'+esc(x.variant)+'</span>':"")+(x.market?'<span>Market: '+esc(x.market)+'</span>':"")+(x.source?' <a href="'+esc(x.source)+'" target="_blank" rel="noopener noreferrer">'+esc(guide.ui_strings?.manufacturer_info_link||'')+'</a>':"")+'</article>').join("")+'</div>').join("");
   const panel=document.createElement("section");panel.className="card factory-colours-section";
   panel.innerHTML='<h2>'+esc(guide.technical_section_copy?.colours?.heading||'')+'</h2><p>'+esc(guide.technical_section_copy?.colours?.description||'')+'</p>'+sections;
   el("body").appendChild(panel);
@@ -536,7 +536,8 @@ if(guide){
  const spec=editorial.specifications.find(x=>Number(x.model_year)===referenceYear)||editorial.specifications[0]||{};
  const specCopy=guide.technical_spec_display||{};
  const missing=specCopy.missing_reference||"";
- const figureRows=[[specCopy.engine_label||"",spec.engine_cc?Number(spec.engine_cc).toLocaleString("en-GB")+(specCopy.engine_suffix||""):missing],[specCopy.power_label||"",spec.power_hp?spec.power_hp+(specCopy.power_suffix||""):missing],[specCopy.torque_label||"",spec.torque_nm?spec.torque_nm+(specCopy.torque_suffix||""):missing],...editorial.engineeringRows];
+ const testSpec=guide.ui_strings?.test_display_override||"";
+ const figureRows=[[specCopy.engine_label||"",testSpec|| (spec.engine_cc?Number(spec.engine_cc).toLocaleString("en-GB")+(specCopy.engine_suffix||""):missing)],[specCopy.power_label||"",testSpec|| (spec.power_hp?spec.power_hp+(specCopy.power_suffix||""):missing)],[specCopy.torque_label||"",testSpec|| (spec.torque_nm?spec.torque_nm+(specCopy.torque_suffix||""):missing)],...editorial.engineeringRows];
  const panel=document.createElement("section");panel.className="card model-tech-summary";
  panel.innerHTML='<h2>'+esc(guide.technical_section_copy?.engineering?.heading||'')+'</h2><p>'+esc(guide.technical_section_copy?.engineering?.description||'')+'</p><dl class="model-tech-grid">'+figureRows.map(([label,value])=>'<div><dt>'+esc(label)+'</dt><dd>'+esc(value)+'</dd></div>').join("")+'</dl>';
  el("body").appendChild(panel);
