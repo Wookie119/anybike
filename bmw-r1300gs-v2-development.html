@@ -453,7 +453,7 @@ el("heading").textContent=actualMake+" "+actualModel;const crumb=el("crumbModel"
 const parent=el("parent");if(parent){parent.href=brandUrl;parent.textContent=actualMake;}
 el("source").href="/bulk-buying-request.html?make="+encodeURIComponent(actualMake)+"&model="+encodeURIComponent(actualModel);// The bottom sourcing action is configured by guide.action_links above.
 if(!Array.isArray(guide.hero?.paragraphs)||!guide.hero.paragraphs.length)el("summary").textContent=guide?.summary||"";
-const add=(title,html,feature=false)=>{const item=document.createElement("section");item.className="card"+(feature?" feature":"");const evidence=title==="Manufacturer production and launch evidence"||title==="Official BMW photograph galleries";item.classList.toggle("model-evidence",evidence);item.innerHTML=evidence?"<details><summary>"+esc(title)+" <span class=\"evidence-hint\">View sources and photographs</span></summary><div class=\"evidence-content\">"+html+"</div></details>":"<h2>"+esc(title)+"</h2>"+html;(evidence?document.querySelector("#modelSources .model-sources-inner"):el("body")).appendChild(item)};
+const add=(title,html,feature=false)=>{const item=document.createElement("section");item.className="card"+(feature?" feature":"");const evidence=title===guide.production_evidence_copy?.heading||title===guide.official_gallery_copy?.heading;item.classList.toggle("model-evidence",evidence);item.innerHTML=evidence?"<details><summary>"+esc(title)+" <span class=\"evidence-hint\">View sources and photographs</span></summary><div class=\"evidence-content\">"+html+"</div></details>":"<h2>"+esc(title)+"</h2>"+html;(evidence?document.querySelector("#modelSources .model-sources-inner"):el("body")).appendChild(item)};
 if(guide){
 
  el("years").textContent=typeof guide.hero?.years==="string"?guide.hero.years:"";
@@ -493,9 +493,10 @@ if(guide){
   showGeneration(0);
  }
 
- const officialGalleries=generations.filter(g=>g.official_photo_gallery_url&&/^https:\/\/www\.press\.bmwgroup\.com\//.test(g.official_photo_gallery_url));
+ const galleryCopy=guide.official_gallery_copy||{};
+ const officialGalleries=generations.filter(g=>{try{const u=new URL(g.official_photo_gallery_url);return u.protocol==="https:"&&u.hostname===galleryCopy.allowed_host;}catch{return false;}});
  if(officialGalleries.length){
-  add("Official BMW photograph galleries",'<p>View generation-specific photographs on the BMW Group PressClub website. The images remain on BMW’s website and are not republished by AnyBike.</p><ul class="facts">'+officialGalleries.map(g=>'<li><strong>'+esc(g.label)+'</strong> — <a href="'+esc(g.official_photo_gallery_url)+'" target="_blank" rel="noopener noreferrer">View BMW photographs ↗</a></li>').join("")+'</ul>');
+  add(galleryCopy.heading||"",'<p>'+esc(galleryCopy.description||"")+'</p><ul class="facts">'+officialGalleries.map(g=>'<li><strong>'+esc(g.label)+'</strong> — <a href="'+esc(g.official_photo_gallery_url)+'" target="_blank" rel="noopener noreferrer">'+esc(galleryCopy.link_label||"")+'</a></li>').join("")+'</ul>');
  }
  if(guide.global_stories){
  const story=guide.global_stories||{};
@@ -525,7 +526,9 @@ if(guide){
  if(Array.isArray(editorial.specifications)&&editorial.specifications.length){
  const referenceYear=Number(guide.production?.reference_model_year||editorial.specifications[0]?.model_year);
  const spec=editorial.specifications.find(x=>Number(x.model_year)===referenceYear)||editorial.specifications[0]||{};
- const figureRows=[["Engine",spec.engine_cc?Number(spec.engine_cc).toLocaleString("en-GB")+" cc ShiftCam boxer":"See manufacturer reference"],["Output",spec.power_hp?spec.power_hp+" hp":"See manufacturer reference"],["Peak torque",spec.torque_nm?spec.torque_nm+" Nm":"See manufacturer reference"],...editorial.engineeringRows];
+ const specCopy=guide.technical_spec_display||{};
+ const missing=specCopy.missing_reference||"";
+ const figureRows=[[specCopy.engine_label||"",spec.engine_cc?Number(spec.engine_cc).toLocaleString("en-GB")+(specCopy.engine_suffix||""):missing],[specCopy.power_label||"",spec.power_hp?spec.power_hp+(specCopy.power_suffix||""):missing],[specCopy.torque_label||"",spec.torque_nm?spec.torque_nm+(specCopy.torque_suffix||""):missing],...editorial.engineeringRows];
  const panel=document.createElement("section");panel.className="card model-tech-summary";
  panel.innerHTML='<h2>'+esc(guide.technical_section_copy?.engineering?.heading||'')+'</h2><p>'+esc(guide.technical_section_copy?.engineering?.description||'')+'</p><dl class="model-tech-grid">'+figureRows.map(([label,value])=>'<div><dt>'+esc(label)+'</dt><dd>'+esc(value)+'</dd></div>').join("")+'</dl>';
  el("body").appendChild(panel);
