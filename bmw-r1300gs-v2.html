@@ -326,7 +326,7 @@ const {data:publishedEditorial,error:editorialError}=await editorialClient
 if(editorialError||!publishedEditorial?.editorial)throw Error("Published BMW model editorial data unavailable");
 const guide=publishedEditorial.editorial;
 if(guide.make!=="BMW"||guide.model!=="R 1300 GS")throw Error("BMW editorial identity mismatch");
-const row={make:"BMW",model:"R 1300 GS",category:"Adventure"};
+const row={make:guide.make,model:guide.model,category:guide.page_metadata?.category||""};
 const catalogue={models:[]};
 const actualMake=guide.make,actualModel=guide.model;
 // Shared, model-identity-checked editorial contract. Never loads unpublished or private data.
@@ -432,16 +432,16 @@ if(timelineContainer){
  (typeof guide.model_year_timeline_reference?.url==="string"&&/^https:\/\//.test(guide.model_year_timeline_reference.url)?'<a href="'+esc(guide.model_year_timeline_reference.url)+'" target="_blank" rel="noopener noreferrer">'+esc(guide.model_year_timeline_reference.label||"Manufacturer reference")+'</a>':"");
 }
 
-document.title=actualMake+" "+actualModel+" | Motorcycle Model Guide | AnyBike";
-const pageDescription="Explore documented "+actualMake+" "+actualModel+" generations, technical specifications and UK motorcycle sourcing through AnyBike.";
-const modelUrl="https://www.anybike.co.uk/bmw-r1300gs.html";
+document.title=actualMake+" "+actualModel+" | "+(guide.page_metadata?.title_suffix||"AnyBike");
+const pageDescription=guide.page_metadata?.description||"";
+const modelUrl=guide.page_metadata?.canonical_url||"";
 el("modelCanonical").href=modelUrl;document.querySelector('meta[property="og:url"]').content=modelUrl;
 document.querySelector('meta[name="description"]').content=pageDescription;
 document.querySelector('meta[property="og:title"]').content=document.title;
 document.querySelector('meta[property="og:description"]').content=pageDescription;
 document.querySelector('meta[name="twitter:title"]').content=document.title;
 document.querySelector('meta[name="twitter:description"]').content=pageDescription;
-const brandUrl=actualMake==="BMW"?"/bmw-motorcycles.html":"/motorcycle-brand.html?make="+encodeURIComponent(actualMake);
+const brandUrl=guide.page_metadata?.manufacturer_url||"";
 el("heading").textContent=actualMake+" "+actualModel;const crumb=el("crumbModel");if(crumb)crumb.textContent=actualModel;el("category").textContent=row?.category||"Motorcycle model";
 const parent=el("parent");if(parent){parent.href=brandUrl;parent.textContent=actualMake;}
 el("source").href="/bulk-buying-request.html?make="+encodeURIComponent(actualMake)+"&model="+encodeURIComponent(actualModel);// The bottom sourcing action is configured by guide.action_links above.
