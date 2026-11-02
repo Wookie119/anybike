@@ -39,6 +39,9 @@ assert.ok(preview.includes("guide.development_section_labels||{}"),"Timeline and
 assert.ok(preview.includes("guide.model_section_introductions||{}"),"Timeline and documented specification introductions must come from Supabase");
 assert.ok(preview.includes("guide.page_metadata?.description"),"Preview metadata description must come from Supabase");
 assert.ok(preview.includes("guide.supplemental_factory_colours||{}"),"2026 colour additions must originate in Supabase");
+assert.ok(preview.includes("guide.colour_year_labels?.[recordedYear]"),"Colour year labels must come from database");
+assert.ok(!preview.includes('if(false && related.length)'),"Dead hardcoded related-model generator must be absent");
+assert.ok(preview.includes("production?.reference_model_year"),"Engineering photo selection should read model-year from Supabase");
 assert.ok(preview.includes("guide.section_rendering_rules?.hidden_legacy_sections"),"Suppressed duplicate sections must come from Supabase");
 assert.ok(preview.includes("window.__anybikeV2ModelIdentity={make:actualMake,model:actualModel}"),"Enquiry model identity must be database-derived");
 assert.ok(preview.includes('eq("manufacturer",captionRow?.editorial?.make||"")'),"Gallery identity must be database-derived");
