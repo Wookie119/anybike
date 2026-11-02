@@ -45,6 +45,8 @@ for(const section of ["uk_selling","international_stock","international_enquiry"
 assert.ok(preview.includes("guide.customer_copy||{}"),"Customer editorial content must be loaded from Supabase");
 for(const section of ["related_models","motorcycle_types","country_markets"]){assert.ok(preview.includes(`data-v2-section="${section}:heading"`),`Navigation section ${section} must use Supabase editorial copy`);}
 assert.ok(preview.includes("guide.navigation_copy||{}"),"Navigation copy must come from Supabase");
+assert.ok(preview.includes("guide.technical_section_copy?.colours?.heading"),"Factory colours introduction must be database-driven");
+assert.ok(preview.includes("guide.technical_section_copy?.engineering?.heading"),"Engineering overview introduction must be database-driven");
 assert.ok(preview.includes("guide.action_links"),"Model-specific customer CTAs must come from Supabase");
 assert.ok(preview.includes("guide.enquiry_form_copy||{}"),"Enquiry form display copy must come from Supabase");
 assert.ok(preview.includes("gallery_display_copy||{}"),"Gallery headings must come from Supabase");
