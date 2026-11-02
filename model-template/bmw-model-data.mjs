@@ -26,6 +26,7 @@ export function normalizeModelGuide(key,guide,catalogueModel){
   history:stringValue(guide.years),
   generations,milestones,specifications,colours,
   productionEndYear:production.production_end_year??null,
+  engineeringRows:Array.isArray(guide.engineering_reference?.rows)?guide.engineering_reference.rows.filter(r=>Array.isArray(r)&&r.length===2&&r.every(v=>typeof v==='string')):[],
   // Photos without explicit republication rights must NEVER be used as images.
   gallery:[],
   photoStatus:"awaiting-approved-rights-and-model-specific-images",
