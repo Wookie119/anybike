@@ -18,5 +18,9 @@ for(const [key,name] of [["bmw-r1300gs","R 1300 GS"],["bmw-r1250gs","R 1250 GS"]
  console.log("PASS",result.heading,"milestones:",result.milestones.length,"specifications:",result.specifications.length);
 }
 assert.throws(()=>normalizeModelGuide("bmw-unknown",{},{}));
-assert.ok(fs.readFileSync("bmw-r1300gs-v2.html","utf8").includes('content="noindex,follow"'),"V2 preview must remain noindex");
+const preview=fs.readFileSync("bmw-r1300gs-v2.html","utf8");
+assert.ok(preview.includes('content="noindex,follow"'),"V2 preview must remain noindex");
+assert.ok(preview.includes('import("/model-template/bmw-model-data.mjs")'),"V2 must import the shared model adapter");
+assert.ok(preview.includes('normalizeModelGuide("bmw-r1300gs",guide,row)'),"V2 must validate published model identity");
+assert.ok(preview.includes('editorial.specifications.find('),"Technical figures must consume source-backed shared specifications");
 console.log("PASS: locked preview and both model records retain safe shared data contract");
