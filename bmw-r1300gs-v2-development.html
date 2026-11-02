@@ -331,6 +331,7 @@ for(const node of document.querySelectorAll("[data-db-deep]"))node.textContent=g
 for(const node of document.querySelectorAll("[data-db-generation]"))node.textContent=guide.generation_ui_copy?.[node.dataset.dbGeneration]||"";
 document.querySelectorAll("#generationCompare th").forEach((node,i)=>{node.textContent=guide.generation_ui_copy?.compare_headers?.[i]||"";});
 window.__anybikeV2Editorial=guide;
+window.__anybikeV2UiStrings=guide.ui_strings||{};
 window.__anybikeV2EditorialClient=editorialClient;
 window.__r1300EngineeringMedia=guide.engineering_gallery_media||{};
 if(!guide.make||!guide.model||publishedEditorial.model_id!==77||publishedEditorial.slug!=="bmw-r-1300-gs")throw Error("Model editorial identity mismatch");
@@ -402,7 +403,7 @@ if(heroFigure&&heroImage&&heroCredit){
  if(typeof photo.url==="string"&&/^https:\/\//.test(photo.url)&&typeof photo.source_url==="string"&&/^https:\/\//.test(photo.source_url)){
   heroImage.src=photo.url;heroImage.alt=typeof photo.alt==="string"?photo.alt:actualMake+" "+actualModel;
   heroCredit.textContent=typeof photo.credit==="string"?photo.credit+" · ":"";
-  const creditLink=document.createElement("a");creditLink.href=photo.source_url;creditLink.target="_blank";creditLink.rel="noopener noreferrer";creditLink.textContent=photo.source_label||"Image source and attribution";heroCredit.append(creditLink);
+  const creditLink=document.createElement("a");creditLink.href=photo.source_url;creditLink.target="_blank";creditLink.rel="noopener noreferrer";creditLink.textContent=photo.source_label||guide.ui_strings?.photo_source_fallback||"";heroCredit.append(creditLink);
   heroFigure.hidden=false;
  }
 }
@@ -454,7 +455,7 @@ document.querySelector('meta[property="og:description"]').content=pageDescriptio
 document.querySelector('meta[name="twitter:title"]').content=document.title;
 document.querySelector('meta[name="twitter:description"]').content=pageDescription;
 const brandUrl=guide.page_metadata?.manufacturer_url||"";
-el("heading").textContent=actualMake+" "+actualModel;const crumb=el("crumbModel");if(crumb)crumb.textContent=actualModel;el("category").textContent=row?.category||"Motorcycle model";
+el("heading").textContent=actualMake+" "+actualModel;const crumb=el("crumbModel");if(crumb)crumb.textContent=actualModel;el("category").textContent=row?.category||guide.ui_strings?.category_fallback||"";
 const parent=el("parent");if(parent){parent.href=brandUrl;parent.textContent=actualMake;}
 el("source").href="/bulk-buying-request.html?make="+encodeURIComponent(actualMake)+"&model="+encodeURIComponent(actualModel);// The bottom sourcing action is configured by guide.action_links above.
 if(!Array.isArray(guide.hero?.paragraphs)||!guide.hero.paragraphs.length)el("summary").textContent=guide?.summary||"";
@@ -486,7 +487,7 @@ if(guide){
    if(g.specifications_follow_reference_version)specs.push("Equipment update — base model specifications apply; confirm specific year");
    const photo=g.image&&g.image.permission_status==="approved"&&g.image.url&&g.image.attribution?'<figure class="generation-photo"><img loading="lazy" src="'+esc(g.image.url)+'" alt="'+esc(actualMake+" "+actualModel+" — "+g.label+" motorcycle photograph")+'"><figcaption>'+esc(g.image.attribution)+'</figcaption></figure>':"";
    const kindLabels={model:"Original model",engineering_update:"Engineering update",power_variant:"Power variant",equipment_update:"Equipment update",colour_update:"Colour update",related_derivative:"Related derivative"};const kind=g.entry_kind&&kindLabels[g.entry_kind]?" · "+kindLabels[g.entry_kind]:"";
-   detail.innerHTML=photo+"<h3>"+esc(g.label)+"</h3><p class='meta'>"+esc(g.model_year||"Documented version")+esc(kind)+(g.announcement_year?" · Announced "+esc(g.announcement_year):"")+"</p><div class='generation-specs'>"+specs.map(x=>"<span>"+esc(x)+"</span>").join("")+"</div><p>"+esc(generations.length===1?(guide.original_generation_description||g.description||""):g.description||"")+"</p>"+(g.source?'<a href="'+esc(g.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer technical reference ↗</a>':"")+(g.official_photo_gallery_url?' <a href="'+esc(g.official_photo_gallery_url)+'" target="_blank" rel="noopener noreferrer">View manufacturer photographs ↗</a>':"");
+   detail.innerHTML=photo+"<h3>"+esc(g.label)+"</h3><p class='meta'>"+esc(g.model_year||guide.ui_strings?.generation_documented_version||"")+esc(kind)+(g.announcement_year?" · "+esc(guide.ui_strings?.generation_announced||"")+esc(g.announcement_year):"")+"</p><div class='generation-specs'>"+specs.map(x=>"<span>"+esc(x)+"</span>").join("")+"</div><p>"+esc(generations.length===1?(guide.original_generation_description||g.description||""):g.description||"")+"</p>"+(g.source?'<a href="'+esc(g.source)+'" target="_blank" rel="noopener noreferrer">'+esc(guide.ui_strings?.generation_manufacturer_reference||"")+'</a>':"")+(g.official_photo_gallery_url?' <a href="'+esc(g.official_photo_gallery_url)+'" target="_blank" rel="noopener noreferrer">'+esc(guide.ui_strings?.generation_manufacturer_photos||"")+'</a>':"");
   };
   if(generations.length>1){
    el("generationCompare").hidden=false;
@@ -508,9 +509,9 @@ if(guide){
  if(typeof story.url==="string"&&/^\/[a-z0-9-]+\.html(?:#[a-z0-9-]+)?$/.test(story.url))add(story.title||"",'<p>'+esc(story.description||"")+'</p><p><a href="'+esc(story.url)+'">'+esc(story.link_label||"")+'</a></p>');
  }
  const milestones=editorial.milestones;
- if(milestones.length&&!generations.length)add("Model development",'<ul class="facts">'+milestones.map(g=>'<li><strong>'+esc(g.model_year)+(g.name?" · "+esc(g.name):"")+'</strong> — '+esc(g.change)+(g.source?' <a href="'+esc(g.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer information ↗</a>':"")+'</li>').join("")+"</ul>",true);
+ if(milestones.length&&!generations.length)add(guide.ui_strings?.milestones_heading||"",'<ul class="facts">'+milestones.map(g=>'<li><strong>'+esc(g.model_year)+(g.name?" · "+esc(g.name):"")+'</strong> — '+esc(g.change)+(g.source?' <a href="'+esc(g.source)+'" target="_blank" rel="noopener noreferrer">'+esc(guide.ui_strings?.manufacturer_info_link||"")+'</a>':"")+'</li>').join("")+"</ul>",true);
  const specs=editorial.specifications;
- if(specs.length&&!generations.length)add("Technical specifications",'<ul class="facts">'+specs.map(x=>'<li><strong>'+esc(x.model_year||x.market||"Model-specific data")+(x.variant?" · "+esc(x.variant):"")+'</strong> '+[x.engine_cc?x.engine_cc+" cc":"",x.power_hp?x.power_hp+" hp":"",x.torque_nm?x.torque_nm+" Nm":"",x.battery_kwh?x.battery_kwh+" kWh battery":"",x.transmission||""].filter(Boolean).map(esc).join(" · ")+(x.source?' <a href="'+esc(x.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer information ↗</a>':"")+'</li>').join("")+"</ul>");
+ if(specs.length&&!generations.length)add(guide.ui_strings?.technical_fallback_heading||"",'<ul class="facts">'+specs.map(x=>'<li><strong>'+esc(x.model_year||x.market||guide.ui_strings?.model_specific_data||"")+(x.variant?" · "+esc(x.variant):"")+'</strong> '+[x.engine_cc?x.engine_cc+" cc":"",x.power_hp?x.power_hp+" hp":"",x.torque_nm?x.torque_nm+" Nm":"",x.battery_kwh?x.battery_kwh+" kWh battery":"",x.transmission||""].filter(Boolean).map(esc).join(" · ")+(x.source?' <a href="'+esc(x.source)+'" target="_blank" rel="noopener noreferrer">'+esc(guide.ui_strings?.manufacturer_info_link||"")+'</a>':"")+'</li>').join("")+"</ul>");
  const colours=editorial.colours;
  if(colours.length){
   const groups=new Map();
@@ -547,29 +548,29 @@ if(guide){
  });
 }else{
  add("About this model","<p>For details of model years, generations and variants, ask AnyBike about the specific motorcycle you're interested in.</p>",true);
- add("Finding a motorcycle in the UK","<p>Tell us your preferred year, specification and budget. Our team can check suitable UK sourcing opportunities for international trade buyers.</p>");
+ add(guide.ui_strings?.fallback_sourcing_heading||"","<p>"+esc(guide.ui_strings?.fallback_sourcing_body||"")+"</p>");
 }
-}catch(err){el("summary").textContent="Motorcycle information is temporarily unavailable. You can still send AnyBike a sourcing enquiry.";el("nextAction").hidden=true;}
+}catch(err){el("summary").textContent=window.__anybikeV2UiStrings?.editorial_error||"";el("nextAction").hidden=true;}
 })();</script><script>
 (function(){
 const ENDPOINT="https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/";
 // Model identity is available only after the read-only editorial query succeeds.
 const form=document.getElementById("internationalGuestRequestForm"),status=document.getElementById("internationalGuestRequestStatus");
 form.addEventListener("submit",async e=>{
-e.preventDefault();const button=form.querySelector('button[type="submit"]');button.disabled=true;status.textContent="Sending enquiry…";
+e.preventDefault();const button=form.querySelector('button[type="submit"]');button.disabled=true;status.textContent=window.__anybikeV2UiStrings?.status_sending||"";
 const modelIdentity=window.__anybikeV2ModelIdentity;
-if(!modelIdentity?.make||!modelIdentity?.model){status.textContent="Motorcycle information is unavailable. Please refresh the page.";button.disabled=false;return;}
+if(!modelIdentity?.make||!modelIdentity?.model){status.textContent=window.__anybikeV2UiStrings?.status_identity_unavailable||"";button.disabled=false;return;}
 const values=Object.fromEntries(new FormData(form).entries());
 const checks=[["name","full name"],["email","email address"],["country","country"],["message","message"]];const missing=checks.filter(([key])=>!String(values[key]||"").trim()).map(([,label])=>label);
-if(missing.length){status.textContent="Please enter your "+missing.join(", ")+". ";button.disabled=false;return;}
-if(String(values.message).trim().length<5){status.textContent="Please add a little more detail to your message.";button.disabled=false;return;}
-try{const userClient=window.supabase?.createClient?.("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");const token=(await userClient?.auth.getSession())?.data?.session?.access_token;const response=await fetch(ENDPOINT+"international-guest-enquiry",{method:"POST",headers:{"Content-Type":"application/json",...(token?{"Authorization":"Bearer "+token}:{})},body:JSON.stringify({...values,make:modelIdentity.make,model:modelIdentity.model,page:location.href})});const result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||"Could not send enquiry");status.textContent="Your enquiry has been received"+(result.reference?" · Reference "+result.reference:"")+". AnyBike will contact you. Registration is only required before completing a purchase.";form.reset();}
-catch(error){status.textContent=error.message||"Could not send enquiry. Please try again.";}finally{button.disabled=false;}
+if(missing.length){status.textContent=(window.__anybikeV2UiStrings?.status_missing_prefix||"")+missing.join(", ")+". ";button.disabled=false;return;}
+if(String(values.message).trim().length<5){status.textContent=window.__anybikeV2UiStrings?.status_more_detail||"";button.disabled=false;return;}
+try{const userClient=window.supabase?.createClient?.("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");const token=(await userClient?.auth.getSession())?.data?.session?.access_token;const response=await fetch(ENDPOINT+"international-guest-enquiry",{method:"POST",headers:{"Content-Type":"application/json",...(token?{"Authorization":"Bearer "+token}:{})},body:JSON.stringify({...values,make:modelIdentity.make,model:modelIdentity.model,page:location.href})});const result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||window.__anybikeV2UiStrings?.status_send_error||"");status.textContent=(window.__anybikeV2UiStrings?.status_received||"")+(result.reference?(window.__anybikeV2UiStrings?.status_reference||"")+result.reference:"")+(window.__anybikeV2UiStrings?.status_received_suffix||"");form.reset();}
+catch(error){status.textContent=error.message||window.__anybikeV2UiStrings?.status_error||"";}finally{button.disabled=false;}
 });
 (async()=>{
 try{const authClient=window.supabase?.createClient?.("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");const session=authClient?await authClient.auth.getSession():null;const token=session?.data?.session?.access_token;const response=await fetch(ENDPOINT+"international-public-stock",{cache:"no-store",headers:token?{"Authorization":"Bearer "+token}:{}});if(!response.ok){document.getElementById("internationalGuestRequest").hidden=true;return;}const data=await response.json();const norm=v=>String(v||"").toLowerCase().replace(/[^a-z0-9]/g,"");const identity=window.__anybikeV2ModelIdentity;
 if(!identity?.make||!identity?.model)return;
-const rows=(data.items||[]).filter(b=>norm(b.make)===norm(identity.make)&&norm(b.model)===norm(identity.model)).slice(0,6);if(!rows.length)return;const cards=document.getElementById("internationalModelCards");rows.forEach(b=>{const a=document.createElement("a");a.href="/international-vq-motorcycle.html?id="+encodeURIComponent(b.item_id);a.style.cssText="padding:12px;border:1px solid #555;border-radius:10px;background:#222;color:#fff;text-decoration:none";if(b.image_url){const img=document.createElement("img");img.src=b.image_url;img.alt=[identity.make,b.model].filter(Boolean).join(" ");img.loading="lazy";img.style.cssText="width:100%;height:150px;object-fit:contain";a.append(img);}const title=document.createElement("strong");title.style.display="block";title.textContent=[identity.make,b.model,b.year].filter(Boolean).join(" ");a.append(title);const price=document.createElement("p");price.textContent=Number(b.price)>0?"£"+Number(b.price).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}):"Price on request";a.append(price);const view=document.createElement("span");view.textContent="View motorcycle →";a.append(view);cards.append(a);});document.getElementById("internationalModelStock").hidden=false;}
+const rows=(data.items||[]).filter(b=>norm(b.make)===norm(identity.make)&&norm(b.model)===norm(identity.model)).slice(0,6);if(!rows.length)return;const cards=document.getElementById("internationalModelCards");rows.forEach(b=>{const a=document.createElement("a");a.href="/international-vq-motorcycle.html?id="+encodeURIComponent(b.item_id);a.style.cssText="padding:12px;border:1px solid #555;border-radius:10px;background:#222;color:#fff;text-decoration:none";if(b.image_url){const img=document.createElement("img");img.src=b.image_url;img.alt=[identity.make,b.model].filter(Boolean).join(" ");img.loading="lazy";img.style.cssText="width:100%;height:150px;object-fit:contain";a.append(img);}const title=document.createElement("strong");title.style.display="block";title.textContent=[identity.make,b.model,b.year].filter(Boolean).join(" ");a.append(title);const price=document.createElement("p");price.textContent=Number(b.price)>0?"£"+Number(b.price).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}):window.__anybikeV2UiStrings?.price_on_request||"";a.append(price);const view=document.createElement("span");view.textContent=window.__anybikeV2UiStrings?.view_motorcycle||"";a.append(view);cards.append(a);});document.getElementById("internationalModelStock").hidden=false;}
 catch(e){document.getElementById("internationalGuestRequest").hidden=true;console.warn("International model stock unavailable",e);}
 })();
 })();
@@ -715,12 +716,12 @@ catch(e){document.getElementById("internationalGuestRequest").hidden=true;consol
    const link=document.createElement("a");
    link.href=row.market_url||row.href;
    link.textContent=(row.flag?row.flag+" ":"")+name;
-   link.setAttribute("aria-label","Explore AnyBike motorcycle market information for "+name);
+   link.setAttribute("aria-label",(window.__anybikeV2UiStrings?.market_aria_prefix||"")+name);
    fragment.append(link);
   });
   const all=document.createElement("a");
   all.href="/international-markets.html";
-  all.textContent="More countries →";
+  all.textContent=window.__anybikeV2UiStrings?.more_countries||"";
   fragment.append(all);nav.replaceChildren(fragment);
  }
  try{
