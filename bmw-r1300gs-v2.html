@@ -452,7 +452,7 @@ el("source").href="/bulk-buying-request.html?make="+encodeURIComponent(actualMak
 if(!Array.isArray(guide.hero?.paragraphs)||!guide.hero.paragraphs.length)el("summary").textContent=guide?.summary||"";
 const add=(title,html,feature=false)=>{const item=document.createElement("section");item.className="card"+(feature?" feature":"");const evidence=title==="Manufacturer production and launch evidence"||title==="Official BMW photograph galleries";item.classList.toggle("model-evidence",evidence);item.innerHTML=evidence?"<details><summary>"+esc(title)+" <span class=\"evidence-hint\">View sources and photographs</span></summary><div class=\"evidence-content\">"+html+"</div></details>":"<h2>"+esc(title)+"</h2>"+html;(evidence?document.querySelector("#modelSources .model-sources-inner"):el("body")).appendChild(item)};
 if(guide){
- if(actualMake==="BMW"){
+ if(false){
  const related=catalogue.models.filter(x=>x.make==="BMW"&&x.model!==actualModel&&x.category===row?.category).slice(0,4);
  if(false && related.length)add("Explore related BMW models",'<p>Compare other BMW motorcycles in this category.</p><nav class="guide-links" aria-label="Related BMW motorcycles">'+related.map(x=>'<a href="/bmw-'+x.model.toLowerCase().replace(/[^a-z0-9]+/g,"")+'.html">'+esc("BMW "+x.model)+' →</a>').join("")+'</nav>');
 }
@@ -481,7 +481,7 @@ if(guide){
    if(g.specifications_follow_reference_version)specs.push("Equipment update — base model specifications apply; confirm specific year");
    const photo=g.image&&g.image.permission_status==="approved"&&g.image.url&&g.image.attribution?'<figure class="generation-photo"><img loading="lazy" src="'+esc(g.image.url)+'" alt="'+esc(actualMake+" "+actualModel+" — "+g.label+" motorcycle photograph")+'"><figcaption>'+esc(g.image.attribution)+'</figcaption></figure>':"";
    const kindLabels={model:"Original model",engineering_update:"Engineering update",power_variant:"Power variant",equipment_update:"Equipment update",colour_update:"Colour update",related_derivative:"Related derivative"};const kind=g.entry_kind&&kindLabels[g.entry_kind]?" · "+kindLabels[g.entry_kind]:"";
-   detail.innerHTML=photo+"<h3>"+esc(g.label)+"</h3><p class='meta'>"+esc(g.model_year||"Documented version")+esc(kind)+(g.announcement_year?" · Announced "+esc(g.announcement_year):"")+"</p><div class='generation-specs'>"+specs.map(x=>"<span>"+esc(x)+"</span>").join("")+"</div><p>"+esc(actualMake==="BMW"&&actualModel==="R 1300 GS"&&generations.length===1?(guide.original_generation_description||g.description||""):g.description||"")+"</p>"+(g.source?'<a href="'+esc(g.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer technical reference ↗</a>':"")+(g.official_photo_gallery_url?' <a href="'+esc(g.official_photo_gallery_url)+'" target="_blank" rel="noopener noreferrer">View manufacturer photographs ↗</a>':"");
+   detail.innerHTML=photo+"<h3>"+esc(g.label)+"</h3><p class='meta'>"+esc(g.model_year||"Documented version")+esc(kind)+(g.announcement_year?" · Announced "+esc(g.announcement_year):"")+"</p><div class='generation-specs'>"+specs.map(x=>"<span>"+esc(x)+"</span>").join("")+"</div><p>"+esc(generations.length===1?(guide.original_generation_description||g.description||""):g.description||"")+"</p>"+(g.source?'<a href="'+esc(g.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer technical reference ↗</a>':"")+(g.official_photo_gallery_url?' <a href="'+esc(g.official_photo_gallery_url)+'" target="_blank" rel="noopener noreferrer">View manufacturer photographs ↗</a>':"");
   };
   if(generations.length>1){
    el("generationCompare").hidden=false;
@@ -494,12 +494,12 @@ if(guide){
  }
 
  const officialGalleries=generations.filter(g=>g.official_photo_gallery_url&&/^https:\/\/www\.press\.bmwgroup\.com\//.test(g.official_photo_gallery_url));
- if(actualMake==="BMW"&&officialGalleries.length){
+ if(officialGalleries.length){
   add("Official BMW photograph galleries",'<p>View generation-specific photographs on the BMW Group PressClub website. The images remain on BMW’s website and are not republished by AnyBike.</p><ul class="facts">'+officialGalleries.map(g=>'<li><strong>'+esc(g.label)+'</strong> — <a href="'+esc(g.official_photo_gallery_url)+'" target="_blank" rel="noopener noreferrer">View BMW photographs ↗</a></li>').join("")+'</ul>');
  }
- if(actualMake==="BMW"){
+ if(guide.global_stories){
  const story=guide.global_stories||{};
- if(typeof story.url==="string"&&/^\/bmw-motorcycles\.html(?:#[a-z0-9-]+)?$/.test(story.url))add(story.title||"",'<p>'+esc(story.description||"")+'</p><p><a href="'+esc(story.url)+'">'+esc(story.link_label||"")+'</a></p>');
+ if(typeof story.url==="string"&&/^\/[a-z0-9-]+\.html(?:#[a-z0-9-]+)?$/.test(story.url))add(story.title||"",'<p>'+esc(story.description||"")+'</p><p><a href="'+esc(story.url)+'">'+esc(story.link_label||"")+'</a></p>');
  }
  const milestones=editorial.milestones;
  if(milestones.length&&!generations.length)add("Model development",'<ul class="facts">'+milestones.map(g=>'<li><strong>'+esc(g.model_year)+(g.name?" · "+esc(g.name):"")+'</strong> — '+esc(g.change)+(g.source?' <a href="'+esc(g.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer information ↗</a>':"")+'</li>').join("")+"</ul>",true);
@@ -508,7 +508,7 @@ if(guide){
  const colours=editorial.colours;
  if(colours.length){
   const groups=new Map();
-  colours.forEach(x=>{const recordedYear=String(x.model_year||"Year not specified");const year=recordedYear==="2023"?"2024 model year (announced 2023)":recordedYear;if(!groups.has(year))groups.set(year,[]);groups.get(year).push(x)});
+  colours.forEach(x=>{const recordedYear=String(x.model_year||"Year not specified");const year=guide.colour_year_labels?.[recordedYear]||recordedYear;if(!groups.has(year))groups.set(year,[]);groups.get(year).push(x)});
   for(const [year,additions] of Object.entries(guide.supplemental_factory_colours||{})){
    if(!Array.isArray(additions))continue;
    const existing=groups.get(year)||[];
@@ -659,8 +659,9 @@ catch(e){document.getElementById("internationalGuestRequest").hidden=true;consol
     original.insertBefore(panel.cloneNode(true),original.querySelector(".model-notes-label"));
    }
    const categories=Array.isArray(captionRow?.editorial?.engineering_photo_categories)?captionRow.editorial.engineering_photo_categories:[];
+   const referenceYear=Number(captionRow?.editorial?.production?.reference_model_year||captionRow?.editorial?.production?.generations?.[0]?.model_year||2024);
    copy.querySelectorAll(".model-note-cards article").forEach((card,index)=>{
-    const chosen=approvedPhotos.find(p=>p.subject_category===categories[index]&&(!p.model_year_start||p.model_year_start<=2024)&&(!p.model_year_end||p.model_year_end>=2024));
+    const chosen=approvedPhotos.find(p=>p.subject_category===categories[index]&&(!p.model_year_start||p.model_year_start<=referenceYear)&&(!p.model_year_end||p.model_year_end>=referenceYear));
     if(!chosen)return;
     const img=card.querySelector(".model-card-bike-photo");
     if(!img)return;
