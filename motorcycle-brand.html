@@ -406,15 +406,18 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
     url.hash='';
     const brand=url.searchParams.get('make');
     const title=(brand?brand+' Motorcycles':'Motorcycle Manufacturers')+' | AnyBike';
-    const data={title,text:'Explore '+(brand||'motorcycle')+' models, history and stories on AnyBike.',url:url.href};
+    const sharingPilots={honda:'/share/honda.html',yamaha:'/share/yamaha.html',ducati:'/share/ducati.html'};
+    const pilot=sharingPilots[String(brand||'').trim().toLowerCase()];
+    const shareUrl=pilot?new URL(pilot,window.location.origin).href:url.href;
+    const data={title,text:'Explore '+(brand||'motorcycle')+' models, history and stories on AnyBike.',url:shareUrl};
     try{
       if(navigator.share){await navigator.share(data);return;}
       if(navigator.clipboard&&window.isSecureContext){
-        await navigator.clipboard.writeText(url.href);
+        await navigator.clipboard.writeText(shareUrl);
         feedback.textContent='Link copied — ready to share.';
         return;
       }
-      window.prompt('Copy this link to share:',url.href);
+      window.prompt('Copy this link to share:',shareUrl);
     }catch(e){if(e.name!=='AbortError')feedback.textContent='Could not share. Copy the page address from your browser.';}
   });
 })();
