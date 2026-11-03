@@ -5,9 +5,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 const ROOT=process.cwd(), BASE='https://www.anybike.co.uk/';
 const ignored=new Set(['.git','node_modules','.github','assets','images','img','supabase','scripts','tests','test','design','data','docs','backups','archive']);
-const protectedNames=/^(admin[-.]|dealer[-.]|customer[-.]|my-|seller-add-photos|shipper-|move-driver|move-collection|candidate-motorcycle|final-invoice|proforma|verify|confirm-email|v\.html|login|register|sign-|auth|deal-360|stock-import|bike-details|available-stock|motorcycle-model-library|bmw-r1300gs-v2|international-stock-preview|underwrite\.html|contact-us\.html)/i;
+const protectedNames=/^(admin[-.]|dealer[-.]|customer[-.]|my-|seller-add-photos|shipper-|move-driver|move-collection|candidate-motorcycle|final-invoice|proforma|verify|confirm-email|v\.html|login|register|sign-|auth|deal-360|stock-import|bike-details|motorcycle-model-library|bmw-r1300gs-v2|international-stock-preview|underwrite\.html|contact-us\.html)/i;
 const protectedTerms=/(dashboard|account|approval|auction|bid-|invitations|messages|checkout|payment|profile|preferences|conversation|upload|quick-bid|password|reset|onboard)/i;
-const publicExceptions=new Set(['uk-dealer-guide.html','buy-motorcycles.html','sell-your-motorcycle.html','export-services.html','anybike-connect.html','motorcycle-manufacturers.html','motorcycle-types.html','international-markets.html','anybike-global.html','index.html']);
+const publicExceptions=new Set(['uk-dealer-guide.html','buy-motorcycles.html','sell-your-motorcycle.html','export-services.html','anybike-connect.html','motorcycle-manufacturers.html','motorcycle-types.html','international-markets.html','anybike-global.html','available-stock.html','index.html']);
 function walk(dir=''){
  let out=[];
  for(const entry of fs.readdirSync(path.join(ROOT,dir),{withFileTypes:true})){
