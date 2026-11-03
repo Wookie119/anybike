@@ -8,7 +8,8 @@ const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
 const escape=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const target=document.querySelector("#body");
 if(!target)return;
-const relatedUrl=(make,model)=>"/motorcycle-model-guide.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);
+// BMW has dedicated, indexable model pages. Keep other makes on their existing guide route until verified dedicated pages exist.
+const relatedUrl=(make,model)=>norm(make)==="bmw" ? "/bmw-"+norm(model)+".html" : "/motorcycle-model-guide.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);
 Promise.allSettled([
 fetch("/data/motorcycle-catalogue-master.json").then(r=>{if(!r.ok)throw Error("catalogue");return r.json()}),
 fetch("/anybike-global.html").then(r=>{if(!r.ok)throw Error("Global");return r.text()})
