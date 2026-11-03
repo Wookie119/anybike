@@ -529,56 +529,6 @@ async function moveSellerPhoto(imageId,direction,button){
   await loadSellerSubmissionComparisons();
  }catch(e){alert("Photo order not saved: "+String(e.message||e));button.disabled=false;button.textContent=previous;}
 }
-async function maskSellerPlate(imageId,button){
- const article=button.closest(".compare-item");
- const source=article?.querySelector(".compare-grid .image-panel:first-child img");
- if(!source?.src){alert("Original photograph is unavailable.");return;}
- if(cropEditor)cropEditor.remove();
- const modal=document.createElement("div");cropEditor=modal;
- modal.style.cssText="position:fixed;inset:0;z-index:11000;background:rgba(0,0,0,.96);overflow:auto;padding:18px;color:#fff";
- modal.innerHTML='<div style="max-width:1000px;margin:auto"><h2>Remove plate-holder lettering · Photo '+Number(imageId)+'</h2><p style="color:#ddd">Select only the narrow black strip BELOW the yellow number plate, where the white dealer lettering appears. Do not cover the road, the yellow plate or the motorcycle. The original remains private and the edited copy requires approval.</p><canvas style="display:block;max-width:100%;height:auto;touch-action:none;border:1px solid #777;background:#111"></canvas><div style="position:sticky;bottom:0;background:#161616;border-top:2px solid #ed1c24;padding:12px;margin-top:12px;display:flex;flex-wrap:wrap;gap:10px"><label style="color:#fff">Cover colour <select id="plateMaskColour" style="background:#222;color:white;padding:10px;border:1px solid #777"><option value="#111111">Black plate holder (recommended)</option><option value="#202020">Charcoal plate holder</option><option value="#f5f5f5">White</option></select></label><button id="plateMaskSave" type="button" disabled>Save masked copy ✓</button><button id="plateMaskReset" class="dark" type="button">Reset</button><button id="plateMaskCancel" class="dark" type="button">Cancel</button><p id="plateMaskStatus" role="status" style="flex-basis:100%;color:#fff;margin:0">Loading photograph…</p></div></div>';
- document.body.append(modal);
- const canvas=modal.querySelector("canvas"),ctx=canvas.getContext("2d"),status=modal.querySelector("#plateMaskStatus"),save=modal.querySelector("#plateMaskSave"),colour=modal.querySelector("#plateMaskColour");
- modal.querySelector("#plateMaskCancel").onclick=()=>{modal.remove();cropEditor=null;};
- let url;
- try{
-  const response=await fetch(source.src,{cache:"no-store"});
-  if(!response.ok)throw Error("Original photograph could not be loaded");
-  url=URL.createObjectURL(await response.blob());
-  const image=new Image();image.src=url;await image.decode();
-  const scale=Math.min(1,900/image.naturalWidth,650/image.naturalHeight);
-  canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
-  canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
-  let rectangle=null,start=null;
-  const point=e=>{const r=canvas.getBoundingClientRect();return {x:Math.max(0,Math.min(canvas.width,(e.clientX-r.left)*canvas.width/r.width)),y:Math.max(0,Math.min(canvas.height,(e.clientY-r.top)*canvas.height/r.height))}};
-  const draw=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);if(rectangle){ctx.fillStyle=colour.value;ctx.fillRect(rectangle.x,rectangle.y,rectangle.w,rectangle.h);ctx.strokeStyle="#ed1c24";ctx.lineWidth=2;ctx.strokeRect(rectangle.x,rectangle.y,rectangle.w,rectangle.h);}};
-  canvas.onpointerdown=e=>{start=point(e);canvas.setPointerCapture(e.pointerId);rectangle=null;save.disabled=true;draw();};
-  canvas.onpointermove=e=>{if(!start)return;const end=point(e);rectangle={x:Math.min(start.x,end.x),y:Math.min(start.y,end.y),w:Math.abs(end.x-start.x),h:Math.abs(end.y-start.y)};draw();};
-  canvas.onpointerup=()=>{start=null;save.disabled=!rectangle||rectangle.w<6||rectangle.h<6;status.textContent=save.disabled?"Drag a larger rectangle over the branding.":"Check the preview, then save the edited copy.";};
-  colour.onchange=draw;
-  modal.querySelector("#plateMaskReset").onclick=()=>{rectangle=null;start=null;save.disabled=true;draw();status.textContent="Select only the words on the bottom black plate strip.";};
-  draw();status.textContent="Drag closely around the white wording on the black plate holder only.";
-  save.onclick=async()=>{
-   if(!rectangle||save.disabled)return;
-   save.disabled=true;status.textContent="Saving edited photograph for review…";
-   try{
-    const output=document.createElement("canvas");
-    output.width=image.naturalWidth;output.height=image.naturalHeight;
-    const out=output.getContext("2d");
-    out.drawImage(image,0,0);
-    const scaleX=image.naturalWidth/canvas.width,scaleY=image.naturalHeight/canvas.height;
-    out.fillStyle=colour.value;
-    out.fillRect(Math.round(rectangle.x*scaleX),Math.round(rectangle.y*scaleY),Math.ceil(rectangle.w*scaleX),Math.ceil(rectangle.h*scaleY));
-    const imageData=output.toDataURL("image/jpeg",.9);
-    const {data,error}=await sb.functions.invoke("admin-crop-seller-photo",{body:{image_id:Number(imageId),image_data:imageData}});
-    if(error||!data?.success)throw Error(data?.error||error?.message||"Image save failed");
-    modal.remove();cropEditor=null;
-    await loadSellerSubmissionComparisons();
-   }catch(e){status.textContent="Could not save masked photo: "+(e.message||e);save.disabled=false;}
-  };
- }catch(e){status.textContent="Could not open photograph: "+e.message;}
- finally{if(url)URL.revokeObjectURL(url);}
-}
 async function restoreSellerPhotoForEditing(imageId,button){
  if(!confirm("Restore this photo to private review? It will remain hidden from the advert until separately approved."))return;
  button.disabled=true;const old=button.textContent;button.textContent="Restoring…";
@@ -629,7 +579,7 @@ async function loadSellerSubmissionComparisons(){
     return {...item,original_url:signedError?null:signed?.signedUrl};
   }));
   if(!document.getElementById("sellerPhotoReviewWarning"))host.insertAdjacentHTML("beforebegin",'<p id="sellerPhotoReviewWarning" style="color:#ffb020">Processed previews may still contain watermarks or branding. Review required does not mean cleaned.</p>');
-  host.innerHTML=records.length?records.map(item=>'<article class="compare-item"><div class="compare-head"><div><strong>Photo '+Number(item.image_position)+' · AB-S-'+String(sellerReviewId).padStart(6,"0")+'</strong><div class="compare-meta">Review: '+esc(item.final_status)+' · '+esc(item.processing_status)+'</div></div></div>'+(item.final_status==="rejected"?'<div style="padding:14px;margin:10px 12px;border:1px solid #ed1c24;border-radius:10px;background:#211517"><strong>Removed from advert</strong><p style="color:#ddd">This private original is retained but cannot be cleaned while rejected. Restore it for editing if you want to cover its plate logo. It stays unpublished until separately approved.</p><button type="button" onclick="restoreSellerPhotoForEditing('+Number(item.image_id)+',this)">Restore for editing</button></div>':'')+'<div style="padding:12px'+(item.final_status==="rejected"?';display:none':'')+'">'+(sellerReviewId===37?'<button type="button" class="dark" onclick="preparePetroAdvertCopy('+Number(item.image_id)+',this)">Prepare advert copy →</button> ':'')+'<button type="button" class="dark" onclick="moveSellerPhoto('+Number(item.image_id)+',\'up\',this)" title="Move this photograph earlier in the advert">↑ Earlier</button> <button type="button" class="dark" onclick="moveSellerPhoto('+Number(item.image_id)+',\'down\',this)" title="Move this photograph later in the advert">↓ Later</button> <button type="button" onclick="cleanSellerPhoto('+Number(item.image_id)+',this)">'+(item.rejection_reason==="Cleaned copy created; pending admin approval"?"Re-clean from original":"Clean")+'</button> <button type="button" class="dark" onclick="maskSellerPlate('+Number(item.image_id)+',this)">▣ Remove plate-holder words</button> <button type="button" class="dark" onclick="cropSellerPhoto('+Number(item.image_id)+',this)">✂ Crop Photo</button> <button type="button" class="dark" onclick="rotateSellerSafePhoto('+Number(item.image_id)+',\'left\',this)">↶ Rotate Left</button> <button type="button" class="dark" onclick="rotateSellerSafePhoto('+Number(item.image_id)+',\'right\',this)">↷ Rotate Right</button> <button type="button" class="dark" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'cleaning_not_needed\',this)">Cleaning not needed</button> <button type="button" class="dark" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'placeholder\',this)">Placeholder</button> <button type="button" class="dark" style="border:1px solid #a33;color:#ffb8bb" onclick="rejectSellerPhotoInCleaner('+Number(item.image_id)+',this)">✕ Remove from advert</button>'+ (item.rejection_reason==="Cleaned copy created; pending admin approval"?'<button type="button" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'approve_cleaned\',this)">Approve cleaned copy</button>':'')+'</div><div class="compare-grid">'+imagePanel("Original seller photograph — private",item.original_url,"seller-orig-"+item.image_id)+imagePanel(item.buyer_safe_url?"Processed preview — cleaning not confirmed":"Original preview only — NOT processed or approved",item.buyer_safe_url||item.original_url,"seller-safe-"+item.image_id)+'</div></article>').join(""):'<div class="empty">No photographs recorded for this submission.</div>';
+  host.innerHTML=records.length?records.map(item=>'<article class="compare-item"><div class="compare-head"><div><strong>Photo '+Number(item.image_position)+' · AB-S-'+String(sellerReviewId).padStart(6,"0")+'</strong><div class="compare-meta">Review: '+esc(item.final_status)+' · '+esc(item.processing_status)+'</div></div></div>'+(item.final_status==="rejected"?'<div style="padding:14px;margin:10px 12px;border:1px solid #ed1c24;border-radius:10px;background:#211517"><strong>Removed from advert</strong><p style="color:#ddd">This private original is retained but cannot be cleaned while rejected. Restore it for editing if you want to cover its plate logo. It stays unpublished until separately approved.</p><button type="button" onclick="restoreSellerPhotoForEditing('+Number(item.image_id)+',this)">Restore for editing</button></div>':'')+'<div style="padding:12px'+(item.final_status==="rejected"?';display:none':'')+'">'+(sellerReviewId===37?'<button type="button" class="dark" onclick="preparePetroAdvertCopy('+Number(item.image_id)+',this)">Prepare advert copy →</button> ':'')+'<button type="button" class="dark" onclick="moveSellerPhoto('+Number(item.image_id)+',\'up\',this)" title="Move this photograph earlier in the advert">↑ Earlier</button> <button type="button" class="dark" onclick="moveSellerPhoto('+Number(item.image_id)+',\'down\',this)" title="Move this photograph later in the advert">↓ Later</button> <button type="button" onclick="cleanSellerPhoto('+Number(item.image_id)+',this)">'+(item.rejection_reason==="Cleaned copy created; pending admin approval"?"Re-clean from original":"Clean")+'</button> <button type="button" class="dark" onclick="cropSellerPhoto('+Number(item.image_id)+',this)">✂ Crop Photo</button> <button type="button" class="dark" onclick="rotateSellerSafePhoto('+Number(item.image_id)+',\'left\',this)">↶ Rotate Left</button> <button type="button" class="dark" onclick="rotateSellerSafePhoto('+Number(item.image_id)+',\'right\',this)">↷ Rotate Right</button> <button type="button" class="dark" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'cleaning_not_needed\',this)">Cleaning not needed</button> <button type="button" class="dark" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'placeholder\',this)">Placeholder</button> <button type="button" class="dark" style="border:1px solid #a33;color:#ffb8bb" onclick="rejectSellerPhotoInCleaner('+Number(item.image_id)+',this)">✕ Remove from advert</button>'+ (item.rejection_reason==="Cleaned copy created; pending admin approval"?'<button type="button" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'approve_cleaned\',this)">Approve cleaned copy</button>':'')+'</div><div class="compare-grid">'+imagePanel("Original seller photograph — private",item.original_url,"seller-orig-"+item.image_id)+imagePanel(item.buyer_safe_url?"Processed preview — cleaning not confirmed":"Original preview only — NOT processed or approved",item.buyer_safe_url||item.original_url,"seller-safe-"+item.image_id)+'</div></article>').join(""):'<div class="empty">No photographs recorded for this submission.</div>';
 }
 async function loadComparisons(){
   if(sellerReviewId)return loadSellerSubmissionComparisons();
