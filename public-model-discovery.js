@@ -31,8 +31,11 @@ Promise.all([
   const dest=modelPath(x.model).toLowerCase();
   return dest!==path&&listed.has(dest)&&!related.some(y=>norm(y.model)===norm(x.model));
  }).slice(0,5);
- const models=[...related,...extra];
- if(!models.length)return;
+ const existing=new Set(Array.from(document.querySelectorAll('main a[href]')).map(a=>{
+   try{const u=new URL(a.href,location.href);return u.origin===location.origin?u.pathname.toLowerCase()+u.search:"";}catch(_){return "";}
+ }));
+ const models=[...related,...extra].filter(x=>!existing.has(modelPath(x.model).toLowerCase()));
+ if(!models.length&&alternative.every(x=>existing.has(brandUrl(x).toLowerCase())))return;
  const section=document.createElement("section");
  section.dataset.anybikeModelDiscovery="1";
  section.setAttribute("aria-label","Explore more motorcycles and manufacturers");
@@ -46,7 +49,11 @@ Promise.all([
  const nav=document.createElement("nav");
  nav.setAttribute("aria-label","Published motorcycle model and brand links");
  nav.style.cssText="display:flex;flex-wrap:wrap;gap:9px";
+ const seen=new Set();
  const link=(label,href)=>{
+  const key=href.toLowerCase();
+  if(seen.has(key)||existing.has(key)||key===path)return;
+  seen.add(key);
   const a=document.createElement("a");
   a.textContent=label+" →";a.href=href;
   a.style.cssText="display:inline-flex;align-items:center;padding:9px 13px;color:#fff;text-decoration:none;background:#222;border:1px solid #ed1c24;border-radius:999px;font-size:13px;font-weight:700";
@@ -56,6 +63,7 @@ Promise.all([
  alternative.forEach(x=>link(x+" motorcycles",brandUrl(x)));
  link("All 49 manufacturers","/motorcycle-manufacturers.html");
  link("AnyBike Global","/anybike-global.html");
+ if(!nav.children.length)return;
  section.append(heading,intro,nav);
  document.querySelector("main").append(section);
 }).catch(error=>console.warn("AnyBike public model discovery unavailable:",error.message));
