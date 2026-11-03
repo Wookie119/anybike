@@ -89,6 +89,8 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
       <div class="actions">
         <a class="btn" id="requestLink" href="/bulk-buying-request.html">Request motorcycles from the UK →</a>
         <a class="secondary" href="#models">Explore models</a>
+        <button class="secondary" id="shareBrandPage" type="button" style="color:#fff;cursor:pointer;font:inherit;font-weight:800;min-height:48px;background:#222;border:1px solid #ed1c24" aria-label="Share this motorcycle brand page">Share this brand ↗</button>
+        <span id="shareBrandFeedback" role="status" aria-live="polite" style="font-size:13px;color:#ddd"></span>
       </div>
       <p class="note">For international motorcycle trade and dealer buyers. A sourcing request does not mean a motorcycle is currently listed or seller-confirmed.</p>
     </div>
@@ -392,6 +394,29 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
  document.getElementById("modelGroups").innerHTML=categoryEntries.map([category,models],i)=>'<div class="family" id="category-'+i+'"><h3>'+esc(category)+'</h3><p class="family-intro">'+esc(categoryDescriptions[category]||'Explore the main models and their different production generations.')+'</p><div class="grid">'+models.map(model=>{const guide=(make==="Honda"&&model==="Africa Twin CRF1100L")||(make==="Ducati"&&model==="Panigale V4");const href="/motorcycle-model-guide.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);const fact=modelFacts.get(String(model).toLowerCase().replace(/[^a-z0-9]/g,""));const years=fact?.production_years;const yearText=typeof years==="string"&&years.trim()?years.trim():"";return '<a class="card manufacturer-model-card" href="'+href+'"><strong>'+esc(make)+' '+esc(model)+'</strong><small>'+esc(category)+(yearText?' · '+esc(yearText):'')+' · Confirm model year and exact variant</small>'+(modelResearchNotes[make]?.[model]?'<p class="model-research-note">'+esc(modelResearchNotes[make][model])+'</p>':'')+'<span>'+("Explore "+esc(make)+" "+esc(model)+" model guide →")+'</span></a>'}).join("")+'</div></div>').join("")+(key?"":'<p>Our detailed model guide for this manufacturer is being prepared. You can already request any model using the sourcing form.</p>');
  }
  renderManufacturerModels();
+})();
+</script>
+<script>
+(function(){
+  const button=document.getElementById('shareBrandPage');
+  const feedback=document.getElementById('shareBrandFeedback');
+  if(!button)return;
+  button.addEventListener('click',async()=>{
+    const url=new URL(window.location.href);
+    url.hash='';
+    const brand=url.searchParams.get('make');
+    const title=(brand?brand+' Motorcycles':'Motorcycle Manufacturers')+' | AnyBike';
+    const data={title,text:'Explore '+(brand||'motorcycle')+' models, history and stories on AnyBike.',url:url.href};
+    try{
+      if(navigator.share){await navigator.share(data);return;}
+      if(navigator.clipboard&&window.isSecureContext){
+        await navigator.clipboard.writeText(url.href);
+        feedback.textContent='Link copied — ready to share.';
+        return;
+      }
+      window.prompt('Copy this link to share:',url.href);
+    }catch(e){if(e.name!=='AbortError')feedback.textContent='Could not share. Copy the page address from your browser.';}
+  });
 })();
 </script>
 <script src="/public-header.js?v=202610112205"></script>
