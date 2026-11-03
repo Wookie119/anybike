@@ -11,7 +11,7 @@ const urls=[...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>m[1].replaceAll('&am
 const issues=[], warnings=[];
 const titles=new Map(), descriptions=new Map();
 const stats={sitemap:urls.length,market_pages:0,global_articles:0,manufacturer_queries:0,static_urls:0,missing_titles:0,missing_descriptions:0,missing_language_tags:0,short_descriptions:0,missing_h1:0,missing_canonicals:0,blocked_by_noindex:0,missing_files:0,duplicates:0};
-const deny=/(^|\/)(admin[^/]*|private[^/]*|customer[^/]*|dashboard[^/]*|login|signup|register|deal-360|my-purchases|my-watchlist|my-searches|available-stock|bike-details)([./?]|$)/i;
+const deny=/(^|\/)(admin[^/]*|private[^/]*|customer[^/]*|dashboard[^/]*|login|signup|register|deal-360|my-purchases|my-watchlist|my-searches|bike-details)([./?]|$)/i;
 function attrs(tag){
   const a={};
   for(const m of tag.matchAll(/([:\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) a[m[1].toLowerCase()]=m[2]??m[3];

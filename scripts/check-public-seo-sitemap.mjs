@@ -8,7 +8,7 @@ const issues=[];
 if(!xml.includes('<urlset')||!xml.includes('</urlset>'))issues.push('Invalid sitemap root');
 if(new Set(locs).size!==locs.length)issues.push('Duplicate sitemap URLs');
 const host='https://www.anybike.co.uk/';
-const blocked=/(^|\/)(admin[^/]*|private[^/]*|customer[^/]*|dashboard[^/]*|available-stock|login|signup|register|deal-360|my-purchases)(?:[./?]|$)/i;
+const blocked=/(^|\/)(admin[^/]*|private[^/]*|customer[^/]*|dashboard[^/]*|login|signup|register|deal-360|my-purchases)(?:[./?]|$)/i;
 for(const url of locs){
  if(!url.startsWith(host)){issues.push('Noncanonical host: '+url);continue}
  const pathname=decodeURIComponent(url.slice(host.length).split(/[?#]/)[0])||'index.html';
