@@ -395,10 +395,79 @@ function styleEnhancements(){
   s.textContent='.anybike-market-local-standard .port-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.anybike-market-local-standard .port-card{min-height:0}.anybike-market-local-standard .anybike-gateway-list{display:flex;flex-wrap:wrap;gap:7px}.anybike-market-local-standard .area-list a{display:inline-flex;align-items:center;padding:7px 10px;border:1px solid rgba(255,255,255,.10);border-radius:999px;background:#1a1a1a;color:#ddd;font-size:12px;font-weight:850;text-decoration:none;transition:.16s ease}.anybike-market-local-standard .area-list a:hover{border-color:#ed1c24;transform:translateY(-1px)}@media(min-width:1450px){.anybike-market-local-standard .port-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:760px){.anybike-market-local-standard .port-grid{grid-template-columns:1fr}}';
   document.head.appendChild(s);
 }
+
+/* Shared public motorcycle-guide navigation for international market pages.
+   These are editorial links, not claims of stock availability or local demand. */
+const MARKET_GUIDE_MODELS=[
+ ["BMW R 1300 GS","/bmw-r1300gs.html"],["BMW R 1250 GS","/bmw-r1250gs.html"],
+ ["BMW S 1000 RR","/bmw-s1000rr.html"],["BMW F 900 GS","/bmw-f900gs.html"],
+ ["Harley-Davidson Fat Boy","/harley-davidson-fat-boy.html"],
+ ["Harley-Davidson Road Glide","/harley-davidson-road-glide.html"],
+ ["Harley-Davidson Street Glide","/harley-davidson-street-glide.html"],
+ ["Harley-Davidson Pan America 1250","/harley-davidson-pan-america-1250.html"]
+];
+const MARKET_GUIDE_MAKES=[
+ ["BMW","/bmw-motorcycles.html"],["Harley-Davidson","/harley-davidson-motorcycles.html"],
+ ["Honda","/available-stock.html?make=Honda"],["Yamaha","/available-stock.html?make=Yamaha"],
+ ["Kawasaki","/available-stock.html?make=Kawasaki"],["Suzuki","/available-stock.html?make=Suzuki"],
+ ["Ducati","/available-stock.html?make=Ducati"],["Triumph","/available-stock.html?make=Triumph"],
+ ["KTM","/available-stock.html?make=KTM"],["Royal Enfield","/available-stock.html?make=Royal%20Enfield"]
+];
+function enhanceMarketGuideNavigation(){
+  const norm=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  // Rich country templates: preserve all original manufacturer and model cards.
+  const brandGrid=document.querySelector(".brand-grid");
+  if(brandGrid){
+    const existing=[...brandGrid.querySelectorAll("a.brand-card")];
+    const names=new Set(existing.map(a=>norm((a.querySelector("h3")?.textContent||"").replace(/motoren|motorcycles/gi,"").trim())));
+    existing.forEach(a=>{
+      const name=norm(a.querySelector("h3")?.textContent||"");
+      const dedicated=MARKET_GUIDE_MAKES.find(x=>(x[0]==="BMW"||x[0]==="Harley-Davidson")&&name.includes(norm(x[0])));
+      if(dedicated && a.getAttribute("href")!==dedicated[1])a.setAttribute("href",dedicated[1]);
+    });
+    MARKET_GUIDE_MAKES.forEach(([name,href])=>{
+      if(names.has(norm(name)))return;
+      const a=document.createElement("a");a.className="brand-card anybike-guide-added";a.href=href;
+      const h=document.createElement("h3");h.textContent=name;
+      const p=document.createElement("p");p.textContent="Explore "+name+" motorcycles and UK sourcing options. Availability is confirmed when enquiring.";
+      const span=document.createElement("span");span.className="brand-link";span.textContent="Explore "+name+" →";
+      a.append(h,p,span);brandGrid.appendChild(a);names.add(norm(name));
+    });
+  }
+  const modelGrid=document.querySelector(".model-grid");
+  if(modelGrid){
+    const names=new Set();
+    [...modelGrid.querySelectorAll("a.model-card")].forEach(a=>{
+      const title=norm(a.querySelector("h3")?.textContent||"");names.add(title);
+      const dedicated=MARKET_GUIDE_MODELS.find(x=>title===norm(x[0]));
+      if(dedicated && a.getAttribute("href")!==dedicated[1])a.setAttribute("href",dedicated[1]);
+    });
+    MARKET_GUIDE_MODELS.forEach(([name,href])=>{
+      if(names.has(norm(name)))return;
+      const a=document.createElement("a");a.className="model-card anybike-guide-added";a.href=href;
+      const h=document.createElement("h3");h.textContent=name;
+      const p=document.createElement("p");p.textContent="Read the published model guide and ask AnyBike about suitable UK examples. Availability is not guaranteed.";
+      const span=document.createElement("span");span.className="model-link";span.textContent="Explore "+name+" →";
+      a.append(h,p,span);modelGrid.appendChild(a);names.add(norm(name));
+    });
+  }
+  // Compact country templates: enrich the existing model pills, not the page structure.
+  document.querySelectorAll('nav[aria-label="Models"]').forEach(nav=>{
+    const existing=new Set([...nav.querySelectorAll('a[href]')].map(a=>new URL(a.getAttribute("href"),location.origin).pathname));
+    MARKET_GUIDE_MODELS.forEach(([name,href])=>{
+      if(existing.has(href))return;
+      const a=document.createElement("a");a.href=href;a.textContent=name+" →";a.className="anybike-model-pill";
+      a.style.cssText="display:inline-flex;align-items:center;padding:8px 12px;border:1px solid #ed1c24;border-radius:999px;color:#fff;background:#242424;text-decoration:none;font-size:13px;font-weight:700";
+      nav.appendChild(a);existing.add(href);
+    });
+  });
+}
+
 function run(){
   if(!location.pathname.toLowerCase().includes("/markets/"))return;
   const name=countryName(),iso=isoForPage(),meta=MARKET_DATA[iso]||{cities:[],regions:[],ports:[],landlocked:false};
   styleEnhancements();
+  enhanceMarketGuideNavigation();
   replaceEnglishBuyerCopy(iso,name);
   fixFlag(iso,name);
   fixHeroAlt(name);
