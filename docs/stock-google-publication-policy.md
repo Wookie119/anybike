@@ -54,3 +54,33 @@ Before a motorcycle is eligible for an indexable page, verify **all** conditions
 5. Small pilot, verified in production, then gradual rollout and Search Console review.
 
 **Never remove noindex globally or index every `bike-details.html?id=` URL.**
+
+## 2026-11-03 update: trusted stock-source automation foundation installed
+
+The preferred workflow **does not require the owner to approve every motorcycle**. An authorised administrator verifies a stock provider/feed once, then an automatic eligibility check evaluates incoming listings. Manual review is only for exceptions.
+
+New private `public.stock_source_google_permissions`:
+- One permission record per real `stock_sources.id`; `pending` by default, then `approved`, `suspended`, or `revoked`.
+- Approval requires affirmative public advertising consent, permission to republish photographs, verified price/availability authority, verified identity, evidence reference, reviewer UUID and timestamp.
+- `anon`/`authenticated` permissions revoked; RLS enabled; no public policies. A service-side review process is still needed to set approvals. **Do not store elevated database keys in browser scripts**.
+- Revoking or suspending a source immediately fails eligibility checks; publication and sitemap removals still require a future deployment pipeline.
+
+New private `public.admin_stock_google_eligibility` view:
+- `security_invoker=true` and explicitly no anon/authenticated access. Returns only stock ID, source ID, readiness status and boolean; no seller contacts or internal prices.
+- Enforces source approval and active source, active/live/unremoved/unexpired stock, no per-bike hold, valid make/model/year/public price, at least 50 characters of public description and a normal photo URL.
+- The existing per-stock `stock_google_publication_approvals` table remains an **exception gate**: an explicitly recorded non-approved item prevents it from being eligible; new stock without an override is evaluated from source approval.
+- Source-level permission does not substitute for verified seller-specific restrictions, rights, or channel conditions; the future public pipeline must enforce these at the point of publication.
+
+Verified immediately after installation:
+- Exactly **one existing stock source**, with 10 stock entries; 9 Active/live, 1 removed.
+- **Zero** source permission records, zero approved sources, zero Google-eligible stock entries.
+- Neither `anon` nor `authenticated` can SELECT the source permissions, per-bike approvals, or eligibility view.
+- All 10 currently lack sufficient `public_description` for Google publication.
+- Website `noindex` state, live inventory permissions and **359-entry sitemap** unchanged.
+
+### Remaining work — do not claim auto-publishing is live yet
+1. Secure administrator-facing source-approval controls, evidence upload/audit, and exception queue.
+2. Provider-specific consent and dealer-channel mapping including confidential/auction exclusions.
+3. Production publishing process to generate *sanitised*, server-rendered public bike pages with immediate removal/withdrawal.
+4. Search-ready stock sitemap with safe incremental reconciliation and production HTTP tests.
+5. Test one approved provider in a small pilot; never bulk-enable existing stock simply because it has a source ID.
