@@ -394,7 +394,7 @@ function styleEnhancements(){
   s.id="anybike-market-standard-css";
   s.textContent='.anybike-market-local-standard .port-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.anybike-market-local-standard .port-card{min-height:0}.anybike-market-local-standard .anybike-gateway-list{display:flex;flex-wrap:wrap;gap:7px}.anybike-market-local-standard .area-list a{display:inline-flex;align-items:center;padding:7px 10px;border:1px solid rgba(255,255,255,.10);border-radius:999px;background:#1a1a1a;color:#ddd;font-size:12px;font-weight:850;text-decoration:none;transition:.16s ease}.anybike-market-local-standard .area-list a:hover{border-color:#ed1c24;transform:translateY(-1px)}@media(min-width:1450px){.anybike-market-local-standard .port-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:760px){.anybike-market-local-standard .port-grid{grid-template-columns:1fr}}';
   // Shared AnyBike corporate colours for country-page panels; retain hero artwork.
-  s.textContent += 'body{background-color:#080808!important}.find-panel,.cta{background:#151515!important;border-left:3px solid #ed1c24!important}.trust-card,.brand-card,.model-card,.process-card{background:#151515!important;border-left:3px solid #ed1c24!important}.brand-card:hover,.model-card:hover{border-color:#ed1c24!important}.brand-link,.model-link{color:#ed1c24!important}';
+  s.textContent += 'body{background:#080808!important}.find-panel,.cta{background:#151515!important;border-left:3px solid #ed1c24!important}.trust-card,.brand-card,.model-card,.process-card{background:#151515!important;border-left:3px solid #ed1c24!important}.brand-card:hover,.model-card:hover{border-color:#ed1c24!important}.brand-link,.model-link{color:#ed1c24!important}';
   document.head.appendChild(s);
 }
 
