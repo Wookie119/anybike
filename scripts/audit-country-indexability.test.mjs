@@ -58,3 +58,12 @@ test('market-specific robots disallow is flagged even if homepage remains crawla
  const report=auditCountryIndexability(root);
  assert.ok(report.issues.some(x=>x.code==='robots-crawl-review'));
 });
+
+test('strict expected country count catches sitemap and source omissions',t=>{
+ const root=fixture();t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const result=auditCountryIndexability(root,{expectedCountryCount:217});
+ assert.ok(result.issues.some(i=>i.code==='unexpected-sitemap-market-count'));
+ assert.ok(result.issues.some(i=>i.code==='unexpected-source-market-count'));
+ const good=auditCountryIndexability(root,{expectedCountryCount:2});
+ assert.equal(good.issues.length,0);
+});
