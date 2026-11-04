@@ -703,6 +703,13 @@ button:disabled{
 
     <h2>Ask About This Bike</h2>
     <div id="enquiryContextBox"></div>
+    <div id="guestEnquiryIdentity" style="display:none">
+      <p style="color:#ddd;margin:8px 0 12px">Enquire without creating an account. AnyBike will contact you using the details below.</p>
+      <label for="guestEnquiryName">Full name</label>
+      <input id="guestEnquiryName" autocomplete="name" maxlength="120" placeholder="Full name">
+      <label for="guestEnquiryEmail">Email address</label>
+      <input id="guestEnquiryEmail" type="email" autocomplete="email" maxlength="200" placeholder="Email address">
+    </div>
 
     <label>Phone / WhatsApp</label>
     <input id="enquiryPhone" placeholder="Phone / WhatsApp number">
@@ -1573,11 +1580,10 @@ function render(){
 }
 
 function openEnquiryModal(){
-  if(!currentUser){
-    redirectToCustomerLogin();
-    return;
-  }
-
+  // Enquiries are available to guests; customer accounts are only needed
+  // for private dashboards, watchlists and purchase documents.
+  const guestBox=document.getElementById("guestEnquiryIdentity");
+  if(guestBox)guestBox.style.display=currentUser?"none":"block";
   document.getElementById("enquiryPhone").value = currentProfile?.phone || "";
   document.getElementById("buyerShippingAgent").value = currentProfile?.preferred_shipping_company || "";
 
@@ -1603,13 +1609,76 @@ function handleQuestionTypeChange(){
     type === "I Have A UK Shipping Agent" ? "block" : "none";
 }
 
+async function submitGuestStockEnquiry(){
+  if(enquirySubmitting)return;
+  if(!bike || !normaliseBikeId(bike.id)){alert(bt("detailsNotLoaded"));return;}
+  const name=document.getElementById("guestEnquiryName").value.trim();
+  const email=document.getElementById("guestEnquiryEmail").value.trim();
+  const phone=document.getElementById("enquiryPhone").value.trim();
+  const type=document.getElementById("questionType").value;
+  const offer=document.getElementById("offerAmount").value.trim();
+  const agent=document.getElementById("buyerShippingAgent").value.trim();
+  const notes=document.getElementById("enquiryMessage").value.trim();
+  const allowed=["Availability","Make an Offer","Reserve This Bike","More Photos / Video",
+    "Export Documents","I Have A UK Shipping Agent","Other Question"];
+  if(name.length<2 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)){
+    alert("Please enter your name and a valid email address.");return;
+  }
+  if(!allowed.includes(type)){alert(bt("chooseQuestion"));return;}
+  if(!phone || phone.replace(/[^0-9]/g,"").length<7){alert(bt("validPhone"));return;}
+  if(type==="Make an Offer" && (!offer || !Number.isFinite(Number(offer)) || Number(offer)<=0)){
+    alert(bt("validOffer"));return;
+  }
+  if(notes.length>5000 || agent.length>200){alert(bt("messageLong"));return;}
+  const context=getBuyingContext();
+  const description=[bike.make,bike.model,bike.variant||"",bike.year||""].filter(Boolean).join(" ");
+  const message=[
+    "Available Stock motorcycle enquiry",
+    "Motorcycle: "+description,
+    "Stock ID: "+bike.id,
+    "Page: "+window.location.href,
+    "Question: "+type,
+    offer?"Offer amount GBP: "+offer:"",
+    agent?"Shipping agent: "+agent:"",
+    context.destination?"Destination: "+context.destination:"",
+    context.buyerType?"Buyer type: "+context.buyerType:"",
+    context.deliveryPoints.length?"UK handover: "+context.deliveryPoints.join(", "):"",
+    "Customer message: "+(notes||"Please contact me about this motorcycle.")
+  ].filter(Boolean).join("\\n");
+  const send=document.getElementById("sendEnquiryBtn");
+  enquirySubmitting=true;
+  if(send){send.disabled=true;send.textContent=bt("sending");}
+  try{
+    const {data,error}=await sb.rpc("public_submit_connect_enquiry_v1",{
+      p_payload:{
+        name,email,phone,journey:"Buy a Motorcycle",
+        subject:"Stock enquiry: "+description.slice(0,160),
+        message,origin_url:window.location.pathname+window.location.search,
+        origin_title:document.title,
+        country:context.destination||null
+      }
+    });
+    if(error || !data?.success || !data?.thread_id)
+      throw error||new Error("Enquiry confirmation was not returned");
+    alert("Enquiry sent to AnyBike. Reference #"+data.thread_id+
+      ". No account is required.");
+    closeEnquiryModal();
+  }catch(error){
+    console.error("Guest stock enquiry error",error);
+    alert("We could not confirm receipt. Please contact AnyBike before retrying to avoid a duplicate.");
+  }finally{
+    enquirySubmitting=false;
+    if(send){send.disabled=false;send.textContent=bt("send");}
+  }
+}
+
 async function submitBikeEnquiry(){
   if(enquirySubmitting){
     return;
   }
 
   if(!currentUser){
-    redirectToCustomerLogin();
+    await submitGuestStockEnquiry();
     return;
   }
 
