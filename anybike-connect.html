@@ -517,49 +517,28 @@ ${getDynamicMessage()}`;
   try{ originVisitorId=localStorage.getItem("anybike_visitor_id")||null; }catch(error){}
   try{ originSessionId=sessionStorage.getItem("anybike_session_id")||null; }catch(error){}
 
-  const {data:thread,error:threadError}=await sb.from("message_centre_threads").insert({
-    customer_name:name,
-    customer_email:email,
-    customer_phone:phone,
-    country:countryInput||geoInfo.country||null,
-    source_type:selectedJourney.key,
-    source_page:"anybike-connect.html",
-    related_page_title:originPageTitle,
-    related_page_url:originPageUrl,
-    origin_page_url:originPageUrl,
-    origin_page_title:originPageTitle,
-    origin_market_slug:originMarketSlug,
-    origin_session_id:originSessionId,
-    visitor_id:originVisitorId,
-    subject:subject,
-    status:"New",
-    department:selectedJourney.dept,
-    priority:selectedJourney.priority,
-    last_message:message,
-    last_message_at:new Date().toISOString(),
-    last_sender:"Customer",
-    ip_address:geoInfo.ip||null,
-    device_type:getDeviceType(),
-    browser:getBrowser(),
-    city:geoInfo.city||null,
-    region:geoInfo.region||null,
-    postcode_zip:postcode||geoInfo.postcode||null,
-    map_country:mapCountry,
-    map_source:mapSource
-  }).select("id").single();
-
-  if(threadError){console.error(threadError);status.textContent="Send failed.";alert("Message failed: "+threadError.message);btn.disabled=false;return}
-
-  const {error:messageError}=await sb.from("message_centre_messages").insert({
-    thread_id:thread.id,
-    sender_type:"Customer",
-    sender_name:name,
-    sender_email:email,
-    message:fullMessage,
-    is_internal_note:false
+  // One atomic public RPC writes the conversation and first message together.
+  // Guests do not need SELECT access to private message-centre tables.
+  const {data:submission,error:submitError}=await sb.rpc("public_submit_connect_enquiry_v1",{
+    p_payload:{
+      name,email,phone,subject,message:fullMessage,
+      journey:selectedJourney.key,
+      country:countryInput||geoInfo.country||null,
+      postcode:postcode||geoInfo.postcode||null,
+      origin_url:originPageUrl,origin_title:originPageTitle,
+      origin_market_slug:originMarketSlug,
+      visitor_id:originVisitorId,session_id:originSessionId,
+      device_type:getDeviceType(),browser:getBrowser(),
+      city:geoInfo.city||null,region:geoInfo.region||null
+    }
   });
-
-  if(messageError){console.error(messageError);status.textContent="Message saved but conversation failed.";alert("Message thread created, but message failed: "+messageError.message);btn.disabled=false;return}
+  if(submitError || !submission?.success || !submission?.thread_id){
+    console.error("AnyBike Connect public submission failed",submitError);
+    status.textContent="Your enquiry could not be sent. Please try again.";
+    btn.disabled=false;
+    return;
+  }
+  const thread={id:submission.thread_id};
 
   const {error:notificationError}=await sb.functions.invoke("send-connect-enquiry-notification",{body:{thread_id:String(thread.id)}});
   if(notificationError)console.error("AnyBike Connect admin email notification failed:",notificationError);
