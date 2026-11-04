@@ -54,6 +54,28 @@ test('published country entries without a motorcycle model never create links', 
  });
  assert.equal(r.pages.reduce((sum,p)=>sum+p.links.length,0),0);
 });
+
+test('verified manufacturer-model identities link in both directions by exact canonical make',()=>{
+ const r=graphFromCatalogueRows({
+   publicPages,
+   manufacturers:[{id:15,display_name:'BMW'},{id:28,display_name:'Harley-Davidson'}],
+   models:[{id:7,manufacturer:' bmw ',model:'R 1300 GS'},{id:8,manufacturer:'BMW',model:'R 1250 GS'},{id:999,manufacturer:'BMW',model:'Unpublished model'}]
+ });
+ const byId=Object.fromEntries(r.pages.map(p=>[p.id,p]));
+ assert.deepEqual(byId['manufacturer:15'].links.map(p=>p.id),['model:7','model:8']);
+ assert.equal(byId['model:7'].links[0].id,'manufacturer:15');
+ assert.equal(byId['model:8'].links[0].id,'manufacturer:15');
+ assert.equal(r.pages.some(p=>p.id==='model:999'),false);
+});
+test('unknown or ambiguous manufacturer does not create a guessed link',()=>{
+ const r=graphFromCatalogueRows({
+   publicPages,
+   manufacturers:[{id:15,display_name:'BMW'},{id:40,display_name:' bmw '}],
+   models:[{id:7,manufacturer:'BMW'}]
+ });
+ assert.equal(r.pages.reduce((n,p)=>n+p.links.length,0),0);
+});
+
 test('empty input is safe', () => {
  assert.deepEqual(graphFromCatalogueRows(),{pages:[],diagnostics:[]});
 });
