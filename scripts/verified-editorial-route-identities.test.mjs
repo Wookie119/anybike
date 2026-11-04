@@ -38,3 +38,20 @@ test('incomplete verification blocks all page types',()=>{
   assert.equal(r.identities.length,0,field);
  }
 });
+
+
+test('verified country route identity comes from private registry name and region',()=>{
+ const route={id:80,entity_type:'country',country_slug:'kenya',country_name:'Kenya',
+  country_region:'Africa',public_path:'/markets/kenya.html',
+  publication_state:'published',source_verified_at:'2026-11-04',
+  live_verified_at:'2026-11-04',editorial_verified_at:'2026-11-04'};
+ const r=verifiedIdentitiesFromRoutes({routes:[route]});
+ assert.equal(r.identities.length,1);
+ assert.deepEqual(r.identities[0],{
+  id:'country:kenya',type:'country',title:'Kenya',
+  url:'https://www.anybike.co.uk/markets/kenya.html',
+  published:true,liveVerified:true
+ });
+ const tampered=verifiedIdentitiesFromRoutes({routes:[{...route,country_region:'Imaginary'}]});
+ assert.equal(tampered.identities.length,0);
+});
