@@ -23,7 +23,7 @@ function isRobotsBlocked(robots) {
     if(!m)return false;
     const rule=m[1].toLowerCase();
     return rule==='/' || rule==='/*' || rule==='/markets' ||
-      rule==='/markets/' || rule.startsWith('/markets/*');
+      rule.startsWith('/markets/');
   });
 }
 export function auditCountryIndexability(root) {
