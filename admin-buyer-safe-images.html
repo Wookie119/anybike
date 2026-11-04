@@ -564,9 +564,50 @@ async function cleanSellerPhoto(imageId,button){
   await loadSellerSubmissionComparisons();
  }catch(error){progress.querySelector(".seller-clean-progress-fill").style.cssText="animation:none;width:100%;background:#a33";progress.querySelector(".seller-clean-progress-label").textContent="Cleaning failed: "+error.message;button.disabled=false;button.textContent=previous;}
 }
+let sellerBulkReadyIds=[];
+async function showSellerBulkApproval(){
+  if(!sellerReviewId)return;
+  let panel=document.getElementById("sellerBulkApproval");
+  if(!panel){
+    panel=document.createElement("div");
+    panel.id="sellerBulkApproval";
+    panel.style.cssText="background:#1c1c1c;border:1px solid #ed1c24;border-radius:12px;padding:15px;margin:12px 0;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between";
+    document.getElementById("compareList").before(panel);
+  }
+  panel.textContent="Checking which photographs are ready…";
+  const {data,error}=await sb.rpc("admin_seller_photo_approval_queue_v1",{p_submission_id:sellerReviewId});
+  if(error){panel.textContent="Bulk photo approval unavailable: "+error.message;return;}
+  sellerBulkReadyIds=Array.isArray(data?.ready_ids)?data.ready_ids.map(Number).filter(Number.isSafeInteger):[];
+  panel.replaceChildren();
+  const text=document.createElement("div");
+  const title=document.createElement("strong");title.textContent="Approve reviewed photos · one job";title.style.display="block";
+  const detail=document.createElement("small");
+  detail.textContent=(data?.approved||0)+" already approved · "+sellerBulkReadyIds.length+" ready for approval · "+(data?.needs_attention||0)+" still need processing or review. Unsafe photos stay private.";
+  detail.style.cssText="display:block;color:#ccc;margin-top:6px;line-height:1.45";
+  text.append(title,detail);
+  const button=document.createElement("button");button.type="button";
+  button.textContent="Approve all "+sellerBulkReadyIds.length+" ready photos";
+  button.disabled=!sellerBulkReadyIds.length;
+  button.style.cssText="background:#ed1c24;border:1px solid #ed1c24;color:white;border-radius:8px;padding:12px 17px;font-weight:800;cursor:pointer";
+  button.addEventListener("click",async()=>{
+    const chosen=[...sellerBulkReadyIds];
+    if(!chosen.length)return;
+    if(!confirm("I have checked the processed previews for these "+chosen.length+" photos and confirm they contain no unwanted text, contact information, branding or other problems. Approve them for the auction?"))return;
+    button.disabled=true;button.textContent="Approving photos…";
+    try{
+      const {data:result,error:saveError}=await sb.rpc("admin_approve_seller_submission_photos_v1",
+        {p_submission_id:sellerReviewId,p_image_ids:chosen});
+      if(saveError||!result?.success)throw Error(saveError?.message||"Approval could not be saved");
+      await loadSellerSubmissionComparisons();
+      alert(result.approved+" reviewed photograph(s) approved. Photos needing work remain private.");
+    }catch(e){alert("No photos were bulk-approved: "+String(e.message||e));await showSellerBulkApproval();}
+  });
+  panel.append(text,button);
+}
 async function loadSellerSubmissionComparisons(){
   const host=$("compareList");
   host.innerHTML='<div class="empty">Loading submission photographs…</div>';
+  await showSellerBulkApproval();
   const {data,error}=await sb.rpc("admin_get_seller_submission_images_v2",{p_submission_id:sellerReviewId});
   if(error){host.textContent="Could not load seller photographs: "+error.message;return;}
   const {data:paths, error:pathError}=await sb.rpc("admin_get_seller_original_paths_v1",{p_submission_id:sellerReviewId});
