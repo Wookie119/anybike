@@ -20,9 +20,26 @@ export function graphFromCatalogueRows({
   countryLinks = [],
   globalStories = [],
   storyManufacturers = [],
-  modelRelationships = []
+  modelRelationships = [],
+  manufacturers = [],
+  models = []
 } = {}) {
   const relationRows = [];
+  // Use only canonical names and verified public endpoints; never guess URLs from slugs.
+  const normName = value => typeof value === 'string' ? value.trim().toLocaleLowerCase('en-GB').replace(/\\s+/g, ' ') : '';
+  const makeByName = new Map();
+  for (const make of manufacturers) {
+    if (make?.id == null || !normName(make.display_name)) continue;
+    const key = normName(make.display_name);
+    if (makeByName.has(key)) makeByName.set(key, null); // ambiguous manufacturer names must not auto-link
+    else makeByName.set(key, make.id);
+  }
+  for (const model of models) {
+    if (model?.id == null) continue;
+    const makeId = makeByName.get(normName(model.manufacturer));
+    if (makeId == null) continue;
+    relationRows.push({from:id('manufacturer',makeId),to:id('model',model.id),type:'manufacturer-model',approved:true});
+  }
   const publishedStories = new Set(
     globalStories.filter(s => s?.editorial_status === 'published' &&
       publicPages.some(p => p.id === id('global', s.id) &&
