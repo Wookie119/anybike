@@ -66,3 +66,22 @@ test('invalid and repeated destination paths fail closed rather than silently sk
  assert.equal(report.errors.length,2);
  assert.equal(fs.readdirSync(output).length,0);
 });
+
+
+test('preview output inside a checked-out site must remain in ignored reports directory',t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'anybike-preview-dest-'));
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ fs.writeFileSync(path.join(root,'bmw-motorcycles.html'),html);
+ assert.throws(()=>stageEditorialNavigation({
+   root,output:path.join(root,'public-preview'),graph:{pages:[page]}
+ }),/reports/);
+ assert.throws(()=>stageEditorialNavigation({
+   root,output:path.join(root,'markets','preview'),graph:{pages:[page]}
+ }),/reports/);
+ const safe=stageEditorialNavigation({root,
+   output:path.join(root,'reports','editorial-navigation-preview'),
+   graph:{pages:[page]}});
+ assert.equal(safe.errors.length,0);
+ assert.equal(safe.staged.length,1);
+ assert.equal(fs.readFileSync(path.join(root,'bmw-motorcycles.html'),'utf8'),html);
+});
