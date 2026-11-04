@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: "20"
       - name: Test central editorial link graph
-        run: node --test scripts/public-editorial-link-graph.test.mjs scripts/catalogue-link-adapter.test.mjs scripts/build-editorial-url-inventory.test.mjs scripts/assemble-public-editorial-graph.test.mjs scripts/render-editorial-related-links.test.mjs scripts/stage-editorial-navigation.test.mjs scripts/stage-real-catalogue-pilot.test.mjs scripts/match-catalogue-guides.test.mjs scripts/stage-matched-catalogue.test.mjs scripts/verified-editorial-route-identities.test.mjs scripts/check-registered-editorial-indexability.test.mjs scripts/audit-country-indexability.test.mjs scripts/build-country-route-candidates.test.mjs
+        run: node --test scripts/public-editorial-link-graph.test.mjs scripts/catalogue-link-adapter.test.mjs scripts/build-editorial-url-inventory.test.mjs scripts/assemble-public-editorial-graph.test.mjs scripts/render-editorial-related-links.test.mjs scripts/stage-editorial-navigation.test.mjs scripts/stage-real-catalogue-pilot.test.mjs scripts/match-catalogue-guides.test.mjs scripts/stage-matched-catalogue.test.mjs scripts/verified-editorial-route-identities.test.mjs scripts/check-registered-editorial-indexability.test.mjs scripts/audit-country-indexability.test.mjs scripts/build-country-route-candidates.test.mjs scripts/regional-market-navigation.test.mjs scripts/stage-country-regional-navigation.test.mjs
       - name: Scan all source HTML links
         run: node scripts/audit-public-links.mjs --json > anybike-link-audit.json
       - name: Inventory editorial source URLs
@@ -34,6 +34,8 @@ jobs:
         run: node scripts/audit-country-indexability.mjs > anybike-country-indexability.json
       - name: Prepare safe private country-route candidates
         run: node scripts/build-country-route-candidates.mjs anybike-country-indexability.json > anybike-country-route-candidates.json
+      - name: Stage 217-country regional navigation preview (never deploy)
+        run: node scripts/stage-country-regional-navigation.mjs > anybike-regional-navigation-preview.json
       - name: Check live pilot public pages
         run: node scripts/audit-live-public-pages.mjs > anybike-live-public-audit.json
       - name: Stage real BMW and Harley catalogue navigation (non-deploying)
@@ -50,6 +52,7 @@ jobs:
           const googleAudit = JSON.parse(fs.readFileSync('reports/editorial-indexability-audit.json','utf8'));
           const countryAudit = JSON.parse(fs.readFileSync('anybike-country-indexability.json','utf8'));
           const countryCandidates = JSON.parse(fs.readFileSync('anybike-country-route-candidates.json','utf8'));
+          const regional = JSON.parse(fs.readFileSync('anybike-regional-navigation-preview.json','utf8'));
           const pilot = JSON.parse(fs.readFileSync('anybike-catalogue-pilot.json', 'utf8'));
           const expanded = JSON.parse(fs.readFileSync('anybike-expanded-catalogue-preview.json', 'utf8'));
 
@@ -70,6 +73,8 @@ jobs:
             '| International market pages source-eligible | ' + countryAudit.counts.sourceEligible + '/' + countryAudit.counts.marketHtmlFiles + ' |',
             '| International market SEO issues | ' + countryAudit.issues.length + ' |',
             '| Private country route candidates prepared | ' + countryCandidates.counts.candidates + ' |',
+            '| Regional navigation preview pages | ' + regional.stagedPages + ' |',
+            '| Regional country links generated in preview | ' + regional.generatedCountryLinks + ' |',
             '| BMW/Harley staging preview pages | ' + pilot.staging.staged.length + ' |',
             '| Reciprocal preview links | ' + pilot.links + ' |',
             '| Expanded catalogue models compared | ' + expanded.catalogueModels + ' |',
@@ -81,7 +86,7 @@ jobs:
             'Open the uploaded JSON report for individual findings.'
           ].join('\n');
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, output + '\n');
-          if (countryAudit.issues.length || countryAudit.counts.marketHtmlFiles !== 217 || countryAudit.counts.sourceEligible !== 217) {
+          if (regional.errors.length || regional.stagedPages !== 217 || countryAudit.issues.length || countryAudit.counts.marketHtmlFiles !== 217 || countryAudit.counts.sourceEligible !== 217) {
             console.error('Country SEO audit regression: see anybike-country-indexability.json for affected pages');
             process.exitCode = 1;
           }
@@ -99,6 +104,9 @@ jobs:
             reports/editorial-indexability-audit.json
             anybike-country-indexability.json
             anybike-country-route-candidates.json
+            anybike-regional-navigation-preview.json
+            reports/regional-market-navigation-preview.json
+            reports/regional-market-navigation-preview/
             anybike-catalogue-pilot.json
             reports/editorial-catalogue-pilot-report.json
             reports/editorial-navigation-preview/
