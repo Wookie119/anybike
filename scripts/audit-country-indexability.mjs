@@ -26,7 +26,7 @@ function isRobotsBlocked(robots) {
       rule.startsWith('/markets/');
   });
 }
-export function auditCountryIndexability(root) {
+export function auditCountryIndexability(root,{expectedCountryCount=null}={}) {
   const sitemap = fs.readFileSync(path.join(root,'sitemap.xml'),'utf8');
   const locs=[...sitemap.matchAll(/<loc>\s*([^<]+)\s*<\/loc>/gi)].map(m=>m[1].trim());
   const expectedBase=BASE+'markets/';
@@ -38,6 +38,9 @@ export function auditCountryIndexability(root) {
     .filter(f=>f.isFile() && f.name.endsWith('.html')).map(f=>f.name).sort();
   const fileSet=new Set(filenames);
   const issues=[],pages=[];
+  if(expectedCountryCount != null && (!Number.isSafeInteger(expectedCountryCount) || expectedCountryCount<1)) throw new TypeError('expectedCountryCount must be a positive integer');
+  if(expectedCountryCount != null && sitemapMarkets.length!==expectedCountryCount) issues.push({code:'unexpected-sitemap-market-count',expected:expectedCountryCount,actual:sitemapMarkets.length});
+  if(expectedCountryCount != null && filenames.length!==expectedCountryCount) issues.push({code:'unexpected-source-market-count',expected:expectedCountryCount,actual:filenames.length});
   const robotsPath=path.join(root,'robots.txt');
   const robots=fs.existsSync(robotsPath)?fs.readFileSync(robotsPath,'utf8'):'';
   if(!/User-agent:\s*\*/i.test(robots) || isRobotsBlocked(robots)) {
@@ -83,7 +86,7 @@ export function auditCountryIndexability(root) {
   };
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(new URL(import.meta.url).pathname)){
-  const report=auditCountryIndexability(process.cwd());
+  const report=auditCountryIndexability(process.cwd(),{expectedCountryCount:217});
   console.log(JSON.stringify(report,null,2));
   if(process.argv.includes('--strict')&&report.issues.length)process.exitCode=1;
 }
