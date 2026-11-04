@@ -28,7 +28,7 @@ export function checkRegisteredEditorialIndexability({root,manufacturers,models,
  // way that could block editorial routes, rather than guessing robots syntax.
  if(!/^User-agent:\s*\*\s*$/mi.test(robots) ||
     !/^Allow:\s*\/\s*$/mi.test(robots) ||
-    /^(?:Disallow:\s*\/|Sitemap:.*\b(?:localhost|127\.0\.0\.1))\b/im.test(robots) ||
+    /(?:^\s*Disallow:\s*\/(?:\s|$)|^\s*Sitemap:.*(?:localhost|127\.0\.0\.1))/im.test(robots) ||
     !robots.includes('Sitemap: '+BASE+'/sitemap.xml')) {
    issues.push({code:'robots-crawl-policy-needs-review'});
  }
