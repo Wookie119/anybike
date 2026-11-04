@@ -771,7 +771,24 @@ async function startUnderwrite(id){
     if(status)status.textContent="Review required: confirm the make, model and at least one approved buyer-safe photograph before inviting dealers.";
     return;
   }
-  if(!window.confirm("Final Admin check for "+(submission.reference||"this motorcycle")+" — "+bike+"\n\n"+photoCount+" approved photo(s); "+hours+"-hour bidding window.\n\nHave you checked the details and buyer-safe photographs, and do you want to invite verified UK trade dealers now?\n\nCancel keeps this motorcycle in Admin review."))return;
+  const year=Number(submission.bike_year);
+  if(!Number.isInteger(year)||year<1885||year>new Date().getFullYear()+1){
+    alert("Enter the motorcycle year before starting the auction. The motorcycle editor will open now.");
+    editVehicle(id);
+    return;
+  }
+  const {data:currentDescription,error:descriptionError}=await sb.rpc("admin_get_underwrite_buyer_description_v1",{p_submission_id:Number(id)});
+  if(descriptionError){alert("Could not check the dealer description: "+descriptionError.message);return;}
+  let dealerDescription=String(currentDescription||"").trim();
+  if(!dealerDescription||["Motorcycle details are being prepared by AnyBike.","Motorcycle description awaiting Admin review.","Description awaiting review."].includes(dealerDescription)){
+    const entered=prompt("Add the description dealers will see for "+year+" "+bike+". Include confirmed condition, history and equipment. Do NOT include seller identity, contact details, private pricing or unverified claims.\\n\\nThe auction stays unpublished if you cancel.","");
+    if(entered===null)return;
+    dealerDescription=entered.trim();
+    if(!dealerDescription||dealerDescription.length>3000){alert("Please enter a dealer description of up to 3,000 characters before starting the auction.");return;}
+    const {error:saveDescriptionError}=await sb.rpc("admin_set_seller_trade_description_v1",{p_submission_id:Number(id),p_description:dealerDescription});
+    if(saveDescriptionError){alert("Could not save dealer description: "+saveDescriptionError.message);return;}
+  }
+  if(!window.confirm("Final Admin check for "+(submission.reference||"this motorcycle")+" — "+year+" "+bike+"\\n\\n"+photoCount+" approved photo(s); dealer description saved; "+hours+"-hour bidding window.\\n\\nHave you checked the year, description and buyer-safe photographs, and do you want to invite verified UK trade dealers now?\\n\\nCancel keeps this motorcycle in Admin review."))return;
   if(window.anybikeUnderwritePending?.has(Number(id)))return;
   window.anybikeUnderwritePending=window.anybikeUnderwritePending||new Set();
   window.anybikeUnderwritePending.add(Number(id));
