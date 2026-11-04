@@ -32,12 +32,14 @@ export function graphFromCatalogueRows({
   // Use only canonical names and verified public endpoints; never guess URLs from slugs.
   const normName = value => typeof value === 'string' ? value.trim().toLocaleLowerCase('en-GB').replace(/\s+/g, ' ') : '';
   const makeByName = new Map();
+  const ambiguousMakeNames = new Set();
   for (const make of manufacturers) {
     if (make?.id == null || !normName(make.display_name)) continue;
     const key = normName(make.display_name);
-    if (makeByName.has(key)) makeByName.set(key, null); // ambiguous manufacturer names must not auto-link
+    if (makeByName.has(key)) ambiguousMakeNames.add(key); // never re-approve a third duplicate
     else makeByName.set(key, make.id);
   }
+  for (const key of ambiguousMakeNames) makeByName.set(key, null);
   for (const model of models) {
     if (model?.id == null) continue;
     const makeId = makeByName.get(normName(model.manufacturer));
