@@ -1,0 +1,67 @@
+name: AnyBike live country indexability audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 6 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/audit-live-country-indexability.mjs"
+      - "scripts/audit-live-country-indexability.test.mjs"
+      - "sitemap.xml"
+      - ".github/workflows/live-country-indexability.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  live-market-indexing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Test the live checker without using the public website
+        run: node --test scripts/audit-live-country-indexability.test.mjs
+      - name: Check all sitemap-listed market HTTP responses
+        # Non-strict: collect the complete report even if 123-reg is temporarily unreachable.
+        run: node scripts/audit-live-country-indexability.mjs
+      - name: Publish live crawlability findings
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          if (!fs.existsSync('reports/live-country-indexability.json')) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+              '## AnyBike live country indexability\nReport not produced — check job logs.\n');
+            process.exit(1);
+          }
+          const report=JSON.parse(fs.readFileSync('reports/live-country-indexability.json','utf8'));
+          const t=report.totals;
+          const lines=[
+            '## AnyBike live international SEO',
+            '',
+            '| HTTP check | Pages |',
+            '| --- | ---: |',
+            '| Country URLs checked | '+t.listed+' |',
+            '| Responding and source-indexable | '+t.passed+' |',
+            '| Responding with SEO issues | '+t.flagged+' |',
+            '| Unreachable / network failure | '+t.networkUnavailable+' |',
+            '',
+            '**This is live HTTP verification, not proof of Google Search indexing.**',
+            'Review the saved JSON for each failing or unreachable country URL.'
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join('\n')+'\n');
+          if(t.listed!==217 || t.flagged>0 || t.networkUnavailable>0)process.exitCode=1;
+          NODE
+      - name: Preserve full per-country HTTP results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anybike-live-country-indexability
+          path: reports/live-country-indexability.json
+          if-no-files-found: warn
+          retention-days: 30
