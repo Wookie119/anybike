@@ -1,0 +1,51 @@
+name: AnyBike public link audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  static-public-links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Scan all source HTML links
+        run: node scripts/audit-public-links.mjs --json > anybike-link-audit.json
+      - name: Publish summary
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const r = JSON.parse(fs.readFileSync('anybike-link-audit.json', 'utf8'));
+          const output = [
+            '## AnyBike source HTML link audit',
+            '',
+            '| Metric | Result |',
+            '| --- | ---: |',
+            '| HTML files scanned | ' + r.htmlPages + ' |',
+            '| Missing local links | ' + r.missingLinkCount + ' |',
+            '| Selected public pages with no incoming static HTML links | ' + r.selectedPublicPagesWithNoIncomingStaticLinks.length + ' |',
+            '',
+            'This scan is **informational** and does not assert that live 123-reg pages, JavaScript-generated links, database content, or responsive designs passed.',
+            'Open the uploaded JSON report for individual findings.'
+          ].join('\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, output + '\n');
+          NODE
+      - name: Save detailed audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: anybike-static-link-audit
+          path: anybike-link-audit.json
+          retention-days: 30
