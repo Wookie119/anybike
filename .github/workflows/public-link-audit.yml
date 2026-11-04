@@ -36,7 +36,7 @@ jobs:
         run: node scripts/build-country-route-candidates.mjs anybike-country-indexability.json > anybike-country-route-candidates.json
       - name: Stage 217-country regional navigation preview (never deploy)
         run: node scripts/stage-country-regional-navigation.mjs > anybike-regional-navigation-preview.json
-      - name: Check 217 country names and 184 exact country-code matches
+      - name: Check 217 country names, 216 verified country codes and Kosovo exception
         run: node scripts/check-country-code-sources.mjs > anybike-country-codes-summary.json
       - name: Check live pilot public pages
         run: node scripts/audit-live-public-pages.mjs > anybike-live-public-audit.json
@@ -78,8 +78,8 @@ jobs:
             '| Private country route candidates prepared | ' + countryCandidates.counts.candidates + ' |',
             '| Regional navigation preview pages | ' + regional.stagedPages + ' |',
             '| Regional country links generated in preview | ' + regional.generatedCountryLinks + ' |',
-            '| Exact verified country codes | ' + crosswalk.counts.verifiedUniqueCodes + ' |',
-            '| Country codes needing further verification | ' + crosswalk.counts.unresolvedNames + ' |',
+            '| Verified standard country codes | ' + crosswalk.counts.verifiedUniqueCodes + ' |',
+            '| Country territories without an assigned ISO alpha-2 code | ' + crosswalk.counts.unresolvedNames + ' |',
             '| BMW/Harley staging preview pages | ' + pilot.staging.staged.length + ' |',
             '| Reciprocal preview links | ' + pilot.links + ' |',
             '| Expanded catalogue models compared | ' + expanded.catalogueModels + ' |',
@@ -91,7 +91,7 @@ jobs:
             'Open the uploaded JSON report for individual findings.'
           ].join('\n');
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, output + '\n');
-          if (crosswalk.issues.length || regional.errors.length || regional.stagedPages !== 217 || countryAudit.issues.length || countryAudit.counts.marketHtmlFiles !== 217 || countryAudit.counts.sourceEligible !== 217) {
+          if (crosswalk.issues.length || crosswalk.counts.verifiedUniqueCodes !== 216 || crosswalk.counts.unresolvedNames !== 1 || regional.errors.length || regional.stagedPages !== 217 || countryAudit.issues.length || countryAudit.counts.marketHtmlFiles !== 217 || countryAudit.counts.sourceEligible !== 217) {
             console.error('Country SEO audit regression: see anybike-country-indexability.json for affected pages');
             process.exitCode = 1;
           }
