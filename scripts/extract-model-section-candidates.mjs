@@ -18,6 +18,12 @@ const headings=[
  {rule:/^Compare documented specifications$/i,category:'technical_specifications',priority:8},
  {rule:/^2025 UK-market specifications$/i,category:'technical_specifications',priority:9},
  {rule:/^2026 UK manufacturer specifications$/i,category:'technical_specifications',priority:9},
+ {rule:/^Introduction and model years$/i,category:'chronology',priority:9},
+ {rule:/^Standard, Rallye, Triple Black and Trophy$/i,category:'generations',priority:9},
+ {rule:/^Engine, chassis and dimensions$/i,category:'technical_specifications',priority:9},
+ {rule:/^Factory colours and special editions$/i,category:'factory_colours',priority:9},
+ {rule:/^Electronics and touring options$/i,category:'equipment',priority:9},
+ {rule:/^What to check on a used R 1250 GS$/i,category:'buying_guidance',priority:9},
  {rule:/^Different V-Rod models and generations$/i,category:'generations',priority:9}
 ];
 export function extractModelSectionCandidates({html,modelId,sourcePublicPath,sourceSha}={}) {
