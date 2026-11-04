@@ -50,6 +50,18 @@ test('complete pipeline generates reciprocal approved links and excludes draft s
  assert.equal(r.pages.find(p=>p.id==='global:1').links.length,0);
  assert.equal(r.livePublicationVerified,false);
 });
+test('end-to-end published manufacturer-model records generate reciprocal links',()=>{
+ const r=assemblePublicEditorialGraph({
+  inventory,identities:absolute,
+  manufacturers:[{id:15,display_name:'BMW'}],
+  models:[{id:72,manufacturer:'BMW',model:'R 1300 GS'},{id:999,manufacturer:'BMW',model:'Unpublished'}]
+ });
+ const bmw=r.pages.find(p=>p.id==='manufacturer:15');
+ const gs=r.pages.find(p=>p.id==='model:72');
+ assert.deepEqual(bmw.links.map(p=>p.id),['model:72']);
+ assert.deepEqual(gs.links.map(p=>p.id),['manufacturer:15']);
+ assert.equal(r.counts.generatedLinks,2);
+});
 test('no explicit approved deployment means no links, no pages',()=>{
  const r=assemblePublicEditorialGraph({inventory,identities:absolute.map(p=>({...p,liveVerified:false}))});
  assert.equal(r.pages.length,0);
