@@ -10,7 +10,7 @@ const norm = value => typeof value === 'string'
   ? value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]/g, '')
   : '';
 export function matchCatalogueGuides({inventory,manufacturers=[],models=[]}={}) {
- const diagnostics=[],pages=[],seenKeys=new Map(),seenPagePaths=new Set();
+ const diagnostics=[],pages=[],seenPagePaths=new Set();
  const eligible=(inventory?.candidates||[]).filter(p=>p?.sourceEligible===true && ['manufacturer','model'].includes(p.type));
  const allMakes=new Map();
  for(const make of manufacturers){
@@ -26,16 +26,24 @@ export function matchCatalogueGuides({inventory,manufacturers=[],models=[]}={}) 
   if(allModels.has(key))allModels.set(key,null);
   else allModels.set(key,model);
  }
+ const sourceKeys=new Map();
+ for(const item of eligible) {
+  const file=item.path?.split('/').pop();
+  if(!file || !/^[a-z0-9-]+\.html$/i.test(file))continue;
+  const base=file.slice(0,-5);
+  const key=norm(item.type==='manufacturer' && base.endsWith('-motorcycles') ? base.slice(0,-12) : base);
+  const k=item.type+':'+key;
+  sourceKeys.set(k,(sourceKeys.get(k)||0)+1);
+ }
  for(const item of eligible){
   const filename=item.path?.split('/').pop();
   if(!filename || !/^[a-z0-9-]+\.html$/i.test(filename))continue;
   const base=filename.slice(0,-5);
   const key=norm(item.type==='manufacturer' && base.endsWith('-motorcycles') ? base.slice(0,-12) : base);
-  if(seenKeys.has(item.type+':'+key)){
+  if(sourceKeys.get(item.type+':'+key)>1){
    diagnostics.push({code:'duplicate-source-match',path:item.path});
    continue;
   }
-  seenKeys.set(item.type+':'+key,true);
   const entry=item.type==='manufacturer'?allMakes.get(key):allModels.get(key);
   if(!entry){
    diagnostics.push({code: 'unmatched-or-ambiguous-guide',path:item.path});
