@@ -27,6 +27,8 @@ export function graphFromCatalogueRows({
   regionalCountryRoutes = []
 } = {}) {
   const relationRows = [];
+  // A partial rollout must never create phantom relations to unverified pages.
+  const publishedNodes = new Set(publicPages.filter(p=>p?.published===true).map(p=>p.id));
   // Use only canonical names and verified public endpoints; never guess URLs from slugs.
   const normName = value => typeof value === 'string' ? value.trim().toLocaleLowerCase('en-GB').replace(/\s+/g, ' ') : '';
   const makeByName = new Map();
@@ -40,11 +42,11 @@ export function graphFromCatalogueRows({
     if (model?.id == null) continue;
     const makeId = makeByName.get(normName(model.manufacturer));
     if (makeId == null) continue;
+    if (!publishedNodes.has(id('manufacturer',makeId)) || !publishedNodes.has(id('model',model.id))) continue;
     relationRows.push({from:id('manufacturer',makeId),to:id('model',model.id),type:'manufacturer-model',approved:true});
   }
   // Regional directory links use only fully approved & live-verified
   // country routes. They DO NOT imply motorcycle availability in a country.
-  const publishedNodes = new Set(publicPages.filter(p=>p?.published===true).map(p=>p.id));
   const regional = regionalMarketNavigation({
     routes: regionalCountryRoutes, mode: 'published', maxLinks: 6
   });
@@ -99,7 +101,7 @@ export function graphFromCatalogueRows({
     }
     const country = publicPages.find(p => p.id === countryId &&
       p.published === true && p.url === row.market_url);
-    if (!country) continue;
+    if (!country || !publishedNodes.has(id('model',row.model_id))) continue;
     relationRows.push({
       from: id('model', row.model_id), to: countryId,
       type: 'model-country', approved: true
