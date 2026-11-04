@@ -11,16 +11,17 @@
  *           diagnostics:[{code,...}] }
  */
 const KINDS = new Set(['manufacturer', 'model', 'country', 'global']);
-const ALLOWED_PATH = /^(?:\/(?:markets\/[a-z0-9-]+|[a-z0-9-]+)\.html)$/i;
+const ALLOWED_PATH = /^\/(?:markets\/[a-z0-9-]+|global\/[a-z0-9-]+|[a-z0-9-]+)\.html$/i;
 function canonicalPath(value) {
   if (typeof value !== 'string' || !value.trim()) return null;
   try {
     const url = new URL(value, 'https://www.anybike.co.uk');
     if (url.hostname !== 'www.anybike.co.uk' || url.username || url.password ||
-        url.search || url.hash || url.protocol !== 'https:') return null;
+        url.search || url.protocol !== 'https:') return null;
     if (value.startsWith('//')) return null;
     if (!ALLOWED_PATH.test(url.pathname)) return null;
-    return url.pathname;
+    if (url.hash && !/^#[a-z0-9_-]+$/i.test(url.hash)) return null;
+    return url.pathname + url.hash;
   } catch { return null; }
 }
 export function buildPublicLinkGraph({ pages = [], relations = [] } = {}) {
