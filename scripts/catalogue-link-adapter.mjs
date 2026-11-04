@@ -26,7 +26,7 @@ export function graphFromCatalogueRows({
 } = {}) {
   const relationRows = [];
   // Use only canonical names and verified public endpoints; never guess URLs from slugs.
-  const normName = value => typeof value === 'string' ? value.trim().toLocaleLowerCase('en-GB').replace(/\\s+/g, ' ') : '';
+  const normName = value => typeof value === 'string' ? value.trim().toLocaleLowerCase('en-GB').replace(/\s+/g, ' ') : '';
   const makeByName = new Map();
   for (const make of manufacturers) {
     if (make?.id == null || !normName(make.display_name)) continue;
