@@ -79,3 +79,35 @@ test('unknown or ambiguous manufacturer does not create a guessed link',()=>{
 test('empty input is safe', () => {
  assert.deepEqual(graphFromCatalogueRows(),{pages:[],diagnostics:[]});
 });
+
+
+test('private published country regions generate reciprocal navigation, not model availability',()=>{
+ const pages=[
+  {id:'country:kenya',type:'country',title:'Kenya',url:'/markets/kenya.html',published:true},
+  {id:'country:ghana',type:'country',title:'Ghana',url:'/markets/ghana.html',published:true},
+  {id:'country:france',type:'country',title:'France',url:'/markets/france.html',published:true},
+  {id:'model:7',type:'model',title:'R 1300 GS',url:'/bmw-r1300gs.html',published:true}
+ ];
+ const mk=(slug,name,region)=>({
+  entity_type:'country',country_slug:slug,country_name:name,country_region:region,
+  public_path:'/markets/'+slug+'.html',publication_state:'published',
+  source_verified_at:'2026-11-04',live_verified_at:'2026-11-04',
+  editorial_verified_at:'2026-11-04'
+ });
+ const graph=graphFromCatalogueRows({
+  publicPages:pages,
+  regionalCountryRoutes:[mk('kenya','Kenya','Africa'),mk('ghana','Ghana','Africa'),
+    mk('france','France','Europe')]
+ });
+ const byId=Object.fromEntries(graph.pages.map(p=>[p.id,p]));
+ assert.deepEqual(byId['country:kenya'].links.map(p=>p.id),['country:ghana']);
+ assert.deepEqual(byId['country:ghana'].links.map(p=>p.id),['country:kenya']);
+ assert.equal(byId['country:france'].links.length,0);
+ assert.equal(byId['model:7'].links.length,0);
+ const blocked=graphFromCatalogueRows({
+  publicPages:pages,
+  regionalCountryRoutes:[mk('kenya','Kenya','Africa'),
+    {...mk('ghana','Ghana','Africa'),live_verified_at:null}]
+ });
+ assert.equal(blocked.pages.reduce((n,p)=>n+p.links.length,0),0);
+});
