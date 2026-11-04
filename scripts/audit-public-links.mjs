@@ -98,8 +98,34 @@ for (const file of htmlFiles) {
 }
 
 const orphanCandidates = htmlFiles.filter((file) => isFamily(file) && !incoming.has(file));
+
+const marketIssues = [];
+let marketPages = 0;
+for (const file of htmlFiles.filter((p) => /^markets\\/[^/]+\\.html$/i.test(p))) {
+  marketPages++;
+  const html = fs.readFileSync(path.join(root, file), 'utf8');
+  const canonicalMatches = [...html.matchAll(/<link\\b(?=[^>]*\\brel\\s*=\\s*["']canonical["'])[^>]*>/gi)];
+  if (canonicalMatches.length !== 1) marketIssues.push({ file, issue: 'canonical-count', count: canonicalMatches.length });
+  const header = /<script\\b[^>]*src\\s*=\\s*["'][^"']*public-header\\.js(?:\\?[^"']*)?["']/i.test(html);
+  if (!header) marketIssues.push({ file, issue: 'missing-public-header-script' });
+  const deprecated = [...html.matchAll(/href\\s*=\\s*["']([^"']*motorcycle-brand\\.html(?:\\?[^"']*)?)["']/gi)];
+  if (deprecated.length) marketIssues.push({ file, issue: 'legacy-motorcycle-brand-links', count: deprecated.length });
+  const directScripts = [...html.matchAll(/<script\\b[^>]*src\\s*=\\s*["'][^"']*market-page-standardisation\\.js(?:\\?[^"']*)?["']/gi)].length;
+  if (directScripts > 1) marketIssues.push({ file, issue: 'duplicate-direct-market-script', count: directScripts });
+  const canonText = canonicalMatches[0]?.[0] || '';
+  const canonicalHref = canonText.match(/href\\s*=\\s*["']([^"']+)["']/i)?.[1];
+  if (canonicalHref) {
+    try {
+      const c = new URL(canonicalHref);
+      if (c.hostname !== 'www.anybike.co.uk' || c.pathname !== '/' + file) marketIssues.push({ file, issue: 'canonical-mismatch', canonical: canonicalHref });
+    } catch { marketIssues.push({ file, issue: 'invalid-canonical', canonical: canonicalHref }); }
+  }
+}
+
 const result = {
   generatedAt: new Date().toISOString(),
+  countryPagesScanned: marketPages,
+  marketNavigationIssues: marketIssues,
   scope: 'Repository static HTML links only; NOT live hosting, JS links, database data, or mobile rendering',
   htmlPages: htmlFiles.length,
   familyCounts: byFamily,
@@ -113,6 +139,8 @@ if (json) process.stdout.write(JSON.stringify(result, null, 2) + '\n');
 else {
   console.log('AnyBike source link audit: ' + htmlFiles.length + ' HTML files');
   console.log('Broken local HTML links: ' + missing.length);
+  console.log('Country-page structural issues: ' + marketIssues.length);
+  for (const issue of marketIssues.slice(0, 50)) console.log('MARKET ' + issue.file + ': ' + issue.issue);
   console.log('Selected public pages with no incoming static links: ' + orphanCandidates.length);
   for (const item of missing.slice(0, 60)) console.log('MISSING ' + item.source + ' -> ' + item.target);
   for (const file of orphanCandidates.slice(0, 40)) console.log('NO INCOMING STATIC LINK ' + file);
