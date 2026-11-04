@@ -23,7 +23,7 @@ Private schema: `anybike_publishing`.
 - A further 40 text sections were captured from 18 Harley-Davidson source guides by an explicit heading whitelist, and 6 from the existing BMW R 1250 GS source page.
 - Source page paths, original Git blob hashes and exact normalized source excerpts are preserved.
 - None of this modifies the 979 canonical model records' existing overview, specification JSON, gallery, production or pricing fields. Real source material and the existing approved layouts remain the source of truth until factual/editorial review.
-- Source record integrity view distinguishes the **60 existing source-extract matches** from the **46 directly captured HTML sections**, which have matching source blob references but still need a fresh full text recheck. It does not falsely claim all 106 were independently fact verified.
+- Source record integrity view distinguishes the **60 existing source-extract matches** from the **46 separately repository-rechecked HTML sections**, which have now been independently re-extracted from current repository HTML and matched exactly to the stored text, section labels and Git blob hashes. It does not falsely claim all 106 were independently fact verified.
 
 **Coverage and QA:** backend-only `model_research_category_coverage` reports 979 × 13 = **12,727** model/research-category combinations, 106 with source captures; `manufacturer_research_category_coverage` reports 50 × 20 = **1,000** manufacturer/category combinations. This is an editorial backlog, NOT a public page-completion percentage.
 
@@ -49,7 +49,7 @@ The 12 approved BMW manufacturer heading sources and 22 Harley-Davidson heading 
 
 ## Next substantial database batches
 
-1. Re-validate the 46 directly captured text sections against exact source bytes, and begin separate factual/technical verification for documented year-specific claims.
+1. Begin separate factual/technical verification for documented year-specific claims; the 46 directly captured sections have passed exact-source rechecking but not factual or editorial approval.
 2. Extract additional approved, high-quality BMW engineering and ownership text as nonpublishing evidence where source headings/sections allow reliable parsing.
 3. Populate manufacturer categories from factory and official references with proper dates, rights and per-field citations; do not infer production or registration figures.
 4. Build formal evidence-review workflow in admin only when its access controls and existing model IDs have been verified.
