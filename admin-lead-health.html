@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Lead Health | AnyBike Admin</title>
+<link rel="stylesheet" href="/admin-shell.css?v=12001">
+<script>document.documentElement.classList.add("admin-auth-pending");</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+html.admin-auth-pending body{visibility:hidden!important;pointer-events:none!important}
+:root{--red:#ed1c24;--line:rgba(255,255,255,.17);--muted:#aaa}
+*{box-sizing:border-box}
+body{background:#0b0b0b;color:#fff;font-family:Arial,Helvetica,sans-serif;margin:0}
+main{max-width:1370px;margin:auto;padding:22px}
+h1{font-size:30px;letter-spacing:-.03em;margin:0 0 8px}h2{font-size:20px}
+p{color:#bbb;line-height:1.5}
+a{color:inherit}
+.top{background:#161616;border:1px solid var(--red);border-radius:14px;padding:21px;margin-bottom:14px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0 0}
+.actions a,.actions button,.row-link{display:inline-block;border:1px solid var(--red);border-radius:999px;padding:9px 13px;background:#ed1c24;color:#fff;text-decoration:none;font-weight:800;font-size:13px;cursor:pointer}
+.actions .secondary{background:#222;border-color:#555}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.stat{background:#171717;border:1px solid #ed1c24;border-radius:12px;padding:14px}
+.stat span{display:block;color:#bbb;font-size:12px;font-weight:800}
+.stat strong{display:block;font-size:30px;padding:7px 0;color:#fff;font-variant-numeric:tabular-nums}
+.panel{background:#151515;border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:15px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;color:#bbb;font-size:12px}th,td{padding:11px;border-bottom:1px solid var(--line);vertical-align:top}
+td small{display:block;color:#aaa;margin-top:5px}
+.state{font-weight:850}
+.problem{color:#ffb3b3}
+.ok{color:#8dda9f}
+#status{color:#ddd;font-weight:700}
+.note{font-size:12px;color:#aaa;margin-top:13px}
+@media(max-width:720px){main{padding:12px}h1{font-size:25px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.stat strong{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="admin-shell">
+ <div id="adminSidebar"></div>
+ <div class="admin-main">
+  <div id="adminTopbar"></div>
+  <main class="admin-page-content">
+   <div class="top">
+    <h1>Lead Health Monitor</h1>
+    <p>Check public enquiries received, first messages, admin notifications and conversations waiting for attention. Read-only: nothing is marked as read or closed here.</p>
+    <div class="actions">
+      <button id="refresh" type="button">Refresh lead health</button>
+      <a class="secondary" href="/admin-message-centre.html">Message Centre</a>
+      <a class="secondary" href="/admin-enquiries.html">Motorcycle Sales</a>
+      <a class="secondary" href="/admin-reports.html">Reports</a>
+    </div>
+    <p id="status" role="status" aria-live="polite">Checking admin session…</p>
+   </div>
+   <div class="cards" id="stats">
+     <div class="stat"><span>Enquiries in last 7 days</span><strong id="last7">—</strong></div>
+     <div class="stat"><span>Awaiting reply</span><strong id="awaiting">—</strong></div>
+     <div class="stat"><span>Over 24h without completed status</span><strong id="overdue">—</strong></div>
+     <div class="stat"><span>Missing admin bell</span><strong id="bells">—</strong></div>
+     <div class="stat"><span>Missing first message</span><strong id="messages">—</strong></div>
+     <div class="stat"><span>Enquiries in last 30 days</span><strong id="total">—</strong></div>
+   </div>
+   <section class="panel">
+    <h2>Items to review</h2>
+    <p id="empty">Retrieving enquiry status…</p>
+    <div class="table-wrap">
+      <table aria-label="Potential lead issues" id="issueTable" hidden>
+        <thead><tr><th>Enquiry</th><th>Route</th><th>Status</th><th>Reason</th><th>Next action</th></tr></thead>
+        <tbody id="issueRows"></tbody>
+      </table>
+    </div>
+    <p class="note">Coverage: selected public intake routes in the last 30 days. A status of New or Needs Reply older than 24 hours is a follow-up prompt, not proof the customer has not been contacted. This page cannot detect submissions that fail before reaching Supabase or confirm delivery of external emails. No personal data is returned to unsigned visitors.</p>
+   </section>
+  </main>
+ </div>
+</div>
+<script src="/admin.js?v=12100"></script>
+<script>
+(function(){
+"use strict";
+const el=id=>document.getElementById(id);
+function textCell(tr,value){
+ const td=document.createElement("td");td.textContent=String(value??"");tr.append(td);return td;
+}
+function reasons(item){
+ const list=[];
+ if(item.no_message)list.push("Customer message missing");
+ if(item.no_bell)list.push("Admin alert missing");
+ if(item.overdue_reply)list.push("Reply status overdue (24h+)");
+ return list.join(" · ");
+}
+async function loadHealth(){
+ el("status").textContent="Refreshing database health report…";
+ el("refresh").disabled=true;
+ try{
+   const client=typeof getAdminSupabaseClient==="function"?getAdminSupabaseClient():null;
+   if(!client)throw new Error("Admin session is unavailable.");
+   const session=await client.auth.getSession();
+   if(!session.data?.session)throw new Error("Sign in to the AnyBike admin area.");
+   const {data,error}=await client.rpc("admin_lead_health_v1");
+   if(error)throw error;
+   const summary=data?.summary||{};
+   const fields={last7:"last_7_days",awaiting:"awaiting_reply",overdue:"awaiting_over_24h",
+     bells:"missing_admin_bell",messages:"missing_first_message",total:"total_30_days"};
+   for(const [node,key] of Object.entries(fields))el(node).textContent=Number(summary[key]||0).toLocaleString("en-GB");
+   const rows=Array.isArray(data?.issues)?data.issues:[];
+   const body=el("issueRows");body.replaceChildren();
+   for(const item of rows){
+     const tr=document.createElement("tr");
+     const first=textCell(tr,item.subject||"Enquiry #"+item.id);
+     const small=document.createElement("small");
+     small.textContent="Thread #"+item.id+" · "+new Date(item.created_at).toLocaleString("en-GB");
+     first.append(small);
+     textCell(tr,item.source_type||"Other");
+     const status=textCell(tr,item.status||"Unknown");status.classList.add("state");
+     const reason=textCell(tr,reasons(item));reason.classList.add(item.no_message||item.no_bell?"problem":"");
+     const action=document.createElement("td");
+     const link=document.createElement("a");
+     link.textContent="Open enquiry";link.className="row-link";
+     // Only same-origin relative URLs assembled by the protected server.
+     link.href=/^\/admin-message-centre\.html\?thread=\d+$/.test(item.link||"")?item.link:"/admin-message-centre.html";
+     action.append(link);tr.append(action);body.append(tr);
+   }
+   el("issueTable").hidden=rows.length===0;
+   el("empty").textContent=rows.length?"": "No missing messages, missing alerts or overdue reply statuses found in these routes.";
+   el("status").textContent="Updated "+new Date(data.generated_at||Date.now()).toLocaleString("en-GB")+" · read-only";
+ }catch(error){
+   el("status").textContent="Lead health could not load: "+String(error.message||error);
+   console.error("AnyBike lead health",error);
+ }finally{el("refresh").disabled=false;}
+}
+el("refresh").addEventListener("click",loadHealth);
+window.addEventListener("load",()=>{setTimeout(loadHealth,300);});
+})();
+</script>
+</body></html>
