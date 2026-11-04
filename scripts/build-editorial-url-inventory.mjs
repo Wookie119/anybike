@@ -39,7 +39,7 @@ export function inventoryEditorialUrls(root) {
     if (!type) continue;
     const expectedUrl = BASE + '/' + file;
     const html = fs.readFileSync(path.join(root, file),'utf8');
-    const robots = [...html.matchAll(/<meta\b[^>]*>/gi)].map(m=>m[0]).find(x=>/\bname\s*=\s*["']robots["']/i.test(x)) || '';
+    const robots = [...html.matchAll(/<meta\b[^>]*>/gi)].map(m=>m[0]).filter(x=>/\bname\s*=\s*["']robots["']/i.test(x)).join(' ');
     const canon = [...html.matchAll(/<link\b[^>]*>/gi)].map(m=>m[0]).filter(x=>/\brel\s*=\s*["']canonical["']/i.test(x));
     const canonical = canon.length === 1 ? (canon[0].match(/\bhref\s*=\s*["']([^"']+)["']/i)?.[1] ?? '') : '';
     const reasons = [];
