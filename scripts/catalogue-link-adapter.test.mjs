@@ -111,3 +111,33 @@ test('private published country regions generate reciprocal navigation, not mode
  });
  assert.equal(blocked.pages.reduce((n,p)=>n+p.links.length,0),0);
 });
+
+
+test('published country code maps to canonical country slug for approved motorcycle-country rows',()=>{
+ const pages=[
+  {id:'country:kenya',type:'country',title:'Kenya',url:'/markets/kenya.html',published:true},
+  {id:'model:7',type:'model',title:'BMW R 1300 GS',url:'/bmw-r1300gs.html',published:true}
+ ];
+ const route={entity_type:'country',country_slug:'kenya',country_name:'Kenya',
+  country_region:'Africa',country_code:'KE',public_path:'/markets/kenya.html',
+  publication_state:'published',source_verified_at:'2026-11-04',
+  live_verified_at:'2026-11-04',editorial_verified_at:'2026-11-04'};
+ const link={model_id:7,country_code:'ke',market_url:'/markets/kenya.html',is_published:true};
+ const graph=graphFromCatalogueRows({publicPages:pages,
+  regionalCountryRoutes:[route],countryLinks:[link]});
+ assert.deepEqual(graph.pages.find(p=>p.id==='model:7').links.map(p=>p.id),['country:kenya']);
+ assert.deepEqual(graph.pages.find(p=>p.id==='country:kenya').links.map(p=>p.id),['model:7']);
+ for (const notVerified of [
+  {...route,live_verified_at:null},
+  {...route,country_code:null},
+  {...route,country_code:'US'}
+ ]) {
+  const blocked=graphFromCatalogueRows({publicPages:pages,
+   regionalCountryRoutes:[notVerified],countryLinks:[link]});
+  assert.equal(blocked.pages.reduce((n,p)=>n+p.links.length,0);
+ }
+ const wrong=graphFromCatalogueRows({publicPages:pages,
+  regionalCountryRoutes:[route],
+  countryLinks:[{...link,market_url:'/markets/ghana.html'}]});
+ assert.equal(wrong.pages.reduce((n,p)=>n+p.links.length,0));
+});
