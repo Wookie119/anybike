@@ -37,3 +37,20 @@ test('missing easy match is a source-regression issue, not invented',()=>{
  const a=auditCountryCodeCrosswalk({routes:[{...routes[0],country_code:null},...routes.slice(1)],directory,marketData});
  assert.ok(a.issues.some(x=>x.code==='missing-exact-country-code'));
 });
+
+
+test('approved aliases with explicit evidence are valid while XK remains unassigned ISO',()=>{
+ const approved=[
+  {...routes[0],country_code_evidence:'exact-curated-country-name'},
+  {...routes[1],country_code:'FR',country_code_evidence:'reviewed-ISO-country-alias-and-curated-market-record'},
+  {...routes[2],country_code_evidence:'exact-curated-country-name'}
+ ];
+ const ok=auditCountryCodeCrosswalk({routes:approved,directory,marketData});
+ assert.equal(ok.counts.verifiedUniqueCodes,3);
+ assert.equal(ok.counts.unresolvedNames,0);
+ assert.deepEqual(ok.issues,[]);
+ const missingEvidence=auditCountryCodeCrosswalk({routes:[
+  approved[0],{...approved[1],country_code_evidence:null},approved[2]
+ ],directory,marketData});
+ assert.ok(missingEvidence.issues.some(x=>x.code==='country-code-requires-evidence'));
+});
