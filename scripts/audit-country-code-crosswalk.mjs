@@ -21,6 +21,7 @@ export function auditCountryCodeCrosswalk({routes=[],directory=[],marketData={}}
   list.push(code);codesByName.set(n,list);
  }
  const seenCodes=new Map(),seenPaths=new Set();
+ const reviewedEvidence=new Set(['named-country-flag-plus-ISO-reference','reviewed-ISO-country-alias-and-curated-market-record']);
  for(const route of routes){
   const path=route?.public_path,source=sourceByPath.get(path);
   if(!/^\/markets\/[a-z0-9-]+\.html$/.test(String(path||'')) ||
@@ -43,8 +44,9 @@ export function auditCountryCodeCrosswalk({routes=[],directory=[],marketData={}}
    seenCodes.set(code,path);
    if(exactCodes.length===1 && exactCodes[0]!==code)
     issues.push({code:'code-contradicts-unique-source',path,iso:code});
-   if(exactCodes.length!==1)unresolved.push({path,name:source.name,
-      codeCandidate:code,reason:'manually-verified-code-needs-evidence'});
+   if(exactCodes.length!==1 && !reviewedEvidence.has(route.country_code_evidence)) {
+    issues.push({code:'country-code-requires-evidence',path,iso:code});
+   }
    checked.push({path,name:source.name,code});
   } else {
    if(exactCodes.length===1)issues.push({code:'missing-exact-country-code',path,expected:exactCodes[0]});
