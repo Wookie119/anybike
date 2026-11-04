@@ -28,6 +28,15 @@ export function makePublicEditorialManifest({ inventory, identities=[] } = {}) {
     }
     candidates.set(row.url,row);
   }
+  // Fail closed on conflicting approved public identities. No ordering of
+  // private route rows should decide which canonical page goes live.
+  const idCounts=new Map(),urlCounts=new Map();
+  for(const p of identities){
+    if(p?.published!==true || p?.liveVerified!==true)continue;
+    if(typeof p.id==='string')idCounts.set(p.id,(idCounts.get(p.id)||0)+1);
+    if(typeof p.url==='string')urlCounts.set(p.url,(urlCounts.get(p.url)||0)+1);
+  }
+  const quarantinedIds=new Set(),quarantinedUrls=new Set();
   const pages=[];
   const seenIds=new Set();
   const seenUrls=new Set();
@@ -44,6 +53,13 @@ export function makePublicEditorialManifest({ inventory, identities=[] } = {}) {
     const source = candidates.get(p.url);
     if (!source || source.type !== p.type) {
       diagnostics.push({code:'not-source-eligible',id:p.id,url:p.url});
+      continue;
+    }
+    if((idCounts.get(p.id)||0)>1 || (urlCounts.get(p.url)||0)>1){
+      if(!quarantinedIds.has(p.id) && !quarantinedUrls.has(p.url)){
+        diagnostics.push({code:'duplicate-public-identity',id:p.id,url:p.url});
+      }
+      quarantinedIds.add(p.id);quarantinedUrls.add(p.url);
       continue;
     }
     if (seenIds.has(p.id) || seenUrls.has(p.url)) {
