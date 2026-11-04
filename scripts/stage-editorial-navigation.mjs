@@ -36,20 +36,38 @@ export function stageEditorialNavigation({root,output,graph}) {
   const sourceRoot=path.resolve(root),destRoot=path.resolve(output);
   if(destRoot===sourceRoot || destRoot.startsWith(sourceRoot+path.sep) && !destRoot.includes('preview'))
     throw new Error('Use a separate preview output directory');
-  const staged=[],skipped=[],errors=[];
+  const staged=[],skipped=[],errors=[],prepared=[];
+  const destinations=new Set();
   for(const page of graph.pages) {
     const rel=relativeHtmlFile(page.url);
-    if(!rel || !page.links?.length){skipped.push(page.id);continue;}
+    if(!rel){
+      errors.push({id:page.id,path:String(page.url??''),error:'Invalid or unsafe HTML page path'});
+      continue;
+    }
+    if(!page.links?.length){skipped.push(page.id);continue;}
     const input=path.join(sourceRoot,rel),destination=path.join(destRoot,rel);
+    if(destinations.has(destination)){
+      errors.push({id:page.id,path:rel,error:'Duplicate staged destination'});
+      continue;
+    }
+    destinations.add(destination);
     try{
       if(!fs.existsSync(input))throw new Error('Missing source HTML file');
+      // No source files may be modified. Every page must validate before any
+      // preview is written, avoiding partial releases that appear successful.
       const original=fs.readFileSync(input,'utf8');
       const revised=renderStagedEditorialHtml(original,page);
       if(revised===original){skipped.push(page.id);continue;}
-      fs.mkdirSync(path.dirname(destination),{recursive:true});
-      fs.writeFileSync(destination,revised);
-      staged.push({id:page.id,path:rel,related:page.links.length});
+      if(fs.existsSync(destination))throw new Error('Existing preview requires a clean staging destination');
+      prepared.push({id:page.id,path:rel,destination,content:revised,related:page.links.length});
     }catch(error){errors.push({id:page.id,path:rel,error:String(error.message||error)});}
+  }
+  // Strict all-or-nothing preflight. No preview files are written on errors.
+  if(errors.length)return {staged:[],skipped,errors,sourceFilesModified:false};
+  for(const item of prepared){
+    fs.mkdirSync(path.dirname(item.destination),{recursive:true});
+    fs.writeFileSync(item.destination,item.content);
+    staged.push({id:item.id,path:item.path,related:item.related});
   }
   return {staged,skipped,errors,sourceFilesModified:false};
 }
