@@ -39,3 +39,17 @@ test('models with no exact, distinct public source are excluded',()=>{
  assert.equal(r.pages.length,0);
  assert.equal(r.counts.eligibleSourceGuides,4);
 });
+
+test('two eligible source paths with the same normalized filename are both blocked',()=>{
+ const duplicated=[
+  {type:'model',path:'bmw-r1300gs.html',sourceEligible:true},
+  {type:'model',path:'global/bmw-r1300gs.html',sourceEligible:true}
+ ];
+ const r=matchCatalogueGuides({
+  inventory:{candidates:duplicated},
+  manufacturers:[],
+  models:[{id:77,manufacturer:'BMW',model:'R 1300 GS'}]
+ });
+ assert.equal(r.pages.length,0);
+ assert.equal(r.diagnostics.filter(x=>x.code==='duplicate-source-match').length,2);
+});
