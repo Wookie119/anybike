@@ -1255,6 +1255,7 @@ body{background:#090909!important}.page-shell{width:100%!important;max-width:non
     </div>
 
     <div class="messages-page-actions">
+      <a class="btn red" id="adminMessageCentreLink" href="/admin-message-centre.html?thread=271" hidden>Admin Message Centre · All conversations →</a>
       <a class="btn secondary" href="customer-dashboard.html">← My AnyBike</a>
       <button class="btn" type="button" onclick="openNewMessageModal()">💬 New Message</button>
     </div>
@@ -4501,6 +4502,18 @@ function anybikeMessageTiming(label){
       return;
     }
 
+    // My Messages is a personal inbox restricted by customer_id.
+    // Only an authenticated account verified by the server as an AnyBike admin
+    // may see the separate admin inbox shortcut. Never broaden customer RLS
+    // or fetch other customers' threads through this public portal.
+    try {
+      const {data:isAdmin,error:adminCheckError}=await sb.rpc("anybike_is_admin");
+      if(!adminCheckError && isAdmin===true) {
+        const adminLink=document.getElementById("adminMessageCentreLink");
+        if(adminLink)adminLink.hidden=false;
+      }
+    }catch(error){console.warn("Admin shortcut unavailable",error);}
+    
     const headerMessages=document.getElementById("phMessages");
     if(headerMessages){
       headerMessages.href="/customer-messages.html";
