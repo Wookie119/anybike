@@ -73,6 +73,7 @@ export default {
           .select("message,sender_type")
           .eq("thread_id", thread.id)
           .in("sender_type", ["AnyBike", "Admin"])
+          .eq("is_internal_note", false)
           .order("created_at", { ascending: false })
           .order("id", { ascending: false })
           .limit(1)
@@ -94,7 +95,7 @@ export default {
   
       const instructionsHtml = isGuest
         ? `                        <div style="background:#f7f7f7;border:1px solid #e7e7e7;border-left:4px solid #ed1c24;padding:18px 20px;border-radius:8px;font-size:16px;line-height:1.65;overflow-wrap:anywhere;white-space:normal;">
-                          ${escapeHtml(guestReply).replace(/\\r?\\n/g, "<br>")}
+                          ${escapeHtml(guestReply).replace(/\r?\n/g, "<br>")}
                         </div>
 
                         <p style="margin:22px 0 0;font-size:15px;line-height:1.6;">
