@@ -50,3 +50,11 @@ test('blocking robots policy is detected without altering files',t=>{
  const report=auditCountryIndexability(root);
  assert.ok(report.issues.some(x=>x.code==='robots-crawl-review'));
 });
+
+
+test('market-specific robots disallow is flagged even if homepage remains crawlable',t=>{
+ const root=fixture();t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ fs.writeFileSync(path.join(root,'robots.txt'),'User-agent: *\\nAllow: /\\nDisallow: /markets/\\n');
+ const report=auditCountryIndexability(root);
+ assert.ok(report.issues.some(x=>x.code==='robots-crawl-review'));
+});
