@@ -47,6 +47,13 @@ test('drafts, URL mismatches, non-published country rows and unreviewed model re
  });
  assert.equal(r.pages.reduce((sum,p)=>sum+p.links.length,0),0);
 });
+test('published country entries without a motorcycle model never create links', () => {
+ const r=graphFromCatalogueRows({
+   publicPages,
+   countryLinks:[{model_id:null,country_code:'KE',market_url:'/markets/kenya.html',is_published:true}]
+ });
+ assert.equal(r.pages.reduce((sum,p)=>sum+p.links.length,0),0);
+});
 test('empty input is safe', () => {
  assert.deepEqual(graphFromCatalogueRows(),{pages:[],diagnostics:[]});
 });
