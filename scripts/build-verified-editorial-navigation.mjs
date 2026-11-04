@@ -34,6 +34,7 @@ export function buildVerifiedEditorialNavigation({
  });
  const graph=assemblePublicEditorialGraph({
   inventory,identities:verified.identities,manufacturers,models,
+  manufacturerAliases:data.manufacturerAliases||[],
   regionalCountryRoutes:data.routes,
   countryLinks:data.countryLinks||[],
   globalStories:stories,
