@@ -16,9 +16,15 @@ function attr(tag, name) {
   return tag.match(new RegExp('\\b' + escaped + '\\s*=\\s*["\\x27]([^"\\x27]*)["\\x27]', 'i'))?.[1] ?? '';
 }
 function isRobotsBlocked(robots) {
-  // Safe for the site's current global User-agent: * policy. Never claim a
-  // complete robots parser or Googlebot-specific server-header verification.
-  return /(?:^|\n)\s*Disallow:\s*\/\s*(?:\n|$)/i.test(robots);
+  // Conservative check for blocking the site or the markets subtree.
+  // Full Googlebot-specific matching and server headers require a live audit.
+  return robots.split(/\r?\n/).some(line => {
+    const m=line.replace(/#.*/, '').match(/^\s*Disallow:\s*(\S+)/i);
+    if(!m)return false;
+    const rule=m[1].toLowerCase();
+    return rule==='/' || rule==='/*' || rule==='/markets' ||
+      rule==='/markets/' || rule.startsWith('/markets/*');
+  });
 }
 export function auditCountryIndexability(root) {
   const sitemap = fs.readFileSync(path.join(root,'sitemap.xml'),'utf8');
