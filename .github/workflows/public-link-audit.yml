@@ -23,14 +23,17 @@ jobs:
         with:
           node-version: "20"
       - name: Test central editorial link graph
-        run: node --test scripts/public-editorial-link-graph.test.mjs scripts/catalogue-link-adapter.test.mjs
+        run: node --test scripts/public-editorial-link-graph.test.mjs scripts/catalogue-link-adapter.test.mjs scripts/build-editorial-url-inventory.test.mjs
       - name: Scan all source HTML links
         run: node scripts/audit-public-links.mjs --json > anybike-link-audit.json
+      - name: Inventory editorial source URLs
+        run: node scripts/build-editorial-url-inventory.mjs > anybike-editorial-url-inventory.json
       - name: Publish summary
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const r = JSON.parse(fs.readFileSync('anybike-link-audit.json', 'utf8'));
+          const editorial = JSON.parse(fs.readFileSync('anybike-editorial-url-inventory.json', 'utf8'));
           const output = [
             '## AnyBike source HTML link audit',
             '',
@@ -40,6 +43,8 @@ jobs:
             '| Missing local links | ' + r.missingLinkCount + ' |',
             '| Country pages scanned | ' + r.countryPagesScanned + ' |',
             '| Country structural issues | ' + r.marketNavigationIssues.length + ' |',
+            '| Editorial source URL candidates | ' + editorial.counts.total + ' |',
+            '| Editorial source candidates needing review | ' + editorial.counts.flagged + ' |',
             '| Selected public pages with no incoming static HTML links | ' + r.selectedPublicPagesWithNoIncomingStaticLinks.length + ' |',
             '',
             'This scan is **informational** and does not assert that live 123-reg pages, JavaScript-generated links, database content, or responsive designs passed.',
@@ -51,5 +56,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: anybike-static-link-audit
-          path: anybike-link-audit.json
+          path: |
+            anybike-link-audit.json
+            anybike-editorial-url-inventory.json
           retention-days: 30
