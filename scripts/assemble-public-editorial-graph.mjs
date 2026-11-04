@@ -18,12 +18,13 @@ export function assemblePublicEditorialGraph({
   modelRelationships=[],
   manufacturers=[],
   models=[],
+  manufacturerAliases=[],
   regionalCountryRoutes=[]
 }={}) {
   const manifest=makePublicEditorialManifest({inventory, identities});
   const graph=graphFromCatalogueRows({
     publicPages:manifest.pages,
-    countryLinks, globalStories, storyManufacturers, modelRelationships, manufacturers, models, regionalCountryRoutes
+    countryLinks, globalStories, storyManufacturers, modelRelationships, manufacturers, models, manufacturerAliases, regionalCountryRoutes
   });
   return {
     pages:graph.pages,
