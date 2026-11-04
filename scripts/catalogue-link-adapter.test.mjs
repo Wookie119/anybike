@@ -62,7 +62,7 @@ test('verified manufacturer-model identities link in both directions by exact ca
    models:[{id:7,manufacturer:' bmw ',model:'R 1300 GS'},{id:8,manufacturer:'BMW',model:'R 1250 GS'},{id:999,manufacturer:'BMW',model:'Unpublished model'}]
  });
  const byId=Object.fromEntries(r.pages.map(p=>[p.id,p]));
- assert.deepEqual(byId['manufacturer:15'].links.map(p=>p.id),['model:7','model:8']);
+ assert.deepEqual(byId['manufacturer:15'].links.map(p=>p.id),['model:8','model:7']);
  assert.equal(byId['model:7'].links[0].id,'manufacturer:15');
  assert.equal(byId['model:8'].links[0].id,'manufacturer:15');
  assert.equal(r.pages.some(p=>p.id==='model:999'),false);
