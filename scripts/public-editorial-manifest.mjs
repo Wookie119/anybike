@@ -49,7 +49,7 @@ export function makePublicEditorialManifest({ inventory, identities=[] } = {}) {
     }
     seenIds.add(p.id);
     seenUrls.add(p.url);
-    pages.push({id:p.id,type:p.type,title:p.title.trim(),url:p.url,published:true});
+    pages.push({id:p.id,type:p.type,title:p.title.trim(),url:new URL(p.url).pathname,published:true});
   }
   pages.sort((a,b)=>a.url.localeCompare(b.url));
   return {pages, diagnostics};
