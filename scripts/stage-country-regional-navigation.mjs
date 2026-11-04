@@ -15,7 +15,7 @@ import {regionalMarketNavigation} from './regional-market-navigation.mjs';
 import {stageEditorialNavigation} from './stage-editorial-navigation.mjs';
 
 export function stageCountryRegionalNavigation({root=process.cwd(),snapshot,
-  output,expectedCount=217}={}) {
+  output,expectedCount=217,expectedRegions=9}={}) {
  const filename=snapshot||path.join(root,'scripts/fixtures/verified-country-directory-preview-20261104.json');
  const data=JSON.parse(fs.readFileSync(filename,'utf8'));
  if(!Array.isArray(data?.routes))throw new Error('Private country route export required');
@@ -39,7 +39,7 @@ export function stageCountryRegionalNavigation({root=process.cwd(),snapshot,
   }
  }
  const graph=regionalMarketNavigation({routes:data.routes,mode:'staging',maxLinks:6});
- if(graph.pages.length!==expectedCount || graph.counts.regions!==9)
+ if(graph.pages.length!==expectedCount || graph.counts.regions!==expectedRegions)
   throw new Error('Missing country identities or regions in preview graph');
  const report=stageEditorialNavigation({
   root,output:output||path.join(root,'reports','regional-market-navigation-preview'),graph
