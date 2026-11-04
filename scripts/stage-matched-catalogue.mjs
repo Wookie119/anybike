@@ -13,7 +13,7 @@ import { stageEditorialNavigation } from './stage-editorial-navigation.mjs';
 export function stageMatchedCatalogue({root=process.cwd(),snapshot,output}={}) {
  const file=snapshot || path.join(root,'scripts/fixtures/bmw-harley-catalogue-ids-20261104.json');
  const dataset=JSON.parse(fs.readFileSync(file,'utf8'));
- const inventory=inventoryEditorialUrls(root);
+ const inventory=inventoryEditorialUrls(root,{manufacturers:dataset.manufacturers,models:dataset.models});
  const matches=matchCatalogueGuides({
   inventory,manufacturers:dataset.manufacturers,models:dataset.models
  });
