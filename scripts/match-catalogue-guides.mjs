@@ -29,7 +29,8 @@ export function matchCatalogueGuides({inventory,manufacturers=[],models=[]}={}) 
  for(const item of eligible){
   const filename=item.path?.split('/').pop();
   if(!filename || !/^[a-z0-9-]+\.html$/i.test(filename))continue;
-  const key=norm(filename.slice(0,-5));
+  const base=filename.slice(0,-5);
+  const key=norm(item.type==='manufacturer' && base.endsWith('-motorcycles') ? base.slice(0,-12) : base);
   if(seenKeys.has(item.type+':'+key)){
    diagnostics.push({code:'duplicate-source-match',path:item.path});
    continue;
