@@ -58,6 +58,25 @@ export function graphFromCatalogueRows({
       });
     }
   }
+  // Build a precise country-code to canonical country-slug crosswalk from
+  // fully verified *published* private routes. Country display names, ISO
+  // codes and geographic region are independent fields, never guessed.
+  const countryByCode=new Map(),ambiguousCodes=new Set();
+  if (regionalCountryRoutes.length) {
+    const verifiedRegions=new Set(regional.pages.map(p=>p.id));
+    for (const route of regionalCountryRoutes) {
+      const code=String(route?.country_code||'').trim().toUpperCase();
+      const slug=String(route?.country_slug||'');
+      const pageId=id('country',slug);
+      if (!/^[A-Z]{2}$/.test(code) || !verifiedRegions.has(pageId) ||
+          !publishedNodes.has(pageId) ||
+          !publicPages.some(p=>p.id===pageId && p.published===true &&
+            p.url===route.public_path))continue;
+      if (countryByCode.has(code))ambiguousCodes.add(code);
+      else countryByCode.set(code,route);
+    }
+    for (const code of ambiguousCodes)countryByCode.delete(code);
+  }
   const publishedStories = new Set(
     globalStories.filter(s => s?.editorial_status === 'published' &&
       publicPages.some(p => p.id === id('global', s.id) &&
@@ -66,8 +85,18 @@ export function graphFromCatalogueRows({
   );
   for (const row of countryLinks) {
     if (row?.is_published !== true || row.model_id == null || !String(row.country_code ?? '').trim()) continue;
-    // Match country code only with an explicitly verified public country URL.
-    const countryId = id('country', String(row.country_code ?? '').toUpperCase());
+    // When the private country registry is supplied, require an exact
+    // published code + canonical slug + relationship URL match. Legacy code
+    // IDs remain supported ONLY when no private route registry is supplied.
+    const code=String(row.country_code).trim().toUpperCase();
+    let countryId;
+    if (regionalCountryRoutes.length) {
+      const record=countryByCode.get(code);
+      if (!record || record.public_path!==row.market_url)continue;
+      countryId=id('country',record.country_slug);
+    } else {
+      countryId=id('country',code);
+    }
     const country = publicPages.find(p => p.id === countryId &&
       p.published === true && p.url === row.market_url);
     if (!country) continue;
