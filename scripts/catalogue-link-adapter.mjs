@@ -11,6 +11,7 @@
  * motorcycle_catalog_model_relationships.
  */
 import { buildPublicLinkGraph } from './public-editorial-link-graph.mjs';
+import { regionalMarketNavigation } from './regional-market-navigation.mjs';
 
 const VALID_REVIEW = new Set(['approved', 'verified', 'published']);
 const id = (kind, value) => kind + ':' + String(value);
@@ -22,7 +23,8 @@ export function graphFromCatalogueRows({
   storyManufacturers = [],
   modelRelationships = [],
   manufacturers = [],
-  models = []
+  models = [],
+  regionalCountryRoutes = []
 } = {}) {
   const relationRows = [];
   // Use only canonical names and verified public endpoints; never guess URLs from slugs.
@@ -39,6 +41,22 @@ export function graphFromCatalogueRows({
     const makeId = makeByName.get(normName(model.manufacturer));
     if (makeId == null) continue;
     relationRows.push({from:id('manufacturer',makeId),to:id('model',model.id),type:'manufacturer-model',approved:true});
+  }
+  // Regional directory links use only fully approved & live-verified
+  // country routes. They DO NOT imply motorcycle availability in a country.
+  const publishedNodes = new Set(publicPages.filter(p=>p?.published===true).map(p=>p.id));
+  const regional = regionalMarketNavigation({
+    routes: regionalCountryRoutes, mode: 'published', maxLinks: 6
+  });
+  for (const page of regional.pages) {
+    if (!publishedNodes.has(page.id)) continue;
+    for (const link of page.links) {
+      if (!publishedNodes.has(link.id)) continue;
+      relationRows.push({
+        from: page.id,to:link.id,
+        type:'regional-country-navigation',approved:true
+      });
+    }
   }
   const publishedStories = new Set(
     globalStories.filter(s => s?.editorial_status === 'published' &&
