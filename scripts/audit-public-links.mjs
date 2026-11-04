@@ -51,7 +51,7 @@ function attrs(html, tag) {
   const tagRe = new RegExp('<' + tag + '\\b[^>]*>', 'gi');
   for (const match of html.matchAll(tagRe)) {
     const src = match[0];
-    const found = src.match(/\\b(?:href|src)\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/i);
+    const found = src.match(/\b(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
     if (found) results.push(found[1] ?? found[2] ?? found[3]);
   }
   return results;
@@ -60,7 +60,7 @@ function resolveLink(from, raw) {
   const value = raw.trim();
   if (!value || value.startsWith('#')) return null;
   if (/^(?:mailto:|tel:|sms:|javascript:|data:|blob:)/i.test(value)) return null;
-  if (/\\$\\{|{{|<%|\\+/.test(value)) return { dynamic: true };
+  if (/\$\{|{{|<%|\+/.test(value)) return { dynamic: true };
   let url;
   try { url = new URL(value, 'https://www.anybike.co.uk/' + from); }
   catch { return { dynamic: true }; }
