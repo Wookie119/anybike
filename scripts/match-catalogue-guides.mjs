@@ -13,19 +13,23 @@ export function matchCatalogueGuides({inventory,manufacturers=[],models=[]}={}) 
  const diagnostics=[],pages=[],seenPagePaths=new Set();
  const eligible=(inventory?.candidates||[]).filter(p=>p?.sourceEligible===true && ['manufacturer','model'].includes(p.type));
  const allMakes=new Map();
+ const ambiguousMakes=new Set();
  for(const make of manufacturers){
   const key=norm(make?.display_name);
   if(!key || !Number.isSafeInteger(make.id) || make.id<=0)continue;
-  if(allMakes.has(key))allMakes.set(key,null);
+  if(allMakes.has(key))ambiguousMakes.add(key);
   else allMakes.set(key,make);
  }
+ for(const key of ambiguousMakes)allMakes.set(key,null);
  const allModels=new Map();
+ const ambiguousModels=new Set();
  for(const model of models){
   const key=norm(String(model?.manufacturer||'')+String(model?.model||''));
   if(!key || !Number.isSafeInteger(model.id) || model.id<=0)continue;
-  if(allModels.has(key))allModels.set(key,null);
+  if(allModels.has(key))ambiguousModels.add(key);
   else allModels.set(key,model);
  }
+ for(const key of ambiguousModels)allModels.set(key,null);
  const sourceKeys=new Map();
  for(const item of eligible) {
   const file=item.path?.split('/').pop();
