@@ -33,6 +33,15 @@ select jsonb_build_object(
     ) order by id), '[]'::jsonb)
     from public.motorcycle_catalog_models
   ),
+  'manufacturerAliases', (
+    select coalesce(jsonb_agg(jsonb_build_object(
+      'source_manufacturer_name',source_manufacturer_name,
+      'canonical_manufacturer_id',canonical_manufacturer_id,
+      'resolution_status',resolution_status,'verified_at',verified_at
+    ) order by source_manufacturer_name), '[]'::jsonb)
+    from anybike_publishing.manufacturer_name_resolution
+    where resolution_status='verified_alias' and canonical_manufacturer_id is not null and verified_at is not null
+  ),
   'countryLinks', (
     select coalesce(jsonb_agg(jsonb_build_object(
       'model_id',model_id,'country_code',country_code,
