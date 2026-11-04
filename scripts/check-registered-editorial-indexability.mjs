@@ -65,8 +65,9 @@ export function checkRegisteredEditorialIndexability({root,manufacturers,models,
 }
 if(process.argv[1] && path.resolve(process.argv[1])===path.resolve(new URL(import.meta.url).pathname)){
  const dataset=JSON.parse(fs.readFileSync('scripts/fixtures/bmw-harley-catalogue-ids-20261104.json','utf8'));
+ const routeFixture=JSON.parse(fs.readFileSync('scripts/fixtures/registered-editorial-indexability-20261104.json','utf8'));
  const report=checkRegisteredEditorialIndexability({root:process.cwd(),
-   manufacturers:dataset.manufacturers,models:dataset.models});
+   manufacturers:dataset.manufacturers,models:dataset.models,expectedPaths:routeFixture.expectedPaths});
  fs.mkdirSync('reports',{recursive:true});
  fs.writeFileSync('reports/editorial-indexability-audit.json',JSON.stringify(report,null,2)+'\n');
  console.log(JSON.stringify({checked:report.checkedCount,eligible:report.sourceEligibleCount,
