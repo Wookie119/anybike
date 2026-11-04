@@ -34,7 +34,7 @@ test('manifest rejects duplicate and wrong-type identities',()=>{
   absolute[0],absolute[0],
   {id:'model:55',type:'model',title:'Wrong type',url:'https://www.anybike.co.uk/markets/kenya.html',published:true,liveVerified:true}
  ]});
- assert.equal(m.pages.length,1);
+ assert.equal(m.pages.length,0);
  assert.deepEqual(m.diagnostics.map(d=>d.code).sort(),['duplicate-public-identity','not-source-eligible']);
 });
 test('complete pipeline generates reciprocal approved links and excludes draft story',()=>{
@@ -77,4 +77,18 @@ test('third occurrence of the same source URL stays quarantined',()=>{
  const r=makePublicEditorialManifest({inventory:duplicateInventory,identities:[absolute[0]]});
  assert.equal(r.pages.length,0);
  assert.equal(r.diagnostics.filter(x=>x.code==='duplicate-source-url').length,1);
+});
+
+test('conflicting public identity IDs and paths fail closed, independent of order',()=>{
+ const a={...absolute[0]};
+ const b={...absolute[0],url:'https://www.anybike.co.uk/harley-davidson-motorcycles.html'};
+ const inv={candidates:[
+  {type:'manufacturer',url:a.url,sourceEligible:true},
+  {type:'manufacturer',url:b.url,sourceEligible:true}
+ ]};
+ for(const identities of [[a,b],[b,a]]){
+  const result=makePublicEditorialManifest({inventory:inv,identities});
+  assert.equal(result.pages.length,0);
+  assert.ok(result.diagnostics.some(x=>x.code==='duplicate-public-identity'));
+ }
 });
