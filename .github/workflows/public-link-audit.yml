@@ -23,17 +23,20 @@ jobs:
         with:
           node-version: "20"
       - name: Test central editorial link graph
-        run: node --test scripts/public-editorial-link-graph.test.mjs scripts/catalogue-link-adapter.test.mjs scripts/build-editorial-url-inventory.test.mjs scripts/assemble-public-editorial-graph.test.mjs
+        run: node --test scripts/public-editorial-link-graph.test.mjs scripts/catalogue-link-adapter.test.mjs scripts/build-editorial-url-inventory.test.mjs scripts/assemble-public-editorial-graph.test.mjs scripts/render-editorial-related-links.test.mjs
       - name: Scan all source HTML links
         run: node scripts/audit-public-links.mjs --json > anybike-link-audit.json
       - name: Inventory editorial source URLs
         run: node scripts/build-editorial-url-inventory.mjs > anybike-editorial-url-inventory.json
+      - name: Check live pilot public pages
+        run: node scripts/audit-live-public-pages.mjs > anybike-live-public-audit.json
       - name: Publish summary
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const r = JSON.parse(fs.readFileSync('anybike-link-audit.json', 'utf8'));
           const editorial = JSON.parse(fs.readFileSync('anybike-editorial-url-inventory.json', 'utf8'));
+          const live = JSON.parse(fs.readFileSync('anybike-live-public-audit.json', 'utf8'));
           const output = [
             '## AnyBike source HTML link audit',
             '',
@@ -45,6 +48,7 @@ jobs:
             '| Country structural issues | ' + r.marketNavigationIssues.length + ' |',
             '| Editorial source URL candidates | ' + editorial.counts.total + ' |',
             '| Editorial source candidates needing review | ' + editorial.counts.flagged + ' |',
+            '| Live pilot pages passing HTTP smoke checks | ' + live.passed + '/' + live.results.length + ' |',
             '| Selected public pages with no incoming static HTML links | ' + r.selectedPublicPagesWithNoIncomingStaticLinks.length + ' |',
             '',
             'This scan is **informational** and does not assert that live 123-reg pages, JavaScript-generated links, database content, or responsive designs passed.',
@@ -59,4 +63,5 @@ jobs:
           path: |
             anybike-link-audit.json
             anybike-editorial-url-inventory.json
+            anybike-live-public-audit.json
           retention-days: 30
