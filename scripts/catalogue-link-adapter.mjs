@@ -109,6 +109,8 @@ export function graphFromCatalogueRows({
   }
   for (const row of storyManufacturers) {
     if (row?.story_id == null || row?.manufacturer_id == null || !publishedStories.has(String(row.story_id))) continue;
+    if (!publishedNodes.has(id('global',row.story_id)) ||
+        !publishedNodes.has(id('manufacturer',row.manufacturer_id))) continue;
     relationRows.push({
       from: id('global', row.story_id),
       to: id('manufacturer', row.manufacturer_id),
@@ -117,6 +119,8 @@ export function graphFromCatalogueRows({
   }
   for (const row of modelRelationships) {
     if (row?.parent_model_id == null || row?.child_model_id == null || !VALID_REVIEW.has(row?.review_status)) continue;
+    if (!publishedNodes.has(id('model',row.parent_model_id)) ||
+        !publishedNodes.has(id('model',row.child_model_id))) continue;
     relationRows.push({
       from: id('model', row.parent_model_id),
       to: id('model', row.child_model_id),
