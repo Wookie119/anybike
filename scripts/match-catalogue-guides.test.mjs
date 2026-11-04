@@ -53,3 +53,16 @@ test('two eligible source paths with the same normalized filename are both block
  assert.equal(r.pages.length,0);
  assert.equal(r.diagnostics.filter(x=>x.code==='duplicate-source-match').length,2);
 });
+
+test('three normalized duplicates remain permanently ambiguous regardless of order',()=>{
+ const r=matchCatalogueGuides({
+  inventory:{candidates},
+  manufacturers:[{id:15,display_name:'BMW'},{id:150,display_name:' B M W '},{id:151,display_name:'bmw'}],
+  models:[{id:77,manufacturer:'BMW',model:'R 1300 GS'},
+   {id:777,manufacturer:'BMW',model:'R1300GS'},
+   {id:778,manufacturer:'BMW',model:'R-1300-GS'}]
+ });
+ assert.equal(r.pages.some(p=>p.id==='manufacturer:15'||p.id==='manufacturer:151'),false);
+ assert.equal(r.pages.some(p=>p.id==='model:77'||p.id==='model:778'),false);
+ assert.ok(r.diagnostics.some(x=>x.path==='bmw-r1300gs.html'));
+});
