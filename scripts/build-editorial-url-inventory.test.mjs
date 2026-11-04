@@ -35,3 +35,20 @@ test('missing sitemap entry is flagged even when source canonical exists',t=>{
  assert.equal(r.candidates.find(x=>x.path==='anybike-global.html').sourceEligible,false);
  assert.ok(r.issues.some(x=>x.path==='anybike-global.html'&&x.reasons.includes('not-in-sitemap')));
 });
+
+test('other manufacturers and models are discovered only from supplied catalogue identities',t=>{
+ const root=fixture();
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const name='ducati-monster-1200.html';
+ const make='ducati-motorcycles.html';
+ const html=(f)=>'<link rel="canonical" href="https://www.anybike.co.uk/'+f+'"><h1>Guide</h1>';
+ fs.writeFileSync(path.join(root,name),html(name));
+ fs.writeFileSync(path.join(root,make),html(make));
+ fs.appendFileSync(path.join(root,'sitemap.xml'),'<loc>https://www.anybike.co.uk/'+name+'</loc><loc>https://www.anybike.co.uk/'+make+'</loc>');
+ const without=inventoryEditorialUrls(root);
+ assert.equal(without.candidates.some(x=>x.path===name),false);
+ const withCatalogue=inventoryEditorialUrls(root,{manufacturers:[{id:99,display_name:'Ducati'}],models:[{id:100,manufacturer:'Ducati',model:'Monster 1200'}]});
+ assert.equal(withCatalogue.candidates.find(x=>x.path===name).type,'model');
+ assert.equal(withCatalogue.candidates.find(x=>x.path===make).type,'manufacturer');
+ assert.equal(withCatalogue.candidates.find(x=>x.path===name).sourceEligible,true);
+});
