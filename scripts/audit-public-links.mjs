@@ -101,19 +101,19 @@ const orphanCandidates = htmlFiles.filter((file) => isFamily(file) && !incoming.
 
 const marketIssues = [];
 let marketPages = 0;
-for (const file of htmlFiles.filter((p) => /^markets\\/[^/]+\\.html$/i.test(p))) {
+for (const file of htmlFiles.filter((p) => /^markets\/[^/]+\.html$/i.test(p))) {
   marketPages++;
   const html = fs.readFileSync(path.join(root, file), 'utf8');
-  const canonicalMatches = [...html.matchAll(/<link\\b(?=[^>]*\\brel\\s*=\\s*["']canonical["'])[^>]*>/gi)];
+  const canonicalMatches = [...html.matchAll(/<link\b(?=[^>]*\brel\s*=\s*["']canonical["'])[^>]*>/gi)];
   if (canonicalMatches.length !== 1) marketIssues.push({ file, issue: 'canonical-count', count: canonicalMatches.length });
-  const header = /<script\\b[^>]*src\\s*=\\s*["'][^"']*public-header\\.js(?:\\?[^"']*)?["']/i.test(html);
+  const header = /<script\b[^>]*src\s*=\s*["'][^"']*public-header\.js(?:\?[^"']*)?["']/i.test(html);
   if (!header) marketIssues.push({ file, issue: 'missing-public-header-script' });
-  const deprecated = [...html.matchAll(/href\\s*=\\s*["']([^"']*motorcycle-brand\\.html(?:\\?[^"']*)?)["']/gi)];
+  const deprecated = [...html.matchAll(/href\s*=\s*["']([^"']*motorcycle-brand\.html(?:\?[^"']*)?)["']/gi)];
   if (deprecated.length) marketIssues.push({ file, issue: 'legacy-motorcycle-brand-links', count: deprecated.length });
-  const directScripts = [...html.matchAll(/<script\\b[^>]*src\\s*=\\s*["'][^"']*market-page-standardisation\\.js(?:\\?[^"']*)?["']/gi)].length;
+  const directScripts = [...html.matchAll(/<script\b[^>]*src\s*=\s*["'][^"']*market-page-standardisation\.js(?:\?[^"']*)?["']/gi)].length;
   if (directScripts > 1) marketIssues.push({ file, issue: 'duplicate-direct-market-script', count: directScripts });
   const canonText = canonicalMatches[0]?.[0] || '';
-  const canonicalHref = canonText.match(/href\\s*=\\s*["']([^"']+)["']/i)?.[1];
+  const canonicalHref = canonText.match(/href\s*=\s*["']([^"']+)["']/i)?.[1];
   if (canonicalHref) {
     try {
       const c = new URL(canonicalHref);
