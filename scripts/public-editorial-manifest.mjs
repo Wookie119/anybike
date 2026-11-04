@@ -16,10 +16,13 @@ const IDS = /^(manufacturer|model|country|global):[A-Za-z0-9_-]+$/;
 export function makePublicEditorialManifest({ inventory, identities=[] } = {}) {
   const diagnostics = [];
   const candidates = new Map();
+  const duplicatedSourceUrls = new Set();
   for (const row of inventory?.candidates ?? []) {
     if (!row?.sourceEligible || typeof row.url !== 'string') continue;
+    if (duplicatedSourceUrls.has(row.url)) continue;
     if (candidates.has(row.url)) {
       diagnostics.push({code:'duplicate-source-url',url:row.url});
+      duplicatedSourceUrls.add(row.url);
       candidates.delete(row.url);
       continue;
     }
