@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: "20"
       - name: Test central editorial link graph
-        run: node --test scripts/public-editorial-link-graph.test.mjs scripts/catalogue-link-adapter.test.mjs scripts/build-editorial-url-inventory.test.mjs scripts/assemble-public-editorial-graph.test.mjs scripts/render-editorial-related-links.test.mjs scripts/stage-editorial-navigation.test.mjs scripts/stage-real-catalogue-pilot.test.mjs scripts/match-catalogue-guides.test.mjs scripts/stage-matched-catalogue.test.mjs scripts/verified-editorial-route-identities.test.mjs scripts/check-registered-editorial-indexability.test.mjs scripts/audit-country-indexability.test.mjs scripts/build-country-route-candidates.test.mjs scripts/regional-market-navigation.test.mjs scripts/stage-country-regional-navigation.test.mjs scripts/audit-country-code-crosswalk.test.mjs scripts/build-verified-editorial-navigation.test.mjs scripts/editorial-release-gate.test.mjs scripts/export-private-editorial-from-postgres.test.mjs scripts/extract-approved-model-hero.test.mjs scripts/stage-approved-model-source-extracts.test.mjs scripts/extract-approved-model-photo-references.test.mjs scripts/stage-approved-model-photo-references.test.mjs
+        run: node --test scripts/public-editorial-link-graph.test.mjs scripts/catalogue-link-adapter.test.mjs scripts/build-editorial-url-inventory.test.mjs scripts/assemble-public-editorial-graph.test.mjs scripts/render-editorial-related-links.test.mjs scripts/stage-editorial-navigation.test.mjs scripts/stage-real-catalogue-pilot.test.mjs scripts/match-catalogue-guides.test.mjs scripts/stage-matched-catalogue.test.mjs scripts/verified-editorial-route-identities.test.mjs scripts/check-registered-editorial-indexability.test.mjs scripts/audit-country-indexability.test.mjs scripts/build-country-route-candidates.test.mjs scripts/regional-market-navigation.test.mjs scripts/stage-country-regional-navigation.test.mjs scripts/audit-country-code-crosswalk.test.mjs scripts/build-verified-editorial-navigation.test.mjs scripts/editorial-release-gate.test.mjs scripts/export-private-editorial-from-postgres.test.mjs scripts/extract-approved-model-hero.test.mjs scripts/stage-approved-model-source-extracts.test.mjs scripts/extract-approved-model-photo-references.test.mjs scripts/stage-approved-model-photo-references.test.mjs scripts/audit-manufacturer-directory.test.mjs
       - name: Scan all source HTML links
         run: node scripts/audit-public-links.mjs --json > anybike-link-audit.json
       - name: Inventory editorial source URLs
@@ -38,6 +38,8 @@ jobs:
         run: node scripts/stage-country-regional-navigation.mjs > anybike-regional-navigation-preview.json
       - name: Check 217 country names, 216 verified country codes and Kosovo exception
         run: node scripts/check-country-code-sources.mjs > anybike-country-codes-summary.json
+      - name: Audit the full 50-manufacturer A-Z catalogue and links
+        run: node scripts/audit-manufacturer-directory.mjs > anybike-manufacturer-directory-summary.json
       - name: Check live pilot public pages
         run: node scripts/audit-live-public-pages.mjs > anybike-live-public-audit.json
       - name: Stage real BMW and Harley catalogue navigation (non-deploying)
@@ -58,6 +60,7 @@ jobs:
           const crosswalk = JSON.parse(fs.readFileSync('reports/country-code-crosswalk-audit.json','utf8'));
           const pilot = JSON.parse(fs.readFileSync('anybike-catalogue-pilot.json', 'utf8'));
           const expanded = JSON.parse(fs.readFileSync('anybike-expanded-catalogue-preview.json', 'utf8'));
+          const manufacturersAudit = JSON.parse(fs.readFileSync('reports/manufacturer-directory-audit.json','utf8'));
 
           const output = [
             '## AnyBike source HTML link audit',
@@ -85,13 +88,16 @@ jobs:
             '| Expanded catalogue models compared | ' + expanded.catalogueModels + ' |',
             '| Matched expanded guide sources | ' + expanded.matchedPublicGuideSources + ' |',
             '| Expanded preview links | ' + expanded.reciprocalPreviewLinks + ' |',
+            '| Manufacturer A-Z cards matching the catalogue | ' + manufacturersAudit.counts.directoryCards + '/' + manufacturersAudit.counts.catalogueManufacturers + ' |',
+            '| Manufacturer A-Z links to approved dedicated guides | ' + manufacturersAudit.counts.linksToApprovedGuides + ' |',
+            '| Manufacturer A-Z links to existing sourcing workflow | ' + manufacturersAudit.counts.linksToSourcing + ' |',
             '| Selected public pages with no incoming static HTML links | ' + r.selectedPublicPagesWithNoIncomingStaticLinks.length + ' |',
             '',
             'This scan is **informational** and does not assert that live 123-reg pages, JavaScript-generated links, database content, or responsive designs passed.',
             'Open the uploaded JSON report for individual findings.'
           ].join('\n');
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, output + '\n');
-          if (crosswalk.issues.length || crosswalk.counts.verifiedUniqueCodes !== 216 || crosswalk.counts.unresolvedNames !== 1 || regional.errors.length || regional.stagedPages !== 217 || countryAudit.issues.length || countryAudit.counts.marketHtmlFiles !== 217 || countryAudit.counts.sourceEligible !== 217) {
+          if (manufacturersAudit.issues.length || manufacturersAudit.counts.directoryCards !== 50 || manufacturersAudit.counts.linksToSourcing !== 48 || crosswalk.issues.length || crosswalk.counts.verifiedUniqueCodes !== 216 || crosswalk.counts.unresolvedNames !== 1 || regional.errors.length || regional.stagedPages !== 217 || countryAudit.issues.length || countryAudit.counts.marketHtmlFiles !== 217 || countryAudit.counts.sourceEligible !== 217) {
             console.error('Country SEO audit regression: see anybike-country-indexability.json for affected pages');
             process.exitCode = 1;
           }
@@ -114,6 +120,8 @@ jobs:
             reports/regional-market-navigation-preview/
             anybike-country-codes-summary.json
             reports/country-code-crosswalk-audit.json
+            anybike-manufacturer-directory-summary.json
+            reports/manufacturer-directory-audit.json
             anybike-catalogue-pilot.json
             reports/editorial-catalogue-pilot-report.json
             reports/editorial-navigation-preview/
