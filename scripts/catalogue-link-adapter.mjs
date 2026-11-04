@@ -30,7 +30,7 @@ export function graphFromCatalogueRows({
       .map(s => String(s.id))
   );
   for (const row of countryLinks) {
-    if (row?.is_published !== true) continue;
+    if (row?.is_published !== true || row.model_id == null || !String(row.country_code ?? '').trim()) continue;
     // Match country code only with an explicitly verified public country URL.
     const countryId = id('country', String(row.country_code ?? '').toUpperCase());
     const country = publicPages.find(p => p.id === countryId &&
@@ -42,7 +42,7 @@ export function graphFromCatalogueRows({
     });
   }
   for (const row of storyManufacturers) {
-    if (!publishedStories.has(String(row?.story_id))) continue;
+    if (row?.story_id == null || row?.manufacturer_id == null || !publishedStories.has(String(row.story_id))) continue;
     relationRows.push({
       from: id('global', row.story_id),
       to: id('manufacturer', row.manufacturer_id),
@@ -50,7 +50,7 @@ export function graphFromCatalogueRows({
     });
   }
   for (const row of modelRelationships) {
-    if (!VALID_REVIEW.has(row?.review_status)) continue;
+    if (row?.parent_model_id == null || row?.child_model_id == null || !VALID_REVIEW.has(row?.review_status)) continue;
     relationRows.push({
       from: id('model', row.parent_model_id),
       to: id('model', row.child_model_id),
