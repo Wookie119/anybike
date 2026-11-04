@@ -23,13 +23,15 @@ jobs:
         with:
           node-version: "20"
       - name: Test central editorial link graph
-        run: node --test scripts/public-editorial-link-graph.test.mjs scripts/catalogue-link-adapter.test.mjs scripts/build-editorial-url-inventory.test.mjs scripts/assemble-public-editorial-graph.test.mjs scripts/render-editorial-related-links.test.mjs scripts/stage-editorial-navigation.test.mjs scripts/stage-real-catalogue-pilot.test.mjs scripts/match-catalogue-guides.test.mjs scripts/stage-matched-catalogue.test.mjs scripts/verified-editorial-route-identities.test.mjs scripts/check-registered-editorial-indexability.test.mjs
+        run: node --test scripts/public-editorial-link-graph.test.mjs scripts/catalogue-link-adapter.test.mjs scripts/build-editorial-url-inventory.test.mjs scripts/assemble-public-editorial-graph.test.mjs scripts/render-editorial-related-links.test.mjs scripts/stage-editorial-navigation.test.mjs scripts/stage-real-catalogue-pilot.test.mjs scripts/match-catalogue-guides.test.mjs scripts/stage-matched-catalogue.test.mjs scripts/verified-editorial-route-identities.test.mjs scripts/check-registered-editorial-indexability.test.mjs scripts/audit-country-indexability.test.mjs
       - name: Scan all source HTML links
         run: node scripts/audit-public-links.mjs --json > anybike-link-audit.json
       - name: Inventory editorial source URLs
         run: node scripts/build-editorial-url-inventory.mjs > anybike-editorial-url-inventory.json
       - name: Strict indexability source audit for 47 registered routes
         run: node scripts/check-registered-editorial-indexability.mjs > anybike-indexability-audit-summary.json
+      - name: Audit all international country indexing signals
+        run: node scripts/audit-country-indexability.mjs > anybike-country-indexability.json
       - name: Check live pilot public pages
         run: node scripts/audit-live-public-pages.mjs > anybike-live-public-audit.json
       - name: Stage real BMW and Harley catalogue navigation (non-deploying)
@@ -44,6 +46,7 @@ jobs:
           const editorial = JSON.parse(fs.readFileSync('anybike-editorial-url-inventory.json', 'utf8'));
           const live = JSON.parse(fs.readFileSync('anybike-live-public-audit.json', 'utf8'));
           const googleAudit = JSON.parse(fs.readFileSync('reports/editorial-indexability-audit.json','utf8'));
+          const countryAudit = JSON.parse(fs.readFileSync('anybike-country-indexability.json','utf8'));
           const pilot = JSON.parse(fs.readFileSync('anybike-catalogue-pilot.json', 'utf8'));
           const expanded = JSON.parse(fs.readFileSync('anybike-expanded-catalogue-preview.json', 'utf8'));
 
@@ -61,6 +64,8 @@ jobs:
             '| Live pilot pages passing HTTP smoke checks | ' + live.passed + '/' + live.results.length + ' |',
             '| Registered guide source pages eligible for Google | ' + googleAudit.sourceEligibleCount + '/' + googleAudit.checkedCount + ' |',
             '| Google source-indexability issues | ' + googleAudit.issues.length + ' |',
+            '| International market pages source-eligible | ' + countryAudit.counts.sourceEligible + '/' + countryAudit.counts.marketHtmlFiles + ' |',
+            '| International market SEO issues | ' + countryAudit.issues.length + ' |',
             '| BMW/Harley staging preview pages | ' + pilot.staging.staged.length + ' |',
             '| Reciprocal preview links | ' + pilot.links + ' |',
             '| Expanded catalogue models compared | ' + expanded.catalogueModels + ' |',
@@ -83,6 +88,7 @@ jobs:
             anybike-live-public-audit.json
             anybike-indexability-audit-summary.json
             reports/editorial-indexability-audit.json
+            anybike-country-indexability.json
             anybike-catalogue-pilot.json
             reports/editorial-catalogue-pilot-report.json
             reports/editorial-navigation-preview/
