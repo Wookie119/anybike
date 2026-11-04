@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 /**
  * Convert country source-indexability results into private BACKEND IMPORT candidates.
  * No database writes. Never marks anything live, approved or published.
@@ -32,4 +33,13 @@ export function makeCountryRouteCandidates(audit) {
  rows.sort((a,b)=>a.country_slug.localeCompare(b.country_slug));
  return {scope:'staging-only; no automatic Supabase mutation',rows,excluded,
   counts:{sourcePages:audit.pages.length,candidates:rows.length,excluded:excluded.length}};
+}
+
+if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1]).href) {
+ const file=process.argv[2];
+ if(!file){console.error('Usage: node scripts/build-country-route-candidates.mjs country-indexability.json');process.exitCode=2;}
+ else {
+  const audit=JSON.parse(fs.readFileSync(file,'utf8'));
+  console.log(JSON.stringify(makeCountryRouteCandidates(audit),null,2));
+ }
 }
