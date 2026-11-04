@@ -24,7 +24,9 @@ export function graphFromCatalogueRows({
 } = {}) {
   const relationRows = [];
   const publishedStories = new Set(
-    globalStories.filter(s => s?.editorial_status === 'published')
+    globalStories.filter(s => s?.editorial_status === 'published' &&
+      publicPages.some(p => p.id === id('global', s.id) &&
+        p.published === true && p.url === s.story_url))
       .map(s => String(s.id))
   );
   for (const row of countryLinks) {
