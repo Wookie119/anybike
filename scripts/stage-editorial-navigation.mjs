@@ -34,8 +34,14 @@ export function renderStagedEditorialHtml(sourceHtml,page) {
 export function stageEditorialNavigation({root,output,graph}) {
   if(!root || !output || !Array.isArray(graph?.pages))throw new TypeError('root, output, graph.pages required');
   const sourceRoot=path.resolve(root),destRoot=path.resolve(output);
-  if(destRoot===sourceRoot || destRoot.startsWith(sourceRoot+path.sep) && !destRoot.includes('preview'))
-    throw new Error('Use a separate preview output directory');
+  // A staging output inside the checkout MUST be under reports/, which is
+  // gitignored and never an approved public web page. Paths outside the
+  // checkout remain allowed for separate temporary build workspaces.
+  const reportsDir=path.join(sourceRoot,'reports');
+  const insideCheckout=destRoot===sourceRoot || destRoot.startsWith(sourceRoot+path.sep);
+  if(insideCheckout && !(destRoot.startsWith(reportsDir+path.sep) &&
+      destRoot.slice(reportsDir.length+1).includes('preview')))
+    throw new Error('Staging inside source checkout is allowed only under reports/*preview*');
   const staged=[],skipped=[],errors=[],prepared=[];
   const destinations=new Set();
   for(const page of graph.pages) {
