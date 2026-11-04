@@ -12,6 +12,8 @@ const safeId = value => Number.isSafeInteger(value) && value > 0;
 const pathOK = value => typeof value==='string' &&
  /^\/(?:markets\/|global\/)?[a-z0-9-]+\.html$/i.test(value);
 const normalized = s => String(s||'').trim().toLocaleLowerCase('en-GB');
+const REGIONS = new Set(['Europe','North America','Central America',
+ 'Caribbean','South America','Africa','Middle East','Asia','Oceania']);
 export function verifiedIdentitiesFromRoutes({
  routes=[],manufacturers=[],models=[],stories=[],countries=[]
 }={}) {
@@ -44,7 +46,17 @@ export function verifiedIdentitiesFromRoutes({
    }
   }else if(row.entity_type==='country' && typeof row.country_slug==='string'){
    const country=countryBySlug.get(row.country_slug);
-   if(country?.code && country?.name && row.public_path==='/markets/'+row.country_slug+'.html'){
+   if(row.public_path==='/markets/'+row.country_slug+'.html' &&
+      typeof row.country_name==='string' && row.country_name.trim() &&
+      REGIONS.has(row.country_region)) {
+    // Canonical registry identity uses the *country slug* already used by
+    // the regional directory. Do not infer ISO country codes or routes.
+    if(!country || normalized(country.name)===normalized(row.country_name)) {
+      id='country:'+row.country_slug;title=row.country_name.trim();
+    }
+   }else if(country?.code && country?.name &&
+      row.public_path==='/markets/'+row.country_slug+'.html'){
+    // Compatibility with explicitly verified historical code-based IDs.
     id='country:'+String(country.code).toUpperCase();title=country.name;
    }
   }else if(row.entity_type==='global' && safeId(row.story_id)){
