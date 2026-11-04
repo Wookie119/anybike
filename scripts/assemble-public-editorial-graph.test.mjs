@@ -67,3 +67,14 @@ test('no explicit approved deployment means no links, no pages',()=>{
  assert.equal(r.pages.length,0);
  assert.equal(r.counts.generatedLinks,0);
 });
+
+test('third occurrence of the same source URL stays quarantined',()=>{
+ const duplicateInventory={candidates:[
+  {type:'manufacturer',url:'https://www.anybike.co.uk/bmw-motorcycles.html',sourceEligible:true},
+  {type:'manufacturer',url:'https://www.anybike.co.uk/bmw-motorcycles.html',sourceEligible:true},
+  {type:'manufacturer',url:'https://www.anybike.co.uk/bmw-motorcycles.html',sourceEligible:true}
+ ]};
+ const r=makePublicEditorialManifest({inventory:duplicateInventory,identities:[absolute[0]]});
+ assert.equal(r.pages.length,0);
+ assert.equal(r.diagnostics.filter(x=>x.code==='duplicate-source-url').length,1);
+});
