@@ -141,3 +141,46 @@ test('published country code maps to canonical country slug for approved motorcy
   countryLinks:[{...link,market_url:'/markets/ghana.html'}]});
  assert.equal(wrong.pages.reduce((n,p)=>n+p.links.length,0));
 });
+
+
+test('verified Indian manufacturer alias links only approved endpoints and never guesses Mugen',()=>{
+ const pages=[
+  {id:'manufacturer:20',type:'manufacturer',title:'Indian Motorcycle',url:'/indian-motorcycles.html',published:true},
+  {id:'manufacturer:11',type:'manufacturer',title:'Honda',url:'/honda-motorcycles.html',published:true},
+  {id:'model:400',type:'model',title:'Indian Scout',url:'/indian-scout.html',published:true},
+  {id:'model:500',type:'model',title:'Mugen Shinden',url:'/mugen-shinden.html',published:true}
+ ];
+ const makes=[{id:20,display_name:'Indian Motorcycle'},{id:11,display_name:'Honda'}];
+ const models=[{id:400,manufacturer:'Indian',model:'Scout'},
+   {id:500,manufacturer:'Mugen',model:'Shinden'}];
+ const approved={source_manufacturer_name:'Indian',canonical_manufacturer_id:20,
+  resolution_status:'verified_alias',verified_at:'2026-11-04'};
+ const graph=graphFromCatalogueRows({publicPages:pages,manufacturers:makes,models,
+  manufacturerAliases:[approved,
+   {source_manufacturer_name:'Mugen',canonical_manufacturer_id:null,resolution_status:'review_required'}]});
+ const byId=Object.fromEntries(graph.pages.map(x=>[x.id,x]));
+ assert.deepEqual(byId['model:400'].links.map(x=>x.id),['manufacturer:20']);
+ assert.deepEqual(byId['manufacturer:20'].links.map(x=>x.id),['model:400']);
+ assert.deepEqual(byId['model:500'].links,[]);
+ assert.deepEqual(byId['manufacturer:11'].links,[]);
+ const blocked=graphFromCatalogueRows({publicPages:pages,manufacturers:makes,models,
+  manufacturerAliases:[{...approved,verified_at:null}]});
+ assert.equal(blocked.pages.reduce((n,p)=>n+p.links.length,0);
+});
+test('conflicting manufacturer aliases cannot choose a published target by ordering',()=>{
+ const pages=[
+  {id:'manufacturer:20',type:'manufacturer',title:'Indian Motorcycle',url:'/indian-motorcycles.html',published:true},
+  {id:'manufacturer:11',type:'manufacturer',title:'Honda',url:'/honda-motorcycles.html',published:true},
+  {id:'model:400',type:'model',title:'Indian Scout',url:'/indian-scout.html',published:true}
+ ];
+ const aliases=[
+  {source_manufacturer_name:'Indian',canonical_manufacturer_id:20,resolution_status:'verified_alias',verified_at:'2026-11-04'},
+  {source_manufacturer_name:'Indian',canonical_manufacturer_id:11,resolution_status:'verified_alias',verified_at:'2026-11-04'}
+ ];
+ for(const ordered of [aliases,[...aliases].reverse()]){
+  const graph=graphFromCatalogueRows({publicPages:pages,
+   manufacturers:[{id:20,display_name:'Indian Motorcycle'},{id:11,display_name:'Honda'}],
+   models:[{id:400,manufacturer:'Indian',model:'Scout'}],manufacturerAliases:ordered});
+  assert.equal(graph.pages.reduce((n,p)=>n+p.links.length,0);
+ }
+});
