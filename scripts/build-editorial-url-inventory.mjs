@@ -9,7 +9,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const BASE = 'https://www.anybike.co.uk';
-export function inventoryEditorialUrls(root) {
+export function inventoryEditorialUrls(root,{manufacturers=[],models=[]}={}) {
+  // Extra guide types are discovered only from catalogue identities provided by
+  // the internal staging caller; unknown filenames remain excluded.
+  const normalize = value => typeof value==='string'
+    ? value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]/g,'') : '';
+  const makeFilenames = new Set(manufacturers.map(m=>normalize(m?.display_name+'motorcycles')));
+  const modelFilenames = new Set(models.map(m=>normalize((m?.manufacturer||'')+(m?.model||''))));
+
   const sitemap = fs.readFileSync(path.join(root, 'sitemap.xml'), 'utf8');
   const locs = new Set([...sitemap.matchAll(/<loc>\s*([^<]+)\s*<\/loc>/gi)]
     .map(m => m[1].trim()));
@@ -32,6 +39,11 @@ export function inventoryEditorialUrls(root) {
     if (p === 'bmw-motorcycles.html' || p === 'harley-davidson-motorcycles.html') return 'manufacturer';
     if (p === 'anybike-global.html' || /^global\/[a-z0-9-]+\.html$/i.test(p)) return 'global';
     if (/^(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/i.test(p) && !/backup|draft|preview|test|v2/i.test(p)) return 'model';
+    if (/^[a-z0-9-]+\.html$/i.test(p) && !/backup|draft|preview|test|v2/i.test(p)) {
+      const key=normalize(p.slice(0,-5));
+      if(makeFilenames.has(key))return 'manufacturer';
+      if(modelFilenames.has(key))return 'model';
+    }
     return null;
   };
   for (const file of files) {
