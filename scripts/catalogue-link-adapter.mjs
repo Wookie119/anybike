@@ -24,6 +24,7 @@ export function graphFromCatalogueRows({
   modelRelationships = [],
   manufacturers = [],
   models = [],
+  manufacturerAliases = [],
   regionalCountryRoutes = []
 } = {}) {
   const relationRows = [];
@@ -40,6 +41,24 @@ export function graphFromCatalogueRows({
     else makeByName.set(key, make.id);
   }
   for (const key of ambiguousMakeNames) makeByName.set(key, null);
+  // Only explicitly verified backend aliases can resolve a legacy model make.
+  // A pending relation such as Mugen/Honda must never create an implicit link.
+  const canonicalIds = new Set(manufacturers.map(m=>m.id));
+  const seenAliasKeys = new Set();
+  for (const alias of manufacturerAliases) {
+    const key=normName(alias?.source_manufacturer_name);
+    const target=alias?.canonical_manufacturer_id;
+    if (!key || !canonicalIds.has(target) ||
+        alias.resolution_status!=='verified_alias' || !alias.verified_at) continue;
+    if (seenAliasKeys.has(key) ||
+        (makeByName.has(key) && makeByName.get(key)!==target)) {
+      ambiguousMakeNames.add(key);
+      continue;
+    }
+    seenAliasKeys.add(key);
+    if (!makeByName.has(key)) makeByName.set(key,target);
+  }
+  for(const key of ambiguousMakeNames)makeByName.set(key,null);
   for (const model of models) {
     if (model?.id == null) continue;
     const makeId = makeByName.get(normName(model.manufacturer));
