@@ -971,6 +971,33 @@ async function approveInternationalPrivateBuyer(){
   }catch(e){status.textContent='Could not save classification: '+(e.message||String(e));}
   finally{button.disabled=false;}
 }
+async function sendAutomaticLevel2TourInvite(userId){
+  // Reuse the existing Admin-only Tour sender and its history. Never send to all dealers.
+  const {data:{session},error:sessionError}=await sb.auth.getSession();
+  if(sessionError||!session)return "Tour invitation not sent — Admin session unavailable.";
+  const endpoint="https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/anybike-dealer-tour-invite";
+  const headers={"Content-Type":"application/json","Authorization":"Bearer "+session.access_token,"apikey":"sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK"};
+  async function request(body){
+    const response=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(body)});
+    const data=await response.json();
+    if(!response.ok)throw Error(data.error||"Tour sender error");
+    return data;
+  }
+  try{
+    const list=await request({action:"list"});
+    const dealer=(list.dealers||[]).find(d=>String(d.user_id)===String(userId));
+    if(!dealer)return "Tour invitation pending — the approved dealer is not yet eligible for the tour sender.";
+    if(dealer.invite?.status==="sent"||dealer.invite?.status==="claimed")
+      return "International Tour already sent or being sent — no duplicate requested.";
+    // Avoid automated retries of a recorded failed attempt; show that to Admin for review.
+    if(dealer.invite?.status==="failed")
+      return "International Tour previously failed — review its record on Tour Invitations before retrying.";
+    const result=await request({action:"send",dealer_organisation_id:Number(dealer.dealer_organisation_id)});
+    const status=result.results?.[0]?.status;
+    return status==="sent"?"International Tour email accepted by provider and recorded.": "Tour invitation status: "+(status||"unconfirmed")+". Check Tour Invitations.";
+  }catch(e){return "Tour invitation not confirmed — "+(e.message||String(e))+". Review Tour Invitations.";}
+}
+
 async function approveUKDealer(){
  if(!editingCustomerId)return;
  const userId=editingCustomerId;
@@ -993,7 +1020,7 @@ async function approveUKDealer(){
    bid:document.getElementById('approveServiceBid').checked,
    vq:document.getElementById('approveServiceVq').checked
  };
- if(!confirm('Approve '+business+' as a UK motorcycle dealer at Level 2?\\n\\nAuthorised: '+Object.entries(services).filter(([k,v])=>v).map(([k])=>({buy:'Buy',sell:'Sell',trade:'Trade motorcycles',submit:'Submit for Underwrite',move:'Move delivery interest',bid:'Bid on auctions',vq:'International / VQ'})[k]).join(', ')+'.\\n\\nOther services will not be authorised in the new permissions register. No invitations will be sent.'))return;
+ if(!confirm('Approve '+business+' as a UK motorcycle dealer at Level 2?\\n\\nAuthorised: '+Object.entries(services).filter(([k,v])=>v).map(([k])=>({buy:'Buy',sell:'Sell',trade:'Trade motorcycles',submit:'Submit for Underwrite',move:'Move delivery interest',bid:'Bid on auctions',vq:'International / VQ'})[k]).join(', ')+'.\\n\\nOther services will not be authorised in the new permissions register. Once approved, the International Tour email will be sent automatically if not previously sent. No auction invitations will be sent.'))return;
  const button=document.getElementById('approveUKDealerButton');
  button.disabled=true;status.textContent='Saving UK dealer classification…';accessStatus.textContent='';
  try{
@@ -1024,7 +1051,8 @@ async function approveUKDealer(){
    await loadCustomers();
    openCustomerFromMap(userId);
    status.textContent='✓ Level 2 approved. Five dealership service permissions saved. Close this window when ready.';
-   accessStatus.textContent='Approved — your changes are saved.';
+   accessStatus.textContent=await sendAutomaticLevel2TourInvite(userId);
+   // Keep the actual Tour-send result visible to Admin.
  }catch(error){status.textContent=error.message||String(error);accessStatus.textContent='Review the permission status before trying again.';}
  finally{button.disabled=false;}
 }
@@ -1051,6 +1079,8 @@ async function saveDealerAccessChanges(){
     });
     if(error)throw error;
     document.getElementById("dealerAccessStatus").textContent="✓ Dealer access settings saved.";
+    if(level===2 && (!window.anybikeDealerAccessOriginal || window.anybikeDealerAccessOriginal.level!==2))
+      document.getElementById('dealerAccessStatus').textContent+=' '+await sendAutomaticLevel2TourInvite(editingCustomerId);
     window.anybikeDealerAccessOriginal={userId:String(editingCustomerId),level,submit,view,offer};
   }catch(e){
     document.getElementById("dealerAccessStatus").textContent="Dealer access not saved: "+(e.message||String(e));
@@ -1104,6 +1134,9 @@ async function saveEditedCustomer(){
       });
       if(accessError)throw new Error("Customer details saved, but permissions were not saved: "+accessError.message);
       window.anybikeDealerAccessOriginal={userId:String(userId),level,submit,view,offer};
+    }
+    if(changed && level===2 && original.level!==2){
+      dealerStatus.textContent=await sendAutomaticLevel2TourInvite(userId);
     }
     saveStatus.textContent="✓ Customer profile and permissions saved successfully.";
     const keepId=userId;
