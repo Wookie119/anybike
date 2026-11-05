@@ -119,6 +119,12 @@ td:last-child{vertical-align:top;background:rgba(255,255,255,.025)}td:last-child
         <p>See every signup from email confirmation through Buyer Setup and approval. Clarify whether each prospect wants to buy/export, sell/supply motorcycles to AnyBike, or buy VMoto — then move them forward from one place.</p>
       </section>
 
+      <section style="border:1px solid #ed1c24;border-radius:10px;padding:16px;margin:14px 0;background:#171717">
+        <h2 style="margin:0 0 8px">UK Dealer Welcome · Gifford Test Only</h2>
+        <p style="color:#ccc;margin:0 0 12px">Send one branded test welcome email to the Gifford Motorcycles test account. Includes International Tour and Connect Stock Feed links. Does not activate automatic onboarding or contact any other dealers.</p>
+        <button id="sendGiffordWelcomeTest" type="button" style="background:#ed1c24;color:#fff;border:0;border-radius:7px;font-weight:700;padding:12px 18px;cursor:pointer">Send Gifford Welcome Test Email</button>
+        <span id="giffordWelcomeTestStatus" role="status" style="margin-left:12px;color:#ddd"></span>
+      </section>
       <section id="dealer-login-followups" style="border:1px solid #444;border-radius:10px;padding:16px;margin:14px 0;background:#171717">
         <h2 style="margin:0 0 6px">Dealer login follow-ups</h2>
         <p style="color:#bbb;margin:0 0 12px">Dealers who have signed in. Open their account to help them start underwriting, trading or bidding. No messages are sent automatically.</p>
@@ -1066,6 +1072,19 @@ async function loadDealerLoginFollowups(){
   grid.append(card);
  }
 }
+document.getElementById('sendGiffordWelcomeTest')?.addEventListener('click',async()=>{
+ const btn=document.getElementById('sendGiffordWelcomeTest');
+ const status=document.getElementById('giffordWelcomeTestStatus');
+ if(!confirm('Send ONE real branded welcome test email to the Gifford Motorcycles test account? No other dealers will be contacted.'))return;
+ btn.disabled=true;status.style.color='#ddd';status.textContent='Sending one test email…';
+ try{
+  const {data,error}=await sb.functions.invoke('anybike-test-uk-dealer-welcome',{body:{}});
+  if(error||!data?.success)throw new Error(error?.message||data?.error||'The test email was not accepted');
+  status.style.color='#65dba2';
+  status.textContent='✓ Test accepted for delivery. Check the Gifford Motors email inbox. No other dealers contacted.';
+  btn.textContent='Test Email Submitted ✓';
+ }catch(err){status.style.color='#ff7777';status.textContent=String(err?.message||err);btn.disabled=false;}
+});
 document.getElementById('legacyCsvButton')?.addEventListener('click',()=>document.getElementById('inviteCsvFile')?.click());
 (async function(){
   const allowed=await requireAdminSession();
