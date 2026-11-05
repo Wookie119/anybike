@@ -18,6 +18,38 @@ Deno.serve(async req=>{
   const authorization=await db.rpc("anybike_quotes_digest_cron_authorized",{k:supplied});
   if(authorization.error||authorization.data!==true)return response({error:"Unauthorized"},403);
   if(!resendKey)return response({error:"Email service unavailable"},503);
+  // Explicit admin-only delivery test. Never creates an auction or alters a dealer's preferences.
+  const input=await req.json().catch(()=>({}));
+  if(input?.mode==="send_test"){
+    const testEmail="andy.gifford@yahoo.co.uk";
+    const {data:users,error:lookupError}=await db.schema("public").from("customer_profiles")
+      .select("id,email").ilike("email",testEmail).limit(2);
+    if(lookupError||!users||users.length!==1)return response({error:"Test recipient lookup failed"},500);
+    const uid=users[0].id;
+    const {data:access,error:accessError}=await db.from("anybike_dealer_access")
+      .select("level,approved_at,can_view_underwrites").eq("user_id",uid).maybeSingle();
+    if(accessError||access?.level!==2||!access.approved_at||!access.can_view_underwrites)
+      return response({error:"Test account lacks verified dealer access"},403);
+    const {data:account,error:accountError}=await db.auth.admin.getUserById(uid);
+    if(accountError||account?.user?.email?.toLowerCase()!==testEmail||!account.user.email_confirmed_at)
+      return response({error:"Test account email confirmation unavailable"},403);
+    const html="<html><body style='font-family:Arial,sans-serif;color:#171717;padding:24px'>"+
+       "<div style='max-width:620px;border:1px solid #555;border-top:5px solid #ed1c24;padding:22px'>"+
+       "<h2>AnyBike · Dealer email delivery test</h2>"+
+       "<p>This is a test message for the Gifford Motorcycles UK dealer account.</p>"+
+       "<p><strong>No auction was opened, no invitation was generated, and your existing email preferences have not changed.</strong></p>"+
+       "<p>The normal individual auction emails are sent only when you opt in.</p>"+
+       "<p><a href='https://www.anybike.co.uk/my-dealership.html#auctionEmailPreferences'>Manage auction email preferences</a></p>"+
+       "</div></body></html>";
+    const sent=await fetch("https://api.resend.com/emails",{
+      method:"POST",headers:{"authorization":"Bearer "+resendKey,"content-type":"application/json"},
+      body:JSON.stringify({from:"AnyBike <sales@anybike.co.uk>",to:[testEmail],
+        subject:"AnyBike TEST — Dealer auction email delivery",html})
+    });
+    const provider=await sent.json().catch(()=>({}));
+    if(!sent.ok||!provider.id)return response({status:"failed",provider_status:sent.status},502);
+    return response({status:"accepted_by_email_provider",email_id:String(provider.id),test_account:true});
+  }
 
   const {data:pending,error:listError}=await db
     .from("anybike_individual_auction_email_outbox")
