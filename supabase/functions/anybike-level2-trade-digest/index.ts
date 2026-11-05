@@ -23,7 +23,7 @@ const apiKey=Deno.env.get("RESEND_API_KEY");
 if(!apiKey)return out({error:"Email service unavailable"},503);
 const {data:dealers,error:dealersErr}=await db.rpc("anybike_level2_digest_recipients");
 if(dealersErr)return out({error:"Recipient verification failed"},500);
-const {data:auctions,error:auctionErr}=await db.from("anybike_trade_underwrite_opportunities").select("id,submission_id,closes_at").eq("status","live").gt("closes_at",new Date().toISOString()).limit(250);
+const {data:auctions,error:auctionErr}=await db.from("anybike_trade_underwrite_opportunities").select("id,submission_id,closes_at,opens_at").eq("status","live").gt("closes_at",new Date().toISOString()).limit(250);
 if(auctionErr)return out({error:"Auction list unavailable"},500);
 const ids=(auctions||[]).map(a=>a.submission_id).filter(Boolean);
 const {data:submissions,error:subErr}=ids.length?await db.from("seller_motorcycle_submissions").select("id,make,model,dealer_organisation_id,submitted_by,primary_display_image_url").in("id",ids):{data:[],error:null};
@@ -38,10 +38,25 @@ const optedOut=new Set((preferences||[]).filter((p:any)=>p.digest_enabled===fals
 const recipients=(dealers||[]).filter((d:any)=>!optedOut.has(String(d.user_id)));
 const results=[];
 for(const dealer of recipients){
+  // Only new opportunities since this dealership's last successful digest.
+  // On their first digest, include all currently live eligible opportunities.
+  const {data:lastSent,error:lastSentError}=await db.from("anybike_level2_digest_dispatch")
+    .select("created_at").eq("dealer_organisation_id",dealer.dealer_organisation_id)
+    .eq("status","sent").order("created_at",{ascending:false}).limit(1).maybeSingle();
+  if(lastSentError){results.push({dealer_organisation_id:dealer.dealer_organisation_id,status:"history_check_failed"});continue;}
+  const eligibleNow=(submissions||[]).filter(s=>{
+    if(String(s.dealer_organisation_id||"")===String(dealer.dealer_organisation_id)||String(s.submitted_by||"")===String(dealer.user_id))return false;
+    const auction=(auctions||[]).find(a=>String(a.submission_id)===String(s.id));
+    return !!auction && (!lastSent?.created_at || (new Date(auction.opens_at).getTime()>new Date(lastSent.created_at).getTime()));
+  });
+  if(!eligibleNow.length){
+    results.push({dealer_organisation_id:dealer.dealer_organisation_id,status:"skipped_no_new_auctions"});
+    continue;
+  }
   const {data:claimed,error:claimError}=await db.from("anybike_level2_digest_dispatch").insert({local_day:date,dealer_organisation_id:dealer.dealer_organisation_id,user_id:dealer.user_id,email:dealer.email,status:"claimed"}).select("dealer_organisation_id").maybeSingle();
   if(claimError){if(claimError.code==="23505"){results.push({dealer_organisation_id:dealer.dealer_organisation_id,status:"already_attempted"});continue;}results.push({dealer_organisation_id:dealer.dealer_organisation_id,status:"claim_failed"});continue;}
   try{
-    const eligible=(submissions||[]).filter(s=>String(s.dealer_organisation_id||"")!==String(dealer.dealer_organisation_id)&&String(s.submitted_by||"")!==String(dealer.user_id));
+    const eligible=eligibleNow;
  const escape=(s:unknown)=>String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]!));
  const auctionBySubmission=new Map((auctions||[]).map(a=>[String(a.submission_id),a]));
  const opportunityIds=eligible.map(s=>auctionBySubmission.get(String(s.id))?.id).filter(Boolean);
@@ -63,7 +78,7 @@ for(const dealer of recipients){
   return {priority,html:"<tr><td style='padding:12px;border-bottom:1px solid #ddd'>"+thumbnail+"<a href='https://www.anybike.co.uk/trade-opportunities.html?opportunity="+encodeURIComponent(String(auction?.id||""))+"' style='color:#171717;text-decoration:underline;font-weight:bold'>"+escape(s.make)+" "+escape(s.model)+" ↗</a> <span style='float:right;font-weight:bold;color:"+colour+"'>"+label+"</span></td></tr>"};
  });
  const lines=rows.sort((a,b)=>a.priority-b.priority).map(x=>x.html).join("");
- let html="<html><body style='margin:0;background:#eee;font-family:Arial'><table align='center' width='720' style='width:100%;max-width:720px;background:white;border:1px solid #a61a20;border-left:4px solid #ed1c24;border-right:4px solid #ed1c24;border-collapse:separate;border-spacing:0;box-sizing:border-box'><tr><td style='height:8px;background:#ed1c24;font-size:0;line-height:0'>&nbsp;</td></tr><tr><td style='background:#0b0b0b;text-align:center;padding:10px 20px'><img src='cid:anybike-header-logo' alt='AnyBike' width='360' style='display:block;width:360px;max-width:100%;height:auto;margin:0 auto;border:0'></td></tr><tr><td style='height:4px;background:#ed1c24;font-size:0;line-height:0'>&nbsp;</td></tr><tr><td style='padding:28px 30px'><h2 style='margin:0 0 18px;padding:0 0 13px;border-bottom:2px solid #ed1c24;font-size:23px;line-height:29px;text-align:center'>Daily Auction Update</h2><p>Hello "+escape(dealer.dealer_name)+",</p><p style='font-weight:bold'>Latest Bikes for Underwrite</p><table width='100%'>"+(lines||"<tr><td>No eligible live motorcycles today.</td></tr>")+"</table><p style='text-align:center;margin:26px 0'><a href='https://www.anybike.co.uk/trade-opportunities.html' style='background:#ed1c24;color:white;text-decoration:none;padding:14px 22px;display:inline-block;font-weight:bold'>View Trade Opportunities →</a></p><p style='text-align:center'>The AnyBike Team</p></td></tr><tr><td style='height:4px;background:#ed1c24;font-size:0;line-height:0'>&nbsp;</td></tr><tr><td style='background:#171717;color:white;text-align:center;padding:22px'><strong style='font-size:20px'>ANY<span style='color:#ed1c24'>BIKE</span>.CO.UK</strong><br><span style='font-size:10px;letter-spacing:2px'>UK MOTORCYCLE EXPORT SPECIALISTS</span></td></tr></table></body></html>";
+ let html="<html><body style='margin:0;background:#eee;font-family:Arial'><table align='center' width='720' style='width:100%;max-width:720px;background:white;border:1px solid #a61a20;border-left:4px solid #ed1c24;border-right:4px solid #ed1c24;border-collapse:separate;border-spacing:0;box-sizing:border-box'><tr><td style='height:8px;background:#ed1c24;font-size:0;line-height:0'>&nbsp;</td></tr><tr><td style='background:#0b0b0b;text-align:center;padding:10px 20px'><img src='cid:anybike-header-logo' alt='AnyBike' width='360' style='display:block;width:360px;max-width:100%;height:auto;margin:0 auto;border:0'></td></tr><tr><td style='height:4px;background:#ed1c24;font-size:0;line-height:0'>&nbsp;</td></tr><tr><td style='padding:28px 30px'><h2 style='margin:0 0 18px;padding:0 0 13px;border-bottom:2px solid #ed1c24;font-size:23px;line-height:29px;text-align:center'>Daily Auction Update</h2><p>Hello "+escape(dealer.dealer_name)+",</p><p style='font-weight:bold'>Latest Bikes for Underwrite</p><table width='100%'>"+lines+"</table><p style='text-align:center;margin:26px 0'><a href='https://www.anybike.co.uk/trade-opportunities.html' style='background:#ed1c24;color:white;text-decoration:none;padding:14px 22px;display:inline-block;font-weight:bold'>View Trade Opportunities →</a></p><p style='text-align:center;font-size:12px;color:#666'>You only receive this update when new auctions are available. <a href='https://www.anybike.co.uk/my-dealership.html#auctionEmailPreferences' style='color:#b71a20'>Manage auction email preferences</a></p><p style='text-align:center'>The AnyBike Team</p></td></tr><tr><td style='height:4px;background:#ed1c24;font-size:0;line-height:0'>&nbsp;</td></tr><tr><td style='background:#171717;color:white;text-align:center;padding:22px'><strong style='font-size:20px'>ANY<span style='color:#ed1c24'>BIKE</span>.CO.UK</strong><br><span style='font-size:10px;letter-spacing:2px'>UK MOTORCYCLE EXPORT SPECIALISTS</span></td></tr></table></body></html>";
 
  const toBase64=(bytes:Uint8Array)=>{let str="";for(let i=0;i<bytes.length;i+=8192)str+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(str)};
  const logoResponse=await fetch("https://raw.githubusercontent.com/Wookie119/anybike/main/anybike-logo-new.jpg");
