@@ -2002,6 +2002,10 @@ color:#ed1c24;
       <span id="actionQueueTotal" class="queue-total">0</span>
     </div>
 
+    <div id="level2ApprovalReminder" style="display:none;margin:8px 0 12px;padding:12px 15px;border:1px solid #ed1c24;border-left:4px solid #ed1c24;border-radius:10px;background:#171717;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div><strong id="level2ApprovalLabel">Dealers awaiting Level 2 approval</strong><div id="level2ApprovalNames" style="font-size:13px;color:#bbb;margin-top:3px"></div></div>
+      <a href="admin-trade-auction-recipients.html" style="display:inline-block;background:#ed1c24;color:white;text-decoration:none;border-radius:7px;padding:10px 14px;font-size:13px;font-weight:800">REVIEW DEALERS →</a>
+    </div>
     <div class="action-queue-summary" aria-label="Action counts by area">
       <button type="button" class="action-summary-tile urgent" data-action-filter="sales" onclick="setDashboardActionFilter('sales')"><span>Sales</span><strong id="actionSalesCount">0</strong></button>
       <button type="button" class="action-summary-tile messages" data-action-filter="messages" onclick="setDashboardActionFilter('messages')"><span>Messages</span><strong id="actionMessagesCount">0</strong></button>
@@ -4501,6 +4505,26 @@ async function sendQuotesDigestTest(){
   button.textContent="Send Another Test Email to Quotes";
  }catch(error){status.textContent="Not sent: "+error.message;}finally{button.disabled=false;}
 }
+
+/* Separate, read-only Level 2 approval reminder: always based on current database state.
+   Does not mark notifications read or approve dealerships. */
+async function loadLevel2ApprovalReminder(){
+  const panel=document.getElementById("level2ApprovalReminder");
+  if(!panel||typeof getAdminSupabaseClient!=="function")return;
+  const client=getAdminSupabaseClient();
+  if(!client)return;
+  try{
+    const {data,error}=await client.rpc("admin_list_dealer_setup_stages_v1");
+    if(error)throw error;
+    const pending=(data||[]).filter(d=>d.setup_stage==="Awaiting Admin approval" || d.setup_stage==="Level 2 — check permissions");
+    if(!pending.length){panel.style.display="none";return;}
+    document.getElementById("level2ApprovalLabel").textContent=pending.length+" dealer"+(pending.length===1?"":"s")+" awaiting Level 2 review";
+    document.getElementById("level2ApprovalNames").textContent=pending.slice(0,3).map(d=>d.dealer_name).join(" · ")+(pending.length>3?" · +"+(pending.length-3)+" more":"");
+    panel.style.display="flex";
+  }catch(e){console.warn("Level 2 approval reminder unavailable",e);}
+}
+window.addEventListener("load",loadLevel2ApprovalReminder);
+window.addEventListener("focus",loadLevel2ApprovalReminder);
 </script>
 </body>
 </html>
