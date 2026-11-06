@@ -125,6 +125,12 @@ td:last-child{vertical-align:top;background:rgba(255,255,255,.025)}td:last-child
         <button id="sendGiffordWelcomeTest" type="button" disabled style="background:#333;color:#bbb;border:1px solid #555;border-radius:7px;font-weight:700;padding:12px 18px;cursor:not-allowed">Gifford email test paused</button>
         <span id="giffordWelcomeTestStatus" role="status" style="margin-left:12px;color:#ddd"></span>
       </details>
+      <details id="dealer-notification-audit" style="border:1px solid #444;border-left:3px solid #ed1c24;border-radius:10px;padding:12px 16px;margin:12px 0;background:#171717">
+        <summary style="cursor:pointer;font-weight:800;font-size:16px;padding:3px 0">Dealer access &amp; auction email health · Read-only</summary>
+        <p style="color:#bbb;font-size:13px;margin:12px 0">Live verification of approved dealer access, newsletter eligibility and individual auction email preferences. Checking this panel does not send emails or change permissions.</p>
+        <div id="dealerNotificationAuditResult" role="status" style="color:#ddd;font-size:13px;line-height:1.6">Checking dealer access…</div>
+        <button type="button" id="refreshDealerNotificationAudit" style="margin:10px 0 0;background:#242424;border:1px solid #555;color:#fff;border-radius:7px;padding:8px 12px">Refresh audit</button>
+      </details>
       <details id="dealer-login-followups" style="border:1px solid #444;border-left:3px solid #ed1c24;border-radius:10px;padding:12px 16px;margin:12px 0;background:#171717">
         <summary style="cursor:pointer;font-weight:800;font-size:17px;padding:3px 0">Dealer login follow-ups · Open dealer list</summary>
         <p style="color:#bbb;margin:12px 0">Dealers who have signed in. Review their account or follow-up notes when needed. No messages are sent automatically.</p>
@@ -996,6 +1002,44 @@ function updateNextAction(){
   render();
 }));
 
+async function loadDealerNotificationAudit(){
+ const host=document.getElementById('dealerNotificationAuditResult');
+ if(!host)return;
+ host.textContent='Checking dealer access…';
+ const {data,error}=await sb.rpc('admin_dealer_notification_health_v1');
+ if(error){host.textContent='Audit unavailable: '+error.message;return;}
+ if(!data||typeof data!=='object'){host.textContent='No audit data available.';return;}
+ const entries=[
+  ['Approved UK dealer accounts',data.approved_accounts],
+  ['Fully permitted to view, submit and bid',data.fully_permitted],
+  ['Active, verified dealership links',data.verified_accounts],
+  ['Eligible for the M/W/F digest',data.digest_eligible],
+  ['Digest enabled among eligible dealers',data.digest_opted_in],
+  ['Individual auction email opt-ins among eligible dealers',data.individual_opted_in],
+  ['Currently live auction motorcycles',data.live_auctions]
+ ];
+ const list=document.createElement('div');
+ list.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:7px';
+ for(const [label,value] of entries){
+  const item=document.createElement('div');
+  item.style.cssText='background:#222;border:1px solid #444;border-radius:7px;padding:8px 10px';
+  const caption=document.createElement('div');caption.style.color='#bbb';caption.textContent=label;
+  const count=document.createElement('strong');count.style.cssText='font-size:21px;color:#fff';count.textContent=String(value??'—');
+  item.append(caption,count);list.append(item);
+ }
+ const issues=Array.isArray(data.issues)?data.issues:[];
+ host.replaceChildren(list);
+ const note=document.createElement('p');note.style.cssText='margin:10px 0 0;color:#bbb';
+ note.textContent='Read-only audit. Missing notification preferences default to digest on and individual emails off; provider delivery is not confirmed here.';
+ host.append(note);
+ if(issues.length){
+  const alert=document.createElement('div');alert.style.cssText='margin:12px 0 0;padding:10px 12px;border-left:3px solid #ed1c24;background:#262020;color:#fff';
+  const heading=document.createElement('strong');heading.textContent=issues.length+' dealer record issue(s) to review';alert.append(heading);
+  for(const issue of issues){const item=document.createElement('div');item.textContent=String(issue.business||'Dealer')+': '+String(issue.issue||'Review required');alert.append(item);}
+  host.append(alert);
+ }
+}
+document.getElementById('refreshDealerNotificationAudit')?.addEventListener('click',loadDealerNotificationAudit);
 async function loadDealerLoginFollowups(){
  const host=document.getElementById('dealerLoginFollowupList');if(!host)return;
  const [loginsResult,followupsResult,interestsResult,responsesResult]=await Promise.all([sb.rpc('admin_dealer_login_followups_v1'),sb.rpc('admin_get_dealer_followups_v1'),sb.rpc('admin_get_dealer_interests_v1'),sb.rpc('admin_dealer_service_responses_v1')]);
@@ -1073,7 +1117,7 @@ document.getElementById('legacyCsvButton')?.addEventListener('click',()=>documen
   document.documentElement.classList.remove("admin-auth-pending");
   // Allow each section to finish or report its own error; one failing request must not leave other sections stuck on Loading.
   const {data:orgMappings,error:orgMapError}=await sb.rpc('admin_onboarding_dealer_org_map_v1');if(!orgMapError)dealerOrgByUser=new Map((orgMappings||[]).map(x=>[String(x.user_id),Number(x.dealer_organisation_id)]));else console.warn('Dealer organisation mapping unavailable',orgMapError.message);
-  const tasks=[['Onboarding pipeline','tableWrap',loadOnboarding],['Master invitations','masterInviteSummary',loadMasterInviteSummary],['Invited prospects','inviteProspectsList',loadInviteProspects],['Dealer confidence','dealerConfidenceList',loadDealerConfidence],['Dealer logins','dealerLoginFollowupList',loadDealerLoginFollowups]];
+  const tasks=[['Onboarding pipeline','tableWrap',loadOnboarding],['Master invitations','masterInviteSummary',loadMasterInviteSummary],['Invited prospects','inviteProspectsList',loadInviteProspects],['Dealer confidence','dealerConfidenceList',loadDealerConfidence],['Dealer logins','dealerLoginFollowupList',loadDealerLoginFollowups],['Dealer auction health','dealerNotificationAuditResult',loadDealerNotificationAudit]];
   await Promise.all(tasks.map(async ([name,id,fn])=>{try{await fn()}catch(error){console.error(name+' failed',error);const host=document.getElementById(id);if(host)host.textContent='Could not load '+name.toLowerCase()+': '+(error?.message||error)+'. Refresh to retry.';}}));
 })();
 </script>
