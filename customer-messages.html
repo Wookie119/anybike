@@ -1474,9 +1474,9 @@ function candidateMessageIdFromText(value){
 
 function candidateMessageHtml(value){
   const text=String(value||"");
-  // Level 2 UK dealer welcome: show dealer services, not the stock-connection CTA.
+  // Historic dealer welcome: render the approved dealer destination using public-facing terminology.
   if(text.includes("https://www.anybike.co.uk/my-dealership.html") && /approved as a Level 2 UK Dealer/i.test(text)){
-    const cleaned=text.replace(/https:\/\/www\.anybike\.co\.uk\/my-dealership\.html/gi,"").replace(/https:\/\/www\.anybike\.co\.uk\/dealer-connect-stock\.html/gi,"").trim();
+    const cleaned=text.replace(/https:\/\/www\.anybike\.co\.uk\/my-dealership\.html/gi,"").replace(/https:\/\/www\.anybike\.co\.uk\/dealer-connect-stock\.html/gi,"").replace(/Level 2 UK Dealer/gi,"Approved UK Dealer").trim();
     return '<div>'+safe(cleaned)+'</div><div style="margin-top:14px"><a href="/my-dealership.html" style="display:inline-flex;background:#ed1c24;color:#fff;font-weight:800;text-decoration:none;border-radius:9px;padding:13px 20px">Explore Dealer Services →</a></div>';
   }
   // Dealer stock onboarding: make the next action an explicit button.
@@ -2241,7 +2241,9 @@ function globalBuyerConversationHtml(thread){
   const key=`global-${thread.id}`;
   const title=anybikeCustomerThreadTitle(thread);
   const rawPreview=String(thread.last_message||"").trim();
-  const preview=/ANYBIKE\s*\|\s*MOTORCYCLE PURCHASE OFFER/i.test(rawPreview)?"Your AnyBike purchase offer is ready. Open to accept or decline.":rawPreview;
+  const preview=String(thread.source_type||"").toLowerCase()==="dealer services form"
+    ? "Your dealership services are available. Open this conversation to visit My Dealership."
+    : (/ANYBIKE\s*\|\s*MOTORCYCLE PURCHASE OFFER/i.test(rawPreview)?"Your AnyBike purchase offer is ready. Open to accept or decline.":rawPreview);
   const source=String(thread.source_type||"").toLowerCase();
   const subject=String(thread.subject||"").toLowerCase();
   const isGlobal=source.includes("global buyer") || String(thread.department||"").toLowerCase().includes("global buyer");
