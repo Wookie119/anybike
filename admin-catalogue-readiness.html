@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Catalogue Readiness | AnyBike Admin</title>
+<link rel="stylesheet" href="/admin-shell.css?v=202610071420">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="/admin.js?v=202610071420"></script>
+<style>
+:root{--red:#ed1c24}*{box-sizing:border-box}body{background:#080808;color:#fff;margin:0;font-family:Arial,Helvetica,sans-serif}
+.admin-page-content{padding:24px;max-width:1550px}h1{margin:0 0 8px;font-size:clamp(27px,4vw,38px)}p{color:#bbb;line-height:1.5}
+a{color:#fff;text-decoration-color:var(--red)}
+.panel{background:#161616;border:1px solid #424242;border-top:3px solid var(--red);padding:18px;border-radius:12px;margin:16px 0}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px}
+.metric{padding:13px;background:#222;border:1px solid #444;border-radius:9px}
+.metric span{display:block;color:#bbb;font-size:12px;line-height:1.4}
+.metric strong{display:block;font-size:26px;margin-top:7px}
+button{background:#ed1c24;border:0;border-radius:7px;color:#fff;padding:10px 15px;font-weight:700;cursor:pointer}
+input{background:#101010;border:1px solid #555;color:#fff;border-radius:7px;padding:11px;width:min(390px,100%)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;border-bottom:1px solid #333;padding:11px 9px}th{background:#242424;color:#ddd;position:sticky;top:0}
+.wrap{max-height:68vh;overflow:auto}.muted{color:#aaa}.no-publish{border-left:3px solid var(--red);padding:10px 13px;background:#252020}
+@media(max-width:780px){.admin-page-content{padding:14px}th,td{padding:8px 5px;font-size:12px}}
+</style></head>
+<body><div class="admin-shell"><aside id="adminSidebar" class="admin-sidebar"></aside><div class="admin-main"><div id="adminTopbar"></div><main class="admin-page-content">
+<a href="/admin-market-page-health.html">← Market Page Health</a>
+<h1>Motorcycle Catalogue · Readiness</h1>
+<p>One read-only view across manufacturer, model, source-fact and country-link data. This is an editorial readiness audit, not permission to publish unverified information.</p>
+<div class="panel">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2 style="margin:0">Database coverage</h2><button type="button" id="refresh">Refresh audit</button></div>
+<p id="status" role="status">Checking catalogue…</p><div id="metrics" class="metrics"></div>
+<p class="no-publish">Publication safety: catalogue manufacturer records currently marked <strong>review</strong> are not automatically exposed to public pages. No records are approved, indexed, edited or emailed by this audit.</p>
+</div>
+<div class="panel"><h2 style="margin-top:0">Manufacturer coverage · All records</h2>
+<p>Coverage counts help prioritise source-backed research in bulk. Blank gallery fields cannot be replaced with guessed photographs.</p>
+<label for="filter" class="muted">Filter by manufacturer</label> <input id="filter" type="search" placeholder="Search manufacturer">
+<div class="wrap"><table><thead><tr><th>Manufacturer</th><th>Status</th><th>Models</th><th>Overviews</th><th>Specifications</th><th>Galleries</th><th>Production years</th></tr></thead><tbody id="rows"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
+</div></main></div></div>
+<script>
+(function(){
+ const client=supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK",{auth:{storageKey:"anybike-admin-auth",persistSession:true,autoRefreshToken:true}});
+ const status=document.getElementById("status"),metrics=document.getElementById("metrics"),body=document.getElementById("rows"),filter=document.getElementById("filter");
+ let all=[];
+ const labels={manufacturers:"Manufacturers",manufacturers_in_review:"Still in review",models:"Models",models_with_overview:"Model overviews",models_with_specs:"Model specifications",models_with_gallery:"Model galleries",models_with_start_year:"Start years",facts:"Sourced facts",verified_facts:"Verified facts",pending_facts:"Facts pending review",model_relationships:"Model relationships",published_country_links:"Published country links",duplicate_model_slugs:"Duplicate model slugs",model_year_conflicts:"Conflicting model years"};
+ function el(tag,content){const x=document.createElement(tag);x.textContent=String(content??"—");return x;}
+ function render(){
+  const q=filter.value.trim().toLowerCase();const rows=all.filter(r=>String(r.manufacturer||"").toLowerCase().includes(q));
+  body.replaceChildren(...rows.map(r=>{const tr=document.createElement("tr");for(const k of ["manufacturer","publication_status","models","with_overview","with_specs","with_gallery","with_start_year"]){tr.append(el("td",r[k]));}return tr;}));
+  if(!rows.length){const tr=document.createElement("tr"),td=el("td","No matching manufacturers.");td.colSpan=7;tr.append(td);body.append(tr);}
+ }
+ async function load(){
+  status.textContent="Checking live catalogue…";
+  const {data:{user}}=await client.auth.getUser();
+  if(!user){location.replace("/admin-login.html?return=%2Fadmin-catalogue-readiness.html");return;}
+  const {data,error}=await client.rpc("admin_catalogue_readiness_v1");
+  if(error){status.textContent="Admin audit unavailable: "+error.message;return;}
+  all=Array.isArray(data?.manufacturers)?data.manufacturers:[];
+  const summary=data?.summary||{};
+  metrics.replaceChildren(...Object.entries(labels).map(([key,label])=>{const card=document.createElement("div");card.className="metric";card.append(el("span",label),el("strong",summary[key]));return card;}));
+  status.textContent="Read-only audit loaded · "+all.length+" manufacturer rows · No publication changes";
+  render();
+ }
+ filter.addEventListener("input",render);document.getElementById("refresh").addEventListener("click",load);
+ load().catch(e=>{status.textContent="Audit could not load: "+(e.message||String(e));});
+})();
+</script></body></html>
