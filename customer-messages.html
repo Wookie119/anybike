@@ -2937,7 +2937,21 @@ async function loadGlobalBuyerMessages(threadId){
   const visibleMessages=structuredOfferVisible
     ? messages.filter(message=>!isOfferDispatch(message))
     : messages.filter((message,index)=>!isOfferDispatch(message)||index===messages.findLastIndex(isOfferDispatch));
-  box.innerHTML=visibleMessages.map(message=>{
+  // Collapse identical historic dealer welcome notices in the presentation only.
+  // All original messages stay in Supabase, including timestamps and replies.
+  const duplicateCounts=new Map();
+  const latestDuplicateId=new Map();
+  const isLegacyWelcome=message=>!isCustomerMessageSender(message)
+    && /^Welcome to AnyBike! Which of our services would interest your dealership\?/i.test(String(message.message||""));
+  for(const message of visibleMessages){
+    if(!isLegacyWelcome(message))continue;
+    const key=String(message.message||"").trim();
+    duplicateCounts.set(key,(duplicateCounts.get(key)||0)+1);
+    latestDuplicateId.set(key,String(message.id));
+  }
+  const displayMessages=visibleMessages.filter(message=>!isLegacyWelcome(message)
+    ||String(message.id)===latestDuplicateId.get(String(message.message||"").trim()));
+  box.innerHTML=displayMessages.map(message=>{
     const isCustomer=isCustomerMessageSender(message);
     const label=isCustomer
       ? "You"
@@ -2949,6 +2963,7 @@ async function loadGlobalBuyerMessages(threadId){
         <div class="msg-text">${candidateMessageHtml(message.message)}</div>
         ${customerMessageAttachmentsHtml(message.id,messageMatchAttachments)}
         <small>${message.created_at ? new Date(message.created_at).toLocaleString("en-GB") : ""}</small>
+        ${isLegacyWelcome(message)&&duplicateCounts.get(String(message.message||"").trim())>1 ? '<small class="muted">Earlier identical welcome notices hidden ('+(duplicateCounts.get(String(message.message||"").trim())-1)+'). Conversation history preserved.</small>' : ''}
       </div>
     `;
   }).join("");
