@@ -147,7 +147,7 @@ html{scroll-padding-top:0}
     <div class="kicker">VMOTO RETAIL COVERAGE</div>
     <h2>VMoto sales areas supported by AnyBike.</h2>
     <p class="section-intro">AnyBike supports VMoto retail enquiries across these sales areas, with specialist nationwide motorcycle delivery and a full handover at your home or place of work. If you are nearby but do not see your town listed, contact us and we will confirm coverage.</p>
-    <div class="coverage">
+    <p style="font-size:13px;color:#555;margin:0 0 14px">Including Oxfordshire: Oxford, Watlington, Thame, Wallingford, Witney, Bicester, Banbury and surrounding villages.</p>\n    <div class="coverage">
       <div class="coverage-card">
         <span class="coverage-label">Oxfordshire · Oxford &amp; North</span>
         <strong>Oxford, Bicester, Banbury &amp; surrounding villages</strong>
@@ -416,22 +416,32 @@ function renderVmotoRetailCards(models){
   if(!grid)return;
   grid.innerHTML=vmotoRetailCatalogue(models).map(item=>{
     const model=item.match;
-    const photo=!new2027 && model?.hero_image_url
-      ? '<img src="'+vmotoEsc(model.hero_image_url)+'" alt="'+vmotoEsc(item.name)+'" loading="lazy" style="width:100%;height:100%;object-fit:contain;background:#fff;padding:10px">'
-      : '<div class="model-placeholder"><strong>'+vmotoEsc(item.name)+'</strong><span>'+(new2027?'New for 2027 — official image to follow':'VMoto electric')+'</span></div>';
+    const new2027=["tc-72v","tsx-72v","tc-max"].includes(item.slug);
+    const referencePhotos={
+      "citi":"https://www.hammer-international.de/cdn/shop/files/citi_037_2048x.jpg?v=1754505750",
+      "tc-60v":"https://vmoto.co.uk/app/uploads/2024/06/TC_black_BR.jpg",
+      "tsx-60v":"https://vmoto.co.uk/app/uploads/2024/06/desktop1-6.png",
+      "tc-72v":"https://vmoto.co.uk/app/uploads/2024/06/TC_black_BR.jpg",
+      "tsx-72v":"https://vmoto.co.uk/app/uploads/2024/06/desktop1-6.png",
+      "tc-max":"https://vmoto.co.uk/app/uploads/2024/06/desktop1-3.png"
+    };
+    const photoUrl=(new2027?referencePhotos[item.slug]:(model?.hero_image_url||referencePhotos[item.slug]))||"";
+    const photo=photoUrl
+      ? '<img src="'+vmotoEsc(photoUrl)+'" alt="'+vmotoEsc(item.name)+(new2027?' — previous model reference photograph':'')+'" loading="lazy" style="width:100%;height:100%;object-fit:contain;background:#fff;padding:10px">'
+      : '<div class="model-placeholder"><strong>'+vmotoEsc(item.name)+'</strong><span>Photo to follow</span></div>';
     const legacyEdition={"tc-60v":"tc","tsx-60v":"tsx","tc-72v":"tc","tsx-72v":"tsx"};
     const detailSlug=model?.slug||(legacyEdition[item.slug]||"");
-    const new2027=["tc-72v","tsx-72v","tc-max"].includes(item.slug);
     const inStock=item.slug==="cpx-explorer";
     const edition=/^(tc|tsx)-(60v|72v)$/.test(item.slug)?'&edition='+encodeURIComponent(item.slug.split("-")[1]):"";
     const href=detailSlug?'/vmoto-model.html?model='+encodeURIComponent(detailSlug)+edition:'#vmoto-enquiry';
     return '<a class="model-card" href="'+href+'">'+
-      '<div class="model-image">'+photo+'</div>'+
+      '<div class="model-image"'+(new2027?' style="background:#eee;border-bottom:3px solid #ed1c24"':'')+'>'+photo+'</div>'+
       '<div class="model-body">'+(new2027?'<div style="color:#ed1c24;font-weight:900;font-size:12px">NEW FOR 2027</div>':'')+(inStock?'<div style="color:#157c43;font-weight:900;font-size:12px">AVAILABLE NOW · SKY BLUE OR WHITE</div>':'')+'<h3>'+vmotoEsc(item.name)+'</h3>'+
-      '<p>UK retail model. Ask AnyBike to confirm the exact specification, colours and availability.</p>'+
+      '<p>'+(new2027?'New for 2027. Final appearance, specification and availability to be confirmed.':'UK retail model. Ask AnyBike to confirm the exact specification, colours and availability.')+'</p>'+
       '<div class="model-status">'+(new2027?'2027 retail price to be confirmed':'RRP incl. VAT '+vmotoMoney(item.rrp))+'</div>'+
+      (new2027?'<div style="font-size:11px;color:#555">Earlier model pictured for reference · 2027 image to follow</div>':'')+
       '<div style="font-size:12px;color:#666">Availability confirmed on enquiry · '+(detailSlug?'View model →':'Enquire →')+'</div></div></a>';
-  }).join("")+ '<a class="model-card" href="/vmoto-model.html?model=cpx-explorer"><div class="model-image"><div class="model-placeholder"><strong>CPx Explorer 74V</strong><span>New for 2027</span></div></div><div class="model-body"><div style="color:#ed1c24;font-weight:900;font-size:12px">NEW FOR 2027</div><h3>CPx Explorer 74V</h3><p>No built-in Type 2 charging port. Exact 2027 specification, price and availability to be confirmed.</p><div class="model-status">2027 retail price to be confirmed</div><div style="font-size:12px;color:#666">View CPx Explorer versions →</div></div></a>';
+  }).join("")+ '<a class="model-card" href="/vmoto-model.html?model=cpx-explorer"><div class="model-image"><img src="https://vmoto.co.uk/app/uploads/2025/10/Vmoto-CPx-Eplorer-riding-photos-2025-1.png" alt="CPx Explorer earlier-model photograph used as a 2027 reference" loading="lazy" style="width:100%;height:100%;object-fit:contain;background:#fff;padding:10px"></div><div class="model-body"><div style="color:#ed1c24;font-weight:900;font-size:12px">NEW FOR 2027</div><h3>CPx Explorer 74V</h3><p>No built-in Type 2 charging port. Exact 2027 specification, price and availability to be confirmed.</p><div class="model-status">2027 retail price to be confirmed</div><div style="font-size:11px;color:#555">Earlier model pictured for reference · 2027 image to follow</div><div style="font-size:12px;color:#666">View CPx Explorer versions →</div></div></a>';
 }
 async function loadVmotoCatalogue(){
   try{
