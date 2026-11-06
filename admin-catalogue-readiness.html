@@ -38,7 +38,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
  const client=supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK",{auth:{storageKey:"anybike-admin-auth",persistSession:true,autoRefreshToken:true}});
  const status=document.getElementById("status"),metrics=document.getElementById("metrics"),body=document.getElementById("rows"),filter=document.getElementById("filter");
  let all=[];
- const labels={manufacturers:"Manufacturers",manufacturers_in_review:"Still in review",models:"Models",models_with_overview:"Model overviews",models_with_specs:"Model specifications",models_with_gallery:"Model galleries",models_with_start_year:"Start years",facts:"Sourced facts",verified_facts:"Verified facts",pending_facts:"Facts pending review",model_relationships:"Model relationships",published_country_links:"Published country links",duplicate_model_slugs:"Duplicate model slugs",model_year_conflicts:"Conflicting model years"};
+ const labels={manufacturers:"Manufacturers",manufacturers_in_review:"Still in review",models:"Models",models_with_overview:"Model overviews",models_with_specs:"Model specifications",models_with_gallery:"Model galleries",models_with_start_year:"Start years",facts:"Sourced facts",verified_facts:"Verified facts",pending_facts:"Facts pending review",model_relationships:"Model relationships",published_country_links:"Published country links",duplicate_model_slugs:"Duplicate model slugs",unmatched_manufacturer_models:"Unmatched manufacturer models",model_year_conflicts:"Conflicting model years"};
  function el(tag,content){const x=document.createElement(tag);x.textContent=String(content??"—");return x;}
  function render(){
   const q=filter.value.trim().toLowerCase();const rows=all.filter(r=>String(r.manufacturer||"").toLowerCase().includes(q));
@@ -54,6 +54,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
   all=Array.isArray(data?.manufacturers)?data.manufacturers:[];
   const summary=data?.summary||{};
   metrics.replaceChildren(...Object.entries(labels).map(([key,label])=>{const card=document.createElement("div");card.className="metric";card.append(el("span",label),el("strong",summary[key]));return card;}));
+  const mismatches=Array.isArray(summary.unmatched_manufacturer_names)?summary.unmatched_manufacturer_names:[];
+  if(mismatches.length){
+   const note=document.createElement('p');note.className='no-publish';
+   note.textContent='Manufacturer links need checking: '+mismatches.map(x=>String(x.manufacturer)+' ('+String(x.models)+' models)').join(' · ')+'. These source records have not been renamed automatically.';
+   metrics.after(note);
+  }
   status.textContent="Read-only audit loaded · "+all.length+" manufacturer rows · No publication changes";
   render();
  }
