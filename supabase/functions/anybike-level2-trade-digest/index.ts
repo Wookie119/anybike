@@ -102,7 +102,7 @@ for(const dealer of recipients){
  for(const photo of photos)if(photo)attachments.push(photo);
  for(let i=0;i<photos.length;i++){if(!photos[i]){const bike=eligible[i];const id=auctionBySubmission.get(String(bike.id))?.id;const link=String(bike.primary_display_image_url||"");if(id){html=html.replace("cid:auction-photo-"+id,escape(link));}}}
 
-    const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+apiKey,"Content-Type":"application/json"},body:JSON.stringify({from:"AnyBike <sales@anybike.co.uk>",to:[dealer.email],subject:"AnyBike | Daily Auction Update",html,attachments})});
+    // Repeated requests for the same dealership and local send date reuse one provider key.\n    const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+apiKey,"Content-Type":"application/json","Idempotency-Key":"anybike-trade-digest-"+date+"-org-"+String(dealer.dealer_organisation_id)},body:JSON.stringify({from:"AnyBike <sales@anybike.co.uk>",to:[dealer.email],subject:"AnyBike | Daily Auction Update",html,attachments})});
     const data=await response.json();
     const success=response.ok&&!!data.id;
     await db.from("anybike_level2_digest_dispatch").update({status:success?"sent":"failed",email_id:success?data.id:null,motorcycle_count:eligible.length,error:success?null:JSON.stringify(data).slice(0,500),updated_at:new Date().toISOString()}).eq("local_day",date).eq("dealer_organisation_id",dealer.dealer_organisation_id);
