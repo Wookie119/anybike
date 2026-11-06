@@ -39,12 +39,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
 <label>Manufacturer <select id="workBrand" style="background:#111;border:1px solid #555;border-radius:7px;color:#fff;padding:10px"><option value="">All manufacturers</option></select></label>
 <label>Research priority <select id="workStatus" style="background:#111;border:1px solid #555;border-radius:7px;color:#fff;padding:10px">
-<option value="all">All models</option><option value="missing">Missing overview or specs</option><option value="unsourced">No verified facts</option><option value="names">Naming or manufacturer review</option><option value="ready">Overview, specs and verified facts</option>
+<option value="all">All models</option><option value="editorial_verified">BMW imported guides needing enrichment</option><option value="editorial_scaffold">BMW unverified editorial scaffolds</option><option value="editorial_missing">Models without editorial records</option><option value="missing">Missing overview or specs</option><option value="unsourced">No verified facts</option><option value="names">Naming or manufacturer review</option><option value="ready">Overview, specs and verified facts</option>
 </select></label>
 <label>Find model <input id="workSearch" type="search" placeholder="e.g. R 1300 GS"></label>
 </div>
 <p id="workCount" class="muted" role="status">Loading model work queue…</p>
-<div class="wrap"><table><thead><tr><th>Manufacturer / model</th><th>Overview</th><th>Specs</th><th>Facts</th><th>Verified</th><th>Gallery</th><th>Years</th><th>Research action</th></tr></thead><tbody id="workRows"></tbody></table></div>
+<div class="wrap"><table><thead><tr><th>Manufacturer / model</th><th>Overview</th><th>Specs</th><th>Facts</th><th>Verified</th><th>Gallery</th><th>Years</th><th>13-section editorial</th><th>Research action</th></tr></thead><tbody id="workRows"></tbody></table></div>
 <div style="display:flex;gap:10px;align-items:center;margin-top:12px"><button type="button" id="workPrev" style="background:#333">Previous</button><span id="workPages" class="muted">—</span><button type="button" id="workNext" style="background:#333">Next</button></div>
 </div></main></div></div>
 <script>
@@ -83,6 +83,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
  const workPrev=document.getElementById("workPrev"),workNext=document.getElementById("workNext");
  function researchAction(r){
   const missing=[];
+  if(r.editorial_import_status==="catalogue_scaffold_unverified")missing.push("validate editorial scaffold");
+  if(r.editorial_import_status==="verified_guide_import_needs_section_enrichment")missing.push("enrich existing guide");
+  if(r.manufacturer==="BMW"&&!r.has_editorial_record)missing.push("review non-model record");
   if(!r.has_overview)missing.push("overview");
   if(!r.has_specs)missing.push("technical detail");
   if(Number(r.verified_facts)===0)missing.push("verified sources");
@@ -97,6 +100,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
   workFiltered=work.filter(r=>{
    if(brand&&r.manufacturer!==brand)return false;
    if(q&&!(r.manufacturer+" "+r.model+" "+r.slug).toLowerCase().includes(q))return false;
+   if(status==="editorial_verified"&&r.editorial_import_status!=="verified_guide_import_needs_section_enrichment")return false;
+   if(status==="editorial_scaffold"&&r.editorial_import_status!=="catalogue_scaffold_unverified")return false;
+   if(status==="editorial_missing"&&r.has_editorial_record)return false;
    if(status==="missing"&&r.has_overview&&r.has_specs)return false;
    if(status==="unsourced"&&Number(r.verified_facts)>0)return false;
    if(status==="names"&&r.manufacturer_match==="direct"&&!r.name_review&&!r.year_conflict)return false;
@@ -112,9 +118,15 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
    const tr=document.createElement("tr");
    const title=el("td",r.manufacturer+" · "+r.model);title.style.fontWeight="700";tr.append(title);
    for(const val of [r.has_overview?"Yes":"Missing",r.has_specs?"Yes":"Missing",r.facts,r.verified_facts,r.has_gallery?"Yes":"Missing",r.has_start_year?"Yes":"Missing"]){tr.append(el("td",val));}
+   const editorial=r.has_editorial_record
+    ?(r.editorial_import_status==="catalogue_scaffold_unverified"?"Unverified scaffold":
+      r.editorial_import_status==="verified_guide_import_needs_section_enrichment"?"Imported guide · enrich":
+      "Reference / review") + " · "+String(r.editorial_section_rows??0)+" rows"
+    :"No editorial record";
+   tr.append(el("td",editorial));
    const action=el("td",researchAction(r));action.className="muted";tr.append(action);return tr;
   }));
-  if(!selection.length){const tr=document.createElement("tr"),td=el("td","No matching model records.");td.colSpan=8;tr.append(td);workBody.append(tr);}
+  if(!selection.length){const tr=document.createElement("tr"),td=el("td","No matching model records.");td.colSpan=9;tr.append(td);workBody.append(tr);}
   workCount.textContent=workFiltered.length+" matching models of "+work.length+" · Research-only queue, no automated publication";
   workPages.textContent="Page "+(workPage+1)+" of "+pages;
   workPrev.disabled=workPage===0;workNext.disabled=workPage===pages-1;
