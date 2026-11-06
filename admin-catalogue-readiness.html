@@ -187,9 +187,15 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
   const selected=bmwMediaModels.find(x=>x.slug===bmwModelSelect.value);
   bmwMediaCards.replaceChildren();bmwRelations.replaceChildren();
   if(!selected){bmwMediaStatus.textContent="No media or relationship data for this model.";return;}
+  const years=Array.isArray(selected.model_year_gallery)?selected.model_year_gallery:[];
   const assets=Array.isArray(selected.approved_media)?selected.approved_media:[];
   const relations=Array.isArray(selected.relationships)?selected.relationships:[];
-  bmwMediaStatus.textContent=assets.length+" approved media assets · "+relations.length+" proposed/verified relationships · "+selected.generations_pending_review+" generation records pending · "+selected.timeline_events_pending_review+" timeline records pending";
+  bmwMediaStatus.textContent=years.length+" year-exact gallery assets · "+assets.length+" approved media assets · "+relations.length+" proposed relationships · "+selected.relationship_pair_conflicts+" overlapping link pairs · "+selected.generations_pending_review+" generations pending · "+selected.timeline_events_pending_review+" timeline events pending";
+  if(years.length){
+   const label=el("p","Verified model-year gallery placements (not published): "+years.map(y=>y.model_year+" "+y.edition_label).join(" · "));
+   label.style.cssText="font-size:13px;color:#fff;grid-column:1/-1;border-left:3px solid #ed1c24;padding:8px 12px;background:#222";
+   bmwMediaCards.append(label);
+  }
   if(!assets.length)bmwMediaCards.append(el("p","No approved, appropriately attributed images matched to this model. Use the normal neutral placeholder."));
   for(const asset of assets){
    const figure=document.createElement("figure");figure.style.cssText="margin:0;border:1px solid #444;border-radius:9px;padding:9px;background:#171717";
@@ -204,7 +210,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
    }
    bmwMediaCards.append(figure);
   }
-  const heading=el("h4","Related model proposals (not published)");heading.style.cssText="margin:10px 0 6px";bmwRelations.append(heading);
+  const heading=el("h4","Related model proposals (not published; overlapping classifications flagged)");
+  if(Number(selected.relationship_pair_conflicts)>0){
+   const warning=el("p",selected.relationship_pair_conflicts+" overlapping related/variant classifications need reconciliation; no duplicate links will be generated.");
+   warning.style.cssText="padding:10px;border-left:3px solid #ed1c24;background:#252020;color:#fff";
+   bmwRelations.append(warning);
+  }heading.style.cssText="margin:10px 0 6px";bmwRelations.append(heading);
   if(!relations.length)bmwRelations.append(el("p","No relationship proposals recorded."));
   for(const rel of relations){
    const line=el("p",rel.related_model+" · "+rel.relationship_type+" · "+rel.direction+" · "+rel.review_status);
