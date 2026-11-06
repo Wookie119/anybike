@@ -414,34 +414,41 @@ function vmotoRetailCatalogue(models){
 function renderVmotoRetailCards(models){
   const grid=document.getElementById("vmotoModelGrid");
   if(!grid)return;
-  grid.innerHTML=vmotoRetailCatalogue(models).map(item=>{
+  const previewSlugs=new Set(["tc-72v","tsx-72v","tc-max","cpx-explorer-74v"]);
+  const legacyEdition={"tc-60v":"tc","tsx-60v":"tsx","tc-72v":"tc","tsx-72v":"tsx","cpx-explorer-74v":"cpx-explorer"};
+  const entries=[...vmotoRetailCatalogue(models),{
+    name:"CPx Explorer 74V",slug:"cpx-explorer-74v",rrp:null,
+    match:models.find(m=>m.slug==="cpx-explorer")||null
+  }];
+  grid.innerHTML=entries.map(item=>{
+    const preview=previewSlugs.has(item.slug);
     const model=item.match;
-    const new2027=["tc-72v","tsx-72v","tc-max"].includes(item.slug);
-    const referencePhotos={
-      "citi":"https://www.hammer-international.de/cdn/shop/files/citi_037_2048x.jpg?v=1754505750",
-      "tc-60v":"https://vmoto.co.uk/app/uploads/2024/06/TC_black_BR.jpg",
-      "tsx-60v":"https://vmoto.co.uk/app/uploads/2024/06/desktop1-6.png",
-      "tc-72v":"https://vmoto.co.uk/app/uploads/2024/06/TC_black_BR.jpg",
-      "tsx-72v":"https://vmoto.co.uk/app/uploads/2024/06/desktop1-6.png",
-      "tc-max":"https://vmoto.co.uk/app/uploads/2024/06/desktop1-3.png"
-    };
-    const photoUrl=(new2027?referencePhotos[item.slug]:(model?.hero_image_url||referencePhotos[item.slug]))||"";
-    const photo=photoUrl
-      ? '<img src="'+vmotoEsc(photoUrl)+'" alt="'+vmotoEsc(item.name)+(new2027?' — previous model reference photograph':'')+'" loading="lazy" style="width:100%;height:100%;object-fit:contain;background:#fff;padding:10px">'
-      : '<div class="model-placeholder"><strong>'+vmotoEsc(item.name)+'</strong><span>Photo to follow</span></div>';
-    const legacyEdition={"tc-60v":"tc","tsx-60v":"tsx","tc-72v":"tc","tsx-72v":"tsx"};
-    const detailSlug=model?.slug||(legacyEdition[item.slug]||"");
-    const inStock=item.slug==="cpx-explorer";
+    const detailSlug=model?.slug||legacyEdition[item.slug]||"";
     const edition=/^(tc|tsx)-(60v|72v)$/.test(item.slug)?'&edition='+encodeURIComponent(item.slug.split("-")[1]):"";
     const href=detailSlug?'/vmoto-model.html?model='+encodeURIComponent(detailSlug)+edition:'#vmoto-enquiry';
+    // Existing approved/current model images only; never describe an older image as a 2027 model.
+    // The missing 2026 images use the same tidy placeholder instead of small or unrelated photos.
+    const hasGoodPhoto=!preview && !["citi","tc-60v","tsx-60v"].includes(item.slug) && !!model?.hero_image_url;
+    const photo=hasGoodPhoto
+      ? '<img src="'+vmotoEsc(model.hero_image_url)+'" alt="'+vmotoEsc(item.name)+'" loading="lazy" style="width:100%;height:100%;object-fit:contain;background:#fff;padding:10px">'
+      : '<div class="model-placeholder"><strong>'+vmotoEsc(preview?"2027":"VMOTO")+'</strong><span>'+vmotoEsc(preview?"New model preview":"Official photo to follow")+'</span></div>';
+    const previewStyle=preview?' style="background:#e8ebed;border-bottom:3px solid #ed1c24"':'';
+    const available=item.slug==="cpx-explorer";
+    const info=item.slug==="cpx-explorer-74v"
+      ?"No built-in Type 2 charging port. The final 2027 specification and availability are to be confirmed."
+      :preview?"New for 2027. Official production photograph, colour, price and availability to be confirmed."
+      :"Ask AnyBike to confirm the specification, colours and availability.";
     return '<a class="model-card" href="'+href+'">'+
-      '<div class="model-image"'+(new2027?' style="background:#eee;border-bottom:3px solid #ed1c24"':'')+'>'+photo+'</div>'+
-      '<div class="model-body">'+(new2027?'<div style="color:#ed1c24;font-weight:900;font-size:12px">NEW FOR 2027</div>':'')+(inStock?'<div style="color:#157c43;font-weight:900;font-size:12px">AVAILABLE NOW · SKY BLUE OR WHITE</div>':'')+'<h3>'+vmotoEsc(item.name)+'</h3>'+
-      '<p>'+(new2027?'New for 2027. Final appearance, specification and availability to be confirmed.':'UK retail model. Ask AnyBike to confirm the exact specification, colours and availability.')+'</p>'+
-      '<div class="model-status">'+(new2027?'2027 retail price to be confirmed':'RRP incl. VAT '+vmotoMoney(item.rrp))+'</div>'+
-      (new2027?'<div style="font-size:11px;color:#555">Earlier model pictured for reference · 2027 image to follow</div>':'')+
-      '<div style="font-size:12px;color:#666">Availability confirmed on enquiry · '+(detailSlug?'View model →':'Enquire →')+'</div></div></a>';
-  }).join("")+ '<a class="model-card" href="/vmoto-model.html?model=cpx-explorer"><div class="model-image"><img src="https://vmoto.co.uk/app/uploads/2025/10/Vmoto-CPx-Eplorer-riding-photos-2025-1.png" alt="CPx Explorer earlier-model photograph used as a 2027 reference" loading="lazy" style="width:100%;height:100%;object-fit:contain;background:#fff;padding:10px"></div><div class="model-body"><div style="color:#ed1c24;font-weight:900;font-size:12px">NEW FOR 2027</div><h3>CPx Explorer 74V</h3><p>No built-in Type 2 charging port. Exact 2027 specification, price and availability to be confirmed.</p><div class="model-status">2027 retail price to be confirmed</div><div style="font-size:11px;color:#555">Earlier model pictured for reference · 2027 image to follow</div><div style="font-size:12px;color:#666">View CPx Explorer versions →</div></div></a>';
+      '<div class="model-image"'+previewStyle+'>'+photo+'</div>'+
+      '<div class="model-body">'+
+        (preview?'<div style="color:#ed1c24;font-weight:900;font-size:12px">NEW FOR 2027</div>':'')+
+        (available?'<div style="color:#157c43;font-weight:900;font-size:12px">AVAILABLE NOW · SKY BLUE OR WHITE</div>':'')+
+        '<h3>'+vmotoEsc(item.name)+'</h3>'+
+        '<p>'+vmotoEsc(info)+'</p>'+
+        '<div class="model-status">'+(preview?'2027 retail price to be confirmed':'RRP incl. VAT '+vmotoMoney(item.rrp))+'</div>'+
+        '<div style="font-size:12px;color:#666"> '+(preview?'Official photographs to follow · ':'Availability confirmed on enquiry · ')+(detailSlug?'View model →':'Enquire →')+'</div>'+
+      '</div></a>';
+  }).join("");
 }
 async function loadVmotoCatalogue(){
   try{
