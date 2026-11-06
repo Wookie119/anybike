@@ -377,6 +377,7 @@ Promise.all([
   without guidance.
 */
 const ANYBIKE_ADMIN_NEXT_ACTION_DEFAULTS={
+  "admin-catalogue-readiness.html":{title:"Review catalogue research coverage",text:"Continue with the bulk model source and classification audit. Draft records remain unpublished.",waitingFor:"AnyBike research",label:"OPEN MODEL QUEUE →",selector:"#bulkModelQueue"},
   "admin-dashboard.html":{title:"Work the highest-priority item",text:"Start with the first genuine item in Your Next Actions. Completing the real task should remove it automatically.",waitingFor:"AnyBike",label:"OPEN NEXT ACTION →",href:"admin-dashboard.html#next-actions"},
   "admin-enquiries.html":{title:"Open the sale that needs attention",text:"Continue the Motorcycle Sales transaction whose current stage is waiting for an AnyBike action.",waitingFor:"AnyBike",label:"GO TO SALES WORK →"},
   "admin-message-centre.html":{title:"Reply to the next message that needs attention",text:"Open the oldest genuine customer or supplier conversation that is waiting for a response.",waitingFor:"AnyBike",label:"OPEN MESSAGES →"},
