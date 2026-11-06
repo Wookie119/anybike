@@ -52,6 +52,14 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
 <p id="workCount" class="muted" role="status">Loading model work queue…</p>
 <div class="wrap"><table><thead><tr><th>Manufacturer / model</th><th>Overview</th><th>Specs</th><th>Facts</th><th>Verified</th><th>Research sources</th><th>Gallery</th><th>Years</th><th>Editorial content rows</th><th>Classification candidate</th><th>Research action</th></tr></thead><tbody id="workRows"></tbody></table></div>
 <div style="display:flex;gap:10px;align-items:center;margin-top:12px"><button type="button" id="workPrev" style="background:#333">Previous</button><span id="workPages" class="muted">—</span><button type="button" id="workNext" style="background:#333">Next</button></div>
+</div>
+<div class="panel" id="bmwSectionPreview">
+<h2 style="margin:0 0 8px">BMW · Verified 13-section data preview</h2>
+<p>Read-only source-backed facts mapped to the shared model sections. Existing detailed editorial content remains separate; empty sections are not filled with guessed text. This does not publish a model guide.</p>
+<label for="bmwSectionModel">BMW model</label>
+<select id="bmwSectionModel" style="background:#111;color:#fff;border:1px solid #555;border-radius:7px;padding:10px;margin-left:8px"><option value="">Loading verified models…</option></select>
+<p id="bmwSectionStatus" role="status" class="muted">Loading…</p>
+<div id="bmwSectionCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px"></div>
 </div></main></div></div>
 <script>
 (function(){
@@ -160,7 +168,51 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
  workPrev.addEventListener("click",()=>{workPage--;drawWork();});
  workNext.addEventListener("click",()=>{workPage++;drawWork();});
  filter.addEventListener("input",render);document.getElementById("refresh").addEventListener("click",load);
- load().then(loadWork).catch(e=>{status.textContent="Audit could not load: "+(e.message||String(e));});
+ const bmwModelSelect=document.getElementById("bmwSectionModel");
+ const bmwSectionStatus=document.getElementById("bmwSectionStatus");
+ const bmwSectionCards=document.getElementById("bmwSectionCards");
+ let bmwVerifiedModels=[];
+ function showBmwSections(){
+  const m=bmwVerifiedModels.find(x=>x.slug===bmwModelSelect.value);
+  bmwSectionCards.replaceChildren();
+  if(!m){bmwSectionStatus.textContent="No model selected";return;}
+  bmwSectionStatus.textContent=m.model+" · "+m.verified_fact_count+" verified facts · 13 section slots · "+(m.existing_editorial_rows??0)+" separate editorial content rows · Not published";
+  for(const section of m.sections||[]){
+   const card=document.createElement("section");
+   card.style.cssText="padding:12px;background:#222;border:1px solid #444;border-top:2px solid #ed1c24;border-radius:9px";
+   const h=document.createElement("h3");h.style.cssText="font-size:15px;margin:0 0 6px";h.textContent=section.order+". "+section.title;card.append(h);
+   const facts=section.verified_facts||[];
+   if(!facts.length){const note=el("p","No verified structured facts in this section yet");note.className="muted";card.append(note);}
+   for(const fact of facts){
+    const row=document.createElement("div");row.style.cssText="border-top:1px solid #444;margin-top:7px;padding-top:7px";
+    const name=el("strong",fact.label);row.append(name);
+    const detail=el("p",JSON.stringify(fact.value));detail.style.cssText="font-size:12px;overflow-wrap:anywhere;margin:4px 0";row.append(detail);
+    const meta=el("p",[fact.market||"Market-specific/unspecified",fact.start_year||"Year not set",fact.verified_scope||"Audited"].join(" · "));
+    meta.style.cssText="font-size:12px;margin:4px 0;color:#bbb";row.append(meta);
+    if(fact.source_url&&/^https:\/\//.test(fact.source_url)){
+     const link=document.createElement("a");link.textContent="Factory/source reference";link.href=fact.source_url;link.rel="noopener noreferrer";link.target="_blank";row.append(link);
+    }
+    card.append(row);
+   }
+   bmwSectionCards.append(card);
+  }
+ }
+ async function loadBmwSectionPreview(){
+  bmwSectionStatus.textContent="Loading BMW verified section mapping…";
+  const {data,error}=await client.rpc("admin_bmw_verified_model_sections_v1");
+  if(error){bmwSectionStatus.textContent="Preview unavailable: "+error.message;return;}
+  bmwVerifiedModels=Array.isArray(data?.models)?data.models:[];
+  bmwModelSelect.replaceChildren();
+  for(const m of bmwVerifiedModels){
+   const option=document.createElement("option");option.value=m.slug;option.textContent=m.model+" ("+m.verified_fact_count+" verified)";bmwModelSelect.append(option);
+  }
+  const chosen=bmwVerifiedModels.find(m=>m.model==="R 1300 GS");
+  if(chosen)bmwModelSelect.value=chosen.slug;
+  if(!bmwVerifiedModels.length){bmwSectionStatus.textContent="No verified model records yet";return;}
+  showBmwSections();
+ }
+ bmwModelSelect.addEventListener("change",showBmwSections);
+ load().then(()=>Promise.all([loadWork(),loadBmwSectionPreview()])).catch(e=>{status.textContent="Audit could not load: "+(e.message||String(e));});
 })();
 </script><script>
 /* Local, read-only next-action target: no fake owner work required. */
