@@ -60,6 +60,13 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
 <select id="bmwSectionModel" style="background:#111;color:#fff;border:1px solid #555;border-radius:7px;padding:10px;margin-left:8px"><option value="">Loading verified models…</option></select>
 <p id="bmwSectionStatus" role="status" class="muted">Loading…</p>
 <div id="bmwSectionCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px"></div>
+<div class="panel" style="margin:16px 0 0;background:#1e1e1e">
+<h3 style="margin:0 0 8px">Approved media &amp; proposed model links</h3>
+<p class="muted">Images are matched to the exact model, with year restrictions and photographer credits. Pending relationships are not live navigation links.</p>
+<p id="bmwMediaStatus" class="muted" role="status">Loading media and relationships…</p>
+<div id="bmwMediaCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px"></div>
+<div id="bmwRelations" style="margin-top:12px"></div>
+</div>
 </div></main></div></div>
 <script>
 (function(){
@@ -172,6 +179,45 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
  const bmwSectionStatus=document.getElementById("bmwSectionStatus");
  const bmwSectionCards=document.getElementById("bmwSectionCards");
  let bmwVerifiedModels=[];
+ let bmwMediaModels=[];
+ const bmwMediaStatus=document.getElementById("bmwMediaStatus");
+ const bmwMediaCards=document.getElementById("bmwMediaCards");
+ const bmwRelations=document.getElementById("bmwRelations");
+ function renderBmwMedia(){
+  const selected=bmwMediaModels.find(x=>x.slug===bmwModelSelect.value);
+  bmwMediaCards.replaceChildren();bmwRelations.replaceChildren();
+  if(!selected){bmwMediaStatus.textContent="No media or relationship data for this model.";return;}
+  const assets=Array.isArray(selected.approved_media)?selected.approved_media:[];
+  const relations=Array.isArray(selected.relationships)?selected.relationships:[];
+  bmwMediaStatus.textContent=assets.length+" approved media assets · "+relations.length+" proposed/verified relationships · "+selected.generations_pending_review+" generation records pending · "+selected.timeline_events_pending_review+" timeline records pending";
+  if(!assets.length)bmwMediaCards.append(el("p","No approved, appropriately attributed images matched to this model. Use the normal neutral placeholder."));
+  for(const asset of assets){
+   const figure=document.createElement("figure");figure.style.cssText="margin:0;border:1px solid #444;border-radius:9px;padding:9px;background:#171717";
+   if(/^https:\/\//.test(asset.image_url||"")){
+    const img=document.createElement("img");img.src=asset.image_url;img.alt=asset.title||"BMW model image";img.loading="lazy";img.style.cssText="width:100%;height:160px;object-fit:contain;background:#101010;border-radius:5px";figure.append(img);
+   }
+   const title=el("figcaption",asset.title);title.style.cssText="font-size:13px;font-weight:700;margin-top:8px";figure.append(title);
+   const y=asset.model_year_end?String(asset.model_year_start)+"–"+String(asset.model_year_end):String(asset.model_year_start||"Year scope not specified")+" onward (not verified for every later year)";
+   const details=el("p",y+" · "+asset.subject_category+" · "+asset.licence+" · "+asset.attribution);details.style.cssText="font-size:12px;color:#bbb;margin:5px 0";figure.append(details);
+   if(/^https:\/\//.test(asset.source_page_url||"")){
+    const link=document.createElement("a");link.textContent="Image source / attribution";link.href=asset.source_page_url;link.target="_blank";link.rel="noopener noreferrer";figure.append(link);
+   }
+   bmwMediaCards.append(figure);
+  }
+  const heading=el("h4","Related model proposals (not published)");heading.style.cssText="margin:10px 0 6px";bmwRelations.append(heading);
+  if(!relations.length)bmwRelations.append(el("p","No relationship proposals recorded."));
+  for(const rel of relations){
+   const line=el("p",rel.related_model+" · "+rel.relationship_type+" · "+rel.direction+" · "+rel.review_status);
+   line.style.cssText="font-size:12px;margin:4px 0;padding:7px 9px;background:#262626;border-left:2px solid #ed1c24";bmwRelations.append(line);
+  }
+ }
+ async function loadBmwMediaPreview(){
+  bmwMediaStatus.textContent="Checking approved photo bank and model links…";
+  const {data,error}=await client.rpc("admin_bmw_model_media_relationships_v1");
+  if(error){bmwMediaStatus.textContent="Media and link audit unavailable: "+error.message;return;}
+  bmwMediaModels=Array.isArray(data?.models)?data.models:[];
+  renderBmwMedia();
+ }
  function showBmwSections(){
   const m=bmwVerifiedModels.find(x=>x.slug===bmwModelSelect.value);
   bmwSectionCards.replaceChildren();
@@ -210,8 +256,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
   if(chosen)bmwModelSelect.value=chosen.slug;
   if(!bmwVerifiedModels.length){bmwSectionStatus.textContent="No verified model records yet";return;}
   showBmwSections();
+  await loadBmwMediaPreview();
  }
- bmwModelSelect.addEventListener("change",showBmwSections);
+ bmwModelSelect.addEventListener("change",()=>{showBmwSections();renderBmwMedia();});
  load().then(()=>Promise.all([loadWork(),loadBmwSectionPreview()])).catch(e=>{status.textContent="Audit could not load: "+(e.message||String(e));});
 })();
 </script><script>
