@@ -219,7 +219,8 @@ function applyVmotoDeepLink(){
 async function loadRetailEnquiries(){
   const status=document.getElementById("retailEnquiryStatus"), list=document.getElementById("retailEnquiryList");
   status.textContent="Loading customer enquiries…";
-  const r=await client.rpc("admin_get_retail_orders_v1");
+  const [r,threadResult]=await Promise.all([client.rpc("admin_get_retail_orders_v1"),client.from("message_centre_threads").select("id,customer_email,created_at,source_type").eq("source_type","VMoto Retail Enquiry").order("created_at",{ascending:false}).limit(250)]);
+  const threads=threadResult.error?[]:(threadResult.data||[]);
   if(r.error){status.className="status bad";status.textContent="Enquiries could not be loaded: "+r.error.message;return;}
   status.className="status";status.textContent=(r.data||[]).length+" retail enquiries · newest first";
   list.innerHTML=(r.data||[]).map(o=>{
@@ -227,7 +228,10 @@ async function loadRetailEnquiries(){
     const name=String(o.customer_name||"Customer");
     const date=o.created_at?new Date(o.created_at).toLocaleString("en-GB"):"";
     const subject="Your VMoto "+String(o.model_name||"motorcycle")+" enquiry";
-    const messageUrl="admin-message-centre.html";
+    const matching=threads.filter(t=>String(t.customer_email||"").trim().toLowerCase()===String(o.customer_email||"").trim().toLowerCase() && o.customer_email);
+    const enquiryDate=Date.parse(o.created_at||"")||0;
+    matching.sort((a,b)=>Math.abs((Date.parse(a.created_at)||0)-enquiryDate)-Math.abs((Date.parse(b.created_at)||0)-enquiryDate));
+    const messageUrl="admin-message-centre.html"+(matching[0]?"?thread="+encodeURIComponent(matching[0].id):"");
     const email=String(o.customer_email||"").trim();
     const draft=email?"mailto:"+encodeURIComponent(email)+"?subject="+encodeURIComponent(subject):"";
     return '<article class="row"><div class="row-head"><div><strong>'+esc(name)+'</strong><div class="small">'+esc(date)+' · Retail order #'+esc(o.id)+' · '+esc(o.model_name||"VMoto")+'</div></div><span class="pill draft">'+esc(o.retail_stage||"Enquiry")+'</span></div>'+
