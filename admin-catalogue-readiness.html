@@ -35,9 +35,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
 <p class="no-publish">Publication safety: catalogue manufacturer records currently marked <strong>review</strong> are not automatically exposed to public pages. No records are approved, indexed, edited or emailed by this audit.</p>
 </div>
 <div class="panel"><h2 style="margin-top:0">Manufacturer coverage · All records</h2>
-<p>Coverage counts help prioritise source-backed research in bulk. Blank gallery fields cannot be replaced with guessed photographs.</p>
+<p>Core gallery fields are counted separately from approved licensed photo-bank assets. Neither proves complete model-year or variant coverage.</p>
 <label for="filter" class="muted">Filter by manufacturer</label> <input id="filter" type="search" placeholder="Search manufacturer">
-<div class="wrap"><table><thead><tr><th>Manufacturer</th><th>Status</th><th>Models</th><th>Overviews</th><th>Specifications</th><th>Galleries</th><th>Production years</th></tr></thead><tbody id="rows"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
+<div class="wrap"><table><thead><tr><th>Manufacturer</th><th>Status</th><th>Models</th><th>Overviews</th><th>Specifications</th><th>Catalogue galleries</th><th>Approved photo-bank assets</th><th>Production years</th></tr></thead><tbody id="rows"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
 </div>
 <div class="panel" id="bulkModelQueue">
 <h2 style="margin:0 0 7px">Bulk model research queue</h2>
@@ -45,12 +45,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
 <label>Manufacturer <select id="workBrand" style="background:#111;border:1px solid #555;border-radius:7px;color:#fff;padding:10px"><option value="">All manufacturers</option></select></label>
 <label>Research priority <select id="workStatus" style="background:#111;border:1px solid #555;border-radius:7px;color:#fff;padding:10px">
-<option value="all">All models</option><option value="with_references">Existing research source links</option><option value="without_references">No indexed research sources</option><option value="editorial_verified">BMW imported guides needing enrichment</option><option value="editorial_scaffold">BMW unverified editorial scaffolds</option><option value="editorial_missing">Models without editorial records</option><option value="missing">Missing overview or specs</option><option value="unsourced">No verified facts</option><option value="names">Naming or manufacturer review</option><option value="ready">Overview, specs and verified facts</option>
+<option value="all">All models</option><option value="with_references">Existing research source links</option><option value="without_references">No indexed research sources</option><option value="editorial_verified">BMW imported guides needing enrichment</option><option value="editorial_scaffold">BMW unverified editorial scaffolds</option><option value="classification">BMW trims / aliases / families to review</option><option value="editorial_missing">Models without editorial records</option><option value="missing">Missing overview or specs</option><option value="unsourced">No verified facts</option><option value="names">Naming or manufacturer review</option><option value="ready">Overview, specs and verified facts</option>
 </select></label>
 <label>Find model <input id="workSearch" type="search" placeholder="e.g. R 1300 GS"></label>
 </div>
 <p id="workCount" class="muted" role="status">Loading model work queue…</p>
-<div class="wrap"><table><thead><tr><th>Manufacturer / model</th><th>Overview</th><th>Specs</th><th>Facts</th><th>Verified</th><th>Research sources</th><th>Gallery</th><th>Years</th><th>13-section editorial</th><th>Research action</th></tr></thead><tbody id="workRows"></tbody></table></div>
+<div class="wrap"><table><thead><tr><th>Manufacturer / model</th><th>Overview</th><th>Specs</th><th>Facts</th><th>Verified</th><th>Research sources</th><th>Gallery</th><th>Years</th><th>Editorial content rows</th><th>Classification candidate</th><th>Research action</th></tr></thead><tbody id="workRows"></tbody></table></div>
 <div style="display:flex;gap:10px;align-items:center;margin-top:12px"><button type="button" id="workPrev" style="background:#333">Previous</button><span id="workPages" class="muted">—</span><button type="button" id="workNext" style="background:#333">Next</button></div>
 </div></main></div></div>
 <script>
@@ -58,12 +58,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
  const client=supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK",{auth:{storageKey:"anybike-admin-auth",persistSession:true,autoRefreshToken:true}});
  const status=document.getElementById("status"),metrics=document.getElementById("metrics"),body=document.getElementById("rows"),filter=document.getElementById("filter");
  let all=[];
- const labels={manufacturers:"Manufacturers",manufacturers_in_review:"Still in review",models:"Models",models_with_overview:"Model overviews",models_with_specs:"Model specifications",models_with_gallery:"Model galleries",models_with_start_year:"Start years",facts:"Sourced facts",verified_facts:"Verified facts",pending_facts:"Facts pending review",model_relationships:"Model relationships",published_country_links:"Published country links",duplicate_model_slugs:"Duplicate model slugs",unmatched_manufacturer_models:"Unmatched manufacturer models",model_year_conflicts:"Conflicting model years"};
+ const labels={manufacturers:"Manufacturers",manufacturers_in_review:"Still in review",models:"Models",models_with_overview:"Model overviews",models_with_specs:"Model specifications",models_with_gallery:"Catalogue gallery fields",approved_photo_bank_assets:"Approved photo-bank assets",models_with_start_year:"Start years",facts:"Sourced facts",verified_facts:"Verified facts",pending_facts:"Facts pending review",model_relationships:"Model relationships",published_country_links:"Published country links",duplicate_model_slugs:"Duplicate model slugs",unmatched_manufacturer_models:"Unmatched manufacturer models",model_year_conflicts:"Conflicting model years"};
  function el(tag,content){const x=document.createElement(tag);x.textContent=String(content??"—");return x;}
  function render(){
   const q=filter.value.trim().toLowerCase();const rows=all.filter(r=>String(r.manufacturer||"").toLowerCase().includes(q));
-  body.replaceChildren(...rows.map(r=>{const tr=document.createElement("tr");for(const k of ["manufacturer","publication_status","models","with_overview","with_specs","with_gallery","with_start_year"]){tr.append(el("td",r[k]));}return tr;}));
-  if(!rows.length){const tr=document.createElement("tr"),td=el("td","No matching manufacturers.");td.colSpan=7;tr.append(td);body.append(tr);}
+  body.replaceChildren(...rows.map(r=>{const tr=document.createElement("tr");for(const k of ["manufacturer","publication_status","models","with_overview","with_specs","with_gallery","approved_photo_bank_assets","with_start_year"]){tr.append(el("td",r[k]));}return tr;}));
+  if(!rows.length){const tr=document.createElement("tr"),td=el("td","No matching manufacturers.");td.colSpan=8;tr.append(td);body.append(tr);}
  }
  async function load(){
   status.textContent="Checking live catalogue…";
@@ -88,6 +88,10 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
  const workBody=document.getElementById("workRows"),workCount=document.getElementById("workCount"),workPages=document.getElementById("workPages");
  const workPrev=document.getElementById("workPrev"),workNext=document.getElementById("workNext");
  function researchAction(r){
+  if(r.classification_candidate==="marketing_feed_text")return "Exclude finance-ad wording from standalone SEO guides; retain original stock feed record";
+  if(r.classification_candidate==="trim_or_model_variant")return "Review as parent-model trim/edition; preserve feed name, avoid duplicate standalone guide";
+  if(r.classification_candidate==="feed_alias_or_duplicate")return "Review existing canonical alias; preserve original feed spelling";
+  if(r.classification_candidate==="family_or_unclassified")return "Review as model family, not standalone motorcycle guide";
   const missing=[];
   if(r.editorial_import_status==="catalogue_scaffold_unverified")missing.push("validate editorial scaffold");
   if(r.editorial_import_status==="verified_guide_import_needs_section_enrichment")missing.push("enrich existing guide");
@@ -110,6 +114,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
    if(status==="editorial_verified"&&r.editorial_import_status!=="verified_guide_import_needs_section_enrichment")return false;
    if(status==="editorial_scaffold"&&r.editorial_import_status!=="catalogue_scaffold_unverified")return false;
    if(status==="editorial_missing"&&r.has_editorial_record)return false;
+   if(status==="classification"&&(!r.classification_candidate||r.classification_candidate==="unclassified"))return false;
    if(status==="with_references"&&Number(r.research_source_links)===0)return false;
    if(status==="without_references"&&Number(r.research_source_links)>0)return false;
    if(status==="missing"&&r.has_overview&&r.has_specs)return false;
@@ -130,12 +135,13 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
    const editorial=r.has_editorial_record
     ?(r.editorial_import_status==="catalogue_scaffold_unverified"?"Unverified scaffold":
       r.editorial_import_status==="verified_guide_import_needs_section_enrichment"?"Imported guide · enrich":
-      "Reference / review") + " · "+String(r.editorial_section_rows??0)+" rows"
+      "Reference / review") + " · "+String(r.editorial_section_rows??0)+" content rows (not 13 template sections)"
     :"No editorial record";
    tr.append(el("td",editorial));
+   tr.append(el("td",r.classification_candidate&&r.classification_candidate!=="unclassified"?r.classification_candidate.replaceAll("_"," ")+" · review":"—"));
    const action=el("td",researchAction(r));action.className="muted";tr.append(action);return tr;
   }));
-  if(!selection.length){const tr=document.createElement("tr"),td=el("td","No matching model records.");td.colSpan=10;tr.append(td);workBody.append(tr);}
+  if(!selection.length){const tr=document.createElement("tr"),td=el("td","No matching model records.");td.colSpan=11;tr.append(td);workBody.append(tr);}
   workCount.textContent=workFiltered.length+" matching models of "+work.length+" · Research-only queue, no automated publication";
   workPages.textContent="Page "+(workPage+1)+" of "+pages;
   workPrev.disabled=workPage===0;workNext.disabled=workPage===pages-1;
