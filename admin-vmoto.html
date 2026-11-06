@@ -39,7 +39,8 @@ h1{margin:5px 0 7px;font-size:32px}h2{margin:0 0 12px}.muted{color:var(--muted);
         <h1>⚡ VMoto HQ</h1>
         <p class="muted">Manage the VMoto catalogue, model variants, colours, stock availability and approved FAQ answers from one place.</p>
         <div class="tabs">
-          <button class="tab active" data-tab="models">Models</button>
+          <button class="tab active" data-tab="enquiries">Customer Enquiries</button>
+          <button class="tab" data-tab="models">Models</button>
           <button class="tab" data-tab="variants">Versions / Batteries</button>
           <button class="tab" data-tab="colours">Colours</button>
           <button class="tab" data-tab="stock">Stock</button>
@@ -47,7 +48,16 @@ h1{margin:5px 0 7px;font-size:32px}h2{margin:0 0 12px}.muted{color:var(--muted);
         </div>
       </section>
 
-      <section id="tab-models" class="tab-panel">
+      <section id="tab-enquiries" class="tab-panel">
+        <div class="panel">
+          <h2>VMoto retail enquiries</h2>
+          <p class="muted">Read what the customer submitted before responding. Open Message Centre to see the full conversation and existing replies. Missing notes are shown clearly, not treated as empty messages.</p>
+          <div class="actions"><button class="btn dark" type="button" onclick="loadRetailEnquiries()">Refresh enquiries</button><a class="btn dark" href="admin-message-centre.html">Open Message Centre</a></div>
+          <div id="retailEnquiryStatus" class="status" role="status"></div>
+          <div id="retailEnquiryList" class="list" style="margin-top:14px"></div>
+        </div>
+      </section>
+      <section id="tab-models" class="tab-panel hidden">
         <div class="two">
           <div class="panel sticky">
             <h2 id="modelFormTitle">Add VMoto model</h2>
@@ -192,6 +202,7 @@ async function loadAll(){
   const d=hq.data||{};state.models=d.models||[];state.variants=d.variants||[];state.colours=d.colours||[];state.stock=d.stock||[];
   state.faqs=faq.data?.faqs||[];state.questions=faq.data?.questions||[];
   refreshSelects();renderAll();
+  await loadRetailEnquiries();
   applyVmotoDeepLink();
 }
 function applyVmotoDeepLink(){
@@ -204,6 +215,26 @@ function applyVmotoDeepLink(){
       if(target){target.classList?.add("focused");target.scrollIntoView({behavior:"smooth",block:"center"});}
     },60));
   }
+}
+async function loadRetailEnquiries(){
+  const status=document.getElementById("retailEnquiryStatus"), list=document.getElementById("retailEnquiryList");
+  status.textContent="Loading customer enquiries…";
+  const r=await client.rpc("admin_get_retail_orders_v1");
+  if(r.error){status.className="status bad";status.textContent="Enquiries could not be loaded: "+r.error.message;return;}
+  status.className="status";status.textContent=(r.data||[]).length+" retail enquiries · newest first";
+  list.innerHTML=(r.data||[]).map(o=>{
+    const notes=String(o.customer_notes||"").trim();
+    const name=String(o.customer_name||"Customer");
+    const date=o.created_at?new Date(o.created_at).toLocaleString("en-GB"):"";
+    const subject="Your VMoto "+String(o.model_name||"motorcycle")+" enquiry";
+    const messageUrl="admin-message-centre.html";
+    const email=String(o.customer_email||"").trim();
+    const draft=email?"mailto:"+encodeURIComponent(email)+"?subject="+encodeURIComponent(subject):"";
+    return '<article class="row"><div class="row-head"><div><strong>'+esc(name)+'</strong><div class="small">'+esc(date)+' · Retail order #'+esc(o.id)+' · '+esc(o.model_name||"VMoto")+'</div></div><span class="pill draft">'+esc(o.retail_stage||"Enquiry")+'</span></div>'+
+      '<div class="small" style="margin:9px 0">Version: '+esc(o.variant_name||"Not specified")+' · Battery: '+esc(o.battery_choice||"Not specified")+' · Colour: '+esc(o.colour_choice||"Not specified")+' · Delivery: '+esc(o.delivery_postcode||"Not specified")+'</div>'+
+      '<div style="border-left:3px solid #ed1c24;background:#222;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere"><strong>Customer question / notes</strong><div style="margin-top:6px">'+(notes?esc(notes):'<span class="small">No separate written question was submitted. Check Message Centre for the original enquiry and any replies.</span>')+'</div></div>'+
+      '<div class="actions"><a class="btn" href="'+messageUrl+'">View conversation / reply</a>'+(draft?'<a class="btn dark" href="'+esc(draft)+'">Draft email</a>':'')+'</div></article>';
+  }).join("")||'<p class="muted">No retail enquiries found.</p>';
 }
 function refreshSelects(){
   const modelOpts=state.models.map(m=>'<option value="'+m.id+'">'+esc(m.model_name)+'</option>').join("");
