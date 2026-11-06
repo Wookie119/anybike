@@ -32,6 +32,20 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
 <p>Coverage counts help prioritise source-backed research in bulk. Blank gallery fields cannot be replaced with guessed photographs.</p>
 <label for="filter" class="muted">Filter by manufacturer</label> <input id="filter" type="search" placeholder="Search manufacturer">
 <div class="wrap"><table><thead><tr><th>Manufacturer</th><th>Status</th><th>Models</th><th>Overviews</th><th>Specifications</th><th>Galleries</th><th>Production years</th></tr></thead><tbody id="rows"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
+</div>
+<div class="panel" id="bulkModelQueue">
+<h2 style="margin:0 0 7px">Bulk model research queue</h2>
+<p>All catalogue models grouped by missing data and verification. No individual page approval, publication, or automatic content generation. BMW and Harley-Davidson are listed first for continuity with the approved templates.</p>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+<label>Manufacturer <select id="workBrand" style="background:#111;border:1px solid #555;border-radius:7px;color:#fff;padding:10px"><option value="">All manufacturers</option></select></label>
+<label>Research priority <select id="workStatus" style="background:#111;border:1px solid #555;border-radius:7px;color:#fff;padding:10px">
+<option value="all">All models</option><option value="missing">Missing overview or specs</option><option value="unsourced">No verified facts</option><option value="names">Naming or manufacturer review</option><option value="ready">Overview, specs and verified facts</option>
+</select></label>
+<label>Find model <input id="workSearch" type="search" placeholder="e.g. R 1300 GS"></label>
+</div>
+<p id="workCount" class="muted" role="status">Loading model work queue…</p>
+<div class="wrap"><table><thead><tr><th>Manufacturer / model</th><th>Overview</th><th>Specs</th><th>Facts</th><th>Verified</th><th>Gallery</th><th>Years</th><th>Research action</th></tr></thead><tbody id="workRows"></tbody></table></div>
+<div style="display:flex;gap:10px;align-items:center;margin-top:12px"><button type="button" id="workPrev" style="background:#333">Previous</button><span id="workPages" class="muted">—</span><button type="button" id="workNext" style="background:#333">Next</button></div>
 </div></main></div></div>
 <script>
 (function(){
@@ -63,7 +77,62 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
   status.textContent="Read-only audit loaded · "+all.length+" manufacturer rows · No publication changes";
   render();
  }
+ let work=[],workFiltered=[],workPage=0;const pageSize=75;
+ const workBrand=document.getElementById("workBrand"),workStatus=document.getElementById("workStatus"),workSearch=document.getElementById("workSearch");
+ const workBody=document.getElementById("workRows"),workCount=document.getElementById("workCount"),workPages=document.getElementById("workPages");
+ const workPrev=document.getElementById("workPrev"),workNext=document.getElementById("workNext");
+ function researchAction(r){
+  const missing=[];
+  if(!r.has_overview)missing.push("overview");
+  if(!r.has_specs)missing.push("technical detail");
+  if(Number(r.verified_facts)===0)missing.push("verified sources");
+  if(!r.has_gallery)missing.push("licensed photos");
+  if(!r.has_start_year)missing.push("model years");
+  if(r.manufacturer_match!=="direct")missing.unshift("manufacturer mapping");
+  if(r.name_review||r.year_conflict)missing.unshift("name/year review");
+  return missing.join(" · ")||"Check 13-section template coverage";
+ }
+ function filterWork(){
+  const brand=workBrand.value,q=workSearch.value.toLowerCase().trim(),status=workStatus.value;
+  workFiltered=work.filter(r=>{
+   if(brand&&r.manufacturer!==brand)return false;
+   if(q&&!(r.manufacturer+" "+r.model+" "+r.slug).toLowerCase().includes(q))return false;
+   if(status==="missing"&&r.has_overview&&r.has_specs)return false;
+   if(status==="unsourced"&&Number(r.verified_facts)>0)return false;
+   if(status==="names"&&r.manufacturer_match==="direct"&&!r.name_review&&!r.year_conflict)return false;
+   if(status==="ready"&&!(r.has_overview&&r.has_specs&&Number(r.verified_facts)>0))return false;
+   return true;
+  });
+  workPage=0;drawWork();
+ }
+ function drawWork(){
+  const pages=Math.max(1,Math.ceil(workFiltered.length/pageSize));workPage=Math.min(Math.max(workPage,0),pages-1);
+  const selection=workFiltered.slice(workPage*pageSize,(workPage+1)*pageSize);
+  workBody.replaceChildren(...selection.map(r=>{
+   const tr=document.createElement("tr");
+   const title=el("td",r.manufacturer+" · "+r.model);title.style.fontWeight="700";tr.append(title);
+   for(const val of [r.has_overview?"Yes":"Missing",r.has_specs?"Yes":"Missing",r.facts,r.verified_facts,r.has_gallery?"Yes":"Missing",r.has_start_year?"Yes":"Missing"]){tr.append(el("td",val));}
+   const action=el("td",researchAction(r));action.className="muted";tr.append(action);return tr;
+  }));
+  if(!selection.length){const tr=document.createElement("tr"),td=el("td","No matching model records.");td.colSpan=8;tr.append(td);workBody.append(tr);}
+  workCount.textContent=workFiltered.length+" matching models of "+work.length+" · Research-only queue, no automated publication";
+  workPages.textContent="Page "+(workPage+1)+" of "+pages;
+  workPrev.disabled=workPage===0;workNext.disabled=workPage===pages-1;
+ }
+ async function loadWork(){
+  workCount.textContent="Loading catalogue model coverage…";
+  const {data,error}=await client.rpc("admin_catalogue_model_work_queue_v1");
+  if(error){workCount.textContent="Model audit unavailable: "+error.message;return;}
+  work=Array.isArray(data?.items)?data.items:[];
+  const brands=[...new Set(work.map(r=>r.manufacturer))].sort((a,b)=>a.localeCompare(b));
+  workBrand.replaceChildren();const allBrands=document.createElement("option");allBrands.value="";allBrands.textContent="All manufacturers";workBrand.append(allBrands);
+  for(const brand of brands){const option=document.createElement("option");option.value=brand;option.textContent=brand;workBrand.append(option);}
+  filterWork();
+ }
+ for(const ctl of [workBrand,workStatus,workSearch])ctl.addEventListener(ctl===workSearch?"input":"change",filterWork);
+ workPrev.addEventListener("click",()=>{workPage--;drawWork();});
+ workNext.addEventListener("click",()=>{workPage++;drawWork();});
  filter.addEventListener("input",render);document.getElementById("refresh").addEventListener("click",load);
- load().catch(e=>{status.textContent="Audit could not load: "+(e.message||String(e));});
+ load().then(loadWork).catch(e=>{status.textContent="Audit could not load: "+(e.message||String(e));});
 })();
 </script></body></html>
