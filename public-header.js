@@ -2898,7 +2898,10 @@ async function anybikeShowPublicSignedInIdentity(){
   stockLink.href='/available-stock.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
   stockLink.textContent='Browse Available Stock →';
   stockLink.style.cssText='display:inline-block;margin-top:15px;color:#fff';
-  section.append(title,note,stockGrid,stockLink,research);
+  const liveBrowse=document.createElement('div');
+  liveBrowse.className='anybike-live-stock-browse';liveBrowse.hidden=true;
+  liveBrowse.setAttribute('aria-label','Browse live Available Stock by manufacturer and model');
+  section.append(title,note,stockGrid,liveBrowse,stockLink,research);
   const browseTypes=main.querySelector('.bmw-explore[aria-label="Browse motorcycle types"]')||main.querySelector('[aria-label="Browse motorcycle types"]');
   const related=main.querySelector('.harley-related-pill-nav');
   const hero=main.querySelector('.hero');
@@ -3018,6 +3021,8 @@ async function anybikeShowPublicSignedInIdentity(){
     const res=await fetch(endpoint+'international-public-stock',{cache:'no-store',signal:AbortSignal.timeout(11000),headers:jwt?{'Authorization':'Bearer '+jwt}:{}});
     if(!res.ok)throw Error('Stock service response '+res.status);
     const data=await res.json();
+    try{const {renderLiveStockBrowse}=await import('/model-template/live-stock-navigation.mjs');renderLiveStockBrowse(liveBrowse,data.items,{currentMake:make});}
+    catch(error){console.warn('Live model inventory links unavailable',error);}
     const matches=(Array.isArray(data.items)?data.items:[]).filter(exactModel).slice(0,6);
     stockGrid.replaceChildren(...matches.map(saleCard));
     note.textContent=matches.length?
