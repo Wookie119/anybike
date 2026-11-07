@@ -53,7 +53,7 @@ const r1250=fs.readFileSync('bmw-r1250gs.html','utf8');
 assert(r1250.includes('const matches=exact;'), 'R1250GS must never show other BMW models');
 assert(!r1250.includes('const matches=exact.length?exact:bmw'), 'Cross-model R1250 fallback returned');
 assert(r1250.indexOf('id="r1250LiveStock"')<r1250.indexOf('id="ukR1250ModelGallery"'), 'R1250 live stock must precede research');
-assert(r1250.includes('id="r1250StockResearch"'), 'R1250 factory research beneath stock missing');
+assert(!r1250.includes('id="r1250StockResearch"'), 'Duplicate factory research panel returned');
 assert(r1250.includes('BMW_R_1250_GS_'), 'Licensed R1250 hero must remain');
 
 const r1300=fs.readFileSync('bmw-r1300gs.html','utf8');
