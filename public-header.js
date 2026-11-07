@@ -2855,232 +2855,178 @@ async function anybikeShowPublicSignedInIdentity(){
 
 
 /* PROTECTED MODEL GALLERY: preserve real-stock priority, model-specific year cards, branding, and quick enquiry. Before edits run: node scripts/check-shared-model-guide-routes.mjs. Never replace with generic placeholders or remove cards during sourcing-link changes. */
-/* International model stock and guest enquiries: model guides only. */
+/* International model stock and guest enquiries: model guides only.
+   Shared international model presentation. Approved dedicated model galleries
+   (R 1300 GS / R 1250 GS) keep their original rendering. */
 (function(){
  function start(){
-  if(document.getElementById('internationalGuestRequest')||document.querySelector('.anybike-model-guest-form'))return;
-  const harley=/^\/harley-davidson-[a-z0-9-]+\.html$/i.test(location.pathname);
+  const main=document.querySelector('main');
+  if(!main||document.getElementById('internationalGuestRequest')||document.querySelector('.anybike-model-guest-form'))return;
+  const pathname=location.pathname.toLowerCase();
+  const harley=/^\/harley-davidson-[a-z0-9-]+\.html$/i.test(pathname)&&pathname!='/harley-davidson-motorcycles.html';
   const standard=!!document.getElementById('generationPanel')&&!!document.getElementById('nextAction');
   if(!harley&&!standard)return;
-  const heading=(document.getElementById('heading')?.textContent||document.querySelector('main h1')?.textContent||'').trim();
-  const guided=location.pathname==='/motorcycle-model-guide.html';
   const params=new URLSearchParams(location.search);
+  const guided=pathname==='/motorcycle-model-guide.html'||pathname==='/motorcycle-model.html';
+  const heading=(document.getElementById('heading')?.textContent||main.querySelector('h1')?.textContent||'').trim().replace(/\s+/g,' ');
   const make=guided?(params.get('make')||'').trim():harley?'Harley-Davidson':heading.split(' ')[0];
-  const model=guided?(params.get('model')||'').trim():harley?heading.replace(/^Harley-Davidson\s*/i,'').trim():heading.slice(make.length).trim();
-  if(!make||!model)return;
-  const safe=val=>String(val||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-  const section=document.createElement('section');
-  section.className='end-action';section.style.cssText='background:#171717;color:white;border-top:3px solid '+(harley?'#ff6600':'#ed1c24')+';border-radius:10px;margin:20px 0;padding:20px';
-  section.innerHTML='<h2>'+make+' '+model+' motorcycles available internationally</h2><p>AnyBike is updating its model pages. '+make+' '+model+' motorcycles are available in the UK but may not be shown here yet. There are thousands of motorcycles available across the UK, and we only display a selection on our website. Looking for a '+make+' '+model+'? Send us an enquiry with your preferred year and specification, and we can search our UK supplier network.</p><div class="anybike-model-stock-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px"></div><h2>Enquire about this model</h2><form class="anybike-model-guest-form" style="display:grid;gap:9px;max-width:550px"><input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px"><label>Full name<input name="name" required minlength="2"></label><label>Email<input name="email" type="email" required></label><label>Country<input name="country" required minlength="2"></label><label>Phone / WhatsApp<input name="phone"></label><label>Request type<select name="kind"><option>Motorcycle Enquiry</option><option>Purchase Request</option></select></label><label>Message<textarea name="message" required minlength="5" rows="3"></textarea></label><button type="submit" style="background:#ed1c24;color:white;border:0;padding:12px;font-weight:bold;cursor:pointer">Send enquiry →</button><p role="status"></p></form>';
-  if(harley){const f=section.querySelector('form');f.style.cssText='display:grid;gap:12px;width:100%;max-width:820px;margin:22px auto 0;color:#fff';f.querySelector('button').style.background='#ff6600';}
-  if(!(harley&&model.toLowerCase()==='fat boy')){
-   const notice=section.querySelector('p');
-   const bikeName=make+' '+model;
-   notice.textContent='The '+bikeName+' motorcycles displayed on AnyBike are only a selection of those available from UK suppliers. Other '+bikeName+' motorcycles may be available even if no listings are currently shown here. Thousands of motorcycles are available across the UK across all makes and models. Tell us your preferred year, specification, mileage and budget, and we can search our UK supplier network for more '+bikeName+' options.';
-   notice.style.cssText='color:'+(harley?'#ff6600':'#ed1c24')+';font-weight:600;line-height:1.7';
-  }
-  if(harley&&model.toLowerCase()==='fat boy'){
-   const notice=section.querySelector('p');
-   notice.textContent='The Harley-Davidson Fat Boy motorcycles displayed on AnyBike are only a selection of those available through UK suppliers. Other Fat Boys may be available even if none are currently shown here. The Fat Boy is one of Harley-Davidson’s distinctive cruiser models, with different generations, engines and specifications available across the UK market. Whether you are looking for an earlier Fat Boy, a Fat Boy 114 or a later Milwaukee-Eight model, tell us your preferred year, specification, mileage and budget. Thousands of motorcycles are available across the UK, and AnyBike displays only a selection online. Send us an enquiry and we can search our UK supplier network for a suitable Fat Boy.';
-   notice.style.cssText='color:#ff6600;font-weight:600;line-height:1.7';
-  }
-  section.style.display='none';
-  section.querySelectorAll('input:not([name="website"]),select,textarea').forEach(el=>{el.style.cssText='display:block;width:100%;box-sizing:border-box;background:#292929;color:white;border:1px solid #777;border-radius:6px;padding:11px;margin-top:5px'});
-  section.querySelectorAll('label').forEach(el=>el.style.cssText='display:block;font-weight:600;color:white');
-  const insertion=harley?(document.querySelector('main .image-attribution')||document.querySelector('main .harley-related-pill-nav')):document.getElementById('nextAction');
-  if(!insertion)return;
-  if(harley){
-   insertion.after(section);
-   const form=section.querySelector('form');
-   const formPanel=document.createElement('section');formPanel.className='end-action';
-   formPanel.style.cssText='background:#171717;color:#fff;border:1px solid #363636;border-top:3px solid #ff6600;border-radius:12px;margin:18px 0;padding:22px';
-   const title=document.createElement('h2');title.textContent='Enquire about a '+make+' '+model;
-   const intro=document.createElement('p');intro.textContent='International buyers can send an enquiry or purchase request without creating an account.';
-   formPanel.id='international-model-enquiry';formPanel.append(title,intro,form);formPanel.style.display='none';section.after(formPanel);
-   const source=document.createElement('section');source.className='end-action';
-   source.style.cssText='margin:18px 0;padding:22px;background:#171717;color:#fff;border:1px solid #363636;border-radius:12px';
-   const h=document.createElement('h2');h.textContent='Motorcycle Sourcing Request — '+make+' '+model;
-   const p=document.createElement('p');p.textContent='For dealers buying one or more motorcycles: specify acceptable model years, quantities, budgets and shipping preferences.';
-   const a=document.createElement('a');a.className='button';a.href='/bulk-buying-request.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);a.textContent='Submit a Motorcycle Sourcing Request →';
-   source.append(h,p,a);source.style.display='none';formPanel.after(source);
-
-   const leftover=section.querySelector('h2:nth-of-type(2)');if(leftover)leftover.remove();
-  }else{
-   insertion.before(section);
-   const form=section.querySelector('form');
-   const formPanel=document.createElement('section');formPanel.className='end-action';
-   formPanel.style.cssText='background:#171717;color:#fff;border:1px solid #363636;border-top:3px solid #ed1c24;border-radius:12px;margin:18px 0;padding:22px';
-   const title=document.createElement('h2');title.textContent='Enquire about a '+make+' '+model;
-   const intro=document.createElement('p');intro.textContent='International buyers can send an enquiry or purchase request without creating an account.';
-   form.style.cssText='display:grid;gap:12px;width:100%;max-width:820px;margin:22px auto 0;color:#fff';
-   if(model.toLowerCase()==='fat boy')formPanel.id='international-fat-boy-enquiry';
-   formPanel.append(title,intro,form);section.after(formPanel);
-   const leftover=section.querySelector('h2:nth-of-type(2)');if(leftover)leftover.remove();
-  }
-  const attached=section.parentElement?[section,section.nextElementSibling,harley?section.nextElementSibling?.nextElementSibling:null].filter(Boolean):[];
-  // A model page's dedicated stock gallery owns its cards. This shared routine
-  // keeps the existing guest enquiry form but must not create another stock gallery.
+  const model=guided?(params.get('model')||'').trim():harley?heading.replace(/^Harley-Davidson\s*/i,''):heading.slice(make.length).trim();
+  if(!make||!model||/^(?:motorcycles|models|stock|history|range)$/i.test(model))return;
+  const safe=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');
   const dedicatedStock=!!(document.getElementById('r1250LiveStock')||document.getElementById('internationalModelStock'));
-  if(!dedicatedStock){
-   const hero=document.querySelector('main > .hero');
-   if(hero)hero.after(section); // Stock before model research, centrally.
-  }
-  const reveal=()=>attached.forEach(el=>{if(el===section&&dedicatedStock)return;el.style.removeProperty('display')});
-  const hide=()=>attached.forEach(el=>el.remove());
+  const section=document.createElement('section');
+  section.className='end-action';
+  section.dataset.anybikeModelStock='1';
+  section.style.cssText='background:#171717;color:#fff;border:1px solid #ed1c24;border-radius:11px;margin:20px 0;padding:20px';
+  const title=document.createElement('h2');
+  title.textContent=make+' '+model+' motorcycles available internationally';
+  const note=document.createElement('p');
+  note.style.cssText='color:#ddd;line-height:1.65';
+  note.textContent='AnyBike displays a selection of published UK motorcycles. Listings are for this exact model only. If none are shown, you can ask AnyBike to find one.';
+  const stockGrid=document.createElement('div');
+  stockGrid.className='anybike-model-stock-grid';
+  stockGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px';
+  const research=document.createElement('div');
+  research.className='anybike-model-research';
+  research.style.cssText='margin-top:22px';
+  const researchTitle=document.createElement('h3');
+  researchTitle.textContent=make+' '+model+' — model years and specifications';
+  const researchGrid=document.createElement('div');
+  researchGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px';
+  research.append(researchTitle,researchGrid);
+  const stockLink=document.createElement('a');
+  stockLink.href='/available-stock.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
+  stockLink.textContent='Browse Available Stock →';
+  stockLink.style.cssText='display:inline-block;margin-top:15px;color:#fff';
+  section.append(title,note,stockGrid,stockLink,research);
+  const browseTypes=main.querySelector('.bmw-explore[aria-label="Browse motorcycle types"]')||main.querySelector('[aria-label="Browse motorcycle types"]');
+  const related=main.querySelector('.harley-related-pill-nav');
+  const hero=main.querySelector('.hero');
+  if(browseTypes)browseTypes.after(section);
+  else if(related)related.after(section);
+  else if(hero)hero.after(section);
+  else (main.querySelector('h1')||main).after(section);
+  // A dedicated approved gallery owns its own sale cards and model-year research.
+  // This common renderer must never compete with R 1300 GS / R 1250 GS.
+  if(dedicatedStock)section.remove();
+
+  const enquiry=document.createElement('section');
+  enquiry.className='end-action';
+  enquiry.style.cssText='background:#171717;color:white;border:1px solid #ed1c24;border-radius:11px;padding:22px;margin:18px 0';
+  const enquiryTitle=document.createElement('h2');
+  enquiryTitle.textContent='Enquire about a '+make+' '+model;
+  const enquiryIntro=document.createElement('p');
+  enquiryIntro.textContent='International buyers can enquire without creating an account.';
+  const form=document.createElement('form');
+  form.className='anybike-model-guest-form';
+  form.style.cssText='display:grid;gap:12px;max-width:820px;margin:18px auto 0';
+  const makeInput=(caption,key,type,required)=>{
+   const label=document.createElement('label');label.textContent=caption;
+   label.style.cssText='display:block;color:white;font-weight:600';
+   const input=document.createElement('input');input.name=key;input.type=type;
+   if(required)input.required=true;
+   input.style.cssText='display:block;box-sizing:border-box;width:100%;background:#292929;color:#fff;border:1px solid #777;border-radius:6px;padding:11px;margin-top:5px';
+   label.append(input);form.append(label);
+  };
+  const trap=document.createElement('input');trap.name='website';trap.tabIndex=-1;trap.autocomplete='off';trap.style.cssText='position:absolute;left:-9999px';form.append(trap);
+  makeInput('Full name','name','text',true);makeInput('Email','email','email',true);
+  makeInput('Country','country','text',true);makeInput('Phone / WhatsApp','phone','tel',false);
+  const kind=document.createElement('select');kind.name='kind';kind.innerHTML='<option>Motorcycle Enquiry</option><option>Purchase Request</option>';
+  kind.style.cssText='display:block;width:100%;background:#292929;color:#fff;border:1px solid #777;padding:11px';
+  const kindLabel=document.createElement('label');kindLabel.textContent='Request type';kindLabel.append(kind);form.append(kindLabel);
+  const message=document.createElement('textarea');message.name='message';message.required=true;message.minLength=5;message.rows=3;
+  message.style.cssText='display:block;width:100%;box-sizing:border-box;background:#292929;color:#fff;border:1px solid #777;padding:11px';
+  const msgLabel=document.createElement('label');msgLabel.textContent='Message';msgLabel.append(message);form.append(msgLabel);
+  const send=document.createElement('button');send.type='submit';send.textContent='Send enquiry →';
+  send.style.cssText='background:#ed1c24;color:white;border:0;padding:12px;font-weight:700;cursor:pointer';
+  const feedback=document.createElement('p');feedback.setAttribute('role','status');
+  form.append(send,feedback);enquiry.append(enquiryTitle,enquiryIntro,form);
+  if(dedicatedStock){
+   // Approved R 1250 GS already has a separate public guest enquiry form only when
+   // no existing dedicated one is present. R 1300 GS returns above.
+   const target=document.getElementById('r1250StockResearch')?.closest('section');
+   if(target)target.after(enquiry);
+   else main.append(enquiry);
+  }else section.after(enquiry);
   const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/';
-  const client=window.supabase?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
-  async function token(){return (await client?.auth.getSession())?.data?.session?.access_token}
-  const form=document.querySelector('main .anybike-model-guest-form');
+  const client=window.anybikeSupabaseClient||window.sb||window.supabase?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
+  async function token(){
+   try{return (await Promise.race([Promise.resolve(client?.auth?.getSession?.()),new Promise(resolve=>setTimeout(()=>resolve(null),1600))]))?.data?.session?.access_token||'';}
+   catch(_){return '';}
+  }
   form.addEventListener('submit',async event=>{
-   event.preventDefault();const btn=form.querySelector('button'),status=form.querySelector('[role="status"]');btn.disabled=true;status.textContent='Sending…';
+   event.preventDefault();send.disabled=true;feedback.textContent='Sending…';
    try{
     const values=Object.fromEntries(new FormData(form).entries()),jwt=await token();
     const res=await fetch(endpoint+'international-guest-enquiry',{method:'POST',headers:{'Content-Type':'application/json',...(jwt?{'Authorization':'Bearer '+jwt}:{})},body:JSON.stringify({...values,make,model,page:location.href})});
-    const result=await res.json();if(!res.ok||!result.ok)throw Error(result.error||'Unable to send');
-    status.textContent='Enquiry received · Reference '+result.reference+'. AnyBike will contact you.';form.reset();
-   }catch(error){status.textContent=error.message||'Unable to send your enquiry';}finally{btn.disabled=false;}
+    const body=await res.json();
+    if(!res.ok||!body.ok)throw Error(body.error||'Unable to send your enquiry');
+    feedback.textContent='Enquiry received'+(body.reference?' · Reference '+body.reference:'')+'. AnyBike will contact you.';form.reset();
+   }catch(e){feedback.textContent=e.message||'Unable to send your enquiry';}
+   finally{send.disabled=false;}
   });
-  async function showUKModelGallery(){
-   if(make!=='BMW'||document.getElementById('ukModelHistoryShared'))return;
-   const seller=document.querySelector('main section[aria-label="UK motorcycle selling"]');
-   if(!seller)return;
-   const panel=document.createElement('section');panel.id='ukModelHistoryShared';panel.className='end-action';
-   panel.style.cssText='background:#171717;color:#fff;border:1px solid #444;border-left:3px solid #ed1c24;border-radius:10px;margin:20px 0;padding:22px';
-   const title=document.createElement('h2');title.textContent=make+' '+model+' — model years and specifications';
-   const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px';
-   panel.append(title,grid);seller.before(panel);
-   let notes=[];
-   try{
-    const resp=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
-    if(resp.ok){
-     const data=await resp.json();
-     const guide=Object.values(data.models||{}).find(g=>safe(g.make)===safe(make)&&safe(g.model)===safe(model));
-     notes=(guide?.production?.generations||[]).filter(g=>g.description).map(g=>({title:g.model_year||g.label,body:g.description}));
-     if(notes.length<3)notes.push(...(guide?.sections||[]).filter(x=>Array.isArray(x)&&x[1]).map(x=>({title:x[0],body:x[1]})));
-    }
-   }catch(e){console.warn('UK model history unavailable',e)}
-   if(!notes.length){
-    notes=[...document.querySelectorAll('main #body .card')].map(el=>({title:el.querySelector('h2')?.textContent?.trim(),body:el.querySelector('p')?.textContent?.trim()})).filter(n=>n.title&&n.body).slice(0,8);
+  if(dedicatedStock)return;
+  function researchCard(label,body,image){
+   const card=document.createElement('article');
+   card.style.cssText='background:#242424;border:1px solid #ed1c24;border-radius:9px;overflow:hidden;min-width:0';
+   if(image?.permission_status==='approved'&&image.url&&image.attribution&&!/placeholder|anybike-logo/i.test(image.url)){
+    const img=document.createElement('img');img.src=image.url;img.alt=make+' '+model+' — '+label;img.loading='lazy';
+    img.style.cssText='display:block;width:100%;aspect-ratio:16/9;object-fit:cover';card.append(img);
    }
-   if(!notes.length){panel.remove();return;}
-   notes.slice(0,16).forEach(n=>{
-    const card=document.createElement('article');card.style.cssText='background:#242424;border:1px solid #555;border-radius:8px;padding:12px;text-align:center;min-height:210px;display:flex;flex-direction:column;justify-content:center;gap:8px';
-    const logo=document.createElement('img');logo.src='/anybike-logo-new.jpg';logo.alt='AnyBike';logo.loading='lazy';logo.style.cssText='display:block;width:min(170px,85%);height:90px;object-fit:contain;margin:0 auto';
-    const h=document.createElement('strong');h.textContent=n.title;const p=document.createElement('span');p.textContent=n.body;p.style.cssText='color:#ddd;font-size:14px;line-height:1.5';
-    card.append(logo,h,p);grid.append(card);
-   });
-   document.getElementById('nextAction')?.setAttribute('hidden','');
-   document.querySelectorAll('main a[href*="bulk-buying-request.html"]').forEach(a=>{a.hidden=true});
+   const content=document.createElement('div');content.style.cssText='padding:13px';
+   const strong=document.createElement('strong');strong.textContent=label;
+   const p=document.createElement('p');p.textContent=body;p.style.cssText='color:#ddd;font-size:14px;line-height:1.55;margin:7px 0 0';
+   content.append(strong,p);card.append(content);researchGrid.append(card);
   }
-  (async()=>{try{
-   const jwt=await token();const res=await fetch(endpoint+'international-public-stock',{cache:'no-store',headers:jwt?{'Authorization':'Bearer '+jwt}:{}});
-   if(!res.ok){
-    if(res.status===403){hide();await showUKModelGallery();return;}
-    reveal();
-    section.querySelector('p').textContent='Stock availability cannot be checked at the moment. You can still send a motorcycle enquiry or request sourcing.';
-    return;
+  // Research is independent of the public stock endpoint and visitor geography.
+  (async()=>{
+   try{
+    const res=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
+    if(!res.ok)throw Error('Research unavailable');
+    const all=await res.json();
+    const guide=Object.values(all.models||{}).find(x=>safe(x.make)===safe(make)&&safe(x.model)===safe(model));
+    const generations=(guide?.production?.generations||[]).filter(x=>x.description);
+    const notes=generations.length?generations.map(x=>({label:x.model_year||x.label||'Model year',body:x.description,image:x.image})):
+     (guide?.sections||[]).filter(x=>Array.isArray(x)&&x[1]).map(x=>({label:x[0],body:x[1]}));
+    for(const n of notes.slice(0,14))researchCard(n.label,n.body,n.image);
+    if(!notes.length){research.remove();}
+   }catch(_){research.remove();}
+  })();
+  const allowedSuffix=/^(?:te|se|sport|rallye|trophy|tripleblack|exclusive|standard|mcompetition|competition|hp|premium|gt|le|option719|114|107|special|iconic|touring|edition|limited|anniversary|urban|gsedition)*$/;
+  const requested=safe(model);
+  function exactModel(x){
+   if(safe(x.make)!==safe(make)||!x.item_id||!x.image_url||!(Number(x.price)>0))return false;
+   const stock=safe(x.model);
+   if(stock===requested)return true;
+   if(!stock.startsWith(requested))return false;
+   return allowedSuffix.test(stock.slice(requested.length));
+  }
+  function saleCard(x){
+   const a=document.createElement('a');a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(x.item_id);
+   a.style.cssText='display:block;background:#242424;border:1px solid #ed1c24;border-radius:9px;overflow:hidden;color:#fff;text-decoration:none';
+   const img=document.createElement('img');img.src=x.image_url;img.alt=[x.year,x.make,x.model].filter(Boolean).join(' ');
+   img.loading='lazy';img.style.cssText='display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#222';
+   const content=document.createElement('div');content.style.cssText='padding:12px';
+   const name=document.createElement('strong');name.textContent=[x.year,x.make,x.model].filter(Boolean).join(' ');
+   const price=document.createElement('p');price.textContent=Number(x.price).toLocaleString('en-GB',{style:'currency',currency:'GBP'});
+   const view=document.createElement('span');view.textContent='View motorcycle →';view.style.cssText='font-weight:700;text-decoration:underline';
+   content.append(name,price,view);a.append(img,content);return a;
+  }
+  (async()=>{
+   try{
+    const jwt=await token();
+    const res=await fetch(endpoint+'international-public-stock',{cache:'no-store',signal:AbortSignal.timeout(11000),headers:jwt?{'Authorization':'Bearer '+jwt}:{}});
+    if(!res.ok)throw Error('Stock service response '+res.status);
+    const data=await res.json();
+    const matches=(Array.isArray(data.items)?data.items:[]).filter(exactModel).slice(0,6);
+    stockGrid.replaceChildren(...matches.map(saleCard));
+    note.textContent=matches.length?
+     matches.length+' published '+make+' '+model+' motorcycle'+(matches.length===1?'':'s')+'. Availability and terms are confirmed before purchase.':
+     'No '+make+' '+model+' motorcycles are currently published. Ask AnyBike to source this exact model from UK suppliers.';
+   }catch(_){
+    note.textContent='Matching published stock cannot be displayed from this connection. You can still enquire about '+make+' '+model+' motorcycles or request sourcing.';
    }
-   const data=await res.json(),grid=section.querySelector('.anybike-model-stock-grid');
-   // Exact model matches only. Variant suffixes are permitted only when they
-   // denote an equipment trim, not a different motorcycle (GS Adventure, RS etc).
-   const published=Array.isArray(data.items)?data.items:[];
-   const requested=safe(model);
-   const allowedSuffix=/^(?:te|se|sport|rallye|trophy|tripleblack|exclusive|standard|mcompetition|competition|hp|premium|gt|le|option719|114|107|special|iconic|touring|edition|limited|anniversary|urban|gsedition)*$/;
-   const matches=published.filter(x=>{
-    if(safe(x.make)!==safe(make)||!x.image_url||!x.item_id||!(Number(x.price)>0))return false;
-    const stock=safe(x.model);
-    if(stock===requested)return true;
-    if(!stock.startsWith(requested))return false;
-    const suffix=stock.slice(requested.length);
-    if(!suffix)return true;
-    return allowedSuffix.test(suffix);
-   }).slice(0,6);
-   if(!matches.length){
-    section.querySelector('p').textContent='No '+make+' '+model+' motorcycles are currently published in Available Stock. We can source this exact model from UK suppliers — send an enquiry with your preferred year and specification.';
-   }
-   if(matches.length){matches.forEach(x=>{
-    const a=document.createElement('a');a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(x.item_id);a.style.cssText='color:white;background:#242424;border:1px solid #555;border-radius:8px;padding:12px;text-decoration:none';
-    if(x.image_url){const im=document.createElement('img');im.src=x.image_url;im.alt=[x.make,x.model].join(' ');im.loading='lazy';im.style.cssText='width:100%;height:145px;object-fit:contain';a.append(im);}
-    const label=document.createElement('div');label.textContent=[x.make,x.model,x.year].filter(Boolean).join(' ');a.append(label);
-    const price=document.createElement('strong');price.textContent=Number(x.price)>0?Number(x.price).toLocaleString('en-GB',{style:'currency',currency:'GBP'}):'Price on request';a.append(price);
-    const view=document.createElement('div');view.textContent='View motorcycle →';a.append(view);grid.append(a);
-   });}
-   let cardNotes=[];
-   {
-    try{
-     const response=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
-     if(response.ok){
-      const all=await response.json();
-      const found=Object.values(all.models||{}).find(g=>safe(g.make)===safe(make)&&safe(g.model)===safe(model));
-      if(found){
-       const generations=(found.production?.generations||[]).filter(g=>g.description);
-       cardNotes=generations.map(g=>({title:g.model_year||g.label,body:g.description}));
-       if(!cardNotes.length)cardNotes=(found.sections||[]).filter(x=>Array.isArray(x)&&x[1]).map(x=>({title:x[0],body:x[1]}));
-      }
-     }
-    }catch(e){/* Non-critical guidance remains optional. */}
-    if(safe(make)==='harleydavidson'&&safe(model)==='fatboy'){
-     cardNotes=[
-      {title:'1990 — Original FLSTF',body:'The original Fat Boy arrived with Evolution power, Softail construction and distinctive solid-look wheels.'},
-      {title:'1991–1999 — Evolution era',body:'Classic Evolution-powered Fat Boys retained the early Softail character. Check originality, service history and modifications.'},
-      {title:'2000–2006 — Twin Cam',body:'The Twin Cam era brought a different engine family from the early Evolution models. Confirm the exact factory specification.'},
-      {title:'2007–2017 — Later Twin Cam',body:'Later Twin Cam Fat Boys evolved through engine and equipment updates. Compare the model year and original components.'},
-      {title:'Fat Boy Lo',body:'The Fat Boy Lo offered a lower, darker-styled take on the cruiser. Check the year and actual factory equipment.'},
-      {title:'2018 — Softail redesign',body:'A redesigned Softail chassis introduced a hidden rear monoshock and Milwaukee-Eight power.'},
-      {title:'2018 — 107 and 114',body:'The redesigned Fat Boy range included different Milwaukee-Eight engine versions. Verify whether the bike is a 107 or 114.'},
-      {title:'2021–2024 — Fat Boy 114',body:'The 114 became a prominent modern Fat Boy version. Confirm model-year equipment, mileage and accessories.'},
-      {title:'Anniversary and special editions',body:'Special finishes and limited editions need year-specific checks of factory trim, documentation and originality.'},
-      {title:'2025 onward — Later Fat Boy',body:'More recent Fat Boy motorcycles have updated specifications. Confirm the exact engine and market specification before buying.'},
-      {title:'Wheels and styling',body:'Solid-look wheels are a signature Fat Boy design feature; check condition and any aftermarket replacements.'},
-      {title:'Buying a used Fat Boy',body:'Review VIN, ownership, finance status, service history, engine configuration and any custom work before purchase.'}
-     ];
-    }
-    if(safe(make)==='honda'&&safe(model)==='africatwincrf1100l'){
-     cardNotes=[
-      {title:'2020 — CRF1100L introduction',body:'The 1,084 cc parallel-twin Africa Twin replaced the earlier CRF1000L generation, with updated electronics and a lighter platform.'},
-      {title:'2020 — Standard Africa Twin',body:'The standard CRF1100L emphasises adventure riding. Check the specific year, suspension, wheels and fitted accessories.'},
-      {title:'2020 — Adventure Sports',body:'The CRF1100L Adventure Sports version is designed with longer-distance touring equipment. Tank size and features vary by model year.'},
-      {title:'Manual and DCT versions',body:'The CRF1100L has been offered with a conventional manual gearbox or Honda’s Dual Clutch Transmission. Confirm which is fitted.'},
-      {title:'2022 — Equipment updates',body:'Later CRF1100L versions received changes to equipment and transmission calibration. Verify the exact year and market specification.'},
-      {title:'2024 — Adventure Sports changes',body:'The updated Adventure Sports adopted a 19-inch front wheel and revised road-touring focus; check the model year carefully.'},
-      {title:'Riding modes and electronics',body:'Electronic rider aids and riding modes differ by version. Check traction control, ABS and display functionality on the actual bike.'},
-      {title:'Used CRF1100L checks',body:'Confirm service history, mileage, luggage and accessories, suspension condition and any off-road damage before purchasing.'}
-     ];
-    }
-    if(safe(make)==='honda'&&safe(model)==='africatwin'){
-     cardNotes=[
-      {title:'1988 — XRV650',body:'The original Africa Twin generation established the model’s rally-inspired adventure motorcycle identity.'},
-      {title:'1990–2003 — XRV750',body:'The Africa Twin developed into the XRV750, with several updates across its production years.'},
-      {title:'2016–2017 — CRF1000L',body:'Honda revived the Africa Twin with the CRF1000L parallel-twin adventure motorcycle.'},
-      {title:'2018–2019 — CRF1000L',body:'Later CRF1000L model years included specification updates and an Adventure Sports version.'},
-      {title:'2020 onward — CRF1100L',body:'The CRF1100L succeeded the CRF1000L with a larger engine and revised electronics.'},
-      {title:'Adventure Sports',body:'The touring-focused Adventure Sports has year-dependent equipment; compare the exact model year and specification.'}
-     ];
-    }
-   }
-   if(!cardNotes.length&&harley){
-    const sections=[...document.querySelectorAll('main .card')];
-    cardNotes=sections.map(el=>{
-     const h=el.querySelector('h2,h3');
-     const p=el.querySelector('p');
-     return h&&p?{title:h.textContent.trim(),body:p.textContent.trim()}:null;
-    }).filter(x=>x&&x.body.length>35&&x.body.length<450&&!/interested|sourcing|photograph policy|uk owners|what to verify/i.test(x.title)).slice(0,12);
-   }
-   // Research follows genuine sale listings; missing photos never become fake bike cards.
-   const emptyCardCount=dedicatedStock?0:cardNotes.length;
-   if(cardNotes.length&&!dedicatedStock){const heading=document.createElement('h3');heading.textContent=make+' '+model+' — model years and specifications';heading.style.cssText='grid-column:1/-1;margin:14px 0 0';grid.append(heading);}
-   for(let i=0;i<emptyCardCount;i++){
-    const card=document.createElement('div');card.style.cssText='background:#242424;border:1px solid #555;border-left:3px solid #ed1c24;border-radius:8px;padding:14px;text-align:left;min-height:0;display:flex;flex-direction:column;justify-content:flex-start;gap:8px';
-    const name=document.createElement('strong');name.textContent=make+' '+model;
-    const status=document.createElement('small');status.style.cssText='color:#ddd;line-height:1.5';const note=cardNotes[i];if(note){name.textContent=note.title||make+' '+model;status.textContent=note.body;}else{status.textContent='Additional '+make+' '+model+' motorcycles may be available — enquire with AnyBike';}
-    card.append(name,status);grid.append(card);
-   }
-   reveal();
-  }catch(error){
-   reveal();
-   section.querySelector('p').textContent='The live stock feed is temporarily unavailable. Please send an enquiry or request sourcing and AnyBike will check availability.';
-   console.warn('International stock request unavailable',error);
-  }})();
+  })();
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
