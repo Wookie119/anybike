@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import {normalizeMotorcycleV2,auditMotorcycleV2,buildMotorcycleV2Sections,REQUIRED_V2_SECTIONS} from "./universal-motorcycle-v2.mjs";
+import {normalizeMotorcycleV2,auditMotorcycleV2,assessMotorcycleV2Release,buildMotorcycleV2Sections,REQUIRED_V2_SECTIONS} from "./universal-motorcycle-v2.mjs";
 const sample=(make,model,slug)=>({model_id:1,slug,preview_visible:true,editorial:{
  make,model,hero:{summary:"Test model introduction"},
  production:{generations:[{label:"First generation"}],official_colours:[{name:"Red"}],specifications:[{engine_cc:1000}]},
@@ -209,4 +209,35 @@ test("pending BMW engineering review cards never become approved specifications"
  const audit=auditMotorcycleV2(record);
  assert.equal(audit.readyToRollout,false);
  assert.ok(audit.warnings.some(w=>w.includes("technical facts still require editorial verification")));
+});
+
+test("release gate is fail-closed even for an already preview-enabled model",()=>{
+ const record=sample("BMW","R 1250 GS","bmw-r-1250-gs");
+ assert.equal(record.preview_visible,true);
+ const gate=assessMotorcycleV2Release(record);
+ assert.equal(gate.readyForPublicRelease,false);
+ assert.equal(gate.publicPublicationApproved,false);
+ assert.equal(gate.approvedModelPhoto,false);
+ assert.ok(gate.blockers.some(x=>x.includes("rights-cleared")));
+ assert.ok(gate.blockers.some(x=>x.includes("Publication permission")));
+});
+test("research completeness cannot masquerade as licensing, model-match, approval or QA",()=>{
+ const record=sample("BMW","R 1250 GS","bmw-r-1250-gs");
+ Object.assign(record.editorial,{
+  development_cards:[{title:"Factory engineering source",description:"Evidence for this model"}],
+  country_market_links:[{label:"UK source",url:"/markets/uk.html"}],
+  sources:[{label:"Manufacturer",url:"https://example.com/reference"}]
+ });
+ record.editorial.production.documented_production_evidence=[{source:"https://example.com/factory"}];
+ assert.equal(auditMotorcycleV2(record).missingSections.length,0);
+ const photo={manufacturer:"BMW",model:"R 1300 GS",approval_status:"approved",image_url:"https://example.com/image.jpg",
+  source_page_url:"https://example.com/photo",licence_url:"https://creativecommons.org/licenses/by-sa/4.0/",
+  licence:"CC BY-SA 4.0",attribution:"Photographer"};
+ const qa={sourcesReviewed:true,designTested:true,stockIdentityTested:true,accessTested:true,publicPublicationApproved:true};
+ assert.equal(assessMotorcycleV2Release(record,{photos:[photo],qa}).readyForPublicRelease,false,"Another BMW model's photo can never authorise publication");
+ assert.equal(assessMotorcycleV2Release(record,{photos:[{...photo,model:"R 1250 GS",approval_status:"pending_review"}],qa}).readyForPublicRelease,false);
+ const ready=assessMotorcycleV2Release(record,{photos:[{...photo,model:"R 1250 GS"}],qa});
+ assert.equal(ready.readyForPublicRelease,true);
+ assert.equal(ready.blockers.length,0);
+ assert.equal(assessMotorcycleV2Release(record,{photos:[{...photo,model:"R 1250 GS"}],qa:{...qa,accessTested:false}}).readyForPublicRelease,false);
 });
