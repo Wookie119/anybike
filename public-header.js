@@ -3071,7 +3071,7 @@ async function anybikeShowPublicSignedInIdentity(){
  if(p.endsWith('-motorcycles.html')||p.endsWith('-models.html'))return;
  if(document.querySelector('script[data-anybike-shared-international-stock]'))return;
  const script=document.createElement('script');
- script.src='/public-international-model-stock.js?v=20261107c';
+ script.src='/public-international-model-stock.js?v=20261107d';
  script.dataset.anybikeSharedInternationalStock='1';
  script.async=true;
  document.head.appendChild(script);
