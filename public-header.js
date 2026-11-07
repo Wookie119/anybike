@@ -3067,7 +3067,7 @@ async function anybikeShowPublicSignedInIdentity(){
 (function loadAnyBikeSharedInternationalModelStock(){
  const p=location.pathname.toLowerCase();
  if(!/\.html$/.test(p)||/-v2\.html$|-backup[^/]*\.html$|-preview\.html$/.test(p))return;
- if(!/^\/(?:bmw|harley-davidson|royal-enfield|moto-guzzi|indian|honda|yamaha|ducati|triumph|kawasaki|suzuki|ktm|aprilia|husqvarna|benelli|cfmoto|zero|vmoto)-/.test(p))return;
+ if(!/^\/(?:bmw|harley-davidson|royal-enfield|moto-guzzi|indian|honda|yamaha|ducati|triumph|kawasaki|suzuki|ktm|aprilia|husqvarna|benelli|cfmoto|zero|vmoto)-/.test(p)&&p!='/motorcycle-model.html'&&p!='/motorcycle-model-guide.html')return;
  if(p.endsWith('-motorcycles.html')||p.endsWith('-models.html'))return;
  if(document.querySelector('script[data-anybike-shared-international-stock]'))return;
  const script=document.createElement('script');
