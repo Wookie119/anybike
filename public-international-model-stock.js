@@ -119,7 +119,10 @@
       const brandStock = items.filter(x => norm(x.make) === norm(name) && x.item_id && Number(x.price) > 0 && x.image_url);
       const exact = brandStock.filter(x => {
         const stockModel = norm(x.model);
-        return stockModel === key || stockModel.startsWith(key);
+        if (!stockModel.startsWith(key)) return false;
+        // Adventure is a distinct model, never present it as the standard GS.
+        if (/\\badventure\\b/i.test(String(x.model)) && !/\\badventure\\b/i.test(model)) return false;
+        return true;
       });
       const selected = (exact.length ? exact : brandStock).slice(0, 6);
       title.textContent = exact.length ? name + " " + model + " — available UK motorcycles" : "Other " + name + " motorcycles currently for sale";
