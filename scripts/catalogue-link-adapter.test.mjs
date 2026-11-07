@@ -139,7 +139,7 @@ test('published country code maps to canonical country slug for approved motorcy
  const wrong=graphFromCatalogueRows({publicPages:pages,
   regionalCountryRoutes:[route],
   countryLinks:[{...link,market_url:'/markets/ghana.html'}]});
- assert.equal(wrong.pages.reduce((n,p)=>n+p.links.length,0));
+ assert.equal(wrong.pages.reduce((n,p)=>n+p.links.length,0),0);
 });
 
 
