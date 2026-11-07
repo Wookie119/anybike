@@ -40,7 +40,7 @@ for(const [make,model,wanted] of cases){
 assert(!shared.includes('alternativeBMW'),'Other-model BMW gallery substitution returned');
 assert(!shared.includes('r1250StockFallback'),'R 1250 model-specific bypass returned');
 assert(shared.includes('const dedicatedStock='),'Shared model gallery must respect approved dedicated galleries');
-assert(shared.includes('if(browseTypes)browseTypes.after(section)'),'Stock must follow model navigation and precede research');
+assert(shared.includes('if(hero)hero.after(section)'),'Stock must follow model introduction and precede research');
 assert(shared.includes('content.append(strong,p)'),'Model-specific research must follow stock in its own cards');
 
 // Guard every stock-gallery implementation, including the older optional loader.
