@@ -8,6 +8,14 @@
 const normalise=v=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]/g,'');
 const text=v=>typeof v==='string'?v.trim():'';
 const safeSource=url=>typeof url==='string'&&/^https:\/\//i.test(url);
+async function publishedBmwResearch(){
+ const provider=window.supabase;
+ const client=provider?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
+ if(!client)return null;
+ const {data,error}=await client.rpc('public_bmw_model_history_v1',{requested_path:location.pathname});
+ if(error||!data||data.make!=='BMW'||!Array.isArray(data.generations))return null;
+ return data;
+}
 const makeCard=entry=>{
  const article=document.createElement('article');article.className='anybike-master-history-card';
  const h=document.createElement('h3');h.textContent=text(entry.label)||'Documented model development';
@@ -36,17 +44,36 @@ export async function applyApprovedBmwPageShell(){
   existing.classList.add('anybike-master-model-years');
   const specs=main.querySelector('#generationPanel');
   if(specs&&specs.parentElement===main)specs.after(existing);
+ }
+ // Always prefer the restricted, public, exact-route Supabase history feed.
+ // Changes to documented model history then appear on the next page load
+ // without edits to any of these BMW HTML files.
+ let published=null;
+ try{published=await publishedBmwResearch();}
+ catch(error){console.warn('Published model history unavailable; retaining existing guide',error);}
+ if(published&&normalise(published.model)!==normalise(model))published=null;
+ let events=Array.isArray(published?.generations)?published.generations.filter(x=>text(x.label)&&text(x.description)):[];
+ if(!events.length&&!existing){
+  try{
+   const response=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
+   if(!response.ok)throw Error('Model guide source unavailable');
+   const data=await response.json();
+   const local=Object.values(data.models||{}).find(g=>normalise(g.make)==='bmw'&&normalise(g.model)===normalise(model));
+   events=Array.isArray(local?.production?.generations)?local.production.generations:[];
+  }catch(error){console.warn('Model gallery unavailable; preserving existing page research',error);}
+ }
+ if(!events.length)return true;
+ if(existing){
+  // Preserve the already-approved R1250 year-by-year gallery and its photos.
+  // Display any future database history updates as sourced references within
+  // the same section, never as a duplicate model-year gallery.
+  const details=document.createElement('details');details.className='anybike-master-db-updates';
+  const heading=document.createElement('summary');heading.textContent='Documented BMW research references';
+  const grid=document.createElement('div');grid.className='anybike-master-history-grid';
+  for(const event of events)grid.append(makeCard(event));
+  details.append(heading,grid);existing.append(details);
   return true;
  }
- let info;
- try{
-  const response=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
-  if(!response.ok)throw Error('Model guide source unavailable');
-  const data=await response.json();
-  info=Object.values(data.models||{}).find(g=>normalise(g.make)==='bmw'&&normalise(g.model)===normalise(model));
- }catch(error){console.warn('Model gallery unavailable; preserving existing page research',error);return true;}
- const events=Array.isArray(info?.production?.generations)?info.production.generations:[];
- if(!events.length)return true;
  if(main.querySelector('[data-anybike-master-gallery]'))return true;
  const section=document.createElement('section');section.className='anybike-master-model-years';section.dataset.anybikeMasterGallery='1';
  section.setAttribute('aria-label','Model years editions development and ownership');
