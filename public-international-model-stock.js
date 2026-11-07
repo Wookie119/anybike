@@ -69,6 +69,11 @@
     status.setAttribute("role", "status");
     status.style.cssText = "color:#ddd;line-height:1.6";
     status.textContent = "Checking approved international motorcycle stock…";
+    // A feed or authentication stall must never leave an endless spinner.
+    const watchdog = setTimeout(() => {
+      if (status.textContent === "Checking approved international motorcycle stock…")
+        status.textContent = "Live stock is taking longer than expected. Use Browse Available Stock below, or ask AnyBike to source this model.";
+    }, 9000);
     const grid = document.createElement("div");
     grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px";
     const links = document.createElement("p");
@@ -94,20 +99,26 @@
       const client = window.sb || window.supabase?.createClient?.(
         "https://tuehtnezhdnkqbbhttgp.supabase.co", "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK"
       );
-      authToken = (await client?.auth?.getSession?.())?.data?.session?.access_token || "";
+      authToken = (await Promise.race([
+        Promise.resolve(client?.auth?.getSession?.()),
+        new Promise(resolve => setTimeout(() => resolve(null), 1800))
+      ]))?.data?.session?.access_token || "";
     } catch (_) {}
     // Different pages historically used different storage keys. Honour any existing
     // signed-in session via the site's configured Supabase client first.
     try {
       const globalClient = window.anybikeSupabaseClient || window.supabaseClient;
-      const existingToken = (await globalClient?.auth?.getSession?.())?.data?.session?.access_token;
+      const existingToken = (await Promise.race([
+        Promise.resolve(globalClient?.auth?.getSession?.()),
+        new Promise(resolve => setTimeout(() => resolve(null), 1000))
+      ]))?.data?.session?.access_token;
       if (existingToken) authToken = existingToken;
     } catch (_) {}
     try {
       let response;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          response = await fetch(endpoint, { cache:"no-store", headers:authToken ? { Authorization:"Bearer " + authToken } : {} });
+          response = await fetch(endpoint, { cache:"no-store", signal:AbortSignal.timeout(8500), headers:authToken ? { Authorization:"Bearer " + authToken } : {} });
           if (response.status !== 503) break;
         } catch (err) {
           if (attempt === 1) throw err;
