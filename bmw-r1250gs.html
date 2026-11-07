@@ -83,7 +83,7 @@ main>.end-action[aria-label="UK motorcycle selling"][hidden]{display:none!import
    if(seller)seller.hidden=international;
    if(source)source.hidden=!international;
    const topSource=document.getElementById('source');if(topSource)topSource.hidden=!international;
-   if(gallery)gallery.hidden=international || !cards.children.length; const live=document.getElementById('r1250LiveStock');if(live)live.hidden=live.dataset.stockReady!=='true';
+   if(gallery)gallery.hidden=international || !cards.children.length; const live=document.getElementById('r1250LiveStock');if(live)live.hidden=!['true','blocked'].includes(live.dataset.stockReady);
  };
  const observer=new MutationObserver(update);
  observer.observe(document.documentElement,{attributes:true,attributeFilter:['class']});
@@ -132,7 +132,16 @@ main>.end-action[aria-label="UK motorcycle selling"][hidden]{display:none!import
   }catch(error){console.warn("Stock session unavailable; trying guest access",error);}
   const response=await fetch(endpoint,{cache:"no-store",signal:AbortSignal.timeout(10000),headers:token?{"Authorization":"Bearer "+token}:{}});
   if(!response.ok){
-   if(response.status===403){panel.hidden=true;return;}
+   if(response.status===403){
+    const identity=document.getElementById("anybikePublicSignedInIdentity")?.textContent||"";
+    const ukPrivate=/SIGNED IN\s*[·•-]\s*UK PRIVATE/i.test(identity);
+    panel.querySelector("h2").textContent="BMW international Available Stock";
+    status.textContent=ukPrivate
+      ? "This UK private account is not authorised to browse the international stock gallery from the UK. Overseas visitors can browse without signing in; use the authorised international dealer test account to test from the UK."
+      : "International stock access is restricted for this connection. Overseas visitors can browse without signing in; please contact AnyBike if you are outside the UK and see this message.";
+    panel.dataset.stockReady="blocked";panel.hidden=false;
+    return;
+   }
    throw Error("Stock feed HTTP "+response.status);
   }
   const data=await response.json();
