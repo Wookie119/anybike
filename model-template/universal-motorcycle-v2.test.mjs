@@ -146,3 +146,15 @@ test("sourced model-year cards remain model-specific drafts until pictures are a
  assert.equal(buildMotorcycleV2Sections(record).find(x=>x.id==="model_development").content[0].period,"September 2023");
  assert.equal(record.editorial.model,"F 900 GS");
 });
+
+test("universal preview renders database year cards for the requested model, without photo fallbacks",()=>{
+ const preview=fs.readFileSync("motorcycle-model-universal-development.html","utf8");
+ assert.match(preview,/const events=universal\.modelYearCards\.length\?universal\.modelYearCards:universal\.timeline/);
+ assert.match(preview,/Manufacturer source ↗/);
+ assert.match(preview,/normalizeMotorcycleV2\(publishedEditorial\)/);
+ assert.match(preview,/\.eq\("slug",selectedModel\)\.eq\("preview_visible",true\)/);
+ const module=fs.readFileSync("model-template/universal-motorcycle-v2.mjs","utf8");
+ assert.match(module,/imageStatus:safeText\(x\.image_status\)/);
+ assert.match(module,/x\.image_status==='approved'\?x\.image_url:null/);
+ assert.doesNotMatch(preview,/Math\.random\(\)/);
+});
