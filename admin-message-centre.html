@@ -991,6 +991,7 @@ async function openThread(id){
     String(other.customer_email||"").trim().toLowerCase()===String(t.customer_email||"").trim().toLowerCase() &&
     String(other.subject||"")===String(t.subject||"")
   ) : [];
+  const vmotoEsc=value=>String(value===undefined||value===null||value===""?"—":value).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
   const vmotoInfoHtml=isVmotoRetail ? `
   <div class="section" style="border-top:3px solid #ed1c24;background:#181818">
    <h3>VMoto enquiry · Your next action</h3>
@@ -998,15 +999,15 @@ async function openThread(id){
    <p style="color:#ddd">2. Confirm exact model, colour, stock and preparation time with VMoto. The selected wording "Available now" is not stock confirmation.</p>
    <p style="color:#ddd">3. Open the linked retail Deal, enter verified motorcycle price, registration/tax and delivery costs, then provide a written quotation. Do not request payment before confirming the order.</p>
    <div class="grid">
-     <div class="field"><span>Model / version</span><strong>${safe(vmotoOrder?.model_name||t.subject)} · ${safe(vmotoOrder?.variant_name)}</strong></div>
-     <div class="field"><span>Battery / colour</span><strong>${safe(vmotoOrder?.battery_choice)} · ${safe(vmotoOrder?.colour_choice)}</strong></div>
-     <div class="field"><span>Home delivery</span><strong>${safe(vmotoOrder?.delivery_city)} · ${safe(vmotoOrder?.delivery_postcode||t.postcode_zip)}</strong></div>
-     <div class="field"><span>Actual stock status</span><strong>${safe(vmotoOrder?.stock_status||"Not checked")}</strong></div>
+     <div class="field"><span>Model / version</span><strong>${vmotoEsc(vmotoOrder?.model_name||t.subject)} · ${vmotoEsc(vmotoOrder?.variant_name)}</strong></div>
+     <div class="field"><span>Battery / colour</span><strong>${vmotoEsc(vmotoOrder?.battery_choice)} · ${vmotoEsc(vmotoOrder?.colour_choice)}</strong></div>
+     <div class="field"><span>Home delivery</span><strong>${vmotoEsc(vmotoOrder?.delivery_city)} · ${vmotoEsc(vmotoOrder?.delivery_postcode||t.postcode_zip)}</strong></div>
+     <div class="field"><span>Actual stock status</span><strong>${vmotoEsc(vmotoOrder?.stock_status||"Not checked")}</strong></div>
      <div class="field"><span>Motorcycle price</span><strong>${money(vmotoOrder?.motorcycle_price_gbp)}</strong></div>
      <div class="field"><span>Final customer total</span><strong>${money(vmotoOrder?.customer_total_gbp)}</strong></div>
    </div>
-   ${vmotoOrderError? `<p style="color:#ffb4b7">Retail order could not load: ${safe(vmotoOrderError)}</p>`:""}
-   ${relatedVmotoThreads.length?`<p style="border-left:3px solid #ed1c24;padding:10px;background:#252020;color:#fff"><strong>Possible duplicate submission:</strong> ${relatedVmotoThreads.length} other enquiry from this email for the same model. Separate retail Deals exist; confirm with the customer before closing any duplicate. ${relatedVmotoThreads.map(other=>`<a style="color:white;text-decoration:underline" href="admin-message-centre.html?thread=${encodeURIComponent(other.id)}">Open conversation #${safe(other.id)}</a>`).join(" · ")}</p>`:""}
+   ${vmotoOrderError? `<p style="color:#ffb4b7">Retail order could not load: ${vmotoEsc(vmotoOrderError)}</p>`:""}
+   ${relatedVmotoThreads.length?`<p style="border-left:3px solid #ed1c24;padding:10px;background:#252020;color:#fff"><strong>Possible duplicate submission:</strong> ${relatedVmotoThreads.length} other enquiry from this email for the same model. Separate retail Deals exist; confirm with the customer before closing any duplicate. ${relatedVmotoThreads.map(other=>`<a style="color:white;text-decoration:underline" href="admin-message-centre.html?thread=${encodeURIComponent(other.id)}">Open conversation #${vmotoEsc(other.id)}</a>`).join(" · ")}</p>`:""}
    <div class="actions">
      ${t.related_deal_id?`<a class="primary" href="admin-enquiries.html?deal=${encodeURIComponent(t.related_deal_id)}">Open retail Deal 360 →</a>`:""}
      <a href="admin-vmoto.html">Check VMoto HQ →</a>
