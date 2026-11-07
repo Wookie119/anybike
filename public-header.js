@@ -2905,9 +2905,12 @@ async function anybikeShowPublicSignedInIdentity(){
   const browseTypes=main.querySelector('.bmw-explore[aria-label="Browse motorcycle types"]')||main.querySelector('[aria-label="Browse motorcycle types"]');
   const related=main.querySelector('.harley-related-pill-nav');
   const hero=main.querySelector('.hero');
-  if(browseTypes)browseTypes.after(section);
+  // The approved R 1300 GS sales-first layout applies to every standard model:
+  // hero, exact-model stock, model years and research. Never push sales below
+  // the related-model/type navigation where buyers cannot find it.
+  if(hero)hero.after(section);
+  else if(browseTypes)browseTypes.after(section);
   else if(related)related.after(section);
-  else if(hero)hero.after(section);
   else (main.querySelector('h1')||main).after(section);
   // A dedicated approved gallery owns its own sale cards and model-year research.
   // This common renderer must never compete with R 1300 GS / R 1250 GS.
