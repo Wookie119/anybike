@@ -94,7 +94,8 @@ test("R 1300 GS approved layout separates stock from development and puts years 
   assert.ok(main.includes('id="ukR1300ModelGallery"'),path+" lost the model-year gallery");
   assert.ok(main.includes('anybike-approved-model-development'),path+" lost the approved theme");
   assert.ok(main.indexOf('id="ukR1300ModelGallery"')<main.indexOf('id="body"'),path+" model years must precede stories");
-  assert.ok(main.indexOf('id="body"')<main.indexOf('id="internationalModelStock"'),path+" must preserve the research flow");
+  const ordered=['<section class="hero"','id="internationalModelStock"','id="generationPanel"','id="ukR1300ModelGallery"','id="body"'];
+  for(let i=1;i<ordered.length;i++)assert.ok(main.indexOf(ordered[i-1])<main.indexOf(ordered[i]),path+" sales-first template order failed: "+ordered[i]);
   const stockMarkup=main.slice(main.indexOf('id="internationalModelStock"'),main.indexOf("</section>",main.indexOf('id="internationalModelStock"')));
   const galleryMarkup=main.slice(main.indexOf('id="ukR1300ModelGallery"'),main.indexOf("</section>",main.indexOf('id="ukR1300ModelGallery"')));
   assert.doesNotMatch(stockMarkup,/id="r1300gsModelHistory"/,path+" must not nest editorial inside stock border");
