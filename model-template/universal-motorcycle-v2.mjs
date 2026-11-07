@@ -36,6 +36,7 @@ export function normalizeMotorcycleV2(record){
   modelYearCards:list(guide.model_year_cards).filter(x=>x&&safeText(x.period)&&safeText(x.description)).map(x=>({
    period:safeText(x.period),description:safeText(x.description),
    source:safeHttps(x.source)?x.source:null,
+   cardType:safeText(x.card_type)||'documented_model_year',
    imageStatus:safeText(x.image_status)||'not_approved',
    contentStatus:safeText(x.content_status)||'pending_editorial_review',
    imageUrl:safeHttps(x.image_url)&&x.image_status==='approved'?x.image_url:null
