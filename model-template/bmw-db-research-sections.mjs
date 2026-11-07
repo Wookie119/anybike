@@ -28,12 +28,14 @@ const createColours=items=>{
  const entries=arr(items).filter(x=>safeText(x?.name));
  if(!entries.length)return null;
  const el=section('factory_colours','Factory colours');
- el.append(text('p','Recorded manufacturer colour references may differ by model year, variant and market. Confirm the exact motorcycle.'));
+ el.append(text('p','Factory colour references are taken from dated manufacturer records. The source year may be an announcement year, not the motorcycle model year; confirm the actual year, edition and market.'));
  const grid=document.createElement('div');grid.className='anybike-db-mini-grid';
  for(const c of entries){
   const card=document.createElement('article');
   card.append(text('h3',c.name));
-  const meta=[safeText(c.variant),safeText(c.market),c.model_year?'Reference year: '+c.model_year:''].filter(Boolean);
+  // Existing manufacturer colour records can use the press announcement year.
+  // Never relabel that as a verified model year without separate validation.
+  const meta=[safeText(c.variant),safeText(c.market),c.model_year?'Source record year: '+c.model_year+' · confirm model year':''].filter(Boolean);
   if(meta.length)card.append(text('p',meta.join(' · ')));
   const link=sourceLink(c.source,'Manufacturer source ↗');if(link)card.append(link);
   grid.append(card);
