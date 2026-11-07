@@ -39,6 +39,27 @@ export async function applyApprovedBmwPageShell(){
  if(!model)return false;
  // Existing production model guides are also hydrated by the page's own loader;
  // this is a separate presentation pass, never a replacement for it.
+ // A page's documented generation panel is the primary version history.
+ // Older shared stock code also adds "development and ownership" cards: once
+ // model-specific generation research is visible, suppress that duplicate.
+ const generationPanel=main.querySelector('#generationPanel');
+ const reconcileHistory=()=>{
+  const documented=!!(generationPanel&&!generationPanel.hidden&&generationPanel.querySelector('.generation-detail')?.textContent?.trim());
+  const duplicate=main.querySelector('.anybike-model-research');
+  if(duplicate)duplicate.hidden=documented;
+  const copied=main.querySelector('[data-anybike-master-gallery]');
+  if(copied)copied.hidden=documented;
+ };
+ if(generationPanel){
+  const observer=new MutationObserver(reconcileHistory);
+  observer.observe(generationPanel,{attributes:true,attributeFilter:['hidden'],subtree:true,childList:true,characterData:true});
+  // The stock section may arrive after the original page loader.
+  const mainObserver=new MutationObserver(records=>{
+   if(records.some(r=>[...r.addedNodes].some(n=>n.nodeType===1&&(n.matches?.('.anybike-model-research')||n.querySelector?.('.anybike-model-research')))))reconcileHistory();
+  });
+  mainObserver.observe(main,{childList:true,subtree:true});
+  reconcileHistory();
+ }
  const existing=main.querySelector('#ukR1250ModelGallery,#ukR1250HistoryCards');
  if(existing){
   existing.classList.add('anybike-master-model-years');
@@ -95,15 +116,13 @@ export async function applyApprovedBmwPageShell(){
  if(!events.length)return true;
  if(existing){
   // Preserve the already-approved R1250 year-by-year gallery and its photos.
-  // Display any future database history updates as sourced references within
-  // the same section, never as a duplicate model-year gallery.
-  const details=document.createElement('details');details.className='anybike-master-db-updates';
-  const heading=document.createElement('summary');heading.textContent='Documented BMW research references';
-  const grid=document.createElement('div');grid.className='anybike-master-history-grid';
-  for(const event of events)grid.append(makeCard(event));
-  details.append(heading,grid);existing.append(details);
+  // The existing R 1250 GS gallery remains the authoritative model-year
+  // section; don't append the same manufacturer generation a second time.
   return true;
  }
+ // If the legacy guide already documents exact generations and specs,
+ // it supplies the model-year section; avoid a second copy of the same text.
+ if(generationPanel&&!generationPanel.hidden&&generationPanel.querySelector('.generation-detail')?.textContent?.trim())return true;
  if(main.querySelector('[data-anybike-master-gallery]'))return true;
  const section=document.createElement('section');section.className='anybike-master-model-years';section.dataset.anybikeMasterGallery='1';
  section.setAttribute('aria-label','Model years editions development and ownership');
