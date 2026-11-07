@@ -84,7 +84,7 @@ for(const [desc,pages] of descriptions)if(pages.length>1)warnings.push('Duplicat
 // A future database-driven manufacturer rollout must use approved indexable
 // URLs with unique canonical content and a separate explicit publication gate.
 const sharedBrandPage=fs.readFileSync(path.join(root,'motorcycle-brand.html'),'utf8');
-const sharedBrandNoindex=/\\bnoindex\\b/i.test(meta(sharedBrandPage,'robots'));
+const sharedBrandNoindex=/\bnoindex\b/i.test(meta(sharedBrandPage,'robots'));
 if(sharedBrandNoindex&&stats.manufacturer_queries!==0)
  issues.push('Noindex manufacturer query routes must not appear in the sitemap: '+stats.manufacturer_queries);
 if(!sharedBrandNoindex&&stats.manufacturer_queries!==0)
