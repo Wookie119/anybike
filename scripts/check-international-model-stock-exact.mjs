@@ -6,12 +6,13 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
 const shared=fs.readFileSync('public-header.js','utf8');
-const start=shared.indexOf('const requested=safe(model);');
-const end=shared.indexOf('   if(!matches.length)', start);
-assert(start>=0&&end>start,'Central approved-model matcher missing');
+const start=shared.indexOf('  const allowedSuffix=',shared.indexOf('/* International model stock and guest enquiries: model guides only. */'));
+const end=shared.indexOf('  function saleCard(x){',start);
+assert(start>=0&&end>start,'Central exact-model stock matcher missing');
 const snippet=shared.slice(start,end);
 const normalise=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-const match=new Function('published','make','model','safe',snippet+'; return matches;');
+const matcher=new Function('make','model','safe',snippet+';return exactModel;');
+const match=(published,make,model,safe)=>published.filter(matcher(make,model,safe));
 
 const fixtures=[
  ['BMW','R 1300 GS TE'],['BMW','R 1300 GS'],['BMW','R 1300 GS Adventure'],
@@ -39,8 +40,8 @@ for(const [make,model,wanted] of cases){
 assert(!shared.includes('alternativeBMW'),'Other-model BMW gallery substitution returned');
 assert(!shared.includes('r1250StockFallback'),'R 1250 model-specific bypass returned');
 assert(shared.includes('const dedicatedStock='),'Shared model gallery must respect approved dedicated galleries');
-assert(shared.includes('hero.after(section)'),'Shared stock gallery must appear above model research');
-assert(shared.includes('card.append(name,status)'),'Research must not use stock-photo logo placeholders');
+assert(shared.includes('if(browseTypes)browseTypes.after(section)'),'Stock must follow model navigation and precede research');
+assert(shared.includes('content.append(strong,p)'),'Model-specific research must follow stock in its own cards');
 
 // Guard every stock-gallery implementation, including the older optional loader.
 const legacyModelStock=fs.readFileSync('public-international-model-stock.js','utf8');
