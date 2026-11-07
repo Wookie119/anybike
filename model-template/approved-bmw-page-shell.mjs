@@ -52,6 +52,30 @@ export async function applyApprovedBmwPageShell(){
  try{published=await publishedBmwResearch();}
  catch(error){console.warn('Published model history unavailable; retaining existing guide',error);}
  if(published&&normalise(published.model)!==normalise(model))published=null;
+ // The same Supabase read also supplies published-documentation links.
+ // Only add links not already present in the model's original research.
+ if(Array.isArray(published?.references)){
+  const existingSources=new Set([...main.querySelectorAll('a[href]')].map(a=>a.href));
+  const seen=new Set();
+  const references=published.references.filter(ref=>{
+   if(!ref||!text(ref.label)||!safeSource(ref.url))return false;
+   const url=new URL(ref.url).href;
+   if(existingSources.has(url)||seen.has(url))return false;
+   seen.add(url);return true;
+  });
+  if(references.length){
+   const section=document.createElement('section');section.className='anybike-master-model-sources';
+   section.setAttribute('aria-label','BMW model research documentation');
+   const details=document.createElement('details');
+   const heading=document.createElement('summary');heading.textContent='Further documented BMW research sources ('+references.length+')';
+   const links=document.createElement('nav');links.setAttribute('aria-label','Additional BMW research sources');
+   for(const ref of references){
+    const a=document.createElement('a');a.href=ref.url;a.target='_blank';a.rel='noopener noreferrer';
+    a.textContent=ref.label+' ↗';links.append(a);
+   }
+   details.append(heading,links);section.append(details);body.after(section);
+  }
+ }
  let events=Array.isArray(published?.generations)?published.generations.filter(x=>text(x.label)&&text(x.description)):[];
  if(!events.length&&!existing){
   try{
