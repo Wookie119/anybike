@@ -46,7 +46,7 @@ export function renderLiveStockBrowse(container,items,{currentMake=''}={}){
  const makes=document.createElement('nav');makes.className='anybike-live-stock-makes';
  makes.setAttribute('aria-label','Manufacturers with motorcycles in Available Stock');
  for(const group of groups){
-  const a=document.createElement('a');a.href=group.url;
+  const a=document.createElement('a');a.href=group.url;a.className='anybike-international-vq-link';
   a.textContent=group.make+' ('+group.count+')';makes.append(a);
  }
  const modelsTitle=document.createElement('h4');modelsTitle.textContent='Models with stock';
@@ -60,7 +60,7 @@ export function renderLiveStockBrowse(container,items,{currentMake=''}={}){
   const models=document.createElement('nav');models.className='anybike-live-stock-models';
   models.setAttribute('aria-label',group.make+' models currently available');
   for(const entry of group.models){
-   const a=document.createElement('a');a.href=entry.url;
+   const a=document.createElement('a');a.href=entry.url;a.className='anybike-international-vq-link';
    a.textContent=entry.model+' ('+entry.count+')';models.append(a);
   }
   details.append(models);modelGroups.append(details);
