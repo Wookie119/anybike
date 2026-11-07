@@ -31,6 +31,15 @@ export function normalizeMotorcycleV2(record){
    period:safeText(x.period),description:safeText(x.description),
    source:safeHttps(x.source)?x.source:null
   })),
+  // Model-year gallery cards may be sourced from manufacturer evidence; they
+  // are editorial drafts until imagery/content approvals are recorded.
+  modelYearCards:list(guide.model_year_cards).filter(x=>x&&safeText(x.period)&&safeText(x.description)).map(x=>({
+   period:safeText(x.period),description:safeText(x.description),
+   source:safeHttps(x.source)?x.source:null,
+   imageStatus:safeText(x.image_status)||'not_approved',
+   contentStatus:safeText(x.content_status)||'pending_editorial_review',
+   imageUrl:safeHttps(x.image_url)&&x.image_status==='approved'?x.image_url:null
+  })),
   engineering:guide.engineering_reference||{},
   // Pending editorial technical evidence can inform review but must never
   // be passed off as a published, factory-verified specification.
@@ -66,7 +75,7 @@ export function buildMotorcycleV2Sections(record){
   model.development?.documented_production_evidence||[];
  const slots={
   introduction:withValue(heroText),
-  model_development:withValue(hasList(model.development?.generations)?model.development.generations:model.timeline),
+  model_development:withValue(hasList(model.modelYearCards)?model.modelYearCards:hasList(model.timeline)?model.timeline:model.development?.generations||[]),
   engineering_gallery:withValue(guide.development_cards||[]),
   stories_and_comparisons:withValue(model.stories||{}),
   factory_colours:withValue(model.colours),
