@@ -241,3 +241,14 @@ test("research completeness cannot masquerade as licensing, model-match, approva
  assert.equal(ready.blockers.length,0);
  assert.equal(assessMotorcycleV2Release(record,{photos:[{...photo,model:"R 1250 GS"}],qa:{...qa,accessTested:false}}).readyForPublicRelease,false);
 });
+
+test("non-public BMW editorial is audited without toggling its preview flag",()=>{
+ const draft=sample("BMW","R 1250 GS","bmw-r-1250-gs");
+ draft.preview_visible=false;
+ assert.throws(()=>normalizeMotorcycleV2(draft),/not published/);
+ const inspection=assessMotorcycleV2Release(draft);
+ assert.equal(draft.preview_visible,false,"An inspection must never publish an editorial row");
+ assert.equal(inspection.readyForPublicRelease,false);
+ assert.ok(inspection.blockers.some(b=>b.includes("Missing section inputs")));
+ assert.ok(inspection.blockers.some(b=>b.includes("Publication permission")));
+});
