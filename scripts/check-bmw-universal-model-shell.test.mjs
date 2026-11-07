@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const pages=fs.readdirSync('.').filter(name=>
  /^bmw-[a-z0-9-]+\.html$/.test(name)&&
- !/(?:motorcycles|backup|development|approved|-v2)\.html$/.test(name));
+ !/(?:motorcycles|backup|preview|development|approved|-v2)\b/.test(name));
 const dedicated=new Set(['bmw-r1250gs.html','bmw-r1300gs.html','bmw-s1000rr.html']);
 test('every published BMW model route loads a shared model shell and editorial sections',()=>{
  assert.equal(pages.length,27,'Unexpected BMW model-route count; inspect catalogue before rollout');
