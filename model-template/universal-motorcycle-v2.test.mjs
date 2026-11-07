@@ -95,6 +95,10 @@ test("R 1300 GS approved layout separates stock from development and puts years 
   assert.ok(main.includes('anybike-approved-model-development'),path+" lost the approved theme");
   assert.ok(main.indexOf('id="ukR1300ModelGallery"')<main.indexOf('id="body"'),path+" model years must precede stories");
   assert.ok(main.indexOf('id="body"')<main.indexOf('id="internationalModelStock"'),path+" must preserve the research flow");
+  const stockMarkup=main.slice(main.indexOf('id="internationalModelStock"'),main.indexOf("</section>",main.indexOf('id="internationalModelStock"')));
+  const galleryMarkup=main.slice(main.indexOf('id="ukR1300ModelGallery"'),main.indexOf("</section>",main.indexOf('id="ukR1300ModelGallery"')));
+  assert.doesNotMatch(stockMarkup,/id="r1300gsModelHistory"/,path+" must not nest editorial inside stock border");
+  assert.match(galleryMarkup,/id="r1300gsModelHistory"/,path+" development must live inside its own border");
   const galleryScript=html.slice(html.indexOf("const copy=original.cloneNode(true)"),html.indexOf("</script>",html.indexOf("const copy=original.cloneNode(true)")));
   assert.match(galleryScript,/uk\.append\(copy\);[\s\S]*original\.remove\(\);/,"Remove redundant research inside stock");
   assert.match(galleryScript,/uk\.hidden=false/,"Show gallery for every audience");
