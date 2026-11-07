@@ -24,8 +24,8 @@ test('standard BMW models use one sales-first stock layout, standalone research 
  assert.match(shared,/if\(hero\)hero\.after\(section\)/);
  assert.match(shared,/else section\.after\(research\)/);
  assert.match(shared,/section\.append\(title,note,stockGrid,liveBrowse,stockLink\)/);
- assert.match(shared,/main\\.querySelector\\('#body'\\)\\.after\\(enquiry\\)/);
- assert.match(shared,/else research\\.after\\(enquiry\\)/);
+ assert.match(shared,/main\.querySelector\('#body'\)\.after\(enquiry\)/);
+ assert.match(shared,/else research\.after\(enquiry\)/);
  assert.match(shared,/form\.style\.cssText='display:grid;gap:12px;width:100%;max-width:1280px/);
  assert.match(shared,/No '\+make\+' '\+model\+' motorcycles are currently published/);
  assert.match(shared,/stockLink\.textContent=matches\.length\?/);
