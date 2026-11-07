@@ -40,6 +40,35 @@ export function normalizeMotorcycleV2(record){
   sources:list(guide.sources).filter(x=>!x?.url||safeHttps(x.url))
  });
 }
+// Canonical 13-slot data contract. This maps diverse editorial records into
+// one design without adding new page structures or inventing missing evidence.
+// 'ready' means the slot has relevant editorial input, NOT publication approval.
+export function buildMotorcycleV2Sections(record){
+ const model=normalizeMotorcycleV2(record),guide=record.editorial;
+ const hasList=items=>Array.isArray(items)&&items.length>0;
+ const withValue=content=>({content,ready:hasList(content)||(content&&typeof content==='object'&&Object.keys(content).length>0)||typeof content==='string'&&content.trim().length>0});
+ const heritage=hasList(model.heritage)?model.heritage:model.sections;
+ const heroText=model.hero?.summary||guide.summary||'';
+ const sourceEvidence=hasList(model.sources)?model.sources:
+  hasList(guide.reference_links)?guide.reference_links:
+  model.development?.documented_production_evidence||[];
+ const slots={
+  introduction:withValue(heroText),
+  model_development:withValue(model.development?.generations||[]),
+  engineering_gallery:withValue(guide.development_cards||[]),
+  stories_and_comparisons:withValue(model.stories||{}),
+  factory_colours:withValue(model.colours),
+  technical_specifications:withValue(model.specifications),
+  heritage:withValue(heritage),
+  related_models:withValue(model.relatedModels),
+  motorcycle_types:withValue(model.motorcycleTypes),
+  country_markets:withValue(guide.country_market_links||[]),
+  customer_action:withValue(model.customerActions),
+  production_evidence:withValue(model.development?.documented_production_evidence||[]),
+  sources_and_references:withValue(sourceEvidence)
+ };
+ return Object.freeze(REQUIRED_V2_SECTIONS.map(id=>Object.freeze({id,ready:Boolean(slots[id].ready),content:slots[id].content})));
+}
 export function auditMotorcycleV2(record){
  const result={errors:[],warnings:[],sections:[...REQUIRED_V2_SECTIONS]};
  let model;
