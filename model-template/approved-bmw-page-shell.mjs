@@ -32,7 +32,12 @@ export async function applyApprovedBmwPageShell(){
  // Existing production model guides are also hydrated by the page's own loader;
  // this is a separate presentation pass, never a replacement for it.
  const existing=main.querySelector('#ukR1250ModelGallery,#ukR1250HistoryCards');
- if(existing){existing.classList.add('anybike-master-model-years');return true;}
+ if(existing){
+  existing.classList.add('anybike-master-model-years');
+  const specs=main.querySelector('#generationPanel');
+  if(specs&&specs.parentElement===main)specs.after(existing);
+  return true;
+ }
  let info;
  try{
   const response=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
