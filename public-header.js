@@ -2886,11 +2886,11 @@ async function anybikeShowPublicSignedInIdentity(){
   const stockGrid=document.createElement('div');
   stockGrid.className='anybike-model-stock-grid';
   stockGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px';
-  const research=document.createElement('div');
-  research.className='anybike-model-research';
-  research.style.cssText='margin-top:22px';
+  const research=document.createElement('section');
+  research.className='anybike-model-research end-action';
+  research.style.cssText='background:#252525;color:#fff;border:1px solid #ed1c24;border-radius:11px;margin:16px 0;padding:20px';
   const researchTitle=document.createElement('h3');
-  researchTitle.textContent=make+' '+model+' — model years and specifications';
+  researchTitle.textContent=make+' '+model+' — development and ownership';
   const researchGrid=document.createElement('div');
   researchGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px';
   research.append(researchTitle,researchGrid);
@@ -2901,7 +2901,7 @@ async function anybikeShowPublicSignedInIdentity(){
   const liveBrowse=document.createElement('div');
   liveBrowse.className='anybike-live-stock-browse';liveBrowse.hidden=true;
   liveBrowse.setAttribute('aria-label','Browse live Available Stock by manufacturer and model');
-  section.append(title,note,stockGrid,liveBrowse,stockLink,research);
+  section.append(title,note,stockGrid,liveBrowse,stockLink);
   const browseTypes=main.querySelector('.bmw-explore[aria-label="Browse motorcycle types"]')||main.querySelector('[aria-label="Browse motorcycle types"]');
   const related=main.querySelector('.harley-related-pill-nav');
   const hero=main.querySelector('.hero');
@@ -2915,6 +2915,7 @@ async function anybikeShowPublicSignedInIdentity(){
   // A dedicated approved gallery owns its own sale cards and model-year research.
   // This common renderer must never compete with R 1300 GS / R 1250 GS.
   if(dedicatedStock)section.remove();
+  else section.after(research);
 
   const enquiry=document.createElement('section');
   enquiry.className='end-action';
@@ -2925,7 +2926,7 @@ async function anybikeShowPublicSignedInIdentity(){
   enquiryIntro.textContent='International buyers can enquire without creating an account.';
   const form=document.createElement('form');
   form.className='anybike-model-guest-form';
-  form.style.cssText='display:grid;gap:12px;max-width:820px;margin:18px auto 0';
+  form.style.cssText='display:grid;gap:12px;width:100%;max-width:1280px;margin:18px auto 0';
   const makeInput=(caption,key,type,required)=>{
    const label=document.createElement('label');label.textContent=caption;
    label.style.cssText='display:block;color:white;font-weight:600';
@@ -2953,7 +2954,7 @@ async function anybikeShowPublicSignedInIdentity(){
    const target=document.getElementById('nextAction')||document.getElementById('ukR1250ModelGallery')||document.getElementById('r1250LiveStock');
    if(target)target.after(enquiry);
    else main.append(enquiry);
-  }else section.after(enquiry);
+  }else research.after(enquiry);
   const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/';
   const client=window.anybikeSupabaseClient||window.sb||window.supabase?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
   async function token(){
@@ -3031,6 +3032,8 @@ async function anybikeShowPublicSignedInIdentity(){
     note.textContent=matches.length?
      matches.length+' published '+make+' '+model+' motorcycle'+(matches.length===1?'':'s')+'. Availability and terms are confirmed before purchase.':
      'No '+make+' '+model+' motorcycles are currently published. Ask AnyBike to source this exact model from UK suppliers.';
+    stockLink.href=matches.length?'/available-stock.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model):'/bulk-buying-request.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
+    stockLink.textContent=matches.length?'View matching Available Stock →':'Ask AnyBike to source this model →';
    }catch(_){
     note.textContent='Matching published stock cannot be displayed from this connection. You can still enquire about '+make+' '+model+' motorcycles or request sourcing.';
    }
