@@ -134,7 +134,7 @@ test('published country code maps to canonical country slug for approved motorcy
  ]) {
   const blocked=graphFromCatalogueRows({publicPages:pages,
    regionalCountryRoutes:[notVerified],countryLinks:[link]});
-  assert.equal(blocked.pages.reduce((n,p)=>n+p.links.length,0);
+  assert.equal(blocked.pages.reduce((n,p)=>n+p.links.length,0),0);
  }
  const wrong=graphFromCatalogueRows({publicPages:pages,
   regionalCountryRoutes:[route],
@@ -165,7 +165,7 @@ test('verified Indian manufacturer alias links only approved endpoints and never
  assert.deepEqual(byId['manufacturer:11'].links,[]);
  const blocked=graphFromCatalogueRows({publicPages:pages,manufacturers:makes,models,
   manufacturerAliases:[{...approved,verified_at:null}]});
- assert.equal(blocked.pages.reduce((n,p)=>n+p.links.length,0);
+ assert.equal(blocked.pages.reduce((n,p)=>n+p.links.length,0),0);
 });
 test('conflicting manufacturer aliases cannot choose a published target by ordering',()=>{
  const pages=[
@@ -181,6 +181,6 @@ test('conflicting manufacturer aliases cannot choose a published target by order
   const graph=graphFromCatalogueRows({publicPages:pages,
    manufacturers:[{id:20,display_name:'Indian Motorcycle'},{id:11,display_name:'Honda'}],
    models:[{id:400,manufacturer:'Indian',model:'Scout'}],manufacturerAliases:ordered});
-  assert.equal(graph.pages.reduce((n,p)=>n+p.links.length,0);
+  assert.equal(graph.pages.reduce((n,p)=>n+p.links.length,0),0);
  }
 });
