@@ -52,6 +52,12 @@ export async function applyApprovedBmwPageShell(){
  try{published=await publishedBmwResearch();}
  catch(error){console.warn('Published model history unavailable; retaining existing guide',error);}
  if(published&&normalise(published.model)!==normalise(model))published=null;
+ if(published){
+  try{
+   const {applyBmwDatabaseSections}=await import('/model-template/bmw-db-research-sections.mjs');
+   applyBmwDatabaseSections(body,published);
+  }catch(error){console.warn('BMW research enrichment unavailable; preserving original guide',error);}
+ }
  // The same Supabase read also supplies published-documentation links.
  // Only add links not already present in the model's original research.
  if(Array.isArray(published?.references)){
