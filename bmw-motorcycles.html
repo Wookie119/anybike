@@ -126,6 +126,11 @@ h3{font-size:20px;line-height:1.2;margin:0 0 10px}
 <div class="sectionhead"><div><h2 id="bmwVerifiedUpdatesHeading">BMW factory announcements · verified sources</h2>
 <p>Original BMW Motorrad press announcements drawn directly from AnyBike's verified catalogue research. Dates are factory announcement dates, not model-year claims. This list refreshes from the database when the page opens.</p></div></div>
 <div class="cards" id="bmwVerifiedUpdatesList"></div>
+<details id="bmwVerifiedColours" hidden style="margin-top:14px;border:1px solid #555;border-top:3px solid #ed1c24;border-radius:10px;padding:14px;background:#181818">
+<summary style="cursor:pointer;font-weight:800">Verified BMW factory colours and model years <span id="bmwVerifiedColoursCount"></span></summary>
+<p class="footnote">Manufacturer-confirmed colour references from BMW press publications. Equipment, market and model-year details differ; entries do not guarantee UK availability. Source links open BMW's original announcements.</p>
+<div id="bmwVerifiedColoursContent" class="cards"></div>
+</details>
 </section>
 
 <section class="section global-stories" id="bmw-stories" data-global-stories-brand="BMW" hidden>
@@ -264,6 +269,44 @@ const photoCreditsSection=document.createElement("section");photoCreditsSection.
   });
   if(!fragment.childNodes.length)return;
   list.replaceChildren(fragment);section.hidden=false;
+  // Progressive enhancement only: no existing manufacturer cards, photos or text are altered.
+  const coloursPanel=document.getElementById("bmwVerifiedColours");
+  const coloursMount=document.getElementById("bmwVerifiedColoursContent");
+  const coloursCount=document.getElementById("bmwVerifiedColoursCount");
+  try{
+   const colourResult=await client.rpc("public_bmw_verified_factory_colours_v1");
+   if(colourResult.error)throw colourResult.error;
+   const items=Array.isArray(colourResult.data)?colourResult.data:[];
+   const groups=new Map();
+   items.forEach(item=>{
+    if(!item||!item.model||!item.colour_name||!/^https:\/\/www\.press\.bmwgroup\.com\//.test(String(item.source_url||"")))return;
+    const key=String(item.model);
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(item);
+   });
+   const coloursFragment=document.createDocumentFragment();
+   let total=0;
+   for(const [model,colourRows] of groups){
+    const card=document.createElement("div");card.className="card cardpad";
+    const title=document.createElement("h3");title.textContent="BMW "+model;card.append(title);
+    const ul=document.createElement("ul");ul.style.cssText="margin:0;padding-left:18px;line-height:1.7";
+    for(const item of colourRows){
+     const li=document.createElement("li");
+     const year=Number.isInteger(Number(item.model_year))&&Number(item.model_year)>=1900&&Number(item.model_year)<2100?item.model_year+" · ":"";
+     const trim=item.variant?" · "+item.variant:"";
+     const market=item.market?" · "+item.market+" market":"";
+     li.append(document.createTextNode(year+item.colour_name+trim+market+" "));
+     const source=document.createElement("a");source.href=item.source_url;source.target="_blank";source.rel="noopener noreferrer";source.textContent="BMW source ↗";li.append(source);ul.append(li);total++;
+    }
+    card.append(ul);coloursFragment.append(card);
+   }
+   if(total>0&&coloursPanel&&coloursMount){
+    coloursMount.replaceChildren(coloursFragment);
+    if(coloursCount)coloursCount.textContent="("+total+" references)";
+    coloursPanel.hidden=false;
+   }
+  }catch(colourError){console.warn("BMW verified colour references unavailable; retaining approved manufacturer content",colourError);}
+
  }catch(error){console.warn("BMW factory update data unavailable; approved manufacturer content preserved",error);}
 })();
 </script>
