@@ -29,21 +29,33 @@ assert.equal(ids.length,new Set(ids).size,'Duplicate model guide HTML IDs');
 const shared=fs.readFileSync('public-header.js','utf8');
 const gallery=shared.slice(shared.indexOf('/* International model stock and guest enquiries: model guides only. */'));
 assert(gallery.length>5000,'Shared international model gallery missing');
+// International sales QA: exact model + approved trim only, never cross-model stock.
+// Research notes are separate from real motorcycles for sale; no photo-logo cards.
 for(const [fragment,reason] of [
- ["const matches=(data.items||[]).filter", 'Published motorcycle matching removed'],
- ["if(matches.length){matches.forEach", 'Published motorcycle cards no longer render first'],
- ["if(matches.length===0)", 'Empty-stock model-year cards removed'],
- ["if(safe(make)==='honda'&&safe(model)==='africatwin')", 'Africa Twin generation cards missing'],
- ["if(safe(make)==='harleydavidson'&&safe(model)==='fatboy')", 'Fat Boy generation cards missing'],
- ["const emptyCardCount=cardNotes.length||(!matches.length?1:0)", 'Variable-length informational cards or stock priority broken'],
- ["name.textContent=note.title||make+' '+model", 'Distinct model-year card titles missing'],
- ["status.textContent=note.body", 'Distinct model-year descriptions missing'],
- ["brand.src='/anybike-logo-new.jpg'", 'Approved AnyBike placeholder logo missing'],
- ["international-public-stock", 'International stock authorization endpoint removed'],
- ["international-guest-enquiry", 'Working quick enquiry submission removed'],
+ ["const dedicatedStock=", 'Dedicated model galleries must take precedence'],
+ ["const requested=safe(model)", 'Exact model matching missing'],
+ ["const allowedSuffix=", 'Approved trim suffix guard missing'],
+ ["if(stock===requested)return true", 'Exact-model acceptance removed'],
+ ["if(!stock.startsWith(requested))return false", 'Different-model exclusion missing'],
+ ["return allowedSuffix.test(suffix)", 'Non-trim variants may leak into listings'],
+ ["const emptyCardCount=dedicatedStock?0:cardNotes.length", 'Research count must not create fake motorcycles'],
+ ["card.append(name,status)", 'Research must render without logo photograph placeholders'],
+ ["if(matches.length){matches.forEach", 'Approved motorcycle cards must render first'],
+ ["international-public-stock", 'Protected stock endpoint changed'],
+ ["international-guest-enquiry", 'Guest enquiry route removed'],
  ["const reveal=()", 'Gallery visibility handling removed']
 ])assert(gallery.includes(fragment),reason);
+assert(!gallery.includes('alternativeBMW'), 'Cross-model BMW alternative-stock fallback returned');
+assert(!gallery.includes('r1250StockFallback'), 'R1250-specific alternative override returned');
+assert(!gallery.includes("card.append(brand,name,status)"), 'False logo motorcycle-photo cards returned');
 assert(!gallery.includes('for(let i=matches.length;i<6;i++)'),'Do not restore six repetitive placeholders');
+const r1250=fs.readFileSync('bmw-r1250gs.html','utf8');
+assert(r1250.includes('const matches=exact;'), 'R1250GS must never show other BMW models');
+assert(!r1250.includes('const matches=exact.length?exact:bmw'), 'Cross-model R1250 fallback returned');
+assert(r1250.indexOf('id="r1250LiveStock"')<r1250.indexOf('id="ukR1250ModelGallery"'), 'R1250 live stock must precede research');
+assert(r1250.includes('id="r1250StockResearch"'), 'R1250 factory research beneath stock missing');
+assert(r1250.includes('BMW_R_1250_GS_'), 'Licensed R1250 hero must remain');
+
 const r1300=fs.readFileSync('bmw-r1300gs.html','utf8');
 assert(r1300.includes('id="internationalModelCards"'),'R 1300 GS published stock gallery missing');
 assert(r1300.includes('id="r1300gsModelHistory"'),'R 1300 GS model history cards missing');
