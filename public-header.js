@@ -2916,6 +2916,7 @@ async function anybikeShowPublicSignedInIdentity(){
   // A dedicated approved gallery owns its own sale cards and model-year research.
   // This common renderer must never compete with R 1300 GS / R 1250 GS.
   if(dedicatedStock)section.remove();
+  else if(make==='BMW'&&main.querySelector('#generationPanel')){research.remove();}
   else section.after(research);
 
   const enquiry=document.createElement('section');
@@ -2955,7 +2956,8 @@ async function anybikeShowPublicSignedInIdentity(){
    const target=document.getElementById('nextAction')||document.getElementById('ukR1250ModelGallery')||document.getElementById('r1250LiveStock');
    if(target)target.after(enquiry);
    else main.append(enquiry);
-  }else research.after(enquiry);
+  }else if(make==='BMW'&&main.querySelector('#body')){main.querySelector('#body').after(enquiry);}
+  else research.after(enquiry);
   const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/';
   const client=window.anybikeSupabaseClient||window.sb||window.supabase?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
   async function token(){
