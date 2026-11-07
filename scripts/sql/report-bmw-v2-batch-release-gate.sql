@@ -15,7 +15,7 @@ WITH editorial AS (
   jsonb_array_length(coalesce(editorial->'motorcycle_type_links','[]'::jsonb)) AS types,
   jsonb_array_length(coalesce(editorial->'country_market_links','[]'::jsonb)) AS markets,
   jsonb_array_length(coalesce(editorial->'action_links','[]'::jsonb)) AS actions,
-  jsonb_array_length(coalesce(editorial->'reference_links','[]'::jsonb)) AS references,
+  jsonb_array_length(coalesce(editorial->'reference_links','[]'::jsonb)) AS reference_count,
   jsonb_array_length(coalesce(editorial#>'{production,documented_production_evidence}','[]'::jsonb)) AS production_evidence,
   coalesce(editorial->>'reference_aggregation_status','not_aggregated') AS reference_review_status
  FROM public.motorcycle_model_v2_editorial
@@ -49,12 +49,12 @@ checks AS (
     CASE WHEN markets=0 THEN 'country_markets' END,
     CASE WHEN actions=0 THEN 'customer_action' END,
     CASE WHEN production_evidence=0 THEN 'production_evidence' END,
-    CASE WHEN references=0 THEN 'sources_and_references' END
+    CASE WHEN reference_count=0 THEN 'sources_and_references' END
    ],NULL)::text[] AS missing_sections
  FROM editorial e LEFT JOIN photos p ON lower(regexp_replace(e.model,'[^a-z0-9]','','gi'))=p.model_key
 )
 SELECT slug,make,model,preview_visible,years,gallery_cards,colours,specifications,
-  related,types,markets,references,rights_cleared_photo_count,
+  related,types,markets,reference_count,rights_cleared_photo_count,
   missing_sections,
   cardinality(missing_sections) AS missing_section_count,
   (cardinality(missing_sections)=0) AS editorial_section_inputs_present,
