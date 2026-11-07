@@ -39,9 +39,9 @@ export function renderLiveStockBrowse(container,items,{currentMake=''}={}){
  container.hidden=!groups.length;
  if(!groups.length)return groups;
  container.classList.add('anybike-live-stock-browse');
- const h=document.createElement('h3');h.textContent='Explore motorcycles currently in Available Stock';
+ const h=document.createElement('h3');h.textContent='Explore motorcycles in Available Stock';
  const explanation=document.createElement('p');
- explanation.textContent='Only manufacturers and models with published motorcycles appear below. These links update automatically with Available Stock.';
+ explanation.textContent="Browse motorcycles currently advertised on AnyBike. Select a manufacturer or model to see what's available.";
  const makesTitle=document.createElement('h4');makesTitle.textContent='Manufacturers with stock';
  const makes=document.createElement('nav');makes.className='anybike-live-stock-makes';
  makes.setAttribute('aria-label','Manufacturers with motorcycles in Available Stock');
