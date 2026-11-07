@@ -22,7 +22,7 @@ const dynamic=[...sitemap.matchAll(/<loc>(https:\/\/www\.anybike\.co\.uk\/motorc
 // currently sends users to dedicated BMW/Harley pages or sourcing forms, not
 // 47 separately published query-string manufacturer landing pages.
 const directory=fs.readFileSync('motorcycle-manufacturers.html','utf8');
-require(/<meta\\s+name="robots"\\s+content="noindex,follow"/i.test(head),
+require(head.includes('<meta name="robots" content="noindex,follow">'),
  'Unpublished shared manufacturer renderer must remain noindex');
 require(directory.includes('/bmw-motorcycles.html'),'BMW approved manufacturer route missing');
 require(directory.includes('/harley-davidson-motorcycles.html'),'Harley-Davidson approved manufacturer route missing');
