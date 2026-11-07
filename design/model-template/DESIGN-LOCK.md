@@ -37,3 +37,10 @@ Status: DESIGN LOCKED; content/data validation and launch approval are separate.
 - All live model pages must use the same renderer and shared CSS design tokens. Avoid country/account-conditionals in markup, parallel UK/international gallery copies, or static per-model template forks.
 - Until the shared template passes automated checks across model identities, viewport sizes, authentication states and stock responses, **do not replace approved live model pages or roll out additional models**.
 - Separate publication permission from content completeness. A database model row does not by itself authorise public rendering or indexing.
+
+## User-approved R 1300 GS section-order refinement — 7 November 2026
+- The **R 1300 GS — model years and editions** gallery belongs with **development and ownership**, immediately before database-rendered research such as **BMW stories and comparisons**.
+- **Development and ownership is one standalone red-bordered section**, not nested inside the **motorcycles available internationally** stock border. No second copy of the same research cards may remain inside stock.
+- Stock and development are independent: sale-feed access, loading, and zero listings cannot hide the year/edition gallery or move research.
+- Keep the approved edition photographs, credits, styling, existing technical content, and all-country/all-account visibility while making this ordering consistent in the universal renderer.
+- The 2 November locked snapshot remains immutable historical reference; this explicitly approved section-order change is an amendment, **not** permission to redesign any other section.
