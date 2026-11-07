@@ -191,3 +191,20 @@ test("V2 model-year gallery uses the selected Supabase identity and does not bor
  assert.match(css,/#ukR1300ModelGallery \.anybike-v2-year-grid article/);
  assert.match(css,/border-left:3px solid #ed1c24/);
 });
+
+test("pending BMW engineering review cards never become approved specifications",()=>{
+ const record=sample("BMW","S 1000 RR","bmw-s-1000-rr");
+ record.editorial.production.specifications=[];
+ record.editorial.engineering_review_cards=[
+  {label:"Engine",value:"Inline four",source_status:"pending_editorial_review",display_status:"not_approved_for_public_specification"},
+  {label:"Capacity",value:"999 cc",source_status:"pending_editorial_review",display_status:"not_approved_for_public_specification"}
+ ];
+ const normalized=normalizeMotorcycleV2(record);
+ assert.equal(normalized.engineeringReviewCards.length,2);
+ assert.ok(normalized.engineeringReviewCards.every(x=>x.displayStatus==="not_approved_for_public_specification"));
+ assert.equal(normalized.specifications.length,0);
+ assert.equal(buildMotorcycleV2Sections(record).find(x=>x.id==="technical_specifications").ready,false);
+ const audit=auditMotorcycleV2(record);
+ assert.equal(audit.readyToRollout,false);
+ assert.ok(audit.warnings.some(w=>w.includes("technical facts still require editorial verification")));
+});
