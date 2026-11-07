@@ -16,11 +16,13 @@ async function publishedBmwResearch(){
  if(error||!data||data.make!=='BMW'||!Array.isArray(data.generations))return null;
  return data;
 }
-const makeCard=entry=>{
+const makeCard=(entry,{compact=false}={})=>{
  const article=document.createElement('article');article.className='anybike-master-history-card';
  const h=document.createElement('h3');h.textContent=text(entry.label)||'Documented model development';
- const desc=document.createElement('p');desc.textContent=text(entry.description)||'Confirm the specification and model year for an individual motorcycle.';
- article.append(h,desc);
+ article.append(h);
+ // A single documented generation is already explained in the specification
+ // panel directly above. Do not print the same paragraph a second time.
+ if(!compact){const desc=document.createElement('p');desc.textContent=text(entry.description)||'Confirm the exact model and year of an individual motorcycle.';article.append(desc);}
  const meta=[];
  if(text(entry.model_year))meta.push(text(entry.model_year));
  if(Number.isInteger(entry.announcement_year))meta.push('Announced '+entry.announcement_year);
@@ -129,7 +131,7 @@ export async function applyApprovedBmwPageShell(){
  const h=document.createElement('h2');h.textContent='BMW '+model+' — model years and development';
  const intro=document.createElement('p');intro.textContent='Explore documented versions and model changes. Photographs and equipment must match the exact model and year.';
  const grid=document.createElement('div');grid.className='anybike-master-history-grid';
- for(const entry of events)grid.append(makeCard(entry));
+ for(const entry of events)grid.append(makeCard(entry,{compact:events.length===1}));
  section.append(h,intro,grid);
  // Approved order: introduction > exact stock (injected by shared header)
  // > documented specification > independent development > research.
