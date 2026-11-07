@@ -42,6 +42,12 @@ assert(shared.includes('const dedicatedStock='),'Shared model gallery must respe
 assert(shared.includes('hero.after(section)'),'Shared stock gallery must appear above model research');
 assert(shared.includes('card.append(name,status)'),'Research must not use stock-photo logo placeholders');
 
+// Guard every stock-gallery implementation, including the older optional loader.
+const legacyModelStock=fs.readFileSync('public-international-model-stock.js','utf8');
+assert(legacyModelStock.includes('const selected = exact.slice(0, 6);'),'Optional model stock must never show unrelated models');
+assert(!legacyModelStock.includes('exact.length ? exact : brandStock'),'Cross-model fallback returned to optional stock');
+assert(legacyModelStock.includes('approvedTrim.test(stockModel.slice(key.length))'),'Optional model trim guard missing');
+
 const protectedR1300=fs.readFileSync('bmw-r1300gs.html','utf8');
 assert(protectedR1300.includes('id="internationalModelCards"'),'R 1300 GS real listing cards missing');
 assert(protectedR1300.includes('id="r1300gsModelHistory"'),'Approved R 1300 GS research cards missing');
