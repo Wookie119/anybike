@@ -70,9 +70,13 @@ export function buildMotorcycleV2Sections(record){
  return Object.freeze(REQUIRED_V2_SECTIONS.map(id=>Object.freeze({id,ready:Boolean(slots[id].ready),content:slots[id].content})));
 }
 export function auditMotorcycleV2(record){
- const result={errors:[],warnings:[],sections:[...REQUIRED_V2_SECTIONS]};
+ const result={errors:[],warnings:[],sections:[...REQUIRED_V2_SECTIONS],missingSections:[],readyToRollout:false};
  let model;
  try{model=normalizeMotorcycleV2(record);}catch(e){result.errors.push(e.message);return result;}
+ const slotAudit=buildMotorcycleV2Sections(record);
+ result.missingSections=slotAudit.filter(slot=>!slot.ready).map(slot=>slot.id);
+ result.readyToRollout=result.missingSections.length===0;
+ if(result.missingSections.length)result.warnings.push("Missing approved master sections: "+result.missingSections.join(", "));
  if(!safeText(model.hero?.summary)&&!safeText(record.editorial?.summary))result.warnings.push("Hero summary absent");
  if(!model.stories)result.warnings.push("No Global stories link");
  if(!model.relatedModels.length)result.warnings.push("No related model links");
