@@ -16,7 +16,11 @@
   const norm = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   const path = location.pathname.toLowerCase();
   if (/-v2\.html$|-backup[^/]*\.html$|-preview\.html$/.test(path)) return;
-  const brand = brands.find(([, slug]) => path.startsWith("/" + slug + "-") && path.endsWith(".html"));
+  const params = new URLSearchParams(location.search);
+  const genericGuide = path === "/motorcycle-model.html" || path === "/motorcycle-model-guide.html";
+  const brand = genericGuide ?
+    brands.find(([display]) => norm(display) === norm(params.get("make"))) :
+    brands.find(([, slug]) => path.startsWith("/" + slug + "-") && path.endsWith(".html"));
   if (!brand || path === "/" + brand[1] + "-motorcycles.html") return;
   const name = brand[0];
   function makeCard(item) {
@@ -49,8 +53,8 @@
     const h1 = main.querySelector("h1");
     if (!h1) return;
     const heading = h1.textContent.trim().replace(/\s+/g, " ");
-    if (!norm(heading).startsWith(norm(name))) return;
-    const model = heading.slice(name.length).trim();
+    if (!genericGuide && !norm(heading).startsWith(norm(name))) return;
+    const model = genericGuide ? String(params.get("model") || "").trim() : heading.slice(name.length).trim();
     if (!model || /^(?:motorcycles|models|stock|history|range)$/i.test(model)) return;
     const key = norm(model);
     const existing = document.getElementById("anybikeInternationalPublishedStock");
