@@ -16,6 +16,45 @@ async function publishedBmwResearch(){
  if(error||!data||data.make!=='BMW'||!Array.isArray(data.generations))return null;
  return data;
 }
+// One hero for every BMW model route. The approved photo bank is the only
+// source of imagery. Without a licensed exact-model photo, the designed
+// typographic hero stays visible: no unrelated bikes or broken placeholders.
+async function applyBmwHero(hero,model){
+ if(!hero||hero.querySelector('.recovered-hero-photo,.licensed-photo,[data-anybike-model-hero]'))return;
+ hero.classList.add('anybike-bmw-master-hero');
+ const media=document.createElement('figure');
+ media.className='anybike-bmw-master-hero-media';
+ media.dataset.anybikeModelHero='1';
+ const fallback=document.createElement('div');
+ fallback.className='anybike-bmw-master-hero-identity';
+ const marque=document.createElement('span');marque.textContent='BMW MOTORRAD';
+ const name=document.createElement('strong');name.textContent=model;
+ const strap=document.createElement('span');strap.textContent='Motorcycle model guide';
+ fallback.append(marque,name,strap);
+ media.append(fallback);
+ const actions=hero.querySelector('.actions');
+ if(actions)actions.before(media);else hero.append(media);
+ try{
+  const provider=window.supabase;
+  if(!provider?.createClient)return;
+  const client=provider.createClient('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
+  const {data,error}=await client.rpc('public_bmw_model_hero_v1',{requested_path:location.pathname});
+  if(error||!data||normalise(data.model)!==normalise(model)||
+   !safeSource(data.image_url)||!safeSource(data.source_page_url)||!safeSource(data.licence_url)||
+   !text(data.attribution)||!text(data.licence))return;
+  const img=document.createElement('img');
+  img.src=data.image_url;img.alt='BMW '+model+' — approved model photograph';
+  img.loading='eager';img.decoding='async';
+  const caption=document.createElement('figcaption');
+  const source=document.createElement('a');source.href=data.source_page_url;source.target='_blank';source.rel='noopener noreferrer';source.textContent=data.attribution;
+  const licence=document.createElement('a');licence.href=data.licence_url;licence.target='_blank';licence.rel='noopener noreferrer';licence.textContent=data.licence;
+  caption.append(source,' · ',licence);
+  // Do not remove the designed fallback before an image has actually loaded.
+  img.addEventListener('load',()=>{fallback.remove();media.classList.add('has-approved-photo');},{once:true});
+  img.addEventListener('error',()=>{img.remove();caption.remove();},{once:true});
+  media.append(img,caption);
+ }catch(error){console.warn('BMW hero photo unavailable; keeping branded model hero',error);}
+}
 const makeCard=(entry,{compact=false}={})=>{
  const article=document.createElement('article');article.className='anybike-master-history-card';
  const h=document.createElement('h3');h.textContent=text(entry.label)||'Documented model development';
@@ -39,6 +78,8 @@ export async function applyApprovedBmwPageShell(){
  const display=main.querySelector('#heading')?.textContent?.trim()||main.querySelector('h1')?.textContent?.trim()||'';
  const model=display.replace(/^BMW\s+/i,'');
  if(!model)return false;
+ // Hero renders immediately, before slower editorial enrichment.
+ void applyBmwHero(hero,model);
  // Existing production model guides are also hydrated by the page's own loader;
  // this is a separate presentation pass, never a replacement for it.
  // A page's documented generation panel is the primary version history.
