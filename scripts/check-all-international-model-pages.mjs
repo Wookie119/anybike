@@ -19,7 +19,7 @@ for(const file of files){
 }
 assert(covered>=40,'Unexpected dedicated-model route count; model pages may be omitted');
 const renderer=fs.readFileSync('public-header.js','utf8');
-assert(renderer.includes("if(browseTypes)browseTypes.after(section)"),'Shared stock must sit after model links');
+assert(renderer.includes("if(hero)hero.after(section)"),'Model stock must appear immediately below model hero');
 assert(renderer.indexOf('section.append(title,note,stockGrid,liveBrowse,stockLink,research)')>=0,'Sale stock, live navigation and research order missing');
 assert(renderer.includes('const matches=(Array.isArray(data.items)?data.items:[]).filter(exactModel).slice(0,6)'), 'Exact model stock filter missing');
 assert(renderer.includes("if(!stock.startsWith(requested))return false"), 'Different model exclusion missing');
