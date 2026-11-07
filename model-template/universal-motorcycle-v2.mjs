@@ -46,6 +46,15 @@ export function normalizeMotorcycleV2(record){
   // be passed off as a published, factory-verified specification.
   engineeringReviewStatus:safeText(guide.engineering_reference?.verification_status)||'unreviewed',
   engineeringRows:list(guide.engineering_reference?.rows).filter(x=>Array.isArray(x)&&safeText(x[0])&&safeText(x[1])).map(x=>[safeText(x[0]),safeText(x[1])]),
+  // Non-public review queue. These figures are not approved technical
+  // specifications and must never be used to satisfy section readiness.
+  engineeringReviewCards:list(guide.engineering_review_cards)
+   .filter(x=>x&&safeText(x.label)&&safeText(x.value))
+   .map(x=>({label:safeText(x.label),value:safeText(x.value),
+     sourceStatus:safeText(x.source_status)||'pending_editorial_review',
+     displayStatus:'not_approved_for_public_specification',
+     referenceScope:safeText(x.reference_scope)
+   })),
   galleries:guide.engineering_gallery_media||{},
   stories:safePath(story.url)?story:null,
   colours:list(guide.production?.official_colours),
@@ -107,6 +116,7 @@ export function auditMotorcycleV2(record){
  if(!model.development?.generations?.length)result.warnings.push("No model generations");
  if(!model.colours.length)result.warnings.push("No factory colours");
  if(!model.specifications.length)result.warnings.push("No technical specifications");
+ if(model.engineeringReviewCards.length)result.warnings.push(model.engineeringReviewCards.length+" technical facts still require editorial verification");
  if(!model.customerActions.length)result.warnings.push("No customer action");
  return result;
 }
