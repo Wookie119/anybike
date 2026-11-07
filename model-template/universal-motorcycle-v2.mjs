@@ -36,10 +36,15 @@ export function normalizeMotorcycleV2(record){
   modelYearCards:list(guide.model_year_cards).filter(x=>x&&safeText(x.period)&&safeText(x.description)).map(x=>({
    period:safeText(x.period),description:safeText(x.description),
    source:safeHttps(x.source)?x.source:null,
+   // Explicit model-year metadata is required to match licensed imagery.
+   // A 2023 announcement of a 2024 motorcycle is NOT a 2023 model photo.
+   modelYear:Number.isInteger(x.model_year)&&x.model_year>=1885&&x.model_year<=2100?x.model_year:null,
    cardType:safeText(x.card_type)||'documented_model_year',
    imageStatus:safeText(x.image_status)||'not_approved',
    contentStatus:safeText(x.content_status)||'pending_editorial_review',
-   imageUrl:safeHttps(x.image_url)&&x.image_status==='approved'?x.image_url:null
+   // Image URLs embedded in editorial drafts are never authoritative.
+   // Browser rendering must use an exact-match approved photo-bank record.
+   imageUrl:null
   })),
   engineering:guide.engineering_reference||{},
   // Pending editorial technical evidence can inform review but must never
