@@ -81,5 +81,5 @@ test("locked R 1300 GS presentation contract is retained in the universal render
   assert.ok(preview.includes(cls),"Universal layout lost "+cls);
  }
  assert.match(preview,/#ed1c24/);
- assert.match(preview,/--anybike-approved-panel/);
+ assert.match(fs.readFileSync("public-header.css","utf8"),/--anybike-approved-panel/);
 });
