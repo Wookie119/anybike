@@ -675,14 +675,10 @@ catch(e){console.warn("International model stock unavailable; model research and
   const grid=document.createElement("div");grid.className="anybike-v2-year-grid";
   for(const year of yearCards){
    const card=document.createElement("article");
+   card.dataset.yearCardIndex=String(grid.children.length);
    const title=document.createElement("h5");title.textContent=year.period;
    const description=document.createElement("p");description.textContent=year.description;
    card.append(title,description);
-   if(year.imageUrl){
-    const img=document.createElement("img");
-    img.src=year.imageUrl;img.alt=window.__anybikeV2ModelIdentity?.make+" "+window.__anybikeV2ModelIdentity?.model+" "+year.period;
-    img.loading="lazy";card.prepend(img);
-   }
    if(year.source){
     const a=document.createElement("a");a.href=year.source;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Manufacturer source ↗";
     card.append(a);
@@ -730,7 +726,7 @@ catch(e){console.warn("International model stock unavailable; model research and
 
    if(heading&&typeof modelDisplayCopy.model_development_heading==="string")heading.textContent=modelDisplayCopy.model_development_heading;
    const {data,error}=await client.from("anybike_editorial_photo_bank")
-    .select("asset_key,title,model,subject_category,image_url,source_page_url,attribution,model_year_start,model_year_end")
+    .select("asset_key,title,manufacturer,model,subject_category,image_url,source_page_url,attribution,licence,licence_url,approval_status,model_year_start,model_year_end")
     .eq("approval_status","approved").eq("manufacturer",selectedModel.make).eq("model",selectedModel.model).limit(30);
    if(error||!Array.isArray(data))return;
    // Use only explicitly approved, attributable photo records for this exact model.
@@ -738,6 +734,23 @@ catch(e){console.warn("International model stock unavailable; model research and
     typeof p.image_url==="string"&&/^https:\/\//.test(p.image_url)&&
     typeof p.source_page_url==="string"&&/^https:\/\//.test(p.source_page_url)&&
     typeof p.attribution==="string"&&p.attribution.trim().length>0);
+   // Only the photo-bank approval and explicit model-year metadata
+   // may attach an image to a documented model-year card.
+   if(recordSlug!=="bmw-r-1300-gs"&&yearCards.length){
+    const {approvedPhotoForModelYear}=await import("/model-template/approved-photo-matcher.mjs");
+    copy.querySelectorAll(".anybike-v2-year-grid article[data-year-card-index]").forEach(card=>{
+     const index=Number(card.dataset.yearCardIndex),year=yearCards[index];
+     const photo=approvedPhotoForModelYear(approvedPhotos,{make:selectedModel.make,model:selectedModel.model,card:year});
+     if(!photo)return;
+     const figure=document.createElement("figure");
+     const img=document.createElement("img");img.src=photo.image_url;img.alt=photo.title||selectedModel.make+" "+selectedModel.model+" "+year.period;
+     img.loading="lazy";img.decoding="async";
+     const caption=document.createElement("figcaption");
+     const source=document.createElement("a");source.href=photo.source_page_url;source.target="_blank";source.rel="noopener noreferrer";source.textContent=photo.attribution;
+     const licence=document.createElement("a");licence.href=photo.licence_url;licence.target="_blank";licence.rel="noopener noreferrer";licence.textContent=photo.licence;
+     caption.append(source," · ",licence);figure.append(img,caption);card.prepend(figure);
+    });
+   }
    // Show verified model-year photographs as a separate, compact gallery.
    // Do not mislabel edition photos as suspension, TE, or shifting components.
    const editionKeys=Array.isArray(captionRow?.editorial?.gallery_edition_asset_keys)?captionRow.editorial.gallery_edition_asset_keys:[];
