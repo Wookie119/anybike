@@ -31,6 +31,9 @@ test('stock is independent, development follows specifications, R1250 gallery st
  assert.ok(m.includes('specs.after(existing)'));
  assert.ok(m.includes('existing.append(details)'));
  assert.ok(m.includes('publishedBmwResearch()'));
+ assert.ok(m.includes('Array.isArray(published?.references)'));
+ assert.ok(m.includes("section.className='anybike-master-model-sources'"));
+ assert.ok(m.includes('existingSources.has(url)||seen.has(url)'));
  assert.ok(m.includes("client.rpc('public_bmw_model_history_v1'"));
  assert.ok(m.includes('requested_path:location.pathname'));
  assert.ok(m.includes('normalise(published.model)!==normalise(model)'));
