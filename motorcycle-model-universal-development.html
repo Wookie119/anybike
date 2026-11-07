@@ -329,9 +329,8 @@ if(!selectedModel){
  });
  throw new Error("Choose an approved model to render motorcycle-specific content");
 }
-if(selectedModel!=="bmw-r-1300-gs"){
- document.addEventListener("DOMContentLoaded",()=>{const main=document.querySelector("main");if(main)main.innerHTML="<section class=card><h1>Model preview not ready</h1><p>This motorcycle has not been approved for the universal V2 design yet.</p></section>";});
- throw new Error("Model not approved for full V2 preview");
+if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(selectedModel)){
+ throw new Error("Invalid model identifier");
 }
 
 try{
@@ -340,8 +339,8 @@ const editorialClient=window.supabase?.createClient?.("https://tuehtnezhdnkqbbht
 if(!editorialClient)throw Error("Supabase client unavailable");
 const {data:publishedEditorial,error:editorialError}=await editorialClient
  .from("motorcycle_model_v2_editorial")
- .select("model_id,slug,editorial")
- .eq("model_id",77).eq("slug","bmw-r-1300-gs").eq("preview_visible",true).single();
+ .select("model_id,slug,editorial,preview_visible")
+ .eq("slug",selectedModel).eq("preview_visible",true).single();
 if(editorialError||!publishedEditorial?.editorial)throw Error("Published model editorial data unavailable");
 const guide=publishedEditorial.editorial;
 for(const node of document.querySelectorAll("[data-db-ui]"))node.textContent=guide.ui_strings?.[node.dataset.dbUi]||"";
@@ -354,14 +353,25 @@ window.__anybikeV2UiStrings=guide.ui_strings||{};
 window.dispatchEvent(new Event("anybike:v2-ui-ready"));
 window.__anybikeV2EditorialClient=editorialClient;
 window.__r1300EngineeringMedia=guide.engineering_gallery_media||{};
-if(!guide.make||!guide.model||publishedEditorial.model_id!==77||publishedEditorial.slug!=="bmw-r-1300-gs")throw Error("Model editorial identity mismatch");
+if(!guide.make||!guide.model||publishedEditorial.slug!==selectedModel||publishedEditorial.preview_visible!==true)throw Error("Model editorial identity mismatch");
 const row={make:guide.make,model:guide.model,category:guide.page_metadata?.category||""};
 
 const actualMake=guide.make,actualModel=guide.model;
 window.__anybikeV2ModelIdentity={make:actualMake,model:actualModel};
 // Shared, model-identity-checked editorial contract. Never loads unpublished or private data.
-const {normalizeModelGuide}=await import("/model-template/bmw-model-data.mjs");
-const editorial=normalizeModelGuide("bmw-r1300gs",guide,row);
+const {normalizeMotorcycleV2}=await import("/model-template/universal-motorcycle-v2.mjs");
+const universal=normalizeMotorcycleV2(publishedEditorial);
+const production=universal.development;
+const editorial={
+ generations:Array.isArray(production.generations)?production.generations:[],
+ milestones:Array.isArray(production.generation_milestones)?production.generation_milestones:[],
+ specifications:universal.specifications,
+ colours:universal.colours,
+ engineeringRows:Array.isArray(universal.engineering.rows)?universal.engineering.rows:[],
+};
+document.title=universal.title+" | AnyBike Model Guide";
+const canonical=document.querySelector('link[rel="canonical"]');
+if(canonical)canonical.href="https://www.anybike.co.uk/motorcycle-model-universal-development.html?model="+encodeURIComponent(selectedModel);
 const formCopy=guide.enquiry_form_copy||{};
 document.querySelectorAll("#internationalGuestRequestForm [data-form-label]").forEach(node=>{node.textContent=formCopy.labels?.[node.dataset.formLabel]||"";});
 document.querySelectorAll("#internationalGuestRequestForm [data-form-placeholder]").forEach(node=>{node.placeholder=formCopy.placeholders?.[node.dataset.formPlaceholder]||"";});
