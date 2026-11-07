@@ -125,3 +125,49 @@ export function auditMotorcycleV2(record){
  if(!model.customerActions.length)result.warnings.push("No customer action");
  return result;
 }
+
+/**
+ * Publication remains a separate, fail-closed decision after 13-slot
+ * content mapping. A model can have research data and still be unsuitable
+ * for release. Never infer public approval from preview_visible, a count,
+ * a related manufacturer's gallery or a published stock advert.
+ *
+ * qa is supplied only after actual batch audits; boolean flags default false.
+ * photos is a set of licenced, exact-make/model approved photo-bank records,
+ * not dealer stock or editorial draft URLs.
+ */
+export function assessMotorcycleV2Release(record,{photos=[],qa={}}={}){
+ const report={
+  contentInputsPresent:false,approvedModelPhoto:false,
+  sourcesReviewed:false,designTested:false,stockIdentityTested:false,
+  accessTested:false,publicPublicationApproved:false,
+  readyForPublicRelease:false,blockers:[]
+ };
+ const audit=auditMotorcycleV2(record);
+ if(audit.errors.length){report.blockers.push(...audit.errors);return report;}
+ report.contentInputsPresent=audit.missingSections.length===0;
+ if(!report.contentInputsPresent)report.blockers.push('Missing section inputs: '+audit.missingSections.join(', '));
+ const norm=v=>safeText(v).toLowerCase().replace(/[^a-z0-9]/g,'');
+ const m=record.editorial;
+ report.approvedModelPhoto=list(photos).some(p=>
+  p?.approval_status==='approved'&&
+  norm(p.manufacturer)===norm(m.make)&&norm(p.model)===norm(m.model)&&
+  safeHttps(p.image_url)&&safeHttps(p.source_page_url)&&safeHttps(p.licence_url)&&
+  Boolean(safeText(p.licence))&&Boolean(safeText(p.attribution))
+ );
+ if(!report.approvedModelPhoto)report.blockers.push('No rights-cleared exact-model editorial photograph');
+ report.sourcesReviewed=qa.sourcesReviewed===true;
+ report.designTested=qa.designTested===true;
+ report.stockIdentityTested=qa.stockIdentityTested===true;
+ report.accessTested=qa.accessTested===true;
+ report.publicPublicationApproved=qa.publicPublicationApproved===true;
+ for(const [key,label] of [
+  ['sourcesReviewed','Sources not independently reviewed'],
+  ['designTested','Locked design not fully tested'],
+  ['stockIdentityTested','Exact-model stock behaviour not tested'],
+  ['accessTested','UK/international and guest/dealer access not tested'],
+  ['publicPublicationApproved','Publication permission not granted']
+ ])if(!report[key])report.blockers.push(label);
+ report.readyForPublicRelease=report.blockers.length===0;
+ return Object.freeze(report);
+}
