@@ -20,7 +20,10 @@ for(const file of files){
 assert(covered>=40,'Unexpected dedicated-model route count; model pages may be omitted');
 const renderer=fs.readFileSync('public-header.js','utf8');
 assert(renderer.includes("if(hero)hero.after(section)"),'Model stock must appear immediately below model hero');
-assert(renderer.indexOf('section.append(title,note,stockGrid,liveBrowse,stockLink,research)')>=0,'Sale stock, live navigation and research order missing');
+assert(renderer.includes('section.append(title,note,stockGrid,liveBrowse,stockLink);'),'Exact-model stock and live-stock buttons must have one sale panel');
+assert(renderer.includes('else section.after(research);'),'Development and ownership must have its own border, after sale stock');
+assert(renderer.includes('}else research.after(enquiry);'),'Enquiry must follow model history, not interrupt the stock-to-gallery sequence');
+assert(renderer.includes('stockLink.textContent=matches.length?'),'Empty-stock sourcing link must replace misleading sale button');
 assert(renderer.includes('const matches=(Array.isArray(data.items)?data.items:[]).filter(exactModel).slice(0,6)'), 'Exact model stock filter missing');
 assert(renderer.includes("if(!stock.startsWith(requested))return false"), 'Different model exclusion missing');
 assert(!renderer.includes("exact.length ? exact : brandStock"),'Wrong-model stock fallback found');
