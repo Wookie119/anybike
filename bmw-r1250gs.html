@@ -58,7 +58,7 @@ main{max-width:1440px;width:100%;padding:26px 27px 75px;margin:auto}.hero{border
    if(seller)seller.hidden=international;
    if(source)source.hidden=!international;
    const topSource=document.getElementById('source');if(topSource)topSource.hidden=!international;
-   if(gallery)gallery.hidden=!cards.children.length; const live=document.getElementById('r1250LiveStock');if(live)live.hidden=!international;
+   if(gallery)gallery.hidden=!cards.children.length; const live=document.getElementById('r1250LiveStock');if(live)live.hidden=live.dataset.stockReady!=='true';
  };
  const observer=new MutationObserver(update);
  observer.observe(document.documentElement,{attributes:true,attributeFilter:['class']});
@@ -83,15 +83,65 @@ main{max-width:1440px;width:100%;padding:26px 27px 75px;margin:auto}.hero{border
  update();
 })();
 </script><script>
+/* R 1250 GS approved international stock. This feed enforces visitor geography
+   and permits the approved signed-in UK test account. */
 (async function(){
- const panel=document.getElementById("r1250LiveStock"),cards=document.getElementById("r1250StockCards"),status=document.getElementById("r1250StockStatus");
+ const panel=document.getElementById("r1250LiveStock");
+ const cards=document.getElementById("r1250StockCards");
+ const status=document.getElementById("r1250StockStatus");
+ if(!panel||!cards||!status)return;
+ const norm=v=>String(v||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+ const endpoint="https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/international-public-stock";
  try{
- const response=await fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/international-public-stock",{cache:"no-store"});
- if(!response.ok)throw Error("Stock service unavailable");const data=await response.json();
- const rows=(data.items||[]).filter(r=>/\bbmw\b/i.test(String(r.make||""))&&/\br\s*1250\s*gs\b/i.test(String(r.model||""))&&!/adventure/i.test(String(r.model||""))).slice(0,8);
- status.textContent=rows.length?rows.length+" published BMW R 1250 GS motorcycle"+(rows.length===1?"":"s")+" currently listed.":"No published BMW R 1250 GS motorcycles currently listed.";
- for(const r of rows){const article=document.createElement("article");article.style.cssText="background:#242424;border:1px solid #813438;border-left:3px solid #ed1c24;border-radius:8px;padding:14px";const img=document.createElement("img");img.src=r.image_url||r.photo_url||"/anybike-logo-new.jpg";img.alt="BMW R 1250 GS for sale";img.loading="lazy";img.style.cssText="width:100%;height:145px;object-fit:contain";img.onerror=()=>{img.onerror=null;img.src="/anybike-logo-new.jpg"};const title=document.createElement("h3");title.textContent="BMW R 1250 GS"+(r.year?" · "+r.year:"");const info=document.createElement("p");info.textContent=[r.mileage!=null?Number(r.mileage).toLocaleString("en-GB")+" miles":"",Number(r.price)>0?"£"+Number(r.price).toLocaleString("en-GB"):"Price on request"].filter(Boolean).join(" · ");const link=document.createElement("a");link.className="button secondary";link.href="/international-vq-motorcycle.html?id="+encodeURIComponent(r.item_id);link.textContent="View motorcycle →";article.append(img,title,info,link);cards.append(article)}
- }catch(e){status.textContent="Live stock cannot be checked right now. Browse available BMW motorcycles using the link below."}
+  let token="";
+  try{
+   const authClient=window.sb||window.supabase?.createClient?.("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
+   const auth=await Promise.race([
+    Promise.resolve(authClient?.auth?.getSession?.()),
+    new Promise(resolve=>setTimeout(()=>resolve(null),2200))
+   ]);
+   token=auth?.data?.session?.access_token||"";
+  }catch(error){console.warn("Stock session unavailable; trying guest access",error);}
+  const response=await fetch(endpoint,{cache:"no-store",signal:AbortSignal.timeout(10000),headers:token?{"Authorization":"Bearer "+token}:{}});
+  if(!response.ok){
+   if(response.status===403){panel.hidden=true;return;}
+   throw Error("Stock feed HTTP "+response.status);
+  }
+  const data=await response.json();
+  if(!Array.isArray(data.items))throw Error("Stock feed missing published items");
+  const bmw=data.items.filter(r=>norm(r.make)==="bmw"&&r.item_id&&r.image_url&&Number(r.price)>0);
+  const exact=bmw.filter(r=>{
+   const model=norm(r.model);
+   return model.startsWith("r1250gs") && !/adventure/i.test(String(r.model)) && !model.startsWith("r1250gsa");
+  });
+  const matches=exact.length?exact:bmw;
+  panel.querySelector("h2").textContent=exact.length?"BMW R 1250 GS — available UK motorcycles":"Other BMW motorcycles currently available";
+  status.textContent=exact.length
+   ? exact.length+" published BMW R 1250 GS motorcycle"+(exact.length===1?"":"s")+". Availability and purchase terms are confirmed before ordering."
+   : bmw.length
+    ? "No exact R 1250 GS currently listed. These are other BMW models available internationally, not R 1250 GS motorcycles. Ask AnyBike to source an R 1250 GS."
+    : "No published BMW motorcycles currently listed. Ask AnyBike to source an R 1250 GS.";
+  cards.replaceChildren();
+  matches.slice(0,6).forEach(r=>{
+   const article=document.createElement("a");
+   article.href="/international-vq-motorcycle.html?id="+encodeURIComponent(r.item_id);
+   article.style.cssText="display:block;background:#242424;border:1px solid #555;border-left:3px solid #ed1c24;border-radius:9px;padding:12px;color:#fff;text-decoration:none";
+   const img=document.createElement("img");
+   img.src=r.image_url;img.alt=[r.make,r.model,r.year].filter(Boolean).join(" ");
+   img.loading="lazy";img.style.cssText="width:100%;height:155px;object-fit:cover;border-radius:7px";
+   img.onerror=()=>img.remove();
+   const title=document.createElement("strong");title.style.display="block";title.textContent=[r.year,r.make,r.model].filter(Boolean).join(" ");
+   const info=document.createElement("p");info.style.cssText="margin:5px 0 10px";info.textContent=[r.mileage!=null?Number(r.mileage).toLocaleString("en-GB")+" miles":"",Number(r.price).toLocaleString("en-GB",{style:"currency",currency:"GBP"})].filter(Boolean).join(" · ");
+   const action=document.createElement("span");action.textContent="View motorcycle →";action.style.fontWeight="700";
+   article.append(img,title,info,action);cards.append(article);
+  });
+  panel.dataset.stockReady="true";panel.hidden=false;
+ }catch(error){
+  status.textContent="Unable to check live BMW stock at the moment. Browse Available Stock or send a sourcing request.";
+  panel.querySelector("h2").textContent="BMW motorcycles — check current stock";
+  panel.dataset.stockReady="true";panel.hidden=false;
+  console.warn("BMW R 1250 GS live stock currently unavailable",error);
+ }
 })();
 </script><script>
 (async function(){
