@@ -87,9 +87,8 @@
     const endpoint = "https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/international-public-stock";
     let authToken = "";
     try {
-      const client = window.supabase?.createClient?.(
-        "https://tuehtnezhdnkqbbhttgp.supabase.co", "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK",
-        { auth: { storageKey: "anybike-customer-auth", persistSession: true, autoRefreshToken: true } }
+      const client = window.sb || window.supabase?.createClient?.(
+        "https://tuehtnezhdnkqbbhttgp.supabase.co", "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK"
       );
       authToken = (await client?.auth?.getSession?.())?.data?.session?.access_token || "";
     } catch (_) {}
