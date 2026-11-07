@@ -53,6 +53,13 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
 <div class="wrap"><table><thead><tr><th>Manufacturer / model</th><th>Overview</th><th>Specs</th><th>Facts</th><th>Verified</th><th>Research sources</th><th>Gallery</th><th>Years</th><th>Editorial content rows</th><th>Classification candidate</th><th>Research action</th></tr></thead><tbody id="workRows"></tbody></table></div>
 <div style="display:flex;gap:10px;align-items:center;margin-top:12px"><button type="button" id="workPrev" style="background:#333">Previous</button><span id="workPages" class="muted">—</span><button type="button" id="workNext" style="background:#333">Next</button></div>
 </div>
+<div class="panel" id="bmwResearchAudit">
+<h2 style="margin:0 0 8px">BMW · Whole-range research and integrity audit</h2>
+<p>Centralised read-only review across all BMW catalogue models. Checks generation and timeline verification, year ranges, source coverage and factory colour evidence without filling missing fields with guesses.</p>
+<p id="bmwResearchStatus" role="status" class="muted">Loading BMW research coverage…</p>
+<div id="bmwResearchTotals" class="metrics"></div>
+<div class="wrap"><table><thead><tr><th>BMW model</th><th>Verified facts</th><th>Verified factory colours</th><th>Generations verified / total</th><th>Timeline verified / total</th><th>Year-specific gallery</th><th>Integrity</th></tr></thead><tbody id="bmwResearchRows"></tbody></table></div>
+</div>
 <div class="panel" id="bmwSectionPreview">
 <h2 style="margin:0 0 8px">BMW · Verified 13-section data preview</h2>
 <p>Read-only source-backed facts mapped to the shared model sections. Existing detailed editorial content remains separate; empty sections are not filled with guessed text. This does not publish a model guide.</p>
@@ -175,6 +182,20 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
  workPrev.addEventListener("click",()=>{workPage--;drawWork();});
  workNext.addEventListener("click",()=>{workPage++;drawWork();});
  filter.addEventListener("input",render);document.getElementById("refresh").addEventListener("click",load);
+ async function loadBmwResearchAudit(){
+  const status=document.getElementById("bmwResearchStatus"), totals=document.getElementById("bmwResearchTotals"), rows=document.getElementById("bmwResearchRows");
+  const {data,error}=await client.rpc("admin_bmw_bulk_research_audit_v1");
+  if(error){status.textContent="Bulk research audit unavailable: "+error.message;return;}
+  const items=Array.isArray(data?.items)?data.items:[];
+  status.textContent=items.length+" BMW models · source-backed audit only · no publication";
+  const summary=[["BMW models",data.model_count],["Need research",data.models_needing_research],["Integrity flags",data.models_with_integrity_flags]];
+  totals.replaceChildren(...summary.map(([name,count])=>{const div=document.createElement("div");div.className="metric";div.append(el("span",name),el("strong",count));return div;}));
+  rows.replaceChildren(...items.map(m=>{const tr=document.createElement("tr");
+   const issue=Number(m.reversed_generation_years)+Number(m.invalid_timeline_months)+Number(m.reversed_fact_years)+Number(m.verified_facts_missing_sources);
+   for(const val of [m.model,m.verified_facts,m.verified_colours,m.verified_generations+" / "+m.generation_count,m.verified_timeline_events+" / "+m.timeline_count,m.year_gallery_unpublished,issue?issue+" issues":"No structural flags"]){tr.append(el("td",val));}
+   return tr;
+  }));
+ }
  const bmwModelSelect=document.getElementById("bmwSectionModel");
  const bmwSectionStatus=document.getElementById("bmwSectionStatus");
  const bmwSectionCards=document.getElementById("bmwSectionCards");
@@ -280,7 +301,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
   renderBmwMedia();
  }
  bmwModelSelect.addEventListener("change",()=>{showBmwSections();renderBmwMedia();});
- load().then(()=>Promise.all([loadWork(),loadBmwSectionPreview()])).catch(e=>{status.textContent="Audit could not load: "+(e.message||String(e));});
+ load().then(()=>Promise.all([loadWork(),loadBmwSectionPreview(),loadBmwResearchAudit()])).catch(e=>{status.textContent="Audit could not load: "+(e.message||String(e));});
 })();
 </script><script>
 /* Local, read-only next-action target: no fake owner work required. */
