@@ -21,8 +21,10 @@ assert(covered>=40,'Unexpected dedicated-model route count; model pages may be o
 const renderer=fs.readFileSync('public-header.js','utf8');
 assert(renderer.includes("if(hero)hero.after(section)"),'Model stock must appear immediately below model hero');
 assert(renderer.includes('section.append(title,note,stockGrid,liveBrowse,stockLink);'),'Exact-model stock and live-stock buttons must have one sale panel');
-assert(renderer.includes('else section.after(research);'),'Development and ownership must have its own border, after sale stock');
-assert(renderer.includes('}else research.after(enquiry);'),'Enquiry must follow model history, not interrupt the stock-to-gallery sequence');
+assert(renderer.includes("else if(make==='BMW'&&main.querySelector('#generationPanel')){research.remove();}"),'BMW pages must not repeat documented model development');
+assert(renderer.includes('else section.after(research);'),'Other manufacturer research must remain independent of stock');
+assert(renderer.includes("else if(make==='BMW'&&main.querySelector('#body')){main.querySelector('#body').after(enquiry);}"),'BMW enquiry must follow the documented research');
+assert(renderer.includes('else research.after(enquiry);'),'Other manufacturers keep research before enquiry');
 assert(renderer.includes('stockLink.textContent=matches.length?'),'Empty-stock sourcing link must replace misleading sale button');
 assert(renderer.includes('const matches=(Array.isArray(data.items)?data.items:[]).filter(exactModel).slice(0,6)'), 'Exact model stock filter missing');
 assert(renderer.includes("if(!stock.startsWith(requested))return false"), 'Different model exclusion missing');
