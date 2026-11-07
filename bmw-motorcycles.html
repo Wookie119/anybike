@@ -122,6 +122,12 @@ h3{font-size:20px;line-height:1.2;margin:0 0 10px}
 <div class="story"><h3>Where BMW motorcycles are made</h3><p>BMW Group Plant Berlin, in Spandau, is a major motorcycle production facility and a centre of BMW Motorrad's modern manufacturing history. Production and assembly arrangements have also evolved internationally; country of assembly depends on the specific model and market.</p><p><a href="https://www.bmwgroup-werke.com/berlin/en.html" target="_blank" rel="noopener noreferrer">Explore the BMW Berlin factory ↗</a></p></div>
 </div></section>
 
+<section class="section" id="bmw-verified-factory-updates" hidden aria-labelledby="bmwVerifiedUpdatesHeading">
+<div class="sectionhead"><div><h2 id="bmwVerifiedUpdatesHeading">BMW factory announcements · verified sources</h2>
+<p>Original BMW Motorrad press announcements drawn directly from AnyBike's verified catalogue research. Dates are factory announcement dates, not model-year claims. This list refreshes from the database when the page opens.</p></div></div>
+<div class="cards" id="bmwVerifiedUpdatesList"></div>
+</section>
+
 <section class="section global-stories" id="bmw-stories" data-global-stories-brand="BMW" hidden>
 <div class="sectionhead"><div><h2 data-global-stories-title>BMW stories from AnyBike Global</h2><p>Discover BMW features, comparisons and motorcycle stories from AnyBike Global.</p></div><a class="btn" href="/anybike-global.html">Explore AnyBike Global →</a></div>
 <div class="global-stories-grid" data-global-stories-list></div>
@@ -231,6 +237,35 @@ document.getElementById("modelFamilies").innerHTML=curated.map(f=>'<section clas
 
 const photoCreditsSection=document.createElement("section");photoCreditsSection.className="section bmw-credits-section";photoCreditsSection.id="bmw-photo-credits";photoCreditsSection.innerHTML='<h2>Photograph credits</h2><p class="footnote">Photographs are credited to their creators under the Creative Commons licences linked for each image. Images are displayed at reduced size. Follow the source links for full licence and photograph details.</p><ul class="bmw-credit-list">'+Object.entries(licensedBMWPhotos).map(([model,p])=>{const url="https://commons.wikimedia.org/wiki/File:"+encodeURIComponent(p.file).replace(/%20/g,"_");return '<li><strong>BMW '+esc(model)+'</strong> — '+esc(p.credit)+' · <a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Original photograph ↗</a> · <a href="'+(p.licenseUrl||("https://creativecommons.org/licenses/by-sa/"+p.license.split(" ").pop()+"/"))+'" target="_blank" rel="noopener noreferrer">'+esc(p.license)+' ↗</a></li>'}).join("")+'</ul>';document.getElementById("modelFamilies").appendChild(photoCreditsSection);
 
+</script>
+<script>
+/* Public read-only enrichment: preserve every existing BMW manufacturer section and photographs. */
+(async function(){
+ const section=document.getElementById("bmw-verified-factory-updates");
+ const list=document.getElementById("bmwVerifiedUpdatesList");
+ if(!section||!list||!window.supabase?.createClient)return;
+ try{
+  const client=window.supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
+  const {data,error}=await client.rpc("public_bmw_verified_factory_updates_v1");
+  if(error)throw error;
+  const rows=Array.isArray(data)?data:[];
+  const formatDate=date=>{
+   const d=/^20\d{2}-\d{2}-\d{2}$/.test(String(date||""))?new Date(date+"T12:00:00Z"):null;
+   return d&&!isNaN(d.getTime())?new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"long",year:"numeric",timeZone:"UTC"}).format(d):"";
+  };
+  const fragment=document.createDocumentFragment();
+  rows.forEach(item=>{
+   if(!item||!formatDate(item.announcement_date)||!/^https:\/\/www\.press\.bmwgroup\.com\//.test(String(item.source_url||"")))return;
+   const card=document.createElement("article");card.className="card cardpad";
+   const h=document.createElement("h3");h.textContent="BMW "+String(item.model||"");card.append(h);
+   const p=document.createElement("p");p.textContent="Factory announcement · "+formatDate(item.announcement_date);card.append(p);
+   const a=document.createElement("a");a.href=item.source_url;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Original BMW factory announcement →";card.append(a);
+   fragment.append(card);
+  });
+  if(!fragment.childNodes.length)return;
+  list.replaceChildren(fragment);section.hidden=false;
+ }catch(error){console.warn("BMW factory update data unavailable; approved manufacturer content preserved",error);}
+})();
 </script>
 <script src="/public-header.js?v=202610112205"></script>
 <script src="/global-manufacturer-stories.js?v=20261012"></script>
