@@ -53,7 +53,8 @@ main{max-width:1440px;width:100%;padding:26px 27px 75px;margin:auto}.hero{border
  const source=document.getElementById('nextAction');
  const seller=document.querySelector('[aria-label="UK motorcycle selling"]');
  const update=()=>{
-   const international=document.documentElement.classList.contains('anybike-international-dealer');
+   const headerText=document.getElementById('publicHeader')?.textContent||'';
+   const international=document.documentElement.classList.contains('anybike-international-dealer')||/SIGNED IN\s*[·•-]\s*INTERNATIONAL DEALER/i.test(headerText);
    if(seller)seller.hidden=international;
    if(source)source.hidden=!international;
    const topSource=document.getElementById('source');if(topSource)topSource.hidden=!international;
@@ -61,13 +62,15 @@ main{max-width:1440px;width:100%;padding:26px 27px 75px;margin:auto}.hero{border
  };
  const observer=new MutationObserver(update);
  observer.observe(document.documentElement,{attributes:true,attributeFilter:['class']});
+ const header=document.getElementById('publicHeader');
+ if(header)observer.observe(header,{childList:true,subtree:true,characterData:true});
  const makeCard=(label,description,image)=>{
    const card=document.createElement('article');
    card.style.cssText='background:#242424;border:1px solid #813438;border-left:3px solid #ed1c24;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px';
    if(image && image.permission_status==='approved' && image.url && image.attribution && !/anybike-logo|placeholder/i.test(image.url)){
      const img=document.createElement('img');img.src=image.url;img.alt='BMW R 1250 GS — '+label;img.loading='lazy';img.style.cssText='width:100%;height:145px;object-fit:contain';card.append(img);
    }
-   if(!card.querySelector('img')){const img=document.createElement('img');img.src='/anybike-logo-new.jpg';img.alt='AnyBike placeholder — model photograph pending';img.loading='lazy';img.style.cssText='width:100%;height:145px;object-fit:contain;background:#fff;border-radius:5px';card.append(img)}
+   if(!card.querySelector('img')){const note=document.createElement('p');note.textContent='Model-year reference · verified photograph pending';note.style.cssText='margin:0;padding:9px 0;color:#c4c4c4;font-size:12px';card.append(note)}
    const title=document.createElement('strong');title.textContent=label;card.append(title);
    const body=document.createElement('span');body.style.cssText='color:#ddd;font-size:14px';body.textContent=description||'Confirm the specification and equipment of the individual motorcycle.';card.append(body);
    cards.append(card);
@@ -185,6 +188,29 @@ if(guide){
 }
 }catch(err){console.error("BMW model guide data error",err);el("summary").textContent="Explore BMW R 1250 GS models and available UK sourcing options through AnyBike.";el("nextAction").hidden=false;}
 })();</script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="/public-header.js?v=20261031ukbmwstandard1"></script><script defer src="/public-model-discovery.js?v=20261103b"></script><script>
+/* Merge additional discovered links into the approved model crosslinks panel.
+   Keep the original panel as a fallback if dynamic discovery does not load. */
+(function(){
+ const main=document.querySelector("main");
+ const base=document.querySelector('[data-anybike-crosslinks="20261103"] nav');
+ if(!main||!base)return;
+ const consolidate=()=>{
+  const additional=main.querySelector('[data-anybike-model-discovery="1"]');
+  if(!additional)return;
+  const seen=new Set(Array.from(base.querySelectorAll("a[href]")).map(a=>new URL(a.href,location.href).href.toLowerCase()));
+  additional.querySelectorAll("nav a[href]").forEach(a=>{
+   const href=new URL(a.href,location.href).href.toLowerCase();
+   if(seen.has(href))return;
+   seen.add(href);
+   base.appendChild(a);
+  });
+  additional.remove();
+ };
+ const observer=new MutationObserver(consolidate);
+ observer.observe(main,{childList:true});
+ consolidate();
+})();
+</script><script>
 /* Additional verified factory evidence. Do not alter or depend on approved guide rendering. */
 window.addEventListener("load",async function(){
  const box=document.getElementById("bmwR1250VerifiedEvidence");
