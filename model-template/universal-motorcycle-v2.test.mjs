@@ -140,6 +140,7 @@ test("sourced model-year cards remain model-specific drafts until pictures are a
  ];
  const normalized=normalizeMotorcycleV2(record);
  assert.equal(normalized.modelYearCards.length,2);
+ assert.equal(normalized.modelYearCards[0].cardType,"documented_model_year");
  assert.equal(normalized.modelYearCards[0].imageUrl,null);
  assert.equal(normalized.modelYearCards[0].contentStatus,"source_linked_editorial_draft");
  assert.equal(normalized.modelYearCards[1].imageUrl,"https://example.org/approved.jpg");
@@ -157,4 +158,19 @@ test("universal preview renders database year cards for the requested model, wit
  assert.match(module,/imageStatus:safeText\(x\.image_status\)/);
  assert.match(module,/x\.image_status==='approved'\?x\.image_url:null/);
  assert.doesNotMatch(preview,/Math\.random\(\)/);
+});
+
+test("historical BMW generations remain distinct from individual model years",()=>{
+ const record=sample("BMW","F 800 GS","bmw-f-800-gs");
+ record.editorial.model_year_cards=[
+  {period:"Original F 800 GS parallel-twin era",description:"798 cc documented earlier generation",source:"https://www.press.bmwgroup.com/global/earlier",card_type:"documented_generation",content_status:"pending_editorial_review",image_status:"awaiting_approved_model_year_photo"},
+  {period:"Reintroduced F 800 GS 2024",description:"895 cc later generation, not the same engine",source:"https://www.press.bmwgroup.com/global/later",card_type:"documented_generation",content_status:"pending_editorial_review",image_status:"awaiting_approved_model_year_photo"}
+ ];
+ const normalized=normalizeMotorcycleV2(record);
+ assert.equal(normalized.modelYearCards.length,2);
+ assert.ok(normalized.modelYearCards.every(c=>c.cardType==="documented_generation"));
+ assert.ok(normalized.modelYearCards.every(c=>c.imageUrl===null));
+ assert.equal(normalized.modelYearCards[0].description,"798 cc documented earlier generation");
+ assert.equal(normalized.modelYearCards[1].description,"895 cc later generation, not the same engine");
+ assert.equal(buildMotorcycleV2Sections(record).find(c=>c.id==="model_development").ready,true);
 });
