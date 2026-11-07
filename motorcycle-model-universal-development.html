@@ -607,10 +607,11 @@ try{const userClient=window.supabase?.createClient?.("https://tuehtnezhdnkqbbhtt
 catch(error){status.textContent=error.message||window.__anybikeV2UiStrings?.status_error||"";}finally{button.disabled=false;}
 });
 (async()=>{
-try{const authClient=window.supabase?.createClient?.("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");const session=authClient?await authClient.auth.getSession():null;const token=session?.data?.session?.access_token;const response=await fetch(ENDPOINT+"international-public-stock",{cache:"no-store",headers:token?{"Authorization":"Bearer "+token}:{}});if(!response.ok){document.getElementById("internationalGuestRequest").hidden=true;return;}const data=await response.json();const norm=v=>String(v||"").toLowerCase().replace(/[^a-z0-9]/g,"");const identity=window.__anybikeV2ModelIdentity;
+try{const authClient=window.supabase?.createClient?.("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");const session=authClient?await authClient.auth.getSession():null;const token=session?.data?.session?.access_token;const response=await fetch(ENDPOINT+"international-public-stock",{cache:"no-store",headers:token?{"Authorization":"Bearer "+token}:{}});if(!response.ok)throw Error("Public stock access unavailable");const data=await response.json();const identity=window.__anybikeV2ModelIdentity;
 if(!identity?.make||!identity?.model)return;
-const rows=(data.items||[]).filter(b=>norm(b.make)===norm(identity.make)&&norm(b.model)===norm(identity.model)).slice(0,6);if(!rows.length)return;const cards=document.getElementById("internationalModelCards");rows.forEach(b=>{const a=document.createElement("a");a.href="/international-vq-motorcycle.html?id="+encodeURIComponent(b.item_id);a.style.cssText="padding:12px;border:1px solid #555;border-radius:10px;background:#222;color:#fff;text-decoration:none";if(b.image_url){const img=document.createElement("img");img.src=b.image_url;img.alt=[identity.make,b.model].filter(Boolean).join(" ");img.loading="lazy";img.style.cssText="width:100%;height:150px;object-fit:contain";a.append(img);}const title=document.createElement("strong");title.style.display="block";title.textContent=[identity.make,b.model,b.year].filter(Boolean).join(" ");a.append(title);const price=document.createElement("p");price.textContent=Number(b.price)>0?"£"+Number(b.price).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}):window.__anybikeV2UiStrings?.price_on_request||"";a.append(price);const view=document.createElement("span");view.textContent=window.__anybikeV2UiStrings?.view_motorcycle||"";a.append(view);cards.append(a);});document.getElementById("internationalModelStock").hidden=false;}
-catch(e){document.getElementById("internationalGuestRequest").hidden=true;console.warn("International model stock unavailable",e);}
+const {matchingPublishedMotorcycles}=await import("/model-template/exact-public-model-stock.mjs");
+const rows=matchingPublishedMotorcycles(data.items,identity);if(!rows.length)return;const cards=document.getElementById("internationalModelCards");rows.forEach(b=>{const a=document.createElement("a");a.href="/international-vq-motorcycle.html?id="+encodeURIComponent(b.item_id);a.style.cssText="padding:12px;border:1px solid #555;border-radius:10px;background:#222;color:#fff;text-decoration:none";if(b.image_url){const img=document.createElement("img");img.src=b.image_url;img.alt=[identity.make,b.model].filter(Boolean).join(" ");img.loading="lazy";img.style.cssText="width:100%;height:150px;object-fit:contain";a.append(img);}const title=document.createElement("strong");title.style.display="block";title.textContent=[identity.make,b.model,b.year].filter(Boolean).join(" ");a.append(title);const price=document.createElement("p");price.textContent=Number(b.price)>0?"£"+Number(b.price).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}):window.__anybikeV2UiStrings?.price_on_request||"";a.append(price);const view=document.createElement("span");view.textContent=window.__anybikeV2UiStrings?.view_motorcycle||"";a.append(view);cards.append(a);});document.getElementById("internationalModelStock").hidden=false;}
+catch(e){console.warn("International model stock unavailable; model research and enquiry remain visible",e);}
 })();
 })();
 </script><script>
@@ -728,14 +729,11 @@ catch(e){document.getElementById("internationalGuestRequest").hidden=true;consol
    });
   }catch(e){console.warn("Approved photo bank unavailable; retaining existing card images",e);}
  })();
- function update(){
-  const internationalVisible=!stock.hidden;
-  uk.hidden=internationalVisible;
-  source.hidden=!internationalVisible;
-  if(topSource)topSource.hidden=!internationalVisible;
- }
- new MutationObserver(update).observe(stock,{attributes:true,attributeFilter:['hidden']});
- update();
+ // Model-year photos, full research and both customer actions stay visible
+ // for guests, dealers, private users, UK and international visitors alike.
+ uk.hidden=false;
+ source.hidden=false;
+ if(topSource)topSource.hidden=false;
  };
  if(window.__r1300CardsReady)renderUkGallery();
  else document.addEventListener("anybike:r1300-cards-ready",renderUkGallery,{once:true});
