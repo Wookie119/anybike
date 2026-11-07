@@ -66,6 +66,10 @@ assert(!r1250.includes("||document.getElementById('r1250LiveStock')?.dataset.sto
 assert(!r1250.includes(" || stock?.dataset.stockReady==='true'"),'UK seller view must not depend on public feed success');
 assert(r1250.includes('panel.dataset.viewerCountry=String(data.country_code'),'Visitor geography must be independent of sale-stock availability');
 assert(r1250.includes('if(gallery)gallery.hidden=cards.children.length===0'),'Model-year gallery visibility must depend only on research content, not visitor identity');
+assert(r1250.includes('if(el("crumbModel"))el("crumbModel").textContent=actualModel'),'Optional breadcrumb must not break model guide loading');
+assert(r1250.includes('if(el("parent")){'),'Optional parent navigation must not break model guide loading');
+for(const year of [2019,2020,2021,2022,2023])assert(r1250.includes('year:'+year),'R 1250 GS model-year card missing: '+year);
+assert(r1250.includes('window.anybikeR1250PopulateGallery();'),'Model-year cards must appear before remote guide loading');
 assert(r1250.includes('BMW_R_1250_GS_'),'Licensed R 1250 GS hero removed');
 
 const models=[
