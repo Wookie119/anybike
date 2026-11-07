@@ -70,6 +70,8 @@ assert(r1250.includes('if(el("crumbModel"))el("crumbModel").textContent=actualMo
 assert(r1250.includes('if(el("parent")){'),'Optional parent navigation must not break model guide loading');
 for(const year of [2019,2020,2021,2022,2023])assert(r1250.includes('year:'+year),'R 1250 GS model-year card missing: '+year);
 assert(r1250.includes('window.anybikeR1250PopulateGallery();'),'Model-year cards must appear before remote guide loading');
+assert(r1250.includes('#body>.card')&&r1250.includes('#ukR1250GalleryCards>article'),'Added editorial sections must inherit the AnyBike design');
+assert(r1250.includes('background:#252525!important')&&r1250.includes('border:1px solid #ed1c24!important'),'Corporate charcoal/red editorial card styling missing');
 assert(r1250.includes('BMW_R_1250_GS_'),'Licensed R 1250 GS hero removed');
 
 const models=[
