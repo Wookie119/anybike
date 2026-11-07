@@ -2967,7 +2967,12 @@ async function anybikeShowPublicSignedInIdentity(){
   }
   (async()=>{try{
    const jwt=await token();const res=await fetch(endpoint+'international-public-stock',{cache:'no-store',headers:jwt?{'Authorization':'Bearer '+jwt}:{}});
-   if(!res.ok){hide();if(res.status===403)await showUKModelGallery();return;}
+   if(!res.ok){
+    if(res.status===403){hide();await showUKModelGallery();return;}
+    reveal();
+    section.querySelector('p').textContent='Stock availability cannot be checked at the moment. You can still send a motorcycle enquiry or request sourcing.';
+    return;
+   }
    const data=await res.json(),grid=section.querySelector('.anybike-model-stock-grid');
    const matches=(data.items||[]).filter(x=>safe(x.make)===safe(make)&&safe(x.model).includes(safe(model))).slice(0,6);
    if(matches.length){matches.forEach(x=>{
@@ -3048,7 +3053,11 @@ async function anybikeShowPublicSignedInIdentity(){
     card.append(brand,name,status);grid.append(card);
    }
    reveal();
-  }catch(error){hide();}})();
+  }catch(error){
+   reveal();
+   section.querySelector('p').textContent='The live stock feed is temporarily unavailable. Please send an enquiry or request sourcing and AnyBike will check availability.';
+   console.warn('International stock request unavailable',error);
+  }})();
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
