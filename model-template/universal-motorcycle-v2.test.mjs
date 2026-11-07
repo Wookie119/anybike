@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import {normalizeMotorcycleV2,auditMotorcycleV2,REQUIRED_V2_SECTIONS} from "./universal-motorcycle-v2.mjs";
+import {normalizeMotorcycleV2,auditMotorcycleV2,buildMotorcycleV2Sections,REQUIRED_V2_SECTIONS} from "./universal-motorcycle-v2.mjs";
 const sample=(make,model,slug)=>({model_id:1,slug,preview_visible:true,editorial:{
  make,model,hero:{summary:"Test model introduction"},
  production:{generations:[{label:"First generation"}],official_colours:[{name:"Red"}],specifications:[{engine_cc:1000}]},
@@ -32,4 +32,33 @@ test("single locked preview renderer accepts any published model slug without an
  assert.doesNotMatch(page,/CHAT GPT - CHAT GPT/);
  const locked=fs.readFileSync("design\/model-template\/DESIGN-LOCK.md","utf8");
  assert.match(locked,/approved-bmw-r1300gs-v2-2026-11-02\.html/);
+});
+
+test("R 1250 GS staging research fits the same 13-section data contract without being published",()=>{
+ const staged=JSON.parse(fs.readFileSync("model-template/staging/bmw-r1250gs-v2-source.json","utf8"));
+ assert.equal(staged.preview_only,true);
+ assert.throws(()=>normalizeMotorcycleV2(staged),/not published/);
+ const previewRecord={...staged,preview_visible:true};
+ const slots=buildMotorcycleV2Sections(previewRecord);
+ assert.deepEqual(slots.map(x=>x.id),REQUIRED_V2_SECTIONS);
+ const lookup=id=>slots.find(x=>x.id===id);
+ assert.equal(lookup("introduction").ready,true);
+ assert.equal(lookup("model_development").ready,true);
+ assert.equal(lookup("factory_colours").ready,true);
+ assert.equal(lookup("technical_specifications").ready,true);
+ assert.equal(lookup("heritage").ready,true);
+ assert.equal(lookup("engineering_gallery").ready,false);
+ assert.equal(lookup("related_models").ready,false);
+ assert.equal(lookup("country_markets").ready,false);
+ assert.equal(staged.editorial.make,"BMW");
+ assert.equal(staged.editorial.model,"R 1250 GS");
+});
+test("missing editorial data leaves empty slots rather than showing another model's facts",()=>{
+ const model=sample("Honda","Africa Twin","honda-africa-twin");
+ const slots=buildMotorcycleV2Sections(model);
+ assert.equal(slots.length,13);
+ assert.equal(slots.find(x=>x.id==="technical_specifications").ready,true);
+ assert.equal(slots.find(x=>x.id==="engineering_gallery").ready,false);
+ assert.equal(slots.find(x=>x.id==="country_markets").ready,false);
+ assert.equal(slots.find(x=>x.id==="related_models").content[0].url,"/another-model.html");
 });
