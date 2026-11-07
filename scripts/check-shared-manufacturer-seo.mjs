@@ -18,13 +18,16 @@ for(const token of ['encodeURIComponent(make)','document.title=make+','document.
 }
 const sitemap=fs.readFileSync('sitemap.xml','utf8');
 const dynamic=[...sitemap.matchAll(/<loc>(https:\/\/www\.anybike\.co\.uk\/motorcycle-brand\.html\?[^<]+)<\/loc>/g)].map(x=>x[1]);
-// Query URLs are permitted only for manufacturers linked by the approved A-Z directory.
-// This is a source-level consistency check, not proof that search engines render client-side SEO.
+// The shared brand renderer is deliberately noindex. The approved A-Z index
+// currently sends users to dedicated BMW/Harley pages or sourcing forms, not
+// 47 separately published query-string manufacturer landing pages.
 const directory=fs.readFileSync('motorcycle-manufacturers.html','utf8');
-const allowed=new Set([...directory.matchAll(/motorcycle-brand[.]html[?]make=([A-Za-z0-9%+-]+)/g)].map(m=>'https://www.anybike.co.uk/motorcycle-brand.html?make='+m[1]));
-require(allowed.size===47,'Expected 47 approved shared manufacturer links; found '+allowed.size);
+require(/<meta\\s+name="robots"\\s+content="noindex,follow"/i.test(head),
+ 'Unpublished shared manufacturer renderer must remain noindex');
+require(directory.includes('/bmw-motorcycles.html'),'BMW approved manufacturer route missing');
+require(directory.includes('/harley-davidson-motorcycles.html'),'Harley-Davidson approved manufacturer route missing');
+require(directory.includes('/bulk-buying-request.html?make=Honda'),'Honda sourcing route missing from A-Z');
 require(new Set(dynamic).size===dynamic.length,'Duplicate manufacturer query URLs in sitemap');
-for(const url of dynamic)require(allowed.has(url),'Unapproved manufacturer sitemap URL: '+url);
-for(const url of allowed)require(dynamic.includes(url),'Approved manufacturer missing from sitemap: '+url);
+require(dynamic.length===0,'Unapproved noindex manufacturer query URLs must not be included in sitemap');
 if(issues.length){issues.forEach(x=>console.error('FAIL '+x));process.exitCode=1}
-else console.log('PASS: shared manufacturer page retains unique headings, dynamic SEO tags and approved A-Z query URLs checked against the sitemap.');
+else console.log('PASS: shared manufacturer page retains unique headings, dynamic SEO tags and approved published manufacturer/sourcing routes with no unpublished query URLs in sitemap.');
