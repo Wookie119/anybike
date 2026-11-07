@@ -29,3 +29,11 @@ Status: DESIGN LOCKED; content/data validation and launch approval are separate.
 3. When the database-driven renderer is implemented, use shared reusable classes/tokens, not copy/pasted CSS per model.
 4. Verify working galleries, expandable sections, mobile styling and UK/international visibility before release.
 5. Never overwrite this approved snapshot. If the design is explicitly re-approved later, create a new versioned snapshot.
+
+## Universal visibility and stock rule — confirmed 7 November 2026
+- **One page composition for every manufacturer/model and every audience.** Research, model-year and edition galleries, specifications, photographs, colours, heritage, country links, sourcing, and selling information must not be rearranged or hidden according to UK/international geography, sign-in state, or dealer/private-user role.
+- For international visitors, display **published stock matching the exact model identity** above the research; offer it to guests and signed-in visitors equally. Permitted factory trim variants are allowed; distinct models (including GS Adventure) must never be substituted.
+- For UK visitors, preserve the same complete research page. The protected international stock endpoint continues to enforce the current geographical stock restrictions. A 403, timeout, zero stock or sign-in failure must never hide research or collapse the approved model-year gallery.
+- All live model pages must use the same renderer and shared CSS design tokens. Avoid country/account-conditionals in markup, parallel UK/international gallery copies, or static per-model template forks.
+- Until the shared template passes automated checks across model identities, viewport sizes, authentication states and stock responses, **do not replace approved live model pages or roll out additional models**.
+- Separate publication permission from content completeness. A database model row does not by itself authorise public rendering or indexing.
