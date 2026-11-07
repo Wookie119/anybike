@@ -36,6 +36,13 @@ Promise.all([
  }));
  const models=[...related,...extra].filter(x=>!existing.has(modelPath(x.model).toLowerCase()));
  if(!models.length&&alternative.every(x=>existing.has(brandUrl(x).toLowerCase())))return;
+ // Reuse the existing database-linked related-model panel when it exists.
+ // A second 'Explore more motorcycle models and brands' panel causes the
+ // duplicated navigation seen on standard BMW model pages.
+ const relatedPanel=document.querySelector('main [data-anybike-related-links]')||
+  Array.from(document.querySelectorAll('main section')).find(el=>
+   /explore more motorcycle models and brands/i.test(el.querySelector('h2')?.textContent||''));
+ const existingNav=relatedPanel?.querySelector('nav');
  const section=document.createElement("section");
  section.dataset.anybikeModelDiscovery="1";
  section.setAttribute("aria-label","Explore more motorcycles and manufacturers");
@@ -64,6 +71,19 @@ Promise.all([
  link("All 49 manufacturers","/motorcycle-manufacturers.html");
  link("AnyBike Global","/anybike-global.html");
  if(!nav.children.length)return;
+ if(existingNav){
+  const currentLinks=new Set(Array.from(existingNav.querySelectorAll('a[href]')).map(a=>{
+   try{const url=new URL(a.href,location.href);return url.origin===location.origin?url.pathname.toLowerCase()+url.search:"";}
+   catch(_){return "";}
+  }));
+  for(const link of Array.from(nav.children)){
+   const url=new URL(link.href,location.href);
+   const href=url.pathname.toLowerCase()+url.search;
+   if(!currentLinks.has(href)){existingNav.append(link);currentLinks.add(href);}
+  }
+  relatedPanel.dataset.anybikeModelDiscovery="1";
+  return;
+ }
  section.append(heading,intro,nav);
  document.querySelector("main").append(section);
 }).catch(error=>console.warn("AnyBike public model discovery unavailable:",error.message));
