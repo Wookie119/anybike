@@ -174,3 +174,20 @@ test("historical BMW generations remain distinct from individual model years",()
  assert.equal(normalized.modelYearCards[1].description,"895 cc later generation, not the same engine");
  assert.equal(buildMotorcycleV2Sections(record).find(c=>c.id==="model_development").ready,true);
 });
+
+test("V2 model-year gallery uses the selected Supabase identity and does not borrow R1300 photographs",()=>{
+ const page=fs.readFileSync("motorcycle-model-universal-development.html","utf8");
+ assert.match(page,/window\.__anybikeV2YearCards=universal\.modelYearCards/);
+ assert.match(page,/window\.__anybikeV2ModelSlug=universal\.slug/);
+ assert.match(page,/recordSlug!=="bmw-r-1300-gs"&&yearCards\.length/);
+ assert.match(page,/panel\.className="anybike-v2-model-years"/);
+ assert.match(page,/for\(const year of yearCards\)/);
+ assert.match(page,/if\(year\.imageUrl\)/);
+ assert.match(page,/year\.period/);
+ assert.match(page,/year\.description/);
+ assert.match(page,/grid\.append\(card\)/);
+ const css=fs.readFileSync("public-header.css","utf8");
+ assert.match(css,/UNIVERSAL V2 VERIFIED MODEL-YEAR CARDS/);
+ assert.match(css,/#ukR1300ModelGallery \.anybike-v2-year-grid article/);
+ assert.match(css,/border-left:3px solid #ed1c24/);
+});
