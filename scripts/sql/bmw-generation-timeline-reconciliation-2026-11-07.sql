@@ -64,8 +64,8 @@ begin
  ) order by model),'[]'::jsonb) into v_models from summary;
  return jsonb_build_object('manufacturer','BMW','models',v_models,
   'model_count',jsonb_array_length(v_models),
-  'total_generations',(select count(*) from public.motorcycle_catalog_generations g join bmw m on m.id=g.catalog_model_id),
-  'total_timeline_events',(select count(*) from public.motorcycle_catalog_timeline_events t join bmw m on m.id=t.catalog_model_id),
+  'total_generations',(select count(*) from public.motorcycle_catalog_generations g join public.motorcycle_catalog_models m on m.id=g.catalog_model_id where m.manufacturer='BMW'),
+  'total_timeline_events',(select count(*) from public.motorcycle_catalog_timeline_events t join public.motorcycle_catalog_models m on m.id=t.catalog_model_id where m.manufacturer='BMW'),
   'unmatched_generation_references',(select coalesce(sum((v->>'unmatched_generation_references')::integer),0) from jsonb_array_elements(v_models) v),
   'bad_generation_source_urls',(select coalesce(sum((v->>'generation_bad_source_urls')::integer),0) from jsonb_array_elements(v_models) v),
   'bad_timeline_source_urls',(select coalesce(sum((v->>'timeline_bad_source_urls')::integer),0) from jsonb_array_elements(v_models) v),
