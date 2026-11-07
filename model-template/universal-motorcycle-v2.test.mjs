@@ -143,7 +143,7 @@ test("sourced model-year cards remain model-specific drafts until pictures are a
  assert.equal(normalized.modelYearCards[0].cardType,"documented_model_year");
  assert.equal(normalized.modelYearCards[0].imageUrl,null);
  assert.equal(normalized.modelYearCards[0].contentStatus,"source_linked_editorial_draft");
- assert.equal(normalized.modelYearCards[1].imageUrl,"https://example.org/approved.jpg");
+ assert.equal(normalized.modelYearCards[1].imageUrl,null,"Even draft-approved editorial images require photo-bank approval");
  assert.equal(buildMotorcycleV2Sections(record).find(x=>x.id==="model_development").content[0].period,"September 2023");
  assert.equal(record.editorial.model,"F 900 GS");
 });
@@ -158,7 +158,7 @@ test("universal preview renders database year cards for the requested model, wit
  assert.match(preview,/\.eq\("slug",selectedModel\)\.eq\("preview_visible",true\)/);
  const module=fs.readFileSync("model-template/universal-motorcycle-v2.mjs","utf8");
  assert.match(module,/imageStatus:safeText\(x\.image_status\)/);
- assert.match(module,/x\.image_status==='approved'\?x\.image_url:null/);
+ assert.match(module,/imageUrl:null/);
  assert.doesNotMatch(preview,/Math\.random\(\)/);
 });
 
@@ -184,7 +184,7 @@ test("V2 model-year gallery uses the selected Supabase identity and does not bor
  assert.match(page,/recordSlug!=="bmw-r-1300-gs"&&yearCards\.length/);
  assert.match(page,/panel\.className="anybike-v2-model-years"/);
  assert.match(page,/for\(const year of yearCards\)/);
- assert.match(page,/if\(year\.imageUrl\)/);
+ assert.match(page,/approvedPhotoForModelYear\(approvedPhotos/);
  assert.match(page,/year\.period/);
  assert.match(page,/year\.description/);
  assert.match(page,/grid\.append\(card\)/);
