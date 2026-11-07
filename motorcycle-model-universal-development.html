@@ -361,6 +361,8 @@ window.__anybikeV2ModelIdentity={make:actualMake,model:actualModel};
 // Shared, model-identity-checked editorial contract. Never loads unpublished or private data.
 const {normalizeMotorcycleV2}=await import("/model-template/universal-motorcycle-v2.mjs");
 const universal=normalizeMotorcycleV2(publishedEditorial);
+window.__anybikeV2YearCards=universal.modelYearCards;
+window.__anybikeV2ModelSlug=universal.slug;
 const production=universal.development;
 const editorial={
  generations:Array.isArray(production.generations)?production.generations:[],
@@ -652,6 +654,36 @@ catch(e){console.warn("International model stock unavailable; model research and
    card.insertBefore(credit,picture.nextSibling);
   }
  });
+ // Preserve the locked R 1300 GS edition/gallery presentation exactly.
+ // For other models, document-backed year/generation cards are generated
+ // from the *same model's* Supabase record, with no invented photography.
+ const recordSlug=window.__anybikeV2ModelSlug;
+ const yearCards=window.__anybikeV2YearCards||[];
+ if(recordSlug&&recordSlug!=="bmw-r-1300-gs"&&yearCards.length){
+  const panel=document.createElement("section");
+  panel.className="anybike-v2-model-years";
+  panel.setAttribute("aria-label","Documented model years and generations");
+  const subheading=document.createElement("h4");
+  subheading.textContent="Model years and documented generations";
+  const grid=document.createElement("div");grid.className="anybike-v2-year-grid";
+  for(const year of yearCards){
+   const card=document.createElement("article");
+   const title=document.createElement("h5");title.textContent=year.period;
+   const description=document.createElement("p");description.textContent=year.description;
+   card.append(title,description);
+   if(year.imageUrl){
+    const img=document.createElement("img");
+    img.src=year.imageUrl;img.alt=window.__anybikeV2ModelIdentity?.make+" "+window.__anybikeV2ModelIdentity?.model+" "+year.period;
+    img.loading="lazy";card.prepend(img);
+   }
+   if(year.source){
+    const a=document.createElement("a");a.href=year.source;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Manufacturer source ↗";
+    card.append(a);
+   }
+   grid.append(card);
+  }
+  panel.append(subheading,grid);copy.prepend(panel);
+ }
  uk.append(copy);
  // The approved gallery is the ONE visible development/ownership section.
  // Remove its old copy from the stock border; keep the detached reference
