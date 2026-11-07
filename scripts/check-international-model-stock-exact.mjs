@@ -65,7 +65,7 @@ assert(r1250.includes('panel.dataset.stockReady="error";panel.hidden=false'),'Te
 assert(!r1250.includes("||document.getElementById('r1250LiveStock')?.dataset.stockReady==='true'"),'UK gallery must not disappear merely because stock loaded');
 assert(!r1250.includes(" || stock?.dataset.stockReady==='true'"),'UK seller view must not depend on public feed success');
 assert(r1250.includes('panel.dataset.viewerCountry=String(data.country_code'),'Visitor geography must be independent of sale-stock availability');
-assert(r1250.includes('if(gallery)gallery.hidden=international || !cards.children.length'),'UK model-year gallery must display when records are present');
+assert(r1250.includes('if(gallery)gallery.hidden=cards.children.length===0'),'Model-year gallery visibility must depend only on research content, not visitor identity');
 assert(r1250.includes('BMW_R_1250_GS_'),'Licensed R 1250 GS hero removed');
 
 const models=[
