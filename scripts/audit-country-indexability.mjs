@@ -35,7 +35,7 @@ export function auditCountryIndexability(root,{expectedCountryCount=null}={}) {
   for(const u of sitemapMarkets)siteCounts.set(u,(siteCounts.get(u)||0)+1);
   const dir=path.join(root,'markets');
   const filenames=fs.readdirSync(dir,{withFileTypes:true})
-    .filter(f=>f.isFile() && f.name.endsWith('.html')).map(f=>f.name).sort();
+    .filter(f=>f.isFile() && f.name.endsWith('.html') && f.name!=='index.html').map(f=>f.name).sort();
   const fileSet=new Set(filenames);
   const issues=[],pages=[];
   if(expectedCountryCount != null && (!Number.isSafeInteger(expectedCountryCount) || expectedCountryCount<1)) throw new TypeError('expectedCountryCount must be a positive integer');
