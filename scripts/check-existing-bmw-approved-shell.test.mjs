@@ -62,5 +62,11 @@ test('limited public model feed preserves row-level permissions and exact identi
  assert.ok(m.includes('requested_path:location.pathname'));
  assert.ok(m.includes('if(!events.length&&!existing)'));
  assert.ok(!m.includes('service_role'));
- assert.ok(!m.includes('image_url'));
+ assert.ok(m.includes("client.rpc('public_bmw_model_hero_v1'"));
+ assert.ok(m.includes('void applyBmwHero(hero,model)'));
+ assert.ok(!m.includes('void hydrateHero(model)'));
+ assert.ok(m.includes('anybike-bmw-master-hero-media'));
+ assert.ok(m.includes('normalise(data.model)!==normalise(model)'));
+ assert.ok(m.includes('data.image_url'));
+ assert.ok(!m.includes('service_role'));
 });
