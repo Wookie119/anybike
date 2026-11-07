@@ -44,3 +44,9 @@ Status: DESIGN LOCKED; content/data validation and launch approval are separate.
 - Stock and development are independent: sale-feed access, loading, and zero listings cannot hide the year/edition gallery or move research.
 - Keep the approved edition photographs, credits, styling, existing technical content, and all-country/all-account visibility while making this ordering consistent in the universal renderer.
 - The 2 November locked snapshot remains immutable historical reference; this explicitly approved section-order change is an amendment, **not** permission to redesign any other section.
+
+## User-approved sales-first R 1300 GS order — 7 November 2026
+- **Hero introduction → international exact-model stock panel → documented model specification → standalone model years, editions, development and ownership → BMW stories and further research → buyer/seller actions and links.**
+- This changes the placement, not the approved styling, stock matching, photograph licensing, underlying facts or section availability.
+- Stock is a separate panel immediately below the hero. The model specification and development/gallery must remain present for every visitor even when geographic stock restrictions, zero listings or feed failures prevent sale cards appearing.
+- The universal 13-section renderer must use the same sales-first order. Never create a separate UK, overseas, logged-in, dealer or private-user layout.
