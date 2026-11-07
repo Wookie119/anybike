@@ -2918,7 +2918,14 @@ async function anybikeShowPublicSignedInIdentity(){
    const leftover=section.querySelector('h2:nth-of-type(2)');if(leftover)leftover.remove();
   }
   const attached=section.parentElement?[section,section.nextElementSibling,harley?section.nextElementSibling?.nextElementSibling:null].filter(Boolean):[];
-  const reveal=()=>attached.forEach(el=>el.style.removeProperty('display'));
+  // A model page's dedicated stock gallery owns its cards. This shared routine
+  // keeps the existing guest enquiry form but must not create another stock gallery.
+  const dedicatedStock=!!(document.getElementById('r1250LiveStock')||document.getElementById('internationalModelStock'));
+  if(!dedicatedStock){
+   const hero=document.querySelector('main > .hero');
+   if(hero)hero.after(section); // Stock before model research, centrally.
+  }
+  const reveal=()=>attached.forEach(el=>{if(el===section&&dedicatedStock)return;el.style.removeProperty('display')});
   const hide=()=>attached.forEach(el=>el.remove());
   const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/';
   const client=window.supabase?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
@@ -2974,18 +2981,22 @@ async function anybikeShowPublicSignedInIdentity(){
     return;
    }
    const data=await res.json(),grid=section.querySelector('.anybike-model-stock-grid');
-   // Keep the working R 1300 GS route unchanged. R 1250 GS has no exact
-   // published stock at present, so show genuine BMW alternatives instead of logos.
-   const r1250StockFallback=safe(make)==='bmw'&&safe(model)==='r1250gs';
+   // Exact model matches only. Variant suffixes are permitted only when they
+   // denote an equipment trim, not a different motorcycle (GS Adventure, RS etc).
    const published=Array.isArray(data.items)?data.items:[];
-   const exact=published.filter(x=>safe(x.make)===safe(make)&&safe(x.model).includes(safe(model)));
-   const alternativeBMW=r1250StockFallback&&!exact.length;
-   const matches=(alternativeBMW?published.filter(x=>safe(x.make)==='bmw'&&x.image_url&&Number(x.price)>0):exact).slice(0,6);
-   if(alternativeBMW){
-    section.querySelector('h2').textContent='Other BMW motorcycles currently available';
-    section.querySelector('p').textContent=matches.length
-     ? 'No BMW R 1250 GS is currently published in Available Stock. These are different BMW models available to international buyers, with real photographs and prices. You can also ask AnyBike to source an R 1250 GS.'
-     : 'No BMW R 1250 GS is currently published. Browse Available Stock or ask AnyBike to source one.';
+   const requested=safe(model);
+   const allowedSuffix=/^(?:te|se|sport|rallye|trophy|tripleblack|exclusive|standard|mcompetition|competition|hp|premium|gt|le|option719|114|107|special|iconic|touring|edition|limited|anniversary|urban|gsedition)*$/;
+   const matches=published.filter(x=>{
+    if(safe(x.make)!==safe(make)||!x.image_url||!x.item_id||!(Number(x.price)>0))return false;
+    const stock=safe(x.model);
+    if(stock===requested)return true;
+    if(!stock.startsWith(requested))return false;
+    const suffix=stock.slice(requested.length);
+    if(!suffix)return true;
+    return allowedSuffix.test(suffix);
+   }).slice(0,6);
+   if(!matches.length){
+    section.querySelector('p').textContent='No '+make+' '+model+' motorcycles are currently published in Available Stock. We can source this exact model from UK suppliers — send an enquiry with your preferred year and specification.';
    }
    if(matches.length){matches.forEach(x=>{
     const a=document.createElement('a');a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(x.item_id);a.style.cssText='color:white;background:#242424;border:1px solid #555;border-radius:8px;padding:12px;text-decoration:none';
@@ -3055,14 +3066,14 @@ async function anybikeShowPublicSignedInIdentity(){
      return h&&p?{title:h.textContent.trim(),body:p.textContent.trim()}:null;
     }).filter(x=>x&&x.body.length>35&&x.body.length<450&&!/interested|sourcing|photograph policy|uk owners|what to verify/i.test(x.title)).slice(0,12);
    }
-   const emptyCardCount=r1250StockFallback?0:(cardNotes.length||(!matches.length?1:0));
-   if(cardNotes.length&&!r1250StockFallback){const heading=document.createElement('h3');heading.textContent=make+' '+model+' — model years and specifications';heading.style.cssText='grid-column:1/-1;margin:14px 0 0';grid.append(heading);}
+   // Research follows genuine sale listings; missing photos never become fake bike cards.
+   const emptyCardCount=dedicatedStock?0:cardNotes.length;
+   if(cardNotes.length&&!dedicatedStock){const heading=document.createElement('h3');heading.textContent=make+' '+model+' — model years and specifications';heading.style.cssText='grid-column:1/-1;margin:14px 0 0';grid.append(heading);}
    for(let i=0;i<emptyCardCount;i++){
-    const card=document.createElement('div');card.style.cssText='background:#242424;border:1px solid #555;border-radius:8px;padding:12px;text-align:center;min-height:220px;display:flex;flex-direction:column;justify-content:center;gap:8px';
-    const brand=document.createElement('img');brand.src='/anybike-logo-new.jpg';brand.alt='AnyBike';brand.loading='lazy';brand.style.cssText='display:block;width:min(170px,85%);height:100px;object-fit:contain;margin:0 auto;background:transparent;border:0;border-radius:0;padding:0';
+    const card=document.createElement('div');card.style.cssText='background:#242424;border:1px solid #555;border-left:3px solid #ed1c24;border-radius:8px;padding:14px;text-align:left;min-height:0;display:flex;flex-direction:column;justify-content:flex-start;gap:8px';
     const name=document.createElement('strong');name.textContent=make+' '+model;
     const status=document.createElement('small');status.style.cssText='color:#ddd;line-height:1.5';const note=cardNotes[i];if(note){name.textContent=note.title||make+' '+model;status.textContent=note.body;}else{status.textContent='Additional '+make+' '+model+' motorcycles may be available — enquire with AnyBike';}
-    card.append(brand,name,status);grid.append(card);
+    card.append(name,status);grid.append(card);
    }
    reveal();
   }catch(error){
