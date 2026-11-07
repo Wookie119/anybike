@@ -66,3 +66,20 @@ test("missing editorial data leaves empty slots rather than showing another mode
  assert.equal(slots.find(x=>x.id==="country_markets").ready,false);
  assert.equal(slots.find(x=>x.id==="related_models").content[0].url,"/another-model.html");
 });
+
+test("locked R 1300 GS presentation contract is retained in the universal renderer",()=>{
+ const approved=fs.readFileSync("design/model-template/approved-bmw-r1300gs-v2-2026-11-02.html","utf8");
+ const preview=fs.readFileSync("motorcycle-model-universal-development.html","utf8");
+ const requiredIds=["generationPanel","generationCompare","ukR1300ModelGallery","r1300gsModelHistory","internationalModelCards","internationalGuestRequestForm","modelSources"];
+ const requiredClasses=["r1300-approved-variant-grid","model-tech-grid","model-notes-label","r1300-deep-dive","bmw-explore"];
+ for(const id of requiredIds){
+  assert.ok(approved.includes('id="'+id+'"'),"Approved reference changed: "+id);
+  assert.ok(preview.includes('id="'+id+'"'),"Universal preview missing approved slot: "+id);
+ }
+ for(const cls of requiredClasses){
+  assert.ok(approved.includes(cls),"Approved layout lacks "+cls);
+  assert.ok(preview.includes(cls),"Universal layout lost "+cls);
+ }
+ assert.match(preview,/#ed1c24/);
+ assert.match(preview,/--anybike-approved-panel/);
+});
