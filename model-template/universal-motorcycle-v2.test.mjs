@@ -151,8 +151,8 @@ test("sourced model-year cards remain model-specific drafts until pictures are a
 test("universal preview renders database year cards for the requested model, without photo fallbacks",()=>{
  const preview=fs.readFileSync("motorcycle-model-universal-development.html","utf8");
  assert.match(preview,/const events=universal\.modelYearCards\.length\?universal\.modelYearCards:universal\.timeline/);
- assert.match(preview,/universal\\.slug!=="bmw-r-1300-gs"&&universal\\.modelYearCards\\.length/);
- assert.match(preview,/link\\.href="#ukR1300ModelGallery"/);
+ assert.match(preview,/universal\.slug!=="bmw-r-1300-gs"&&universal\.modelYearCards\.length/);
+ assert.match(preview,/link\.href="#ukR1300ModelGallery"/);
  assert.match(preview,/Manufacturer source ↗/);
  assert.match(preview,/normalizeMotorcycleV2\(publishedEditorial\)/);
  assert.match(preview,/\.eq\("slug",selectedModel\)\.eq\("preview_visible",true\)/);
