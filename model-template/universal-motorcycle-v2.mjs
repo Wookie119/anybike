@@ -143,7 +143,11 @@ export function assessMotorcycleV2Release(record,{photos=[],qa={}}={}){
   accessTested:false,publicPublicationApproved:false,
   readyForPublicRelease:false,blockers:[]
  };
- const audit=auditMotorcycleV2(record);
+ // Readiness is calculated in memory even for still-unpublished drafts.
+ // This does NOT change the database record or grant public read access:
+ // the actual preview renderer continues to require preview_visible=true.
+ const auditRecord=record&&typeof record==='object'?{...record,preview_visible:true}:record;
+ const audit=auditMotorcycleV2(auditRecord);
  if(audit.errors.length){report.blockers.push(...audit.errors);return report;}
  report.contentInputsPresent=audit.missingSections.length===0;
  if(!report.contentInputsPresent)report.blockers.push('Missing section inputs: '+audit.missingSections.join(', '));
