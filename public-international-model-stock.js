@@ -132,18 +132,20 @@
       const body = await response.json();
       const items = Array.isArray(body.items) ? body.items : [];
       const brandStock = items.filter(x => norm(x.make) === norm(name) && x.item_id && Number(x.price) > 0 && x.image_url);
+      // Exact model or factory trim only. Never use another model as fallback.
+      // Normalisation removes punctuation so word-boundary checks are unreliable.
+      const approvedTrim = /^(?:te|se|sport|rallye|trophy|tripleblack|exclusive|standard|mcompetition|competition|hp|premium|le|option719|114|107|special|iconic|edition|limited|anniversary)*$/;
       const exact = brandStock.filter(x => {
         const stockModel = norm(x.model);
+        if (stockModel === key) return true;
         if (!stockModel.startsWith(key)) return false;
-        // Adventure is a distinct model, never present it as the standard GS.
-        if (/\\badventure\\b/i.test(String(x.model)) && !/\\badventure\\b/i.test(model)) return false;
-        return true;
+        return approvedTrim.test(stockModel.slice(key.length));
       });
-      const selected = (exact.length ? exact : brandStock).slice(0, 6);
-      title.textContent = exact.length ? name + " " + model + " — available UK motorcycles" : "Other " + name + " motorcycles currently for sale";
+      const selected = exact.slice(0, 6);
+      title.textContent = name + " " + model + " — available UK motorcycles";
       status.textContent = exact.length ?
         exact.length + " published " + name + " " + model + " listing" + (exact.length === 1 ? "" : "s") + ". Availability and purchase terms are confirmed before ordering." :
-        "No exact " + name + " " + model + " is currently published. These are alternative " + name + " models, not the motorcycle you requested. We can source the exact model separately.";
+        "No exact " + name + " " + model + " is currently published. We can source the exact model separately.";
       if (!selected.length) status.textContent = "No published " + name + " stock is currently listed. Ask AnyBike to source the model you want.";
       grid.replaceChildren(...selected.map(makeCard));
       // Hide duplicate legacy stock section only after a successful live feed.
