@@ -116,6 +116,15 @@ export async function applyApprovedBmwPageShell(){
  try{published=await publishedBmwResearch();}
  catch(error){console.warn('Published model history unavailable; retaining existing guide',error);}
  if(published&&normalise(published.model)!==normalise(model))published=null;
+ // One database source owns the introductory facts for all existing BMW
+ // pages; the frozen R 1300 GS reference page is outside this shared shell.
+ // Keep the pre-rendered introduction when the network is unavailable.
+ if(published){
+  const intro=hero.querySelector('#summary'),years=hero.querySelector('#years');
+  if(intro&&text(published.hero_summary))intro.textContent=published.hero_summary;
+  if(years&&text(published.hero_years))years.textContent=published.hero_years;
+  hero.dataset.anybikeDatabaseModel=published.slug||'1';
+ }
  if(published){
   try{
    const {applyBmwDatabaseSections}=await import('/model-template/bmw-db-research-sections.mjs');
