@@ -189,14 +189,22 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
   if(!selected){bmwMediaStatus.textContent="No media or relationship data for this model.";return;}
   const years=Array.isArray(selected.model_year_gallery)?selected.model_year_gallery:[];
   const assets=Array.isArray(selected.approved_media)?selected.approved_media:[];
-  const relations=Array.isArray(selected.relationships)?selected.relationships:[];
-  bmwMediaStatus.textContent=years.length+" year-exact gallery assets · "+assets.length+" approved media assets · "+relations.length+" proposed relationships · "+selected.relationship_pair_conflicts+" overlapping link pairs · "+selected.generations_pending_review+" generations pending · "+selected.timeline_events_pending_review+" timeline events pending";
+  const relations=Array.isArray(selected.relationship_candidates)?selected.relationship_candidates:[];
+  bmwMediaStatus.textContent=years.length+" year-exact gallery placements · "+assets.length+" approved media assets · "+relations.length+" consolidated model pairs · "+relations.filter(r=>r.candidate_status==="classification_conflict").length+" conflicting classifications · No publication";
   if(years.length){
    const label=el("p","Verified model-year gallery placements (not published): "+years.map(y=>y.model_year+" "+y.edition_label).join(" · "));
    label.style.cssText="font-size:13px;color:#fff;grid-column:1/-1;border-left:3px solid #ed1c24;padding:8px 12px;background:#222";
    bmwMediaCards.append(label);
   }
-  if(!assets.length)bmwMediaCards.append(el("p","No approved, appropriately attributed images matched to this model. Use the normal neutral placeholder."));
+  for(const y of years){
+   const figure=document.createElement("figure");figure.style.cssText="margin:0;border:1px solid #555;border-top:3px solid #ed1c24;border-radius:9px;padding:9px;background:#171717";
+   if(/^https:\/\//.test(y.image_url||"")){const img=document.createElement("img");img.src=y.image_url;img.alt=y.model_year+" "+y.edition_label;img.loading="lazy";img.style.cssText="width:100%;height:165px;object-fit:cover;border-radius:5px";figure.append(img);}
+   figure.append(el("figcaption",y.model_year+" · "+y.edition_label+" · year-verified, unpublished"));
+   figure.append(el("p",String(y.licence||"")+" · "+String(y.attribution||"")));
+   if(/^https:\/\//.test(y.source_page_url||"")){const a=document.createElement("a");a.href=y.source_page_url;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Image source and credit";figure.append(a);}
+   bmwMediaCards.append(figure);
+  }
+  if(!assets.length&&!years.length)bmwMediaCards.append(el("p","No approved, appropriately attributed images matched to this model. Use the normal neutral placeholder."));
   for(const asset of assets){
    const figure=document.createElement("figure");figure.style.cssText="margin:0;border:1px solid #444;border-radius:9px;padding:9px;background:#171717";
    if(/^https:\/\//.test(asset.image_url||"")){
@@ -211,20 +219,21 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
    bmwMediaCards.append(figure);
   }
   const heading=el("h4","Related model proposals (not published; overlapping classifications flagged)");
-  if(Number(selected.relationship_pair_conflicts)>0){
-   const warning=el("p",selected.relationship_pair_conflicts+" overlapping related/variant classifications need reconciliation; no duplicate links will be generated.");
+  if(relations.some(r=>r.candidate_status==="classification_conflict")){
+   const warning=el("p",relations.filter(r=>r.candidate_status==="classification_conflict").length+" conflicting candidate classifications flagged. Original records preserved; no public links generated.");
    warning.style.cssText="padding:10px;border-left:3px solid #ed1c24;background:#252020;color:#fff";
    bmwRelations.append(warning);
   }heading.style.cssText="margin:10px 0 6px";bmwRelations.append(heading);
   if(!relations.length)bmwRelations.append(el("p","No relationship proposals recorded."));
   for(const rel of relations){
-   const line=el("p",rel.related_model+" · "+rel.relationship_type+" · "+rel.direction+" · "+rel.review_status);
+   const other=rel.slug_a===selected.slug?rel.model_b:rel.model_a;
+   const line=el("p",other+" · "+(rel.proposed_types||[]).join(" / ")+" · "+rel.candidate_status+" · source IDs "+(rel.source_relationship_ids||[]).join(", "));
    line.style.cssText="font-size:12px;margin:4px 0;padding:7px 9px;background:#262626;border-left:2px solid #ed1c24";bmwRelations.append(line);
   }
  }
  async function loadBmwMediaPreview(){
   bmwMediaStatus.textContent="Checking approved photo bank and model links…";
-  const {data,error}=await client.rpc("admin_bmw_model_media_relationships_v1");
+  const {data,error}=await client.rpc("admin_bmw_model_section_preview_v1");
   if(error){bmwMediaStatus.textContent="Media and link audit unavailable: "+error.message;return;}
   bmwMediaModels=Array.isArray(data?.models)?data.models:[];
   renderBmwMedia();
@@ -256,7 +265,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
  }
  async function loadBmwSectionPreview(){
   bmwSectionStatus.textContent="Loading BMW verified section mapping…";
-  const {data,error}=await client.rpc("admin_bmw_verified_model_sections_v1");
+  const {data,error}=await client.rpc("admin_bmw_model_section_preview_v1");
   if(error){bmwSectionStatus.textContent="Preview unavailable: "+error.message;return;}
   bmwVerifiedModels=Array.isArray(data?.models)?data.models:[];
   bmwModelSelect.replaceChildren();
@@ -267,7 +276,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;b
   if(chosen)bmwModelSelect.value=chosen.slug;
   if(!bmwVerifiedModels.length){bmwSectionStatus.textContent="No verified model records yet";return;}
   showBmwSections();
-  await loadBmwMediaPreview();
+  bmwMediaModels=bmwVerifiedModels;
+  renderBmwMedia();
  }
  bmwModelSelect.addEventListener("change",()=>{showBmwSections();renderBmwMedia();});
  load().then(()=>Promise.all([loadWork(),loadBmwSectionPreview()])).catch(e=>{status.textContent="Audit could not load: "+(e.message||String(e));});
