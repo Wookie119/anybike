@@ -78,6 +78,16 @@ for(const p of fs.readdirSync(globalDir).filter(x=>x.endsWith('.html'))){
 }
 for(const [title,pages] of titles)if(pages.length>1)warnings.push('Duplicate public title: '+JSON.stringify({title,pages:pages.slice(0,6),count:pages.length}));
 for(const [desc,pages] of descriptions)if(pages.length>1)warnings.push('Duplicate public description: '+JSON.stringify({description:desc.slice(0,75),pages:pages.slice(0,6),count:pages.length}));
-if(stats.manufacturer_queries!==47)issues.push('Expected 47 approved manufacturer view URLs, got '+stats.manufacturer_queries);
+// The old 47-query requirement is obsolete: motorcycle-brand.html is an
+// intentionally noindex shared route, NOT 47 separate approved pages. Never
+// reintroduce query-string URLs to the sitemap just to satisfy an old count.
+// A future database-driven manufacturer rollout must use approved indexable
+// URLs with unique canonical content and a separate explicit publication gate.
+const sharedBrandPage=fs.readFileSync(path.join(root,'motorcycle-brand.html'),'utf8');
+const sharedBrandNoindex=/\\bnoindex\\b/i.test(meta(sharedBrandPage,'robots'));
+if(sharedBrandNoindex&&stats.manufacturer_queries!==0)
+ issues.push('Noindex manufacturer query routes must not appear in the sitemap: '+stats.manufacturer_queries);
+if(!sharedBrandNoindex&&stats.manufacturer_queries!==0)
+ warnings.push('Shared manufacturer query URLs need individually verified indexability and canonical URLs before publication.');
 console.log(JSON.stringify({result:issues.length?'FAIL':'PASS',stats,errors:issues.slice(0,100),warnings_count:warnings.length,warnings_sample:warnings.slice(0,20)},null,2));
 if(issues.length)process.exitCode=1;
