@@ -83,3 +83,22 @@ test("locked R 1300 GS presentation contract is retained in the universal render
  assert.match(preview,/#ed1c24/);
  assert.match(fs.readFileSync("public-header.css","utf8"),/--anybike-approved-panel/);
 });
+
+test("R 1300 GS approved layout separates stock from development and puts years before BMW stories",()=>{
+ const styles=fs.readFileSync("public-header.css","utf8");
+ assert.match(styles,/LOCKED V2 MODEL DEVELOPMENT PANEL/);
+ for(const path of ["bmw-r1300gs.html","motorcycle-model-universal-development.html"]){
+  const html=fs.readFileSync(path,"utf8");
+  const main=html.slice(html.indexOf("<main>"),html.indexOf("</main>")+7);
+  assert.ok(main.includes('id="internationalModelStock"'),path+" lost the international sales section");
+  assert.ok(main.includes('id="ukR1300ModelGallery"'),path+" lost the model-year gallery");
+  assert.ok(main.includes('anybike-approved-model-development'),path+" lost the approved theme");
+  assert.ok(main.indexOf('id="ukR1300ModelGallery"')<main.indexOf('id="body"'),path+" model years must precede stories");
+  assert.ok(main.indexOf('id="body"')<main.indexOf('id="internationalModelStock"'),path+" must preserve the research flow");
+  const galleryScript=html.slice(html.indexOf("const copy=original.cloneNode(true)"),html.indexOf("</script>",html.indexOf("const copy=original.cloneNode(true)")));
+  assert.match(galleryScript,/uk\.append\(copy\);[\s\S]*original\.remove\(\);/,"Remove redundant research inside stock");
+  assert.match(galleryScript,/uk\.hidden=false/,"Show gallery for every audience");
+  assert.match(galleryScript,/bodySections\.before\(uk\)/,"Put editions above stories");
+  assert.match(html,/public-header\.css\?v=20261107-universal-development/);
+ }
+});
