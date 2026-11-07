@@ -131,3 +131,18 @@ test("sourced BMW model timeline is preserved without inventing a model year",()
  assert.equal(slots.find(x=>x.id==="sources_and_references").content.length,1);
  assert.equal(auditMotorcycleV2(record).readyToRollout,false);
 });
+
+test("sourced model-year cards remain model-specific drafts until pictures are approved",()=>{
+ const record=sample("BMW","F 900 GS","bmw-f-900-gs");
+ record.editorial.model_year_cards=[
+  {period:"September 2023",description:"Manufacturer announcement",source:"https://www.press.bmwgroup.com/example",image_status:"awaiting_approved_model_year_photo",content_status:"source_linked_editorial_draft",image_url:"https://example.org/unapproved.jpg"},
+  {period:"2024 model",description:"Documented 2024 model period",source:"https://www.press.bmwgroup.com/2024",image_status:"approved",content_status:"reviewed",image_url:"https://example.org/approved.jpg"}
+ ];
+ const normalized=normalizeMotorcycleV2(record);
+ assert.equal(normalized.modelYearCards.length,2);
+ assert.equal(normalized.modelYearCards[0].imageUrl,null);
+ assert.equal(normalized.modelYearCards[0].contentStatus,"source_linked_editorial_draft");
+ assert.equal(normalized.modelYearCards[1].imageUrl,"https://example.org/approved.jpg");
+ assert.equal(buildMotorcycleV2Sections(record).find(x=>x.id==="model_development").content[0].period,"September 2023");
+ assert.equal(record.editorial.model,"F 900 GS");
+});
