@@ -25,7 +25,17 @@ export function normalizeMotorcycleV2(record){
   hero:guide.hero||{},
   sections:list(guide.sections),
   development:guide.production||{},
+  // Manufacturer announcements are preserved as dated timeline evidence;
+  // do not reinterpret press-release dates as production/model-year dates.
+  timeline:list(guide.model_year_timeline).filter(x=>x&&safeText(x.period)&&safeText(x.description)).map(x=>({
+   period:safeText(x.period),description:safeText(x.description),
+   source:safeHttps(x.source)?x.source:null
+  })),
   engineering:guide.engineering_reference||{},
+  // Pending editorial technical evidence can inform review but must never
+  // be passed off as a published, factory-verified specification.
+  engineeringReviewStatus:safeText(guide.engineering_reference?.verification_status)||'unreviewed',
+  engineeringRows:list(guide.engineering_reference?.rows).filter(x=>Array.isArray(x)&&safeText(x[0])&&safeText(x[1])).map(x=>[safeText(x[0]),safeText(x[1])]),
   galleries:guide.engineering_gallery_media||{},
   stories:safePath(story.url)?story:null,
   colours:list(guide.production?.official_colours),
@@ -49,12 +59,14 @@ export function buildMotorcycleV2Sections(record){
  const withValue=content=>({content,ready:hasList(content)||(content&&typeof content==='object'&&Object.keys(content).length>0)||typeof content==='string'&&content.trim().length>0});
  const heritage=hasList(model.heritage)?model.heritage:model.sections;
  const heroText=model.hero?.summary||guide.summary||'';
+ const citedTimeline=model.timeline.filter(x=>x.source).map(x=>({label:x.period,url:x.source,description:x.description}));
  const sourceEvidence=hasList(model.sources)?model.sources:
   hasList(guide.reference_links)?guide.reference_links:
+  hasList(citedTimeline)?citedTimeline:
   model.development?.documented_production_evidence||[];
  const slots={
   introduction:withValue(heroText),
-  model_development:withValue(model.development?.generations||[]),
+  model_development:withValue(hasList(model.development?.generations)?model.development.generations:model.timeline),
   engineering_gallery:withValue(guide.development_cards||[]),
   stories_and_comparisons:withValue(model.stories||{}),
   factory_colours:withValue(model.colours),
