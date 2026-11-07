@@ -50,6 +50,10 @@ test("R 1250 GS staging research fits the same 13-section data contract without 
  assert.equal(lookup("engineering_gallery").ready,false);
  assert.equal(lookup("related_models").ready,false);
  assert.equal(lookup("country_markets").ready,false);
+ const audit=auditMotorcycleV2(previewRecord);
+ assert.equal(audit.readyToRollout,false);
+ assert.ok(audit.missingSections.includes("engineering_gallery"));
+ assert.ok(audit.missingSections.includes("country_markets"));
  assert.equal(staged.editorial.make,"BMW");
  assert.equal(staged.editorial.model,"R 1250 GS");
 });
