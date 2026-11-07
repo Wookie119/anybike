@@ -75,46 +75,10 @@ export async function applyApprovedBmwPageShell(){
  // R 1300 GS keeps its dedicated approved 13-section layout unchanged.
  if(main.querySelector('#ukR1300ModelGallery'))return false;
  main.classList.add('anybike-approved-bmw-live-shell');
- // Every BMW model needs a full hero, even before a licensed photograph exists.
- // The approved R1250 and R1300 hero images are never replaced.
- const hydrateHero=async modelName=>{
-  if(hero.querySelector('figure img,.licensed-photo img,.recovered-hero-photo img,.anybike-master-hero-media'))return;
-  const figure=document.createElement('figure');
-  figure.className='anybike-master-hero-media';
-  const placeholder=document.createElement('div');
-  placeholder.className='anybike-master-hero-art';
-  const eyebrow=document.createElement('span');eyebrow.textContent='BMW MOTORRAD · MODEL GUIDE';
-  const heading=document.createElement('strong');heading.textContent=modelName;
-  const sub=document.createElement('span');sub.textContent='Model history · UK sourcing · Available Stock';
-  placeholder.append(eyebrow,heading,sub);
-  const caption=document.createElement('figcaption');
-  caption.textContent='Explore the BMW '+modelName+' model guide and current UK motorcycle availability.';
-  figure.append(placeholder,caption);
-  const actions=hero.querySelector('.actions');
-  if(actions)actions.before(figure);else hero.append(figure);
-  try{
-   const provider=window.supabase;
-   if(!provider?.createClient)return;
-   const client=provider.createClient('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
-   const {data,error}=await client.rpc('public_bmw_model_hero_v1',{requested_path:location.pathname});
-   if(error||!data||normalise(data.model)!==normalise(modelName))return;
-   if(!safeSource(data.image_url)||!safeSource(data.source_page_url)||!safeSource(data.licence_url)||!text(data.attribution)||!text(data.licence))return;
-   const img=document.createElement('img');
-   img.src=data.image_url;img.alt='BMW '+modelName+' motorcycle';img.loading='eager';img.decoding='async';
-   img.onerror=()=>{img.remove();placeholder.hidden=false;};
-   placeholder.hidden=true;figure.prepend(img);
-   caption.replaceChildren();
-   const source=document.createElement('a');source.href=data.source_page_url;source.target='_blank';source.rel='noopener noreferrer';source.textContent=data.attribution;
-   const licence=document.createElement('a');licence.href=data.licence_url;licence.target='_blank';licence.rel='noopener noreferrer';licence.textContent=data.licence;
-   caption.append(source,' · ',licence);
-  }catch(error){console.warn('No approved BMW hero photo; using model-specific banner',error);}
- };
-
  const display=main.querySelector('#heading')?.textContent?.trim()||main.querySelector('h1')?.textContent?.trim()||'';
  const model=display.replace(/^BMW\s+/i,'');
  if(!model)return false;
- void hydrateHero(model);
- // Hero renders immediately, before slower editorial enrichment.
+ // One shared hero renderer for every existing BMW model route.
  void applyBmwHero(hero,model);
  // Existing production model guides are also hydrated by the page's own loader;
  // this is a separate presentation pass, never a replacement for it.
