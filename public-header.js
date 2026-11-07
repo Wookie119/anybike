@@ -2944,7 +2944,7 @@ async function anybikeShowPublicSignedInIdentity(){
   if(dedicatedStock){
    // Approved R 1250 GS already has a separate public guest enquiry form only when
    // no existing dedicated one is present. R 1300 GS returns above.
-   const target=document.getElementById('r1250LiveStock');
+   const target=document.getElementById('nextAction')||document.getElementById('ukR1250ModelGallery')||document.getElementById('r1250LiveStock');
    if(target)target.after(enquiry);
    else main.append(enquiry);
   }else section.after(enquiry);
