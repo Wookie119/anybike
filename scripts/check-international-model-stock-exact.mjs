@@ -55,7 +55,10 @@ const r1250=fs.readFileSync('bmw-r1250gs.html','utf8');
 assert(r1250.includes('const matches=exact;'),'R 1250 GS exact-stock restriction lost');
 assert(!r1250.includes('const matches=exact.length?exact:bmw'),'Wrong-BMW fallback returned');
 assert(r1250.indexOf('id="r1250LiveStock"')<r1250.indexOf('id="ukR1250ModelGallery"'),'R 1250 stock must precede year cards');
-assert(r1250.includes('id="r1250StockResearch"'),'R 1250 research must remain under sales section');
+assert(r1250.includes('<section id="r1250StockResearch"'),'R 1250 research must not be nested inside restricted sales panel');
+assert(r1250.indexOf('<section id="r1250StockResearch"')>r1250.indexOf('<section id="r1250LiveStock"'),'R 1250 stock must appear above research');
+assert(r1250.includes('panel.dataset.stockReady="blocked"'),'R 1250 restricted visitors must not see misleading stock panel');
+assert(r1250.includes('panel.dataset.stockReady="error";panel.hidden=true'),'R 1250 temporary stock errors must not replace research');
 assert(r1250.includes('BMW_R_1250_GS_'),'Licensed R 1250 GS hero removed');
 
 const models=[
