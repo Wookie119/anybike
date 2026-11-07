@@ -107,3 +107,27 @@ test("R 1300 GS approved layout separates stock from development and puts years 
   assert.match(html,/public-header\.css\?v=20261107-universal-development/);
  }
 });
+
+test("sourced BMW model timeline is preserved without inventing a model year",()=>{
+ const record=sample("BMW","F 900 GS","bmw-f-900-gs");
+ record.editorial.production.generations=[];
+ record.editorial.production.specifications=[];
+ record.editorial.model_year_timeline=[
+  {period:"September 2023",description:"Press announcement, not confirmed factory production start",source:"https://www.press.bmwgroup.com/global/article/reference"},
+  {period:"2024 model",description:"Documented model-year reference",source:"javascript:alert(1)"}
+ ];
+ record.editorial.engineering_reference={verification_status:"pending_editorial_review",rows:[["Engine","895 cc"],["Power","105 hp"]]};
+ const model=normalizeMotorcycleV2(record);
+ assert.equal(model.timeline.length,2);
+ assert.equal(model.timeline[0].period,"September 2023");
+ assert.equal(model.timeline[1].source,null);
+ assert.equal(model.engineeringReviewStatus,"pending_editorial_review");
+ assert.equal(model.engineeringRows.length,2);
+ assert.deepEqual(model.specifications,[],"Unreviewed engineering must not become verified specifications");
+ const slots=buildMotorcycleV2Sections(record);
+ assert.equal(slots.find(x=>x.id==="model_development").ready,true);
+ assert.equal(slots.find(x=>x.id==="technical_specifications").ready,false);
+ assert.equal(slots.find(x=>x.id==="sources_and_references").ready,true);
+ assert.equal(slots.find(x=>x.id==="sources_and_references").content.length,1);
+ assert.equal(auditMotorcycleV2(record).readyToRollout,false);
+});
