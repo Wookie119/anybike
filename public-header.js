@@ -2874,6 +2874,7 @@ async function anybikeShowPublicSignedInIdentity(){
   if(!make||!model||/^(?:motorcycles|models|stock|history|range)$/i.test(model))return;
   const safe=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');
   const dedicatedStock=!!(document.getElementById('r1250LiveStock')||document.getElementById('internationalModelStock'));
+  if(!dedicatedStock)main.classList.add('anybike-universal-model-layout');
   const section=document.createElement('section');
   section.className='end-action';
   section.dataset.anybikeModelStock='1';
