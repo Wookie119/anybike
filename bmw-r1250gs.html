@@ -100,7 +100,7 @@ main>.end-action[aria-label="UK motorcycle selling"][hidden]{display:none!import
  const seller=document.querySelector('[aria-label="UK motorcycle selling"]');
  const update=()=>{
    const headerText=document.getElementById('anybikePublicSignedInIdentity')?.textContent||'';
-   const international=document.documentElement.classList.contains('anybike-international-dealer')||/SIGNED IN\s*[·•-]\s*(?:INTERNATIONAL|EUROPEAN) DEALER/i.test(headerText)||document.getElementById('r1250LiveStock')?.dataset.stockReady==='true';
+   const international=document.documentElement.classList.contains('anybike-international-dealer')||/SIGNED IN\s*[·•-]\s*(?:INTERNATIONAL|EUROPEAN) DEALER/i.test(headerText)||document.getElementById('r1250LiveStock')?.dataset.viewerCountry==='international';
    if(seller)seller.hidden=international;
    if(source)source.hidden=!international;
    const topSource=document.getElementById('source');if(topSource)topSource.hidden=!international;
@@ -163,6 +163,8 @@ main>.end-action[aria-label="UK motorcycle selling"][hidden]{display:none!import
    throw Error("Stock feed HTTP "+response.status);
   }
   const data=await response.json();
+  panel.dataset.viewerCountry=String(data.country_code||"").toUpperCase()==="GB"?"uk":"international";
+  document.dispatchEvent(new Event("anybike:public-identity-updated"));
   if(!Array.isArray(data.items))throw Error("Stock feed missing published items");
   const bmw=data.items.filter(r=>norm(r.make)==="bmw"&&r.item_id&&r.image_url&&Number(r.price)>0);
   const exact=bmw.filter(r=>{
@@ -371,7 +373,7 @@ window.addEventListener("load",async function(){
   const seller=document.querySelector('main section[aria-label="UK motorcycle selling"]');
   const identity=document.getElementById('anybikePublicSignedInIdentity')?.textContent||'';
   const stock=document.getElementById('r1250LiveStock');
-  const international=/SIGNED IN\s*[·•-]\s*(?:INTERNATIONAL|EUROPEAN) DEALER/i.test(identity) || stock?.dataset.stockReady==='true';
+  const international=/SIGNED IN\s*[·•-]\s*(?:INTERNATIONAL|EUROPEAN) DEALER/i.test(identity) || stock?.dataset.viewerCountry==='international';
   if(seller&&seller.hidden!==international)seller.hidden=international;
   const top=document.getElementById('source');
   if(top&&top.hidden===international)top.hidden=!international;
