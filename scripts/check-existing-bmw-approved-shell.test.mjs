@@ -14,8 +14,8 @@ test('26 current BMW pages share the approved shell and preserve their canonical
  assert.equal(pages.length,26);
  for(const path of pages){
   const s=fs.readFileSync(path,'utf8');
-  assert.ok(s.includes('type="module" src="/model-template/approved-bmw-page-shell.mjs?v=20261107-r1300-shell"'),path+' shared shell');
-  assert.ok(s.includes('/public-header.css?v=20261107-r1300-shell'),path+' shared CSS');
+  assert.ok(s.includes('type="module" src="/model-template/approved-bmw-page-shell.mjs?v=20261107-bmw-live-research2"'),path+' shared shell');
+  assert.ok(s.includes('/public-header.css?v=20261107-bmw-live-research2'),path+' shared CSS');
   assert.ok(s.includes('id="generationPanel"'),path+' specification');
   assert.ok(s.includes('id="body"'),path+' research');
   assert.ok(s.includes('/public-header.js'),path+' shared stock renderer');
