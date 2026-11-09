@@ -49,8 +49,15 @@ function appendContent(doc,parent,value,depth=0){
     if(url.startsWith('https://')){a.target='_blank';a.rel='noopener noreferrer';}
     parent.append(a);
   }
-  for(const key of ['items','paragraphs','entries','cards','links']){
-    if(Array.isArray(value[key]))appendContent(doc,parent,value[key],depth+1);
+  // One typed renderer for every entity. Use known editorial fields only; never
+  // render source HTML, unlicensed photograph URLs or arbitrary database keys.
+  for(const key of ['items','paragraphs','entries','cards','links',
+    'hero','production','generations','milestones','specifications','colours',
+    'types','related_model_links','global_stories','deep_dive','development_cards',
+    'actions','customer_copy','enquiry_form_copy','engineering','development',
+    'editions','technical_specifications','motorcycle_types','country_markets']){
+    if(Array.isArray(value[key])||(value[key]&&typeof value[key]==='object'))
+      appendContent(doc,parent,value[key],depth+1);
   }
 }
 
@@ -153,7 +160,9 @@ export function renderUniversalPage(root,payload){
     appendContent(doc,section,slot.content);
     if(Array.isArray(slot.content?.verified_catalogue_facts))
       appendVerifiedFacts(doc,section,slot.content.verified_catalogue_facts);
-    research.append(section);
+    // Suppress empty section cards even when the published JSON has metadata
+    // but no customer-facing text. Never fabricate a paragraph to fill a slot.
+    if(section.childNodes.length>1)research.append(section);
   }
   fragment.append(research);
   const actions=node(doc,'section','','anybike-universal-actions');
