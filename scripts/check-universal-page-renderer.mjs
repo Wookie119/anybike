@@ -16,3 +16,33 @@ assert.deepEqual(composeUniversalPage({entity:bmw,sections:[mk(bmw,20,'Export')]
 assert.throws(()=>composeUniversalPage({entity:gs,sections:[mk({...gs,id:77},3,'Other GS')]}),/Cross-entity/);
 assert.throws(()=>renderUniversalPage({dataset:{}},{entity:gs,sections:[]}),/Dedicated universal/);
 console.log('PASS: universal shared renderer, canonical stock only, strict publish gates and stock-before-research layout');
+
+class FakeElement {
+ constructor(tag,doc){this.tagName=tag;this.ownerDocument=doc;this.childNodes=[];this.dataset={};this.className='';this.href='';this.textContent='';}
+ append(...children){this.childNodes.push(...children);}
+ replaceChildren(...children){this.childNodes=[...children];}
+}
+const documentFake={
+ createElement(tag){return new FakeElement(tag,this);},
+ createDocumentFragment(){return new FakeElement('#fragment',this);}
+};
+const root=new FakeElement('main',documentFake);root.dataset.anybikeUniversalRoot='true';
+const rendered=renderUniversalPage(root,{entity:gs,sections:[mk(gs,12,{
+ verified_catalogue_facts:[{fact_id:1,label:'Verified engine output',
+  source_verification_status:'verified',source_url:'https://example.org/source',
+  source_name:'Factory records',start_year:2024,market:'UK',
+  value:{power_hp:145,engine_cc:1300}}]
+})],stock:[good,{...good,item_id:99,catalog_model_id:77}]});
+assert.equal(rendered.stock.length,1);
+const page=root.childNodes[0];
+assert.deepEqual(page.childNodes.map(el=>el.dataset.anybikeRole||el.tagName),
+ ['header','stock','research','customer-actions']);
+const research=page.childNodes[2],section=research.childNodes[0];
+assert.equal(section.dataset.sectionKey,'section_12');
+const facts=section.childNodes.find(e=>e.className==='anybike-universal-verified-facts');
+assert(facts,'Verified manufacturer evidence must render');
+const entry=facts.childNodes[0];
+assert(entry.childNodes.some(x=>x.tagName==='a'&&x.href==='https://example.org/source'),'Original source missing');
+assert(!entry.childNodes.some(x=>x.tagName==='script'),'Raw HTML/source injection');
+assert.equal(root.dataset.anybikeRenderedEntity,'model:68');
+console.log('PASS: actual DOM ordering, source provenance and no cross-model stock on one renderer');
