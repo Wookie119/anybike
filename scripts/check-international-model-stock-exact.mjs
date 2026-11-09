@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
 const shared=fs.readFileSync('public-header.js','utf8');
-const start=shared.indexOf('  const requested=safe(model);',shared.indexOf('/* International model stock and guest enquiries: model guides only. */'));
+const start=shared.indexOf('  const requested=safe(model);',shared.indexOf('/* International model stock and guest enquiries: model guides only.'));
 const end=shared.indexOf('  function saleCard(x){',start);
 assert(start>=0&&end>start,'Central exact-model stock matcher missing');
 const snippet=shared.slice(start,end);
