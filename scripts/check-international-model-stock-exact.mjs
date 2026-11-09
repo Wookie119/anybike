@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
 const shared=fs.readFileSync('public-header.js','utf8');
-const start=shared.indexOf('  const allowedSuffix=',shared.indexOf('/* International model stock and guest enquiries: model guides only. */'));
+const start=shared.indexOf('  const requested=safe(model);',shared.indexOf('/* International model stock and guest enquiries: model guides only. */'));
 const end=shared.indexOf('  function saleCard(x){',start);
 assert(start>=0&&end>start,'Central exact-model stock matcher missing');
 const snippet=shared.slice(start,end);
@@ -20,17 +20,17 @@ const fixtures=[
  ['BMW','K 1600 GT SE'],['BMW','S 1000 RR'],['BMW','S 1000 R'],
  ['BMW','F 900 GS'],['BMW','F 900 GS Adventure'],
  ['Harley-Davidson','Fat Boy 114'],['Harley-Davidson','Road King']
-].map(([make,model],i)=>({make,model,item_id:i+1,image_url:'/approved.jpg',price:1000}));
+].map(([make,model],i)=>({make,model,item_id:i+1,image_url:'/approved.jpg',price:1000,catalog_model_id:i+1,catalogue_identity_status:'verified',publication_eligible:true}));
 const cases=[
  ['BMW','R 1250 GS',[]],
- ['BMW','R 1300 GS',['R 1300 GS TE','R 1300 GS']],
+ ['BMW','R 1300 GS',['R 1300 GS']],
  ['BMW','R 1300 RT',['R 1300 RT']],
- ['BMW','R 1250 RS',['R 1250 RS SE']],
- ['BMW','K 1600 GT',['K 1600 GT SE']],
+ ['BMW','R 1250 RS',[]],
+ ['BMW','K 1600 GT',[]],
  ['BMW','S 1000 RR',['S 1000 RR']],
  ['BMW','S 1000 R',['S 1000 R']],
  ['BMW','F 900 GS',['F 900 GS']],
- ['Harley-Davidson','Fat Boy',['Fat Boy 114']],
+ ['Harley-Davidson','Fat Boy',[]],
  ['Harley-Davidson','Road King',['Road King']]
 ];
 for(const [make,model,wanted] of cases){
@@ -47,7 +47,8 @@ assert(shared.includes('content.append(strong,p)'),'Model-specific research must
 const legacyModelStock=fs.readFileSync('public-international-model-stock.js','utf8');
 assert(legacyModelStock.includes('const selected = exact.slice(0, 6);'),'Optional model stock must never show unrelated models');
 assert(!legacyModelStock.includes('exact.length ? exact : brandStock'),'Cross-model fallback returned to optional stock');
-assert(legacyModelStock.includes('approvedTrim.test(stockModel.slice(key.length))'),'Optional model trim guard missing');
+assert(legacyModelStock.includes('const exactIds = new Set(candidates.map(x => Number(x.catalog_model_id)))'),'Optional loader must enforce unique canonical model ID');
+assert(legacyModelStock.includes('norm(x.model) === key'),'Optional loader must use exact model identity');
 
 const protectedR1300=fs.readFileSync('bmw-r1300gs.html','utf8');
 assert(protectedR1300.includes('id="internationalModelCards"'),'R 1300 GS real listing cards missing');
