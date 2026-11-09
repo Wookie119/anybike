@@ -17,5 +17,7 @@ await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],en
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[rows[0],{...rows[0],manufacturer_id:28}],error:null}),{type:'model',id:68}),/Mixed/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],publication_eligible:false}],error:null}),{type:'model',id:68}),/Unpublished/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[],error:{message:'Denied'}}),{type:'model',id:68}),/unavailable/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],entity_name:'CE 02 AM 7.9% APR Representative'}],error:null}),{type:'model',id:68}),/promotional catalogue identity blocked/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],entity_name:'S 1000 RR PCP finance offer'}],error:null}),{type:'model',id:68}),/promotional catalogue identity blocked/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[],error:null}),{type:'model',id:0}),/Canonical/);
 console.log('PASS: public-only universal Supabase projection and strict manufacturer/model identity checks');
