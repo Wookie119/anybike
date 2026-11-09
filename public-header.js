@@ -3002,14 +3002,15 @@ async function anybikeShowPublicSignedInIdentity(){
     if(!notes.length){research.remove();}
    }catch(_){research.remove();}
   })();
-  const allowedSuffix=/^(?:te|se|sport|rallye|trophy|tripleblack|exclusive|standard|mcompetition|competition|hp|premium|gt|le|option719|114|107|special|iconic|touring|edition|limited|anniversary|urban|gsedition)*$/;
+  // A separately catalogued TE/SE/Adventure is NOT interchangeable with
+  // the base motorcycle. Only verified, uniquely identified, already
+  // published VQ records may appear in a particular model's sale cards.
   const requested=safe(model);
   function exactModel(x){
    if(safe(x.make)!==safe(make)||!x.item_id||!x.image_url||!(Number(x.price)>0))return false;
-   const stock=safe(x.model);
-   if(stock===requested)return true;
-   if(!stock.startsWith(requested))return false;
-   return allowedSuffix.test(stock.slice(requested.length));
+   if(x.catalogue_identity_status!=='verified'||x.publication_eligible!==true)return false;
+   if(!Number.isSafeInteger(Number(x.catalog_model_id))||Number(x.catalog_model_id)<=0)return false;
+   return safe(x.model)===requested;
   }
   function saleCard(x){
    const a=document.createElement('a');a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(x.item_id);
@@ -3030,7 +3031,9 @@ async function anybikeShowPublicSignedInIdentity(){
     const data=await res.json();
     try{const {renderLiveStockBrowse}=await import('/model-template/live-stock-navigation.mjs');renderLiveStockBrowse(liveBrowse,data.items,{currentMake:make});}
     catch(error){console.warn('Live model inventory links unavailable',error);}
-    const matches=(Array.isArray(data.items)?data.items:[]).filter(exactModel).slice(0,6);
+    const candidates=(Array.isArray(data.items)?data.items:[]).filter(exactModel);
+    const exactIds=new Set(candidates.map(x=>Number(x.catalog_model_id)));
+    const matches=exactIds.size===1?candidates.slice(0,6):[];
     stockGrid.replaceChildren(...matches.map(saleCard));
     note.textContent=matches.length?
      matches.length+' published '+make+' '+model+' motorcycle'+(matches.length===1?'':'s')+'. Availability and terms are confirmed before purchase.':
