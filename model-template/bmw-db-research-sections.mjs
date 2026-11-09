@@ -19,6 +19,20 @@ const routeLink=entry=>{
  if(!entry||!internal(entry.url)||!safeText(entry.label))return null;
  const a=document.createElement('a');a.href=entry.url;a.textContent=entry.label;return a;
 };
+/**
+ * Use only approved relative URLs from the published BMW projection.
+ * Prevent duplicate, self-referential and malformed links without altering
+ * source editorial records or generating speculative related motorcycles.
+ */
+export function filterModelNavigationEntries(items,currentPath=''){
+ const seen=new Set();
+ return arr(items).filter(entry=>{
+  if(!entry||!internal(entry.url)||!safeText(entry.label))return false;
+  if(entry.url===currentPath||seen.has(entry.url))return false;
+  seen.add(entry.url);
+  return true;
+ });
+}
 const section=(name,title)=>{
  const element=document.createElement('section');element.className='card anybike-db-research-card';
  element.dataset.anybikeDbSection=name;element.append(text('h2',title));
@@ -69,7 +83,8 @@ const createSpecs=items=>{
  el.append(grid);return el;
 };
 const createNavigation=(name,title,items)=>{
- const links=arr(items).map(routeLink).filter(Boolean);
+ const currentPath=typeof location==='object'?location.pathname:'';
+ const links=filterModelNavigationEntries(items,currentPath).map(routeLink).filter(Boolean);
  if(!links.length)return null;
  const el=section(name,title),nav=document.createElement('nav');
  nav.className='anybike-db-model-links';nav.setAttribute('aria-label',title);
