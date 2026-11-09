@@ -34,10 +34,9 @@ assert(gallery.length>5000,'Shared international model gallery missing');
 for(const [fragment,reason] of [
  ["const dedicatedStock=", 'Dedicated model galleries must take precedence'],
  ["const requested=safe(model)", 'Exact model matching missing'],
- ["const allowedSuffix=", 'Approved trim suffix guard missing'],
- ["if(stock===requested)return true", 'Exact-model acceptance removed'],
- ["if(!stock.startsWith(requested))return false", 'Different-model exclusion missing'],
- ["return allowedSuffix.test(suffix)", 'Non-trim variants may leak into listings'],
+ ["x.catalogue_identity_status!=='verified'", 'Verified canonical identity requirement missing'],
+ ["return safe(x.model)===requested;", 'Exact-model acceptance removed'],
+ ["const exactIds=new Set(candidates.map(x=>Number(x.catalog_model_id)))", 'Canonical model-ID isolation missing'],
  ["const emptyCardCount=dedicatedStock?0:cardNotes.length", 'Research count must not create fake motorcycles'],
  ["card.append(name,status)", 'Research must render without logo photograph placeholders'],
  ["if(matches.length){matches.forEach", 'Approved motorcycle cards must render first'],
