@@ -127,8 +127,20 @@ export async function applyApprovedBmwPageShell(){
  }
  if(published){
   try{
-   const {applyBmwDatabaseSections}=await import('/model-template/bmw-db-research-sections.mjs');
+   const {applyBmwDatabaseSections,addDatabaseCountryNavigation}=await import('/model-template/bmw-db-research-sections.mjs');
    applyBmwDatabaseSections(body,published);
+   // The existing public country guide routes are shared by all BMW models.
+   // Add region-grouped links without treating route discovery as approval of
+   // new model research or rewriting the approved model page layout.
+   if(!published.country_markets?.length){
+    const provider=window.supabase;
+    const client=provider?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
+    if(client){
+     void client.rpc('public_anybike_country_navigation_v1').then(({data,error})=>{
+      if(!error&&Array.isArray(data))addDatabaseCountryNavigation(body,data);
+     }).catch(error=>console.warn('BMW country navigation unavailable; existing research retained',error));
+    }
+   }
   }catch(error){console.warn('BMW research enrichment unavailable; preserving original guide',error);}
  }
  // The same Supabase read also supplies published-documentation links.
