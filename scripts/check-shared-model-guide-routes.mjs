@@ -38,9 +38,9 @@ for(const [fragment,reason] of [
  ["x.catalogue_identity_status!=='verified'", 'Verified canonical identity requirement missing'],
  ["return safe(x.model)===requested;", 'Exact-model acceptance removed'],
  ["const exactIds=new Set(candidates.map(x=>Number(x.catalog_model_id)))", 'Canonical model-ID isolation missing'],
- ["const emptyCardCount=dedicatedStock?0:cardNotes.length", 'Research count must not create fake motorcycles'],
- ["card.append(name,status)", 'Research must render without logo photograph placeholders'],
- ["if(matches.length){matches.forEach", 'Approved motorcycle cards must render first'],
+ ["for(const n of notes.slice(0,14))researchCard(n.label,n.body,n.image)", 'Only documented model research must create research cards'],
+ ["if(!notes.length){research.remove();}", 'Research with no documented notes must disappear'],
+ ["const matches=exactIds.size===1?candidates.slice(0,6):[]", 'Only one verified model identity may appear in stock'],
  ["international-public-stock", 'Protected stock endpoint changed'],
  ["international-guest-enquiry", 'Guest enquiry route removed'],
  ["const reveal=()", 'Gallery visibility handling removed']
