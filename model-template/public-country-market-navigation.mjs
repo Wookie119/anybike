@@ -96,7 +96,9 @@ export async function installPublicCountryNavigation({root=document.querySelecto
 }
 
 if(typeof document!=='undefined'&&typeof location!=='undefined'&&
- /^\/(?:bmw|harley-davidson)-motorcycles\.html$/.test(location.pathname)){
+ (/^\/(?:bmw|harley-davidson)-motorcycles\.html$/.test(location.pathname)||
+  (location.pathname==='/motorcycle-brand.html'&&
+   /^[a-z0-9][a-z0-9 -]{0,80}$/i.test(new URLSearchParams(location.search).get('make')||'')))){
  const start=()=>void installPublicCountryNavigation();
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
  else start();
