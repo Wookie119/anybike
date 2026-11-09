@@ -54,9 +54,9 @@ WITH research(model,year,market,engine_cc,power_hp,torque_nm,source_url) AS (
  RETURNING s.model_id
 )
 INSERT INTO public.motorcycle_universal_page_sections_v1
- (entity_type,model_id,section_number,section_key,section_title,
+ (entity_type,model_id,section_number,section_title,
  content,editorial_status,source_reference)
-SELECT 'model',v.catalog_model_id,12,'section_12','Verified technical evidence',
+SELECT 'model',v.catalog_model_id,12,'Verified technical evidence',
  jsonb_build_object('verified_catalogue_facts',v.entries),
  'draft','motorcycle_catalog_facts:verified_ids'
 FROM verified v
