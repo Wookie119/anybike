@@ -27,7 +27,7 @@ assert.equal(ids.length,new Set(ids).size,'Duplicate model guide HTML IDs');
 // Real approved motorcycles must be listed first. With no matching stock,
 // the information cards must use distinct model-specific year/spec notes.
 const shared=fs.readFileSync('public-header.js','utf8');
-const gallery=shared.slice(shared.indexOf('/* International model stock and guest enquiries: model guides only. */'));
+const gallery=shared.slice(shared.indexOf('/* International model stock and guest enquiries: model guides only.'));
 assert(gallery.length>5000,'Shared international model gallery missing');
 // International sales QA: exact model + approved trim only, never cross-model stock.
 // Research notes are separate from real motorcycles for sale; no photo-logo cards.
