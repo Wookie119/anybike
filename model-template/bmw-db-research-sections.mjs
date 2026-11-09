@@ -1,3 +1,5 @@
+import {addDatabaseCountryNavigation} from './public-country-market-navigation.mjs';
+export {groupDatabaseCountryRoutes,addDatabaseCountryNavigation} from './public-country-market-navigation.mjs';
 // AnyBike database-first research cards for the EXISTING BMW model URLs.
 // Uses only the path-allowlisted public RPC projection; never reads raw editorial.
 // The original manufacturer-guide card remains when its database section is empty.
@@ -95,49 +97,6 @@ const createNavigation=(name,title,items)=>{
  * Create links for a region only when opened: avoid printing 217 unrelated
  * destinations on every motorcycle page. No editorial or market claims.
  */
-export function groupDatabaseCountryRoutes(items){
- const byRegion=new Map(),seen=new Set();
- for(const item of arr(items)){
-  const url=safeText(item?.url),label=safeText(item?.label),region=safeText(item?.region);
-  if(!/^\/markets\/[a-z0-9-]+\.html$/.test(url)||!label||!region||seen.has(url))continue;
-  seen.add(url);
-  if(!byRegion.has(region))byRegion.set(region,[]);
-  byRegion.get(region).push({label,url});
- }
- return [...byRegion].sort((a,b)=>a[0].localeCompare(b[0],'en'))
-  .map(([region,entries])=>({region,entries:entries.sort((a,b)=>a.label.localeCompare(b.label,'en'))}));
-}
-export function addDatabaseCountryNavigation(body,items){
- if(!body||!Array.isArray(items)||!items.length)return false;
- if(body.querySelector('[data-anybike-db-section="country_markets"]'))return false;
- const groups=groupDatabaseCountryRoutes(items);
- if(!groups.length)return false;
- const el=section('country_markets','Countries and markets');
- el.append(text('p','Browse the existing AnyBike international market guides by region. Motorcycle availability and export arrangements are confirmed separately.'));
- const all=document.createElement('a');
- all.href='/international-markets.html';
- all.textContent='Explore all international markets →';
- el.append(all);
- for(const {region,entries} of groups){
-  const details=document.createElement('details');
-  details.className='anybike-db-heritage';
-  details.append(text('summary',region+' ('+entries.length+')'));
-  const nav=document.createElement('nav');
-  nav.className='anybike-db-model-links';
-  nav.setAttribute('aria-label',region+' motorcycle markets');
-  details.append(nav);
-  details.addEventListener('toggle',()=>{
-   if(details.open&&!nav.childElementCount){
-    for(const entry of entries){
-     const a=document.createElement('a');a.href=entry.url;a.textContent=entry.label;nav.append(a);
-    }
-   }
-  });
-  el.append(details);
- }
- body.append(el);
- return true;
-}
 const createEngineering=items=>{
  const entries=arr(items).filter(x=>safeText(x?.title)&&safeText(x?.description));
  if(!entries.length)return null;
