@@ -42,7 +42,9 @@ export function addDatabaseCountryNavigation(body,items){
   details.addEventListener('toggle',()=>{
    if(details.open&&!nav.childElementCount){
     for(const entry of entries){
-     const a=document.createElement('a');a.href=entry.url;a.textContent=entry.label;nav.append(a);
+     const a=document.createElement('a');a.href=entry.url;a.textContent=entry.label;
+     a.style.cssText='display:inline-flex;align-items:center;padding:9px 13px;border:1px solid #813438;border-radius:999px;background:#242424;color:#fff;text-decoration:none';
+     nav.append(a);
     }
    }
   });
@@ -62,6 +64,7 @@ export async function installPublicCountryNavigation({root=document.querySelecto
  try{
   const {data,error}=await db.rpc('public_anybike_country_navigation_v1');
   if(error||!Array.isArray(data)||!data.length)return false;
+  if(root.querySelector('[data-anybike-db-section="country_markets"]'))return false;
   const mounted=addDatabaseCountryNavigation(root,data);
   if(!mounted)return false;
   const panel=root.querySelector('[data-anybike-db-section="country_markets"]');
@@ -79,4 +82,11 @@ export async function installPublicCountryNavigation({root=document.querySelecto
   console.warn('Public country navigation unavailable; retaining approved page',error);
   return false;
  }
+}
+
+if(typeof document!=='undefined'&&typeof location!=='undefined'&&
+ /^\/(?:bmw|harley-davidson)-motorcycles\.html$/.test(location.pathname)){
+ const start=()=>void installPublicCountryNavigation();
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
+ else start();
 }
