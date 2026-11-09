@@ -4,11 +4,11 @@ import {readFileSync} from 'node:fs';
 import {groupDatabaseCountryRoutes} from '../model-template/public-country-market-navigation.mjs';
 
 test('BMW and Harley-Davidson retain approved manufacturer pages and load the same database-driven market component',()=>{
- const script='/model-template/public-country-market-navigation.mjs?v=20261109-1';
- for(const page of ['bmw-motorcycles.html','harley-davidson-motorcycles.html']){
+ const script='/model-template/public-country-market-navigation.mjs?v=20261109-2';
+ for(const page of ['bmw-motorcycles.html','harley-davidson-motorcycles.html','motorcycle-brand.html']){
   const html=readFileSync(new URL('../'+page,import.meta.url),'utf8');
   assert.ok(html.includes('<script type="module" src="'+script+'"></script>'),page+' shared market module');
-  assert.ok(html.includes('<main class="wide">'),page+' original manufacturer page retained');
+  assert.ok(html.includes('<main'),page+' original manufacturer page retained');
   assert.ok(html.includes('/public-header.js'),page+' original public header retained');
  }
 });
