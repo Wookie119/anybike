@@ -127,10 +127,24 @@ export function applyBmwDatabaseSections(body,content){
      !child.dataset.anybikeDbSection&&
      headings.includes(safeText(child.querySelector('h2')?.textContent).toLowerCase())
     );
-    // The model-specific database record takes precedence over stale
-    // static information, but only for this exact named research section.
-    for(const legacy of others)legacy.remove();
-    if(!card.isConnected)body.append(card);
+    // Replace the matching legacy research card at its approved position.
+    // Appending every database card to the end moves research below actions
+    // and silently changes the page's editorial layout.
+    if(others.length){
+     const primary=others[0];
+     if(primary!==card)primary.replaceWith(card);
+     for(const duplicate of others.slice(1))duplicate.remove();
+    }else if(!card.isConnected){
+     // A database-only section has no old slot to replace. Keep it with
+     // research cards rather than introducing a second page layout.
+     const anchors=[...body.children].filter(child=>
+      child.matches?.('section.card')&&
+      (child.classList.contains('anybike-db-research-card')||
+       child.querySelector('h2'))
+     );
+     const last=anchors.at(-1);
+     if(last)last.after(card);else body.append(card);
+    }
    }
   }finally{updating=false;}
  };
