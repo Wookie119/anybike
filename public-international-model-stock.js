@@ -132,15 +132,17 @@
       const body = await response.json();
       const items = Array.isArray(body.items) ? body.items : [];
       const brandStock = items.filter(x => norm(x.make) === norm(name) && x.item_id && Number(x.price) > 0 && x.image_url);
-      // Exact model or factory trim only. Never use another model as fallback.
-      // Normalisation removes punctuation so word-boundary checks are unreliable.
-      const approvedTrim = /^(?:te|se|sport|rallye|trophy|tripleblack|exclusive|standard|mcompetition|competition|hp|premium|le|option719|114|107|special|iconic|edition|limited|anniversary)*$/;
-      const exact = brandStock.filter(x => {
-        const stockModel = norm(x.model);
-        if (stockModel === key) return true;
-        if (!stockModel.startsWith(key)) return false;
-        return approvedTrim.test(stockModel.slice(key.length));
-      });
+      // Use ONLY server-verified canonical identities and the exact model.
+      // TE/SE/Adventure are their own catalogue records, never prefix matches.
+      const candidates = brandStock.filter(x =>
+        x.catalogue_identity_status === "verified" &&
+        x.publication_eligible === true &&
+        Number.isSafeInteger(Number(x.catalog_model_id)) &&
+        Number(x.catalog_model_id) > 0 &&
+        norm(x.model) === key
+      );
+      const exactIds = new Set(candidates.map(x => Number(x.catalog_model_id)));
+      const exact = exactIds.size === 1 ? candidates : [];
       const selected = exact.slice(0, 6);
       title.textContent = name + " " + model + " — available UK motorcycles";
       status.textContent = exact.length ?
