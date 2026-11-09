@@ -51,6 +51,17 @@ export function addDatabaseCountryNavigation(body,items){
   el.append(details);
  }
  body.append(el);
+ // The legacy model-guide loader can finish after the country RPC and replace
+ // all research children. Reattach the SAME card rather than duplicating it.
+ if(typeof MutationObserver!=='undefined'){
+  const observer=new MutationObserver(()=>{
+   if(!el.isConnected&&body.isConnected&&
+      !body.querySelector('[data-anybike-db-section="country_markets"]')){
+    body.append(el);
+   }
+  });
+  observer.observe(body,{childList:true});
+ }
  return true;
 }
 
