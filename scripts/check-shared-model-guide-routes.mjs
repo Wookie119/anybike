@@ -59,7 +59,7 @@ assert(r1250.includes('BMW_R_1250_GS_'), 'Licensed R1250 hero must remain');
 const r1300=fs.readFileSync('bmw-r1300gs.html','utf8');
 assert(r1300.includes('id="internationalModelCards"'),'R 1300 GS published stock gallery missing');
 assert(r1300.includes('id="r1300gsModelHistory"'),'R 1300 GS model history cards missing');
-assert(r1300.includes('BMW R 1300 GS — model years and specifications'),'R 1300 GS history heading missing');
+assert(r1300.includes('BMW R 1300 GS — development and ownership'),'R 1300 GS history heading missing');
 assert(r1300.includes('internationalGuestRequestForm'),'R 1300 GS guest enquiry missing');
 console.log('PASS: international model galleries, Fat Boy/Africa Twin year cards, real-stock priority and enquiry hooks are preserved.');
 
