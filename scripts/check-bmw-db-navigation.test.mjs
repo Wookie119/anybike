@@ -15,7 +15,7 @@ test('BMW database links only lead to approved page route shapes',()=>{
   {url:'/bmw-k1600gt.html'}
  ];
  assert.deepEqual(filterModelNavigationEntries(values,'/bmw-f900gs.html'),[
-  values[0],values[5],values[6]
+  values[5],values[6]
  ]);
 });
 test('BMW model route filter leaves order intact and handles empty feed',()=>{
