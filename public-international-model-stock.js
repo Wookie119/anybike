@@ -148,11 +148,18 @@
       status.textContent = exact.length ?
         exact.length + " published " + name + " " + model + " listing" + (exact.length === 1 ? "" : "s") + ". Availability and purchase terms are confirmed before ordering." :
         "No exact " + name + " " + model + " is currently published. We can source the exact model separately.";
-      if (!selected.length) status.textContent = "No published " + name + " stock is currently listed. Ask AnyBike to source the model you want.";
+      // A brand may have stock while the exact model does not. Never tell a
+      // visitor there is no BMW stock merely because F 900 GS is absent.
+      if (!selected.length) {
+        status.textContent = "No exact " + name + " " + model +
+          " is currently published in this feed. Browse other " + name +
+          " stock or ask AnyBike to source this model.";
+      }
       grid.replaceChildren(...selected.map(makeCard));
-      // Hide duplicate legacy stock section only after a successful live feed.
-      // Its separate enquiry form and the approved editorial remain untouched.
-      if (currentStock && currentStock !== panel && !currentStock.querySelector("form")) {
+      // Never hide an existing approved model stock gallery on an empty feed.
+      // A newer feed may be temporarily missing records that it still shows.
+      // Its separate enquiry form and approved editorial remain untouched.
+      if (selected.length && currentStock && currentStock !== panel && !currentStock.querySelector("form")) {
         currentStock.hidden = true;
         currentStock.style.setProperty("display", "none", "important");
       }
