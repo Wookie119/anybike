@@ -12,7 +12,10 @@ const sitemap=fs.readFileSync(path.join(root,'sitemap.xml'),'utf8');
 const locs=[...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>m[1]);
 const prefix='https://www.anybike.co.uk/markets/';
 const sitemapMarkets=locs.filter(x=>x.startsWith(prefix)&&/^https:\/\/www\.anybike\.co\.uk\/markets\/[a-z0-9-]+\.html$/.test(x));
-const folderMarkets=fs.readdirSync(marketFolder).filter(name=>/^[a-z0-9-]+\.html$/.test(name));
+// markets/index.html is an intentionally non-indexed legacy redirect to the
+// canonical international-markets.html directory, NOT a country route.
+const folderMarkets=fs.readdirSync(marketFolder)
+ .filter(name=>name!=='index.html'&&/^[a-z0-9-]+\.html$/.test(name));
 const issues=[];
 if(sitemapMarkets.length!==217)issues.push('Expected 217 canonical country URLs; found '+sitemapMarkets.length);
 if(new Set(sitemapMarkets).size!==sitemapMarkets.length)issues.push('Duplicate market URLs in sitemap');
