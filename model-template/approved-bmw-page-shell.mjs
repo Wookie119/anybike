@@ -127,7 +127,7 @@ export async function applyApprovedBmwPageShell(){
  }
  if(published){
   try{
-   const {applyBmwDatabaseSections,addDatabaseCountryNavigation}=await import('/model-template/bmw-db-research-sections.mjs');
+   const {applyBmwDatabaseSections,addDatabaseCountryNavigation}=await import('/model-template/bmw-db-research-sections.mjs?v=20261109-region-v2');
    applyBmwDatabaseSections(body,published);
    // The existing public country guide routes are shared by all BMW models.
    // Add region-grouped links without treating route discovery as approval of
