@@ -17,8 +17,8 @@ WITH research(model,year,market,engine_cc,power_hp,torque_nm,source_url) AS (
   ON m.manufacturer='BMW' AND m.model=r.model
 ), inserted AS (
  INSERT INTO public.motorcycle_catalog_facts
- (id,catalog_model_id,category,label,value,start_year,market,source_name,source_url,verification_status)
- SELECT nextval('public.motorcycle_catalog_facts_id_seq'),c.id,'engine',
+ (catalog_model_id,category,label,value,start_year,market,source_name,source_url,verification_status)
+ SELECT c.id,'engine',
  'BMW factory launch-period engine reference',
  jsonb_strip_nulls(jsonb_build_object('engine_cc',c.engine_cc,
  'power_hp',c.power_hp,'torque_nm',c.torque_nm,'reference_model_year',c.year)),
@@ -54,10 +54,9 @@ WITH research(model,year,market,engine_cc,power_hp,torque_nm,source_url) AS (
  RETURNING s.model_id
 )
 INSERT INTO public.motorcycle_universal_page_sections_v1
- (id,entity_type,model_id,section_number,section_key,section_title,
+ (entity_type,model_id,section_number,section_key,section_title,
  content,editorial_status,source_reference)
-SELECT nextval('public.motorcycle_universal_page_sections_v1_id_seq'),
- 'model',v.catalog_model_id,12,'section_12','Verified technical evidence',
+SELECT 'model',v.catalog_model_id,12,'section_12','Verified technical evidence',
  jsonb_build_object('verified_catalogue_facts',v.entries),
  'draft','motorcycle_catalog_facts:verified_ids'
 FROM verified v
