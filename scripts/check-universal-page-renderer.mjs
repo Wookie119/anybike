@@ -46,3 +46,17 @@ assert(entry.childNodes.some(x=>x.tagName==='a'&&x.href==='https://example.org/s
 assert(!entry.childNodes.some(x=>x.tagName==='script'),'Raw HTML/source injection');
 assert.equal(root.dataset.anybikeRenderedEntity,'model:68');
 console.log('PASS: actual DOM ordering, source provenance and no cross-model stock on one renderer');
+
+const blankRoot=new FakeElement('main',documentFake);blankRoot.dataset.anybikeUniversalRoot='true';
+const renderedBlank=renderUniversalPage(blankRoot,{entity:gs,sections:[
+ mk(gs,11,{source_blocks:[{source_file:'private/source.html'}]}),
+ mk(gs,18,{related_model_links:[{label:'BMW R 1300 GS',url:'/bmw-r1300gs.html'}]})
+],stock:[]});
+assert.equal(renderedBlank.sections.length,2,'Published sections remain in data contract');
+const publicResearch=blankRoot.childNodes[0].childNodes[2];
+assert.equal(publicResearch.childNodes.length,1,'Source-only sections must never create empty public cards');
+const related=publicResearch.childNodes[0];
+assert.equal(related.dataset.sectionKey,'section_18');
+const collect=(item,all=[])=>{all.push(item);for(const c of item.childNodes||[])collect(c,all);return all;};
+assert(collect(related).some(e=>e.tagName==='a'&&e.href==='/bmw-r1300gs.html'),'Published related-model link not rendered');
+console.log('PASS: database related-model links and no empty research cards');
