@@ -26,8 +26,9 @@ assert(renderer.includes('else section.after(research);'),'Other manufacturer re
 assert(renderer.includes("else if(make==='BMW'&&main.querySelector('#body')){main.querySelector('#body').after(enquiry);}"),'BMW enquiry must follow the documented research');
 assert(renderer.includes('else research.after(enquiry);'),'Other manufacturers keep research before enquiry');
 assert(renderer.includes('stockLink.textContent=matches.length?'),'Empty-stock sourcing link must replace misleading sale button');
-assert(renderer.includes('const matches=(Array.isArray(data.items)?data.items:[]).filter(exactModel).slice(0,6)'), 'Exact model stock filter missing');
-assert(renderer.includes("if(!stock.startsWith(requested))return false"), 'Different model exclusion missing');
+assert(renderer.includes('const candidates=(Array.isArray(data.items)?data.items:[]).filter(exactModel)'), 'Exact model stock filter missing');
+assert(renderer.includes('const exactIds=new Set(candidates.map(x=>Number(x.catalog_model_id)))'),'Canonical ID uniqueness guard missing');
+assert(renderer.includes('return safe(x.model)===requested;'), 'Exact-model identity acceptance missing');
 assert(!renderer.includes("exact.length ? exact : brandStock"),'Wrong-model stock fallback found');
 assert(renderer.includes("if(!res.ok)throw Error('Research unavailable')"),'Model research must load independently');
 console.log('PASS: '+covered+' dedicated BMW/Harley model routes ('+dedicated+' approved galleries; '+shared+' shared-renderer routes); exact-model inventory above research.');
