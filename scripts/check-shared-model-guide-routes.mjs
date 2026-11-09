@@ -11,7 +11,8 @@ for(const [make,model] of [['Honda','Africa Twin'],['Ducati','Panigale V4']]){
 }
 assert(brand.includes('(make==="Honda"&&model==="Africa Twin CRF1100L")'), 'Honda model guide routing missing');
 assert(brand.includes('(make==="Ducati"&&model==="Panigale V4")'), 'Ducati model guide routing missing');
-assert(brand.includes('guide?"/motorcycle-model-guide.html":"/bulk-buying-request.html"'),'Unverified models must retain direct sourcing route');
+assert(brand.includes('const href="/motorcycle-model-guide.html?make="'),'All models must use shared model-guide routing');
+assert(brand.includes('const request="/bulk-buying-request.html?make="'),'Manufacturer sourcing action must remain available');
 const seller=guide.indexOf('id="ukSellerAction"'),buyer=guide.indexOf('id="nextAction"');
 assert(seller>=0&&buyer>seller,'UK seller box must precede separate international sourcing box');
 for(const id of ['ownerHeading','sellBottom','internationalHeading','sourceBottom']){
