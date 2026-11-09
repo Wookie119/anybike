@@ -90,6 +90,50 @@ const createNavigation=(name,title,items)=>{
  nav.className='anybike-db-model-links';nav.setAttribute('aria-label',title);
  nav.append(...links);el.append(nav);return el;
 };
+/**
+ * Region-first navigation from the limited public Supabase country route list.
+ * Create links for a region only when opened: avoid printing 217 unrelated
+ * destinations on every motorcycle page. No editorial or market claims.
+ */
+export function addDatabaseCountryNavigation(body,items){
+ if(!body||!Array.isArray(items)||!items.length)return false;
+ if(body.querySelector('[data-anybike-db-section="country_markets"]'))return false;
+ const byRegion=new Map(),seen=new Set();
+ for(const item of items){
+  const url=safeText(item?.url),label=safeText(item?.label),region=safeText(item?.region);
+  if(!/^\\/markets\\/[a-z0-9-]+\\.html$/.test(url)||!label||!region||
+    seen.has(url))continue;
+  seen.add(url);
+  if(!byRegion.has(region))byRegion.set(region,[]);
+  byRegion.get(region).push({label,url});
+ }
+ if(!byRegion.size)return false;
+ const el=section('country_markets','Countries and markets');
+ el.append(text('p','Browse the existing AnyBike international market guides by region. Motorcycle availability and export arrangements are confirmed separately.'));
+ const all=document.createElement('a');
+ all.href='/international-markets.html';
+ all.textContent='Explore all international markets →';
+ el.append(all);
+ for(const [region,entries] of [...byRegion].sort((a,b)=>a[0].localeCompare(b[0],'en'))){
+  const details=document.createElement('details');
+  details.className='anybike-db-heritage';
+  details.append(text('summary',region+' ('+entries.length+')'));
+  const nav=document.createElement('nav');
+  nav.className='anybike-db-model-links';
+  nav.setAttribute('aria-label',region+' motorcycle markets');
+  details.append(nav);
+  details.addEventListener('toggle',()=>{
+   if(details.open&&!nav.childElementCount){
+    for(const entry of entries.sort((a,b)=>a.label.localeCompare(b.label,'en'))){
+     const a=document.createElement('a');a.href=entry.url;a.textContent=entry.label;nav.append(a);
+    }
+   }
+  });
+  el.append(details);
+ }
+ body.append(el);
+ return true;
+}
 const createEngineering=items=>{
  const entries=arr(items).filter(x=>safeText(x?.title)&&safeText(x?.description));
  if(!entries.length)return null;
