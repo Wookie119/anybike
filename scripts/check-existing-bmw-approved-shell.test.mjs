@@ -61,6 +61,17 @@ test('stock is independent, development follows specifications, R1250 gallery st
  assert.ok(!r1300.includes('approved-bmw-page-shell.mjs'));
  assert.ok(r1300.includes('id="internationalModelStock"'));
 });
+test('active shared public header protects exact-model stock above BMW research',()=>{
+ const shared=fs.readFileSync('public-header.js','utf8');
+ const segment=shared.slice(shared.indexOf('/* PROTECTED MODEL GALLERY'));
+ assert.ok(segment.includes("if(hero)hero.after(section)"),'Sale stock follows model hero');
+ assert.ok(segment.includes("else if(make==='BMW'&&main.querySelector('#generationPanel')){research.remove();}"),'No duplicate BMW research card');
+ assert.ok(segment.includes("x.catalogue_identity_status!=='verified'"),'Only verified stock identities');
+ assert.ok(segment.includes("x.publication_eligible!==true"),'Only published stock');
+ assert.ok(segment.includes("return safe(x.model)===requested"),'Exact model names, not prefix matches');
+ assert.ok(segment.includes('const matches=exactIds.size===1?candidates.slice(0,6):[]'),'Ambiguous catalogue IDs never publish');
+});
+
 test('limited public model feed preserves row-level permissions and exact identities',()=>{
  const m=fs.readFileSync('model-template/approved-bmw-page-shell.mjs','utf8');
  assert.ok(m.includes("client.rpc('public_bmw_model_history_v1'"));
