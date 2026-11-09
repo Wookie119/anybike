@@ -60,3 +60,22 @@ assert.equal(related.dataset.sectionKey,'section_18');
 const collect=(item,all=[])=>{all.push(item);for(const c of item.childNodes||[])collect(c,all);return all;};
 assert(collect(related).some(e=>e.tagName==='a'&&e.href==='/bmw-r1300gs.html'),'Published related-model link not rendered');
 console.log('PASS: database related-model links and no empty research cards');
+
+const guardedRoot=new FakeElement('main',documentFake);
+guardedRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(guardedRoot,{entity:gs,sections:[mk(gs,6,{
+ generations:[
+  {label:'Unverified generation',description:'Draft figures must not appear',
+   verification_status:'pending_review'},
+  {label:'Pending editorial card',description:'Needs source review',
+   content_status:'pending_editorial_review'},
+  {label:'Manufacturer verified generation',description:'Reference retained',
+   verification_status:'verified'}
+ ]
+})]});
+const guardedNodes=collect(guardedRoot);
+const shownText=guardedNodes.map(x=>x.textContent||'').join(' | ');
+assert(!shownText.includes('Unverified generation'),'Pending generation leaked from approved section');
+assert(!shownText.includes('Pending editorial card'),'Pending editorial card leaked from approved section');
+assert(shownText.includes('Manufacturer verified generation'),'Verified generation was incorrectly suppressed');
+console.log('PASS: nested draft model research cannot leak through published parent sections');
