@@ -17,6 +17,12 @@ export async function loadUniversalPublishedPage(client,{type,id}={}){
   .limit(20);
  if(error)throw Error('Published catalogue unavailable');
  if(!Array.isArray(data)||data.length===0)return null; // never substitute drafts
+ // Finance promotions, APR adverts and offers imported as model names are
+ // not canonical motorcycles. A row entering the public projection must not
+ // turn those into indexable research pages.
+ const prohibitedModelName=/(?:\b(?:apr|representative|finance|financing|deposit|monthly payment|pcp)\b|\d+(?:\.\d+)?\s*%)/i;
+ if(type==='model'&&data.some(row=>prohibitedModelName.test(String(row.entity_name||''))))
+  throw Error('Non-motorcycle promotional catalogue identity blocked');
  const first=data[0];
  const identity=canonicalPageEntity({type:first.entity_type,id:first.entity_id,
   name:first.entity_name,manufacturer_id:first.manufacturer_id});
