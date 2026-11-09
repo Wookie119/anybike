@@ -101,7 +101,7 @@ export function addDatabaseCountryNavigation(body,items){
  const byRegion=new Map(),seen=new Set();
  for(const item of items){
   const url=safeText(item?.url),label=safeText(item?.label),region=safeText(item?.region);
-  if(!/^\\/markets\\/[a-z0-9-]+\\.html$/.test(url)||!label||!region||
+  if(!/^\/markets\/[a-z0-9-]+\.html$/.test(url)||!label||!region||
     seen.has(url))continue;
   seen.add(url);
   if(!byRegion.has(region))byRegion.set(region,[]);
