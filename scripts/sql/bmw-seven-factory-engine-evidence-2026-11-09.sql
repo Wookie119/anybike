@@ -3,9 +3,9 @@
 -- Re-run-safe and never changes public publication state or preview flags.
 WITH research(model,year,market,engine_cc,power_hp,torque_nm,source_url) AS (
  VALUES
- ('F 750 GS',2017,'Global original launch',853,77,83,'https://www.press.bmwgroup.com/global/article/detail/T0279024EN/the-new-bmw-f-750-gs-and-f-850-gs?language=en'),
- ('F 850 GS',2017,'Global original launch',853,95,92,'https://www.press.bmwgroup.com/global/article/detail/T0279024EN/the-new-bmw-f-750-gs-and-f-850-gs?language=en'),
- ('F 850 GS Adventure',2020,'Global 2020 BMW update',853,95,92,'https://www.press.bmwgroup.com/global/article/detail/T0311347EN/bmw-motorrad-presents-the-new-bmw-f-750-gs-bmw-f-850-gs-and-bmw-f-850-gs-adventure?showMedia=photo'),
+ ('F 750 GS',2018,'2018 BMW global press kit',853,77,83,'https://www.press.bmwgroup.com/global/article/detail/T0279024EN/the-new-bmw-f-750-gs-and-f-850-gs?language=en'),
+ ('F 850 GS',2018,'2018 BMW global press kit',853,95,92,'https://www.press.bmwgroup.com/global/article/detail/T0279024EN/the-new-bmw-f-750-gs-and-f-850-gs?language=en'),
+ ('F 850 GS Adventure',2020,'2020 BMW F 850 GS Adventure ECE reference',853,95,92,'https://www.press.bmwgroup.com/south-africa/article/attachment/T0314486EN/458065'),
  ('G 310 GS',2016,'Global launch',313,34,28,'https://www.press.bmwgroup.com/global/article/detail/T0265624EN/the-new-bmw-g-310-gs?language=en'),
  ('G 310 R',2015,'USA launch',313,34,28,'https://www.press.bmwgroup.com/usa/article/detail/T0243964EN_US/the-new-bmw-g-310-r'),
  ('M 1000 R',2022,'Global launch',NULL,210,113,'https://www.press.bmwgroup.com/global/article/detail/T0404210EN/the-new-bmw-m-1000-r?language=en'),
@@ -21,7 +21,7 @@ WITH research(model,year,market,engine_cc,power_hp,torque_nm,source_url) AS (
  SELECT c.id,'engine',
  'BMW factory launch-period engine reference',
  jsonb_strip_nulls(jsonb_build_object('engine_cc',c.engine_cc,
- 'power_hp',c.power_hp,'torque_nm',c.torque_nm,'reference_model_year',c.year)),
+ 'power_hp',c.power_hp,'torque_nm',c.torque_nm)),
  c.year,c.market,'BMW Group PressClub',c.source_url,'verified'
  FROM candidates c
  WHERE NOT EXISTS (
