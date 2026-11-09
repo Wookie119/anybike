@@ -37,6 +37,14 @@ function appendContent(doc,parent,value,depth=0){
     return;
   }
   if(typeof value!=='object')return;
+  // An approved section cannot silently promote nested draft generation,
+  // model-year or engineering records. These flags come from the staged
+  // catalogue and must remain fail-closed even after a parent is published.
+  const review=safeText(value.verification_status).toLowerCase();
+  const contentStatus=safeText(value.content_status).toLowerCase();
+  const allowed=new Set(['verified','approved','published']);
+  if((review&&!allowed.has(review))||
+     (contentStatus&&!allowed.has(contentStatus)))return;
   // Strict display whitelist: arbitrary JSON keys are not rendered as speculative facts.
   const heading=safeText(value.title)||safeText(value.label)||safeText(value.name);
   if(heading)parent.append(node(doc,depth>0?'h3':'h2',heading));
