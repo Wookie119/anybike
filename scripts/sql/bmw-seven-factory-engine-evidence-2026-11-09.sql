@@ -64,3 +64,41 @@ WHERE NOT EXISTS (
  SELECT 1 FROM public.motorcycle_universal_page_sections_v1 s
  WHERE s.entity_type='model' AND s.model_id=v.catalog_model_id AND s.section_number=12
 );
+
+-- Second statement sees any fact rows inserted by the first statement;
+-- this avoids same-statement PostgreSQL MVCC snapshots hiding new records.
+WITH verified AS (
+ SELECT f.catalog_model_id, jsonb_agg(jsonb_build_object(
+ 'fact_id',f.id,'label',f.label,'value',f.value,'market',f.market,
+ 'source_url',f.source_url,'source_name',f.source_name,
+ 'start_year',f.start_year,'end_year',f.end_year,
+ 'source_verification_status',f.verification_status
+ ) ORDER BY f.id) entries
+ FROM public.motorcycle_catalog_facts f
+ JOIN public.motorcycle_catalog_models c ON c.id=f.catalog_model_id
+ WHERE c.manufacturer='BMW'
+ AND c.model IN ('F 750 GS','F 850 GS','F 850 GS Adventure','G 310 GS','G 310 R','M 1000 R','R 1250 GS Adventure')
+ AND f.verification_status='verified' AND f.source_url LIKE 'https://%'
+ GROUP BY f.catalog_model_id
+), update_staging AS (
+ UPDATE public.motorcycle_universal_page_sections_v1 s
+ SET content=jsonb_set(
+   s.content,'{verified_catalogue_facts}',v.entries,true),
+ source_reference='motorcycle_catalog_facts:verified_ids',
+ updated_at=now()
+ FROM verified v
+ WHERE s.entity_type='model' AND s.model_id=v.catalog_model_id
+ AND s.section_number=12 AND s.editorial_status='draft'
+ RETURNING s.model_id
+)
+INSERT INTO public.motorcycle_universal_page_sections_v1
+ (entity_type,model_id,section_number,section_title,
+ content,editorial_status,source_reference)
+SELECT 'model',v.catalog_model_id,12,'Verified technical evidence',
+ jsonb_build_object('verified_catalogue_facts',v.entries),
+ 'draft','motorcycle_catalog_facts:verified_ids'
+FROM verified v
+WHERE NOT EXISTS (
+ SELECT 1 FROM public.motorcycle_universal_page_sections_v1 s
+ WHERE s.entity_type='model' AND s.model_id=v.catalog_model_id AND s.section_number=12
+);
