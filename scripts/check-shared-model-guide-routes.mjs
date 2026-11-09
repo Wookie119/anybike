@@ -30,7 +30,7 @@ assert.equal(ids.length,new Set(ids).size,'Duplicate model guide HTML IDs');
 const shared=fs.readFileSync('public-header.js','utf8');
 const gallery=shared.slice(shared.indexOf('/* International model stock and guest enquiries: model guides only.'));
 assert(gallery.length>5000,'Shared international model gallery missing');
-// International sales QA: exact model + approved trim only, never cross-model stock.
+// International sales QA: only one server-verified exact catalogue model, never cross-model trims.
 // Research notes are separate from real motorcycles for sale; no photo-logo cards.
 for(const [fragment,reason] of [
  ["const dedicatedStock=", 'Dedicated model galleries must take precedence'],
@@ -43,7 +43,7 @@ for(const [fragment,reason] of [
  ["const matches=exactIds.size===1?candidates.slice(0,6):[]", 'Only one verified model identity may appear in stock'],
  ["international-public-stock", 'Protected stock endpoint changed'],
  ["international-guest-enquiry", 'Guest enquiry route removed'],
- ["const reveal=()", 'Gallery visibility handling removed']
+ ["if(dedicatedStock)return;", 'Dedicated approved gallery must never be replaced']
 ])assert(gallery.includes(fragment),reason);
 assert(!gallery.includes('alternativeBMW'), 'Cross-model BMW alternative-stock fallback returned');
 assert(!gallery.includes('r1250StockFallback'), 'R1250-specific alternative override returned');
