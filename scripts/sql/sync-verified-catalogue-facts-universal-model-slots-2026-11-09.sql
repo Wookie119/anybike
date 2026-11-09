@@ -8,7 +8,8 @@ WITH candidate_facts AS (
   f.verification_status,
   CASE
    WHEN f.category IN ('manufacturing','manufacturing_evidence','production') THEN 4
-   WHEN f.category IN ('competition','history','market_launch','model_year') THEN 7
+   WHEN f.category IN ('history','market_launch','model_year') THEN 7
+   WHEN f.category='competition' THEN 10
    WHEN f.category IN ('engine','engineering','chassis','brakes','dimensions','performance','specification','transmission','wheels') THEN 12
    WHEN f.category='factory_colours' THEN 13
    ELSE NULL END slot
@@ -47,6 +48,7 @@ INSERT INTO public.motorcycle_universal_page_sections_v1
 SELECT 'model',f.model_id,f.slot,
  CASE f.slot WHEN 4 THEN 'Verified manufacturing and production evidence'
  WHEN 7 THEN 'Verified model history'
+ WHEN 10 THEN 'Verified motorsport and competition evidence'
  WHEN 12 THEN 'Verified technical specifications'
  WHEN 13 THEN 'Verified factory colours' END,
  jsonb_build_object('verified_catalogue_facts',f.entries),
