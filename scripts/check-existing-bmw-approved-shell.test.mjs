@@ -43,12 +43,13 @@ test('stock is independent, development follows specifications, R1250 gallery st
  assert.ok(m.includes("client.rpc('public_anybike_country_navigation_v1')"),'Regional links load from shared database endpoint');
  assert.ok(m.includes("if(!published.country_markets?.length)"),'Preserve editorially specified model-market links');
  assert.ok(m.includes('addDatabaseCountryNavigation(body,data)'), 'Use shared existing research renderer for markets');
+ const research=fs.readFileSync('model-template/bmw-db-research-sections.mjs','utf8');
  const country=fs.readFileSync('model-template/public-country-market-navigation.mjs','utf8');
  assert.ok(country.includes("all.href='/international-markets.html'"),'Link to canonical markets directory');
  assert.ok(country.includes("details.addEventListener('toggle'"),'Render region links on demand');
  assert.ok(research.includes("from './public-country-market-navigation.mjs'"),'Single shared manufacturer and model navigation component');
 
- const research=fs.readFileSync('model-template/bmw-db-research-sections.mjs','utf8');
+
  assert.ok(research.includes('Source record year: '));
  assert.ok(!research.includes('Reference year: '));
  assert.ok(research.includes('nav.className=\'anybike-db-model-links\''));
