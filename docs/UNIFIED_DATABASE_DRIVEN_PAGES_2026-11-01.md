@@ -52,3 +52,15 @@ D. Generate and test all published page variants, including UK/international mod
 E. Activate country pages and AnyBike Global two-way relationships, indexation and sitemap with validated production rollout.
 
 This contract supersedes the earlier strategy of manually reviewing every individual model page; it does not claim that the implementation is complete.
+
+## Owner-confirmed unified layout rule — 9 November 2026
+**One template. One database. One consistent system. No alternative layouts.**
+
+This supersedes the prior wording that describes manufacturer/model templates as separate visual implementations. Implement ONE shared page component/rendering system with the approved BMW/Harley design language, and up to 20 relevant research/content sections driven by typed Supabase section data. A manufacturer and a motorcycle model are different entity types in the SAME framework: choose the applicable data and actions without redesigning or inventing sections to reach a count. Preserve all content and visual details of already-approved BMW/Harley pages until parity is established.
+
+Stock always precedes research on model pages. Only buyer-safe, permitted, actually-published stock may be displayed. Match stock by canonical model IDs verified server-side; no page-title, substring, range, or trim fallback is allowed for publication. A missing hero gets a neutral placeholder, never another model's photograph. Do not block research on photo gaps.
+
+Source-of-truth status (9 November): private public.motorcycle_stock_catalogue_identity_v1 has candidate and verified states, with RLS and no anon/authenticated grants. Initial exact unique name matching staged 7 candidates, 4 of them BMW, zero verified. This staging table alone does NOT change the existing international-public-stock endpoint or public pages. A strict shared client matcher exists at model-template/canonical-public-stock-identity.mjs and expects catalogue_identity_status='verified' and publication_eligible=true FROM A TRUSTED BUYER-SAFE ENDPOINT. Do not wire it into existing pages until the endpoint includes those fields and access/visibility checks are verified; otherwise approved stock would disappear.
+
+Validation requirements: verify manufacturer and model canonical identities, 20-slot section contract with conditional applicability, stock-before-research DOM order, photo rights/identity, all catalogue references and reciprocal Global/country links, SEO URLs, all catalogue rows and UK/international/guest scenarios. Preserve protected design baseline and all enquiry actions. GitHub commit does not itself prove live deployment.
+
