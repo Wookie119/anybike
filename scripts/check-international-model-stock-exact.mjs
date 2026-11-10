@@ -88,7 +88,10 @@ const models=[
 const version='public-header.js?v=20261107modelstockexact1';
 for(const file of models){
  const html=fs.readFileSync(file,'utf8');
- assert(html.includes(version),'Model guide still using stale stock script: '+file);
+ const accepted=file==='motorcycle-model-guide.html'?
+  html.includes('public-header.js?v=20261110modelresearch1'):
+  html.includes(version);
+ assert(accepted,'Model guide still using stale stock script: '+file);
  assert(html.includes('<h1')||file==='motorcycle-variant.html','Model heading missing: '+file);
 }
 const v2=fs.readFileSync('bmw-r1300gs-v2.html','utf8');
