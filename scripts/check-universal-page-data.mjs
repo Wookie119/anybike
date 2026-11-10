@@ -15,7 +15,7 @@ assert.equal(published.sections.length,1);
 assert.deepEqual(published.stock,[],'Public editorial API must not assume permission to show stock');
 assert.equal(await loadUniversalPublishedPage(makeClient({data:[],error:null}),{type:'model',id:68}),null);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],entity_id:77}],error:null}),{type:'model',id:68}),/identity mismatch/);
-await assert.rejects(loadUniversalPublishedPage(makeClient({data:[rows[0],{...rows[0],manufacturer_id:28}],error:null}),{type:'model',id:68}),/Mixed/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[rows[0],{...rows[0],manufacturer_id:28,section_number:2,section_key:'section_02'}],error:null}),{type:'model',id:68}),/Mixed/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],publication_eligible:false}],error:null}),{type:'model',id:68}),/Unpublished/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[],error:{message:'Denied'}}),{type:'model',id:68}),/unavailable/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],entity_name:'CE 02 AM 7.9% APR Representative'}],error:null}),{type:'model',id:68}),/promotional catalogue identity blocked/);
