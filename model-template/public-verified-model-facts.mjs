@@ -90,6 +90,20 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  // Preserve stock and enquiry panels above #body; place factual research
  // ahead of generic fallback and discovery cards, without replacing either.
  body.insertBefore(panel,body.firstChild);
+ // Once sourced research is visible, the old unsourced "About this model"
+ // placeholder is redundant. Keep all enquiry and buying action cards.
+ const removeGenericPlaceholder=()=>{
+  for(const card of body.querySelectorAll?.('section.card')||[]){
+   if(card===panel)continue;
+   if(card.querySelector?.('h2')?.textContent?.trim()==='About this model')
+    card.remove();
+  }
+ };
+ removeGenericPlaceholder();
+ if(typeof MutationObserver!=='undefined'){
+  const watcher=new MutationObserver(()=>removeGenericPlaceholder());
+  watcher.observe(body,{childList:true});
+ }
  return facts.length;
 }
 export async function installVerifiedModelFacts({body,make,model,client}={}){
