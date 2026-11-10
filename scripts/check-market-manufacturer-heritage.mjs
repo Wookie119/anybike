@@ -51,6 +51,11 @@ function render(slug){
   'Origin section missing or inferred for unsupported market '+slug);
  if(!sections.length)return [];
  const countrySection=sections[0],brands=countrySection.children.find(x=>x.tagName==='nav');
+ const history=countrySection.children.find(x=>x.dataset?.anybikeRegionalHistory);
+ assert(history&&history.textContent.length>80,
+  'Country regional manufacturing history missing: '+slug);
+ assert(!/currently made in|available in stock|import approved/i.test(history.textContent),
+  'Regional history may not imply current production or import eligibility: '+slug);
  assert(brands,'Brand links missing for '+slug);
  const links=brands.children.map(item=>item.children[0]);
  assert.equal(links.length,expected[slug].length,
