@@ -26,5 +26,7 @@ await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],se
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],section_key:'section_02'}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],section_key:'section_1'}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[rows[0],{...rows[0],section_number:2}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:Array.from({length:21},(_,i)=>({...rows[0],section_number:i+1,section_key:'section_'+String(i+1).padStart(2,'0')})),error:null}),{type:'model',id:68}),/exceeds 20 sections/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:null,error:null}),{type:'model',id:68}),/Invalid published catalogue response/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[],error:null}),{type:'model',id:0}),/Canonical/);
 console.log('PASS: public-only universal Supabase projection and strict manufacturer/model identity checks');
