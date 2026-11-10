@@ -10,6 +10,7 @@ const photo={approval_status:'approved',manufacturer:'BMW',model:'R 1300 GS',
 const modelSection=(n,content={summary:'Reviewed documentary research'})=>({
  model_id:77,section_number:n,content,
  editorial_status:'published',publication_eligible:true,
+ published_at:'2026-11-09T12:00:00Z',
  publication_review_reference:'REVIEW-REFERENCE-2026'
 });
 const approved=modelReleaseReadiness({
@@ -71,6 +72,30 @@ assert.throws(()=>modelReleaseReadiness({model,factReview:[
  {factId:10,modelId:77,allowed:false,reasons:['audit']},
  {factId:10,modelId:77,allowed:true,reasons:[]}
 ]}),/Duplicate source fact/);
+const futureSection=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',
+ sections:[{...modelSection(1),published_at:'2099-01-01T00:00:00Z'}],
+ approvedPhotographs:[photo],stockContractVerified:true,visualParityVerified:true,
+ editorialSignoffReference:'HYPOTHETICAL-APPROVAL'});
+assert(futureSection.issueCodes.includes('section_publication_date_unverified'),
+ 'Future-dated section must not pass readiness review');
+const undatedSection=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',
+ sections:[{...modelSection(1),published_at:null}],
+ approvedPhotographs:[photo],stockContractVerified:true,visualParityVerified:true,
+ editorialSignoffReference:'HYPOTHETICAL-APPROVAL'});
+assert(undatedSection.issueCodes.includes('section_publication_date_unverified'),
+ 'Undated section cannot pass even when status is published');
+const deniedNested=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',
+ sections:[modelSection(1,{summary:'Do not release',publication_eligible:false})],
+ approvedPhotographs:[photo],stockContractVerified:true,visualParityVerified:true,
+ editorialSignoffReference:'HYPOTHETICAL-APPROVAL'});
+assert(deniedNested.issueCodes.includes('nested_or_empty_content_unreviewed'),
+ 'Explicitly denied nested research cannot pass readiness');
+const scheduledNested=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',
+ sections:[modelSection(1,{summary:'Not yet public',published_at:'2099-01-01T00:00:00Z'})],
+ approvedPhotographs:[photo],stockContractVerified:true,visualParityVerified:true,
+ editorialSignoffReference:'HYPOTHETICAL-APPROVAL'});
+assert(scheduledNested.issueCodes.includes('nested_or_empty_content_unreviewed'),
+ 'Future nested research cannot pass readiness');
 const finance=modelReleaseReadiness({model:{
  id:88,manufacturer:'BMW',model:'CE 02 7.9% APR Representative'
 },manufacturerRegistryName:'BMW'});
