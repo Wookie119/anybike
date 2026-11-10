@@ -61,7 +61,7 @@ function render(slug){
   assert(approved.has(make),'Link to brand without a public manufacturer directory: '+make);
   const path=make==='BMW'?'/bmw-motorcycles.html':
    make==='Harley-Davidson'?'/harley-davidson-motorcycles.html':
-   '/motorcycle-brand.html?make='+encodeURIComponent(make)+'#models';
+   '/motorcycle-brand.html?make='+encodeURIComponent(make);
   assert.equal(a.href,path,'Wrong or unsafe manufacturer link: '+make);
   assert(detail.textContent.length>10,'Manufacturer history note missing: '+make);
   assert(!/stock available|ships to|import approved/i.test(detail.textContent),
