@@ -276,6 +276,39 @@ for(const invalid of [
 }
 console.log('PASS: editorial hero photography requires exact model and complete rights');
 
+const serviceCopyRoot=new FakeElement('main',documentFake);
+serviceCopyRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(serviceCopyRoot,{entity:gs,sections:[mk(gs,20,{
+ customer_copy:{
+  uk_selling:{heading:'UK owners: Sell My BMW R 1250 GS',
+   paragraphs:['AnyBike can review your motorcycle for sale.']},
+  international_stock:{heading:'BMW R 1250 GS motorcycles internationally',
+   paragraphs:['Only verified exact-model stock appears above research.']},
+  international_enquiry:{heading:'Enquire about a BMW R 1250 GS',
+   paragraphs:['Contact AnyBike about your requirements.']},
+  international_sourcing:{heading:'International sourcing',
+   paragraphs:['Ask AnyBike to search the UK market.']}
+ },
+ enquiry_form_copy:{labels:{name:'UNRENDERED FORM LABEL'},submit:'UNRENDERED SUBMIT'}
+})]});
+const copyNodes=collect(serviceCopyRoot);
+const copyText=copyNodes.map(x=>x.textContent||'').join(' | ');
+for(const required of [
+ 'UK owners: Sell My BMW R 1250 GS',
+ 'BMW R 1250 GS motorcycles internationally',
+ 'Enquire about a BMW R 1250 GS',
+ 'International sourcing',
+ 'Ask AnyBike to search the UK market.'
+])assert(copyText.includes(required),'Reviewed service copy missing: '+required);
+assert(!copyText.includes('UNRENDERED FORM LABEL'),
+ 'Unimplemented form labels were misleadingly displayed');
+assert(!copyText.includes('UNRENDERED SUBMIT'),
+ 'A fake submit button was displayed');
+assert.equal(copyNodes.filter(x=>x.tagName==='form').length,0,
+ 'Universal stage cannot imply a working enquiry form');
+console.log('PASS: reviewed selling and international sourcing copy renders, without fake forms');
+
+
 
 console.log('PASS: source-verified facts retain numeric units and announcement dates');
 
