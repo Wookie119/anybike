@@ -34,6 +34,15 @@ const rendered=renderUniversalPage(root,{entity:gs,sections:[mk(gs,12,{
   value:{power_hp:145,engine_cc:1300}}]
 })],stock:[good,{...good,item_id:99,catalog_model_id:77}]});
 assert.equal(rendered.stock.length,1);
+const wrongLabelRoot=new FakeElement('main',documentFake);
+wrongLabelRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(wrongLabelRoot,{entity:gs,sections:[],stock:[{
+ ...good,make:'Harley-Davidson',model:'R 1300 GS',year:2021
+}]});
+const wrongLabelStock=wrongLabelRoot.childNodes[0].childNodes[1];
+const wrongLabelTitle=wrongLabelStock.childNodes[1].childNodes[0].childNodes[0].textContent;
+assert.equal(wrongLabelTitle,'R 1250 GS 2021','Stock feed display labels must never override canonical page model');
+
 const page=root.childNodes[0];
 assert.deepEqual(page.childNodes.map(el=>el.dataset.anybikeRole||el.tagName),
  ['header','stock','research','customer-actions']);
