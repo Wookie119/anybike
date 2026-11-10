@@ -32,8 +32,9 @@ export async function loadUniversalPublishedPage(client,{type,id}={}){
  const seenNumbers=new Set(),seenKeys=new Set();
  const sections=data.map(row=>{
   const n=Number(row.section_number);
+  const expectedKey='section_'+String(n).padStart(2,'0');
   if(!Number.isInteger(n)||n<1||n>20||
-     typeof row.section_key!=='string'||!row.section_key.trim()||
+     row.section_key!==expectedKey||
      seenNumbers.has(n)||seenKeys.has(row.section_key))
    throw Error('Invalid or duplicate universal section identity');
   seenNumbers.add(n);seenKeys.add(row.section_key);
