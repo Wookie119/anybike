@@ -465,11 +465,44 @@ function enhanceMarketGuideNavigation(){
   });
 }
 
+// Shared market-page hygiene: another script or a legacy country template
+// can create repeated generic source cards and FAQ questions. Preserve all
+// genuine model cards and the first complete answer for each question.
+function dedupeMarketEditorialCards(){
+  document.querySelectorAll(".model-grid").forEach(grid=>{
+    const seenTitles=new Set(),seenPlaceholders=new Set();
+    [...grid.querySelectorAll("a.model-card")].forEach(card=>{
+      const title=(card.querySelector("h3")?.textContent||"").trim()
+       .toLowerCase().replace(/\\s+/g," ");
+      if(!title)return;
+      const generic=title==="another make or model";
+      const href=card.getAttribute("href")||"";
+      if(generic){
+        if(seenPlaceholders.size){card.remove();return;}
+        seenPlaceholders.add(href||"generic");
+      }else if(seenTitles.has(title)){
+        card.remove();return;
+      }
+      seenTitles.add(title);
+    });
+  });
+  document.querySelectorAll(".faq").forEach(container=>{
+    const seen=new Set();
+    [...container.querySelectorAll("details")].forEach(details=>{
+      const question=(details.querySelector("summary")?.textContent||"")
+       .trim().toLowerCase().replace(/\\s+/g," ").replace(/[^a-z0-9 ]/g,"");
+      if(!question)return;
+      if(seen.has(question)){details.remove();return;}
+      seen.add(question);
+    });
+  });
+}
 function run(){
   if(!location.pathname.toLowerCase().includes("/markets/"))return;
   const name=countryName(),iso=isoForPage(),meta=MARKET_DATA[iso]||{cities:[],regions:[],ports:[],landlocked:false};
   styleEnhancements();
   enhanceMarketGuideNavigation();
+  dedupeMarketEditorialCards();
   replaceEnglishBuyerCopy(iso,name);
   fixFlag(iso,name);
   fixHeroAlt(name);
