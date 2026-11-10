@@ -193,6 +193,30 @@ assert.equal(await changedSelectionPending,null);
 assert.equal(changedSelectionRoot.childNodes.length,0,
  'Old research reappeared after a no-publication response');
 
+// A changed buyer entitlement for the SAME model must not keep an older
+// stock card visible while the next authorised stock snapshot is loading.
+const entitlementRoot=stage();
+await loadAndRenderUniversalStage({
+ client:client([published()]),root:entitlementRoot,
+ type:'model',id:77,manufacturerName:'BMW',permittedStock:[match]
+});
+assert(collectNodes(entitlementRoot).some(x=>String(x.href).includes('id=500')),
+ 'Expected previously authorised stock as starting condition');
+let finishEntitlement;
+const newEntitlementRequest=loadAndRenderUniversalStage({
+ client:delayed(client([published()]),finish=>{finishEntitlement=finish}),
+ root:entitlementRoot,type:'model',id:77,manufacturerName:'BMW',
+ permittedStock:[]
+});
+assert.equal(entitlementRoot.childNodes.length,0,
+ 'Old stock remained visible after buyer entitlement changed');
+finishEntitlement();
+const newEntitlement=await newEntitlementRequest;
+assert.equal(newEntitlement.stock.length,0,
+ 'Old buyer stock copied into the new authorised model view');
+assert(!collectNodes(entitlementRoot).some(x=>String(x.href).includes('id=500')),
+ 'Previous session stock advert leaked into new session');
+
 const deniedSelectionRoot=stage();
 await loadAndRenderUniversalStage({
  client:client([published()]),root:deniedSelectionRoot,
