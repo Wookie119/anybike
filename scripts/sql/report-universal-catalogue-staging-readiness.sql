@@ -245,3 +245,42 @@ SELECT x.review_status,count(*) AS mapped_stock_rows,
 FROM public.motorcycle_stock_catalogue_identity_v1 x
 LEFT JOIN public.motorcycle_catalog_models m ON m.id=x.catalog_model_id
 GROUP BY x.review_status ORDER BY x.review_status;
+
+-- Buyer-safe catalog v2 is the data contract used BY the protected
+-- international-public-stock Edge Function. Direct SQL here is an admin audit,
+-- never permission for a UK visitor or a substitute for the Edge Function.
+WITH public_items AS (
+ SELECT jsonb_array_elements(public.international_vq_public_catalog_v2()) AS item
+), aggregate AS (
+ SELECT count(*) AS item_count,
+   count(DISTINCT item->>'catalog_model_id') AS distinct_catalogue_models,
+   count(*) FILTER (
+     WHERE item->>'catalogue_identity_status'='verified'
+       AND item->>'publication_eligible'='true'
+       AND (item->>'catalog_model_id') ~ '^[1-9][0-9]*$'
+   ) AS verified_eligible,
+   count(*) FILTER (WHERE item->>'catalog_model_id' IS NULL) AS missing_canonical_id
+ FROM public_items
+)
+SELECT * FROM aggregate;
+
+-- Detect mismatched canonical IDs versus public model labels. Never
+-- silently relabel or replace model stock in the UI.
+WITH public_items AS (
+ SELECT jsonb_array_elements(public.international_vq_public_catalog_v2()) AS item
+)
+SELECT item->>'item_id' AS published_item_id,
+       item->>'make' AS source_make,item->>'model' AS source_model,
+       item->>'catalog_model_id' AS canonical_id,
+       m.manufacturer AS canonical_make,m.model AS canonical_model
+FROM public_items
+LEFT JOIN public.motorcycle_catalog_models m
+ ON m.id=CASE WHEN (item->>'catalog_model_id') ~ '^[1-9][0-9]*$'
+   THEN (item->>'catalog_model_id')::bigint ELSE NULL END
+WHERE item->>'catalogue_identity_status'='verified'
+ AND (m.id IS NULL OR
+  regexp_replace(lower(coalesce(item->>'make','')),'[^a-z0-9]','','g') <>
+  regexp_replace(lower(m.manufacturer),'[^a-z0-9]','','g') OR
+  regexp_replace(lower(coalesce(item->>'model','')),'[^a-z0-9]','','g') <>
+  regexp_replace(lower(m.model),'[^a-z0-9]','','g'))
+ORDER BY published_item_id;
