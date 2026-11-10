@@ -444,10 +444,33 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
  showCuratedCatalogueSummary();
  // Supplement curated manufacturer content with every model in the single master catalogue.
  // Existing category descriptions and researched notes remain intact.
- fetch("/data/motorcycle-catalogue-master.json",{cache:"no-cache"}).then(r=>{
-   if(!r.ok)throw Error("Catalogue unavailable");
-   return r.json();
- }).then(data=>{
+ // Display clean canonical model names from Supabase as they are updated.
+ // This is catalogue identity navigation, NOT publication of research facts.
+ // On a denied/empty/unavailable feed, preserve the existing static directory.
+ const loadManufacturerCatalogue=async()=>{
+   const db=window.supabase?.createClient?.(
+     "https://tuehtnezhdnkqbbhttgp.supabase.co",
+     "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK"
+   );
+   if(db){
+     try{
+       const {data,error}=await db.rpc("public_anybike_manufacturer_catalogue_names_v1",{p_make:make});
+       if(!error&&Array.isArray(data)){
+         const models=data.filter(x=>x&&x.make===make&&
+           typeof x.model==="string"&&x.model.trim()&&
+           typeof x.category==="string"&&x.category.trim())
+           .map(x=>({make:x.make,model:x.model,category:x.category}));
+         if(models.length)return {models};
+       }
+     }catch(error){
+       console.warn("Public model catalogue unavailable; using existing directory",error);
+     }
+   }
+   const response=await fetch("/data/motorcycle-catalogue-master.json",{cache:"no-cache"});
+   if(!response.ok)throw Error("Catalogue unavailable");
+   return response.json();
+ };
+ loadManufacturerCatalogue().then(data=>{
    if(!Array.isArray(data.models))throw Error("Invalid catalogue data");
    const match=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
    const matching=data.models.filter(x=>match(x.make)===match(make)&&x.model);
