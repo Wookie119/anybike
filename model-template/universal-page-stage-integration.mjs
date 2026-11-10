@@ -18,6 +18,9 @@ export async function loadAndRenderUniversalStage({
   throw Error('Dedicated opt-in universal stage root required');
  if(!Array.isArray(permittedStock))
   throw Error('Permitted stock must be an array');
+ if(type==='model'&&permittedStock.length>0&&
+    (typeof manufacturerName!=='string'||!manufacturerName.trim()))
+  throw Error('Trusted manufacturer name required for model stock validation');
  // Loading validates canonical identity, all section IDs, approved status,
  // 20-slot limits and content before any DOM mutation can occur.
  const published=await loadUniversalPublishedPage(client,{type,id});
