@@ -573,3 +573,46 @@ Existing BMW and Harley design files, international stock-order behavior,
 stock permissions, manufacturer IDs, aliases, and live page files were not
 modified. Github commits and successful database imports are not themselves
 proof of GitHub Actions CI completion or live deployment.
+
+
+## Twelve-model historical/variant research plus provenance audit — 10 Nov continuation
+
+Two atomic, canonical-ID-guarded private source imports were committed and
+executed in production Supabase:
+
+1. `scripts/sql/stage-seven-rocket-tiger-daytona-enfield-ktm-drafts-2026-11-10.sql`
+   added 21 source-linked draft sections for seven models: Triumph Daytona
+   660 (664), Tiger Sport 660 (677), Tiger Sport 800 (259), Rocket 3
+   (666), earlier ROCKET III (241), KTM RC 125 (881), and Royal Enfield
+   Classic 500 Tribute Black (224).
+2. `scripts/sql/stage-five-ktm-triumph-variant-private-research-2026-11-10.sql`
+   added 15 source-linked draft sections for KTM 890 SMT (209),
+   1390 Super Adventure (884), RC 8C (532), Triumph STREET TRIPLE
+   765 RS (251), Speed Triple 1200 RR (669).
+
+**36 new sections for 12 exact existing model IDs**, matched against
+original public manufacturer news and technical reports. Different
+generations remain separate: 2024 Rocket 3 Storm specifications are never
+assigned to earlier Rocket III; 2024 RC 8C hand-built track bike is not a
+road RC 125; 2023 Street Triple RS is not the Street Triple R or Moto2.
+2025 KTM 1390 Super Adventure production was revised; announced production
+timing is not an assertion of immediate worldwide retail availability.
+
+Every section remains `editorial_status='draft'`,
+`source_verification_status='pending_review'`, `published_at=NULL`.
+No model identity merges, public research sections, product photos, dealer
+stock authorization, or public-page designs were changed.
+
+**Independent Supabase post-insert verification:** 979 canonical models;
+**232 model IDs with staged research**, **1,204 staged sections** total;
+**zero** publicly published universal sections; **zero** publication-state
+anomalies; **zero** duplicate section slots.
+
+An additional read-only provenance pipeline is available at
+`scripts/sql/report-universal-source-provenance-and-shared-evidence-2026-11-10.sql`.
+It was executed and separated single-model source URLs from multi-model
+manufacturer-range documents. Those shared range sources still need
+per-claim validation and cannot auto-authorize editorial publication.
+
+GitHub writes and live Supabase DB verification are confirmed; CI and live
+hosting deployment require separate independent observation.
