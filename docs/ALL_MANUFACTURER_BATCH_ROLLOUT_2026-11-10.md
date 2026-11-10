@@ -260,3 +260,40 @@ This follow-on pass created and executed a read-only report and committed it to
 GitHub; it did **not** stage additional content or change production permissions.
 The current GitHub Actions and live deployment outcomes are not established
 by these database checks.
+
+
+## Larger all-manufacturer review and source-index batch — 10 Nov follow-on
+
+A production read-only inventory confirmed **979 canonical model records**,
+**985 staged research sections** and **zero published universal research sections**.
+The exact registry/alias/collision/marketing guards from the existing catalogue
+intake report were retained in a new deterministic **10-batch, up-to-100-model**
+SQL worklist:
+
+- `scripts/sql/report-all-manufacturer-100-model-research-batches-2026-11-10.sql`
+- 19 identity-review cases stay separate (4 already have private drafts).
+- 138 non-blocked staged models await review (932 sections).
+- 822 models require manufacturer primary-source research; none had usable
+  unstaged catalogue overview or specification content to copy safely.
+- The remaining 13 sections belong to four identity-review models; staged
+  total stays 985. All workstreams sum to 979 models exactly.
+- The worklist was executed successfully against Supabase after its GitHub
+  commit. It did not change tables, publication states, or permissions.
+
+The shared JavaScript research planner and independent publication preflight
+were hardened to **reject orphan verification audits**. Two accompanying
+regression tests were added to the existing catalogue integrity CI workflow's
+already-configured test files. Code was committed, but full GitHub Actions
+execution is not independently confirmed.
+
+New source-research intake:
+`docs/PRIMARY_MANUFACTURER_RESEARCH_HONDA_DUCATI_2026-11-10.md`
+maps **10 Honda and five Ducati** canonical catalogue IDs to original
+manufacturer research entry points. These URLs were externally reviewed as
+source *locations*, not as 15 completed fact-checked model guides.
+Exact trims/years, evidence scope and photo rights require manual verification
+before any staging or publication.
+
+Final database integrity recheck: 112 fact-audit records, zero orphan
+fact-audit IDs, and zero published universal sections. No live pages,
+stock availability, model IDs or source research approval were modified.
