@@ -41,7 +41,7 @@ export async function mountManufacturerModelIndex({
   note.textContent='Browse existing AnyBike model guides. Research and stock availability are specific to each motorcycle.';
   const details=doc.createElement('details');
   const summary=doc.createElement('summary');
-  summary.textContent='Browse '+links.length+' model guides';
+  summary.textContent='Browse '+links.length+' database-linked model guides';
   summary.style.cssText='cursor:pointer;font-weight:700;padding:10px 0';
   details.append(summary);
   const nav=doc.createElement('nav');
@@ -57,7 +57,14 @@ export async function mountManufacturerModelIndex({
     nav.append(a);
    }
   });
-  section.append(title,note,details);root.append(section);
+  // This index intentionally lists only source-verified canonical route records.
+  // Existing independently researched guides are preserved on the approved
+  // manufacturer page even when their canonical catalogue mapping is pending.
+  const allGuides=doc.createElement('a');
+  allGuides.href='#models';
+  allGuides.textContent='Explore the full '+make+' model guide collection';
+  allGuides.style.cssText='display:inline-block;margin-top:14px;color:#fff;text-decoration:underline;text-underline-offset:3px';
+  section.append(title,note,details,allGuides);root.append(section);
   return true;
  }catch(error){
   console.warn('Public model guide directory unavailable; approved manufacturer page retained',error);
