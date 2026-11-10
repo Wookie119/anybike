@@ -48,6 +48,22 @@ export function buildUniversalPageSections(entity,sections){
   const publicationTime=Date.parse(s.published_at);
   if(!Number.isFinite(publicationTime)||publicationTime>Date.now())continue;
   if(!populated(s.content))continue;
+  // The stage renderer can also be called directly by internal callers.
+  // Never let that route bypass the public loader's root-level documentary
+  // review, denied-publication or nested release-date checks.
+  if(safeRecord(s.content)){
+   const statuses=['source_verification_status','editorial_status',
+    'content_status','verification_status','review_state'];
+   const allowed=new Set(['verified','approved','published']);
+   if(statuses.some(k=>s.content[k]!==undefined&&s.content[k]!==null&&
+      (typeof s.content[k]!=='string'||
+       !allowed.has(s.content[k].trim().toLowerCase()))))continue;
+   if(s.content.publication_eligible===false)continue;
+   if(s.content.published_at!==undefined&&s.content.published_at!==null){
+    const contentDate=Date.parse(s.content.published_at);
+    if(!Number.isFinite(contentDate)||contentDate>Date.now())continue;
+   }
+  }
   bySlot.set(n,Object.freeze({number:n,key:SECTION_KEYS[n-1],title:safeText(s.section_title),
    content:s.content,entity_id:identity.id,entity_type:identity.type}));
  }
