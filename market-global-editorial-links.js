@@ -118,6 +118,23 @@
    ['Voge','Chinese motorcycle brand']
   ]
  };
+ // Country-level historical context. This deliberately separates brand
+ // origin from present-day ownership, manufacturing and market availability.
+ // Keep this editorial layer in one shared data map for all 217 markets.
+ const regionalHistory={
+  japan:'Japan grew into a major motorcycle engineering centre after the Second World War. Honda, Yamaha, Suzuki and Kawasaki developed distinct approaches to road motorcycles, racing and manufacturing. Explore their histories and compare documented model generations.',
+  italy:'Italy has a long tradition of motorcycle design, racing and specialist engineering, from Moto Guzzi and Ducati to Benelli, Aprilia, Bimota and MV Agusta. Several historic marque names have changed ownership over time.',
+  germany:'German motorcycle history includes BMW boxer-engine development and changing approaches to touring, adventure motorcycles and vehicle engineering. Factory origins and modern model specifications should be researched separately.',
+  'united-kingdom':'Britain has a deep motorcycle heritage, including Triumph, BSA, Norton and AJS. Many historic marques were reorganised or revived, so their founding history must be distinguished from current ownership and production.',
+  'united-states':'American motorcycle history includes Harley-Davidson and Indian Motorcycle, alongside newer electric-motorcycle ventures such as Zero Motorcycles. Motorcycle heritage and present-day factory locations are not interchangeable.',
+  india:'India is a major centre of modern motorcycle production. Royal Enfield provides a particularly useful case study: a historic British-origin marque whose later development and manufacturing have become closely associated with India.',
+  austria:'Austrian motorcycle development includes KTM and competition-led engineering. Its corporate ownership and manufacturing arrangements have evolved; brand origins should not be read as a promise about where a given motorcycle was built.',
+  sweden:'Swedish motorcycle heritage includes the beginnings of Husqvarna. The motorcycle marque subsequently experienced ownership and manufacturing changes beyond Sweden, making its history different from its current production footprint.',
+  spain:'Spanish motorcycle history includes trials, off-road and road-bike development associated with GASGAS and Rieju. Modern ownership and individual model assembly locations need separate confirmation.',
+  france:'France has a long powered-two-wheeler history, including Peugeot Motocycles. The brand heritage illustrates why the birthplace of a marque and its present corporate arrangements should be treated as distinct questions.',
+  taiwan:'Taiwan developed substantial scooter and powered-two-wheeler manufacturing expertise. KYMCO and SYM represent different Taiwanese manufacturers with their own model histories and international activities.',
+  china:'China has become important to modern motorcycle and electric two-wheeler development. CFMOTO, QJMotor and Voge have distinct engineering and company histories; model-specific factories and ownership should be verified individually.'
+ };
  const dedicatedManufacturerLink=make=>
   make==='BMW'?'/bmw-motorcycles.html':
   make==='Harley-Davidson'?'/harley-davidson-motorcycles.html':
@@ -182,7 +199,12 @@
     detail.style.cssText='color:#c9c9c9;line-height:1.4';
     item.appendChild(detail);brands.appendChild(item);
    }
-   section.append(heading,context,brands);
+   const regional=document.createElement('p');
+   regional.textContent=regionalHistory[slug]||
+    'Explore documented motorcycle manufacturers and their historical connections with this country.';
+   regional.dataset.anybikeRegionalHistory='true';
+   regional.style.cssText='margin:0 0 16px;color:#e3e3e3;line-height:1.6';
+   section.append(heading,context,regional,brands);
    block.appendChild(section);
   }
   // Put research immediately after the motorcycle-model section rather
