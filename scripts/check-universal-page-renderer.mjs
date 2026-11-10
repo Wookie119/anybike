@@ -29,7 +29,8 @@ const documentFake={
 const root=new FakeElement('main',documentFake);root.dataset.anybikeUniversalRoot='true';
 const rendered=renderUniversalPage(root,{entity:gs,sections:[mk(gs,12,{
  verified_catalogue_facts:[{fact_id:1,label:'Verified engine output',
-  source_verification_status:'verified',source_url:'https://example.org/source',
+  source_verification_status:'verified',editorial_status:'approved',
+  publication_eligible:true,source_url:'https://example.org/source',
   source_name:'Factory records',start_year:2024,market:'UK',
   value:{power_hp:145,engine_cc:1300}}]
 })],stock:[good,{...good,item_id:99,catalog_model_id:77}]});
@@ -160,8 +161,10 @@ verifiedAmountRoot.dataset.anybikeUniversalRoot='true';
 renderUniversalPage(verifiedAmountRoot,{entity:gs,sections:[mk(gs,12,{
  verified_catalogue_facts:[
   {label:'Verified engine capacity',source_verification_status:'verified',
+   editorial_status:'approved',publication_eligible:true,
    source_url:'https://www.press.bmwgroup.com/engine',value:{amount:1254,unit:'cc'}},
   {label:'BMW press announcement',source_verification_status:'verified',
+   editorial_status:'approved',publication_eligible:true,
    source_url:'https://www.press.bmwgroup.com/launch',value:{announcement_date:'2018-09-17'}},
   {label:'Pending fact',source_verification_status:'candidate',
    source_url:'https://www.press.bmwgroup.com/candidate',value:{amount:9999,unit:'hp'}}
@@ -233,6 +236,26 @@ assert(!imageNodes.some(x=>String(x.src||'').includes('wrong-model.jpg')),
 console.log('PASS: exact-model authorized stock pictures, HTTPS only, with accessible labels');
 
 
+// Source verification alone is not editorial permission to display data.
+const unsignedFactRoot=new FakeElement('main',documentFake);
+unsignedFactRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(unsignedFactRoot,{entity:gs,sections:[mk(gs,12,{
+ verified_catalogue_facts:[
+  {label:'Verified but no editorial release',source_verification_status:'verified',
+   source_url:'https://example.org/no-signoff',value:{power_hp:9876}},
+  {label:'Editorially marked but not permitted',source_verification_status:'verified',
+   editorial_status:'approved',source_url:'https://example.org/no-permission',
+   value:{power_hp:9875}},
+  {label:'Explicitly published and permitted',source_verification_status:'verified',
+   editorial_status:'published',publication_eligible:true,
+   source_url:'https://example.org/fully-released',value:{power_hp:145}}
+ ]
+})]});
+const unsignedFactTree=collect(unsignedFactRoot);
+const unsignedText=unsignedFactTree.map(x=>x.textContent||'').join(' | ');
+assert(!unsignedText.includes('9876'),'Verified source bypassed editorial signoff');
+assert(!unsignedText.includes('9875'),'Approved status bypassed eligibility flag');
+assert(unsignedText.includes('145 hp'),'Properly approved fact was suppressed');
 const embargoedFactsRoot=new FakeElement('main',documentFake);
 embargoedFactsRoot.dataset.anybikeUniversalRoot='true';
 renderUniversalPage(embargoedFactsRoot,{entity:gs,sections:[mk(gs,12,{
@@ -248,7 +271,8 @@ renderUniversalPage(embargoedFactsRoot,{entity:gs,sections:[mk(gs,12,{
   {label:'Verified invalid release',source_verification_status:'verified',
    published_at:'invalid-date',source_url:'https://example.org/invalid',value:{power_hp:9995}},
   {label:'Reviewed and released fact',source_verification_status:'verified',
-   editorial_status:'published',published_at:'2026-11-09T00:00:00Z',
+   editorial_status:'published',publication_eligible:true,
+   published_at:'2026-11-09T00:00:00Z',
    source_url:'https://example.org/approved',value:{power_hp:145}}
  ]
 })]});
@@ -340,7 +364,8 @@ documentaryTextRoot.dataset.anybikeUniversalRoot='true';
 renderUniversalPage(documentaryTextRoot,{entity:gs,sections:[mk(gs,12,{
  verified_catalogue_facts:[
   {label:'Verified factory history',source_verification_status:'verified',
-   editorial_status:'published',source_url:'https://example.org/factory',
+   editorial_status:'published',publication_eligible:true,
+   source_url:'https://example.org/factory',
    source_name:'Original manufacturer',value:'Documented factory production history'},
   {label:'Pending source fact',source_verification_status:'pending_review',
    source_url:'https://example.org/pending',value:'UNVERIFIED SOURCE TEXT'},
@@ -373,7 +398,7 @@ renderUniversalPage(engineeringFieldsRoot,{entity:gs,sections:[mk(gs,12,{
  verified_catalogue_facts:[{
   label:'Verified factory engineering reference',
   source_verification_status:'verified',editorial_status:'approved',
-  source_url:'https://example.org/verified-engineering',
+  publication_eligible:true,source_url:'https://example.org/verified-engineering',
   value:{type:'liquid-cooled two-cylinder boxer',valvetrain:'DOHC',
    power_kw:107,gears:6,drive:'shaft',diameter_mm:310,rpm:7750}
  }]
