@@ -43,7 +43,7 @@ export function addDatabaseCountryNavigation(body,items){
    if(details.open&&!nav.childElementCount){
     for(const entry of entries){
      const a=document.createElement('a');a.href=entry.url;a.textContent=entry.label;
-     a.style.cssText='display:inline-flex;align-items:center;padding:9px 13px;border:1px solid #813438;border-radius:999px;background:#242424;color:#fff;text-decoration:none';
+     a.style.cssText='display:inline-flex;align-items:center;padding:9px 13px;border:1px solid #555;border-radius:999px;background:#242424;color:#fff;text-decoration:none';
      nav.append(a);
     }
    }
