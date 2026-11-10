@@ -7,7 +7,15 @@
  */
 const normalise=v=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]/g,'');
 const text=v=>typeof v==='string'?v.trim():'';
-const safeSource=url=>typeof url==='string'&&/^https:\/\//i.test(url);
+const safeSource=url=>{
+ if(typeof url!=='string'||url!==url.trim()||!url.startsWith('https://'))return false;
+ try{
+  const parsed=new URL(url);
+  return parsed.protocol==='https:'&&Boolean(parsed.hostname)&&
+   !parsed.username&&!parsed.password&&
+   !/[\\s\\u0000-\\u001f]/.test(url);
+ }catch{return false;}
+};
 async function publishedBmwResearch(){
  const provider=window.supabase;
  const client=provider?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
