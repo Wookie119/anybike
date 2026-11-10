@@ -53,7 +53,7 @@ export async function mountManufacturerModelIndex({
    for(const link of links){
     const a=doc.createElement('a');
     a.href=link.url;a.textContent=link.model;
-    a.style.cssText='display:inline-flex;align-items:center;min-height:40px;padding:9px 13px;border:1px solid #813438;border-radius:999px;background:#242424;color:#fff;text-decoration:none';
+    a.style.cssText='display:inline-flex;align-items:center;min-height:40px;padding:9px 13px;border:1px solid #555;border-radius:999px;background:#242424;color:#fff;text-decoration:none';
     nav.append(a);
    }
   });
