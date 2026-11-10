@@ -158,10 +158,6 @@ const manufacturerView=await loadAndRenderUniversalStage({
 assert.equal(manufacturerView.stock.length,0,'Manufacturer pages must not inherit model stock');
 
 
-const raceRoot=stage();
-let finishOld,finishNew;
-const oldClient=client([published()]);
-const newClient=client([published(68,'R 1250 GS')]);
 function delayed(base,setFinish){
  return {from(table){
   const q=base.from(table);
@@ -173,6 +169,46 @@ function delayed(base,setFinish){
   };
  }};
 }
+
+// Reusing a stage root for another canonical model must immediately hide
+// the old model, even when the new selection is empty or denied. This
+// protects the identity of both research and stock while awaiting the RPC.
+const changedSelectionRoot=stage();
+await loadAndRenderUniversalStage({
+ client:client([published()]),root:changedSelectionRoot,
+ type:'model',id:77,manufacturerName:'BMW',permittedStock:[match]
+});
+assert.equal(changedSelectionRoot.dataset.anybikeRenderedEntity,'model:77');
+let finishChanged;
+const changedSelectionPending=loadAndRenderUniversalStage({
+ client:delayed(client([]),finish=>{finishChanged=finish}),
+ root:changedSelectionRoot,type:'model',id:68,manufacturerName:'BMW'
+});
+assert.equal(changedSelectionRoot.childNodes.length,0,
+ 'Previous BMW research remained visible during a different model request');
+assert.equal(changedSelectionRoot.dataset.anybikeRenderedEntity,undefined,
+ 'Old model identity tag retained after new model selection');
+finishChanged();
+assert.equal(await changedSelectionPending,null);
+assert.equal(changedSelectionRoot.childNodes.length,0,
+ 'Old research reappeared after a no-publication response');
+
+const deniedSelectionRoot=stage();
+await loadAndRenderUniversalStage({
+ client:client([published()]),root:deniedSelectionRoot,
+ type:'model',id:77,manufacturerName:'BMW',permittedStock:[match]
+});
+await assert.rejects(loadAndRenderUniversalStage({
+ client:client([], {message:'New selection denied'}),
+ root:deniedSelectionRoot,type:'model',id:68,manufacturerName:'BMW'
+}),/unavailable/);
+assert.equal(deniedSelectionRoot.childNodes.length,0,
+ 'Previous model visible after a denied new model request');
+
+const raceRoot=stage();
+let finishOld,finishNew;
+const oldClient=client([published()]);
+const newClient=client([published(68,'R 1250 GS')]);
 const oldRequest=loadAndRenderUniversalStage({
  client:delayed(oldClient,finish=>{finishOld=finish}),root:raceRoot,
  type:'model',id:77,manufacturerName:'BMW'
