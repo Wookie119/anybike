@@ -40,4 +40,27 @@ assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[{
 assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[{
  ...published(gs,2,'Past approved content'),published_at:'2026-11-09T00:00:00Z'
 }])).length,1,'Approved prior publication date was suppressed');
+// Direct renderer callers cannot bypass the public catalogue loader.
+for(const field of ['source_verification_status','editorial_status',
+ 'content_status','verification_status','review_state']){
+ const slots=buildUniversalPageSections(gs,[{
+  ...published(gs,12,{summary:'NOT REVIEWED',[field]:'pending_review'})
+ }]);
+ assert.equal(visibleUniversalSections(slots).length,0,
+  'Direct renderer leaked root-level pending '+field);
+}
+for(const patch of [
+ {publication_eligible:false},
+ {published_at:'2099-01-01T00:00:00Z'},
+ {published_at:'invalid-date'}
+]){
+ assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[
+  published(gs,1,{summary:'RESTRICTED',...patch})
+ ])).length,0,'Direct renderer leaked denied or embargoed content');
+}
+assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[
+ published(gs,1,{summary:'APPROVED',
+  source_verification_status:'verified',editorial_status:'approved'})
+])).length,1,'Reviewed content unexpectedly blocked');
+
 console.log('PASS: shared 20-section manufacturer/model contract, strict ID segregation and draft filtering');
