@@ -81,11 +81,27 @@ export function mountVerifiedModelFacts(body,rows,make,model){
     dl.append(node(doc,'dt',entry.label),node(doc,'dd',entry.value));
    }
    article.append(dl);
-   const source=node(doc,'a','Read '+(safeText(fact.source_name)||'source')+' ↗');
-   source.href=fact.source_url;source.target='_blank';source.rel='noopener noreferrer';
-   article.append(source);grid.append(article);
+   grid.append(article);
   }
-  group.append(grid);panel.append(group);
+  group.append(grid);
+  // A factory archive shared by multiple years only needs one visible
+  // reference per research group; each fact still has verified provenance.
+  const sources=new Map();
+  for(const fact of items){
+   if(!sources.has(fact.source_url))
+    sources.set(fact.source_url,safeText(fact.source_name)||'Manufacturer source');
+  }
+  const references=doc.createElement('p');
+  references.style.cssText='margin:12px 0 0';
+  references.append(node(doc,'strong',sources.size===1?'Source: ':'Sources: '));
+  for(const [url,name] of sources){
+   const source=node(doc,'a',name+' ↗');
+   source.href=url;source.target='_blank';source.rel='noopener noreferrer';
+   source.style.cssText='margin-right:16px';
+   references.append(source);
+  }
+  group.append(references);
+  panel.append(group);
  }
  // Preserve stock and enquiry panels above #body; place factual research
  // ahead of generic fallback and discovery cards, without replacing either.
