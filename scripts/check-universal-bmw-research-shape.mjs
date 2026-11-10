@@ -46,7 +46,10 @@ const sections=[
   display_policy:'Do not embed photography without explicit rights.',
   source_url:'https://example.org/unlicensed-photo.jpg'}}),
  record(16,'Ownership and buying',{deep_dive:[{title:'Ownership',
-  paragraphs:[{text:'Buying guidance'}]}]}),
+  paragraphs:[{text:'Buying guidance'},{
+   text:'',link:['https://www.press.bmwgroup.com/example','BMW launch documentation']
+  },{text:'',link:['javascript:alert(1)','Unsafe reference blocked']}
+  ]}]}),
  record(17,'AnyBike Global research',{global_stories:{title:'Stories',
   description:'Explore approved articles',url:'/bmw-motorcycles.html#stories'}}),
  record(18,'Related motorcycles',{related_model_links:[{
@@ -89,4 +92,9 @@ assert(!all.some(x=>x.tagName==='img'),
  'Unlicensed source photograph was embedded');
 assert(all.some(x=>x.href==='/bmw-r1250gs.html'),
  'Related canonical model links were lost');
+assert(all.some(x=>x.href==='https://www.press.bmwgroup.com/example'&&
+ x.textContent==='BMW launch documentation'&&
+ x.rel==='noopener noreferrer'),'Reviewed source paragraph link lost');
+assert(!all.some(x=>String(x.href).startsWith('javascript:')),
+ 'Unsafe paragraph reference was displayed');
 console.log('PASS: fifteen-section BMW schema covers fourteen readable cards, preserves stock order and excludes photo-rights-only content');
