@@ -49,8 +49,8 @@ export function planCatalogueIntake({manufacturers=[],models=[],aliases=[],batch
   if(!registry.has(model.manufacturer))issues.push('manufacturer_registry_mismatch');
   if(isPromotionalModelLabel(model.model))issues.push('promotional_model_label');
   if(flaggedAliasIds.has(id))issues.push('pending_alias_review');
-  const item=Object.freeze({id,manufacturer:model.manufacturer,
-    model:model.model,issues,eligibleForStaging:issues.length===0});
+  const item={id,manufacturer:model.manufacturer,
+    model:model.model,issues,eligibleForStaging:issues.length===0};
   items.push(item);
   if(issues.length)flags.push({id,manufacturer:model.manufacturer,
     model:model.model,issues});
@@ -70,6 +70,7 @@ export function planCatalogueIntake({manufacturers=[],models=[],aliases=[],batch
  // IDs, not names, determine batch membership; never assume collisions are
  // duplicates or that a model with no flag is editorially publication-ready.
  items.sort((a,b)=>a.id-b.id);
+ for(const item of items){Object.freeze(item.issues);Object.freeze(item);}
  const safe=items.filter(x=>x.eligibleForStaging);
  const batches=[];
  for(let i=0;i<safe.length;i+=batchSize)
