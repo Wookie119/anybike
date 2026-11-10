@@ -20,7 +20,7 @@ const clean=exactVerifiedModelFacts([
  sample({fact_id:50,model:'RM125'})
 ],'Suzuki','RM250');
 assert.equal(clean.length,1);
-assert.equal(clean[0].display[0].label,'Engine Cc');
+assert.equal(clean[0].display[0].label,'Engine capacity (cc)');
 function fakeElement(tag){
  return {
   tag,children:[],dataset:{},style:{},textContent:'',href:'',target:'',rel:'',
