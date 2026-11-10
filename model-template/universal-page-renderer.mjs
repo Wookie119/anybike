@@ -49,6 +49,15 @@ function appendContent(doc,parent,value,depth=0){
      (sourceReview&&!allowed.has(sourceReview))||
      (contentStatus&&!allowed.has(contentStatus))||
      (editorialStatus&&!allowed.has(editorialStatus)))return;
+  // Do not let an approved parent promote explicitly denied, source-captured
+  // or future-dated child records. This applies to every manufacturer/model.
+  if(value.publication_eligible===false)return;
+  const nestedReview=safeText(value.review_state).toLowerCase();
+  if(nestedReview&&!allowed.has(nestedReview))return;
+  if(value.published_at!==undefined&&value.published_at!==null){
+    const releaseDate=Date.parse(value.published_at);
+    if(!Number.isFinite(releaseDate)||releaseDate>Date.now())return;
+  }
   // Strict display whitelist: arbitrary JSON keys are not rendered as speculative facts.
   const heading=safeText(value.title)||safeText(value.label)||
     safeText(value.name)||safeText(value.heading);
