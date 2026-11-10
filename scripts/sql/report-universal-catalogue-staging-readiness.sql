@@ -189,3 +189,59 @@ LEFT JOIN public.anybike_editorial_photo_bank p
 WHERE m.manufacturer='BMW'
 GROUP BY m.id,m.manufacturer,m.model
 ORDER BY approved_model_photo_assets DESC,m.model,m.id;
+
+-- Existing approved BMW-route RPC: structural coverage in one read-only batch.
+-- 27 routes are an integration baseline, NOT a second template.
+WITH bmw_routes(path) AS (
+ VALUES
+ ('/bmw-c400gt.html'),('/bmw-c400x.html'),('/bmw-ce02.html'),('/bmw-ce04.html'),
+ ('/bmw-f850gs.html'),('/bmw-f900gs.html'),('/bmw-f900r.html'),('/bmw-f900xr.html'),
+ ('/bmw-g650gs.html'),('/bmw-hp4.html'),('/bmw-k1600gt.html'),('/bmw-k1600gtl.html'),
+ ('/bmw-m1000rr.html'),('/bmw-r1200gs.html'),('/bmw-r1200rt.html'),
+ ('/bmw-r1250gs.html'),('/bmw-r1250r.html'),('/bmw-r1250rt.html'),
+ ('/bmw-r1300gs.html'),('/bmw-r18.html'),('/bmw-r32.html'),('/bmw-r80gs.html'),
+ ('/bmw-r90s.html'),('/bmw-rninet.html'),('/bmw-s1000r.html'),
+ ('/bmw-s1000rr.html'),('/bmw-s1000xr.html')
+), public_research AS (
+ SELECT path,public.public_bmw_model_history_v1(path) AS data
+ FROM bmw_routes
+)
+SELECT path, data->>'model' AS model,
+       data IS NOT NULL AS has_public_research,
+       data->>'make'='BMW' AS correct_manufacturer,
+       jsonb_array_length(coalesce(data->'generations','[]'::jsonb)) AS generations,
+       jsonb_array_length(coalesce(data->'technical_specifications','[]'::jsonb)) AS technical_references,
+       jsonb_array_length(coalesce(data->'related_models','[]'::jsonb)) AS related_models,
+       jsonb_array_length(coalesce(data->'country_markets','[]'::jsonb)) AS model_specific_country_links
+FROM public_research
+ORDER BY path;
+
+-- The shared navigation RPC lists existing routes, not approved country
+-- editorial. A candidate route is NOT equivalent to published research.
+SELECT r.publication_state,count(*) AS eligible_country_routes
+FROM anybike_publishing.editorial_page_routes r
+WHERE r.entity_type='country'
+ AND r.source_verified_at IS NOT NULL
+ AND r.country_region IS NOT NULL
+ AND r.public_path ~ '^/markets/[a-z0-9-]+[.]html$'
+GROUP BY r.publication_state ORDER BY r.publication_state;
+
+-- Verify public routes are URL-safe, unique, and separate from canonical
+-- editorial approval. The country RPC is navigation-only.
+WITH links AS (
+ SELECT jsonb_array_elements(public.public_anybike_country_navigation_v1()) AS entry
+)
+SELECT count(*) AS returned_links,
+ count(DISTINCT entry->>'url') AS unique_paths,
+ count(*) FILTER(WHERE (entry->>'url') !~ '^/markets/[a-z0-9-]+[.]html$') AS invalid_paths,
+ count(*) FILTER(WHERE coalesce(trim(entry->>'label'),'')='') AS missing_labels
+FROM links;
+
+-- Private stock-to-catalogue review does not establish API entitlements.
+-- Never publish stock merely because a private identity is verified.
+SELECT x.review_status,count(*) AS mapped_stock_rows,
+ count(*) FILTER(WHERE m.id IS NULL) AS missing_catalogue_rows,
+ count(*) FILTER(WHERE m.manufacturer='BMW') AS bmw_rows
+FROM public.motorcycle_stock_catalogue_identity_v1 x
+LEFT JOIN public.motorcycle_catalog_models m ON m.id=x.catalog_model_id
+GROUP BY x.review_status ORDER BY x.review_status;
