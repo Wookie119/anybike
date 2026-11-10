@@ -15,7 +15,7 @@ import {renderUniversalPage} from './universal-page-renderer.mjs';
 const latestStageRequest=new WeakMap();
 
 export async function loadAndRenderUniversalStage({
- client,root,type,id,permittedStock=[],manufacturerName=''
+ client,root,type,id,permittedStock=[],manufacturerName='',approvedHeroPhoto=null
 }={}){
  if(!root||root.dataset?.anybikeUniversalRoot!=='true'||
     root.dataset?.anybikeUniversalStage!=='true')
@@ -44,6 +44,7 @@ export async function loadAndRenderUniversalStage({
   :published.entity;
  return renderUniversalPage(root,{
   entity,sections:published.sections,
-  stock:entity.type==='model'?stockSnapshot:[]
+  stock:entity.type==='model'?stockSnapshot:[],
+  heroPhoto:entity.type==='model'?approvedHeroPhoto:null
  });
 }
