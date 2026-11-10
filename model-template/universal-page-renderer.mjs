@@ -55,6 +55,31 @@ function appendContent(doc,parent,value,depth=0){
   for(const key of ['summary','description','text','body']){
     if(typeof value[key]==='string'&&value[key].trim())parent.append(node(doc,'p',value[key]));
   }
+  // Structured technical rows are a documented part of the approved
+  // universal editorial schema. Render only two-cell text pairs; never dump
+  // arbitrary JSON or treat pending engineering as verified information.
+  if(Array.isArray(value.rows)){
+    const specs=node(doc,'dl','','anybike-universal-specification-rows');
+    for(const pair of value.rows.slice(0,60)){
+      if(!Array.isArray(pair)||pair.length!==2)continue;
+      const label=safeText(pair[0]);
+      const val=typeof pair[1]==='number'&&Number.isFinite(pair[1])?String(pair[1]):safeText(pair[1]);
+      if(!label||!val)continue;
+      specs.append(node(doc,'dt',label),node(doc,'dd',val));
+    }
+    if(specs.childNodes.length)parent.append(specs);
+  }
+  // Dated editorial history remains within the approved section, not a
+  // separate model-specific template. Dates are displayed as source labels,
+  // never inferred to be motorcycle production-start dates.
+  const period=safeText(value.period)||safeText(value.date);
+  if(period)parent.append(node(doc,'p',period,'anybike-universal-period'));
+  if(Number.isInteger(value.year)&&value.year>=1885&&value.year<=2100)
+    parent.append(node(doc,'p',String(value.year),'anybike-universal-period'));
+  for(const key of ['event','change','evidence']){
+    if(typeof value[key]==='string'&&value[key].trim())
+      parent.append(node(doc,'p',value[key]));
+  }
   const url=safeText(value.url);
   if(approvedLink(url)&&heading){
     const a=node(doc,'a','Read more');a.href=url;
@@ -64,7 +89,7 @@ function appendContent(doc,parent,value,depth=0){
   // One typed renderer for every entity. Use known editorial fields only; never
   // render source HTML, unlicensed photograph URLs or arbitrary database keys.
   for(const key of ['items','paragraphs','entries','cards','links',
-    'hero','production','generations','milestones','specifications','colours',
+    'hero','production','timeline','production_evidence','generations','milestones','specifications','colours',
     'types','related_model_links','global_stories','deep_dive','development_cards',
     'actions','customer_copy','enquiry_form_copy','engineering','development',
     'editions','technical_specifications','motorcycle_types','country_markets']){
