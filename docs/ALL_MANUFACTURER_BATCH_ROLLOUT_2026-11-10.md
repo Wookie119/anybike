@@ -514,3 +514,62 @@ This is research draft progress, NOT eight finished 20-section public pages.
 No changes were made to approved BMW or Harley-Davidson designs,
 international exact-model stock ordering or stock permissions. GitHub Actions
 and independent live deployment verification remain outstanding.
+
+
+## Verified 19-model five-manufacturer research intake — larger batch, 10 Nov 2026
+
+Two independent, atomic, fail-closed SQL drafts committed and successfully
+executed on the Supabase production catalogue:
+
+1. `scripts/sql/stage-thirteen-moto-guzzi-aprilia-ktm-enfield-research-2026-11-10.sql`:
+   **13 exact model IDs / 26 private sections**.
+2. `scripts/sql/stage-six-ktm-aprilia-triumph-manufacturer-drafts-2026-11-10.sql`:
+   **6 exact model IDs / 12 private sections**.
+
+**19 models and 38 new private source-linked sections in aggregate:**
+
+- Moto Guzzi (5): Stelvio (559), V7 Special (560), V7 Stone (561),
+  V85 TT (217), V9 Bobber (563).
+- Aprilia (5): RSV4 (3), Tuareg 660 (329), RS 125 (795),
+  Tuono V4 (331), SX125 (5).
+- KTM (5): 890 Adventure (528), 790 Adventure (526),
+  690 SMC R (208), 690 Enduro R (882), RC 390 (531).
+- Royal Enfield (2): Bullet 500 (951), Classic 500 (960).
+- Triumph (2): SCRAMBLER 400 X (243), SPEED 400 (244).
+
+Each model has two source-linked introductory/history or generation-context
+research sections, grounded in official manufacturer model pages, product
+announcements and documented model-year specifications. Moto Guzzi's
+2026 V7/Stelvio/V85 information is restricted to the corresponding edition
+and year; KTM 2019/2023/2024 specifications are never generalized to other
+years or the R variant; Aprilia Factory and GP Replica equipment is
+distinguished from base models. Royal Enfield's UK owners' manual index
+supports separate historical model identities, **not** factual production
+chronology or detailed specifications. Triumph's 2023 UK announcement
+states late-January-2024 dealer arrival expectations, not worldwide dates.
+
+Each row remains `editorial_status='draft'`,
+`source_verification_status='pending_review'` and
+`published_at=NULL`. No model-year facts are independently audited or
+approved for publication merely by importing this summary. No photography
+rights have been granted.
+
+The queries enforce exact immutable make/model/ID, exact expected insert
+counts, no pending aliases or prior staged sections, and unchanged public
+universal projection.
+
+**Independently rerun Supabase checks after both imports:**
+
+- 979 canonical catalogue model IDs
+- **215 model IDs with staged research** (up from 196)
+- **1,153 staged research sections** (up from 1,115)
+- 1,113 staged model sections, 40 staged manufacturer sections
+- 0 published universal sections
+- 0 non-draft/publication-date anomalies
+- 0 blank source references
+- 0 duplicated entity/section-number slots
+
+Existing BMW and Harley design files, international stock-order behavior,
+stock permissions, manufacturer IDs, aliases, and live page files were not
+modified. Github commits and successful database imports are not themselves
+proof of GitHub Actions CI completion or live deployment.
