@@ -45,6 +45,9 @@ export async function loadUniversalPublishedPage(client,{type,id}={}){
    throw Error('Mixed manufacturer/model publication records');
   if(row.editorial_status!=='published'||row.publication_eligible!==true||
      !row.published_at)throw Error('Unpublished content returned');
+  const publicationTime=Date.parse(row.published_at);
+  if(!Number.isFinite(publicationTime)||publicationTime>Date.now())
+   throw Error('Publication date is invalid or not yet reached');
   if(!Number.isSafeInteger(Number(row.source_section_id))||
      Number(row.source_section_id)<=0||
      typeof row.publication_review_reference!=='string'||
