@@ -37,5 +37,11 @@ await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],pu
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],source_section_id:null}],error:null}),{type:'model',id:68}),/Missing reviewed publication provenance/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],published_at:'2099-01-01T00:00:00Z'}],error:null}),{type:'model',id:68}),/Publication date is invalid or not yet reached/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],published_at:'not-a-real-date'}],error:null}),{type:'model',id:68}),/Publication date is invalid or not yet reached/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],content:{
+ source_blocks:[{source_file:'old-bmw-page.html',import_status:'draft'}]
+}}],error:null}),{type:'model',id:68}),/Unreviewed source-only research section blocked/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],content:{
+ engineering:{verification_status:'pending_editorial_review',rows:[['Power','unreviewed']]}
+}}],error:null}),{type:'model',id:68}),/Unverified engineering-only section blocked/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[],error:null}),{type:'model',id:0}),/Canonical/);
 console.log('PASS: public-only universal Supabase projection and strict manufacturer/model identity checks');
