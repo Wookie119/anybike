@@ -297,3 +297,48 @@ before any staging or publication.
 Final database integrity recheck: 112 fact-audit records, zero orphan
 fact-audit IDs, and zero published universal sections. No live pages,
 stock availability, model IDs or source research approval were modified.
+
+
+## Factory-source private model drafts — 10 Nov subsequent large batch
+
+After verifying five Ducati Heritage pages and four Honda Global CB history
+articles, two independent guarded SQL imports were committed and executed
+against Supabase:
+
+- `scripts/sql/stage-five-ducati-factory-heritage-private-drafts-2026-11-10.sql`:
+  **12** new private research sections across exact canonical Ducati IDs
+  400 (916), 748 (Monster 900), 779 (851), 788 (1098), 831 (Multistrada 1200).
+- `scripts/sql/stage-four-honda-cb-factory-history-private-drafts-2026-11-10.sql`:
+  **12** new private research sections across exact canonical Honda IDs
+  444 (CB500F), 798 (CB1300), 837 (CB1100), 854 (CB400 Super Four).
+
+The source articles were read for relevant model introductions, chronology,
+engineering and design claims. Extracted copy is concise original paraphrase,
+marked `draft` and `pending_review`, with exact documentary URL retained.
+This is **not** independent fact-audit completion, release approval or image
+licensing. Historical 851 Tricolore or later model variant technical specs must
+not be generalized to the entire catalogue entry.
+
+The imports refuse mismatched canonical make/model identities, pending aliases,
+or pre-existing model staging; require exact inserted row counts; and assert the
+public projection is unchanged. Both imports succeeded and were individually
+verified after the database writes.
+
+**Verified aggregate state following this batch:**
+
+| Measure | Supabase result |
+| --- | ---: |
+| Canonical catalogue model records | 979 |
+| Universal staged models | 151 |
+| Staged model research sections | 969 |
+| Staged manufacturer research sections | 40 |
+| **All staged research sections** | **1009** |
+| New sections in this batch | 24 |
+| Public universal published sections | 0 |
+| Draft/publication-state anomalies | 0 |
+| Duplicate entity/section slots | 0 |
+
+All new model facts remain non-public. Existing BMW/Harley HTML, international
+access rights, registered routes, stock, manufacturer identity and page design
+were untouched. GitHub commit success does not independently prove an
+end-to-end live deploy or GitHub Actions pass.
