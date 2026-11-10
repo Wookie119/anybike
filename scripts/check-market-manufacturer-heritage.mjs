@@ -22,7 +22,7 @@ const expected={
  spain:['GASGAS','Rieju'],
  france:['Peugeot Motocycles'],
  taiwan:['Kymco','SYM'],
- china:['CFMOTO','QJMotor','Voge']
+ china:['CFMOTO','QJMotor','Voge','NIU','KOVE','Surron','Talaria','Zontes']
 };
 function node(tag){
  return{tagName:tag,dataset:{},style:{},textContent:'',href:'',
@@ -83,7 +83,7 @@ function render(slug){
 }
 let checkedLinks=0;
 for(const slug of Object.keys(expected))checkedLinks+=render(slug).length;
-assert.equal(checkedLinks,37,'Unexpected number of researched brand-country links');
+assert.equal(checkedLinks,42,'Unexpected number of researched brand-country links');
 for(const slug of ['kenya','argentina','new-zealand','isle-of-man'])
  assert.deepEqual(render(slug),[],'Unreviewed local manufacturer invented');
 console.log('PASS: '+checkedLinks+' verified top-of-brand heritage links across '+
