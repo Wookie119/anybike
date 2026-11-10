@@ -123,7 +123,8 @@ export function composeUniversalPage({entity,sections=[],stock=[]}={}){
   const slots=buildUniversalPageSections(entity,sections);
   const visible=visibleUniversalSections(slots);
   const permittedStock=identity.type==='model' ?
-    stockForCanonicalModel(stock,{catalog_model_id:identity.id,model_name:identity.name},24) : [];
+    stockForCanonicalModel(stock,{catalog_model_id:identity.id,model_name:identity.name,
+      manufacturer_name:safeText(entity.manufacturer_name)},24) : [];
   return Object.freeze({
     identity,sections:visible,stock:permittedStock,
     layout:'anybike-universal-v1',
