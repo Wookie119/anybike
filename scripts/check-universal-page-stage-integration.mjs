@@ -38,6 +38,7 @@ const client=(rows,error=null)=>({from(table){
  };
  return chain;
 }});
+const collectNodes=node=>[node,...(node.childNodes||[]).flatMap(collectNodes)];
 const match={
  catalog_model_id:77,item_id:500,make:'BMW',model:'R 1300 GS',year:2024,
  publication_eligible:true,catalogue_identity_status:'verified'
@@ -54,6 +55,22 @@ assert.equal(view.stock.length,1,'Conflicting motorcycle stock must be excluded'
 assert.deepEqual(root.childNodes[0].childNodes.map(x=>x.dataset.anybikeRole||x.tagName),
  ['header','stock','research','customer-actions']);
 assert.equal(root.dataset.anybikeRenderedEntity,'model:77');
+const stockPictureRoot=stage();
+const stockPictureView=await loadAndRenderUniversalStage({
+ client:client([published()]),root:stockPictureRoot,
+ type:'model',id:77,manufacturerName:'BMW',permittedStock:[
+  {...match,item_id:503,image_url:'https://cdn.example.org/bmw-r1300-stock.jpg'},
+  {...match,item_id:504,image_url:'javascript:alert(1)'},
+  {...match,item_id:505,model:'R 1250 GS',image_url:'https://cdn.example.org/wrong-gs.jpg'}
+ ]
+});
+assert.equal(stockPictureView.stock.length,2,'Canonical stock should remain even without valid imagery');
+const pictureNodes=collectNodes(stockPictureRoot);
+const photos=pictureNodes.filter(node=>node.tagName==='img');
+assert.equal(photos.length,1,'Only authorized HTTPS exact-model stock images render');
+assert.equal(photos[0].src,'https://cdn.example.org/bmw-r1300-stock.jpg');
+assert(!photos.some(node=>String(node.src).includes('wrong-gs.jpg')),
+ 'Wrong-model stock imagery leaked across catalogue identities');
 
 const missingReview=stage(),reviewSentinel=missingReview.childNodes[0];
 await assert.rejects(loadAndRenderUniversalStage({
