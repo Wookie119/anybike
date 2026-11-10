@@ -4,6 +4,13 @@
 (function(root){
  "use strict";
  const CATEGORIES=new Set(["whole_motorcycle","engine","suspension","frame","transmission","equipment","colour","racing","factory","inspection"]);
+ const https=value=>typeof value==="string"&&/^https:\/\//i.test(value);
+ const filled=value=>typeof value==="string"&&value.trim().length>0;
+ function publishable(photo){
+  return photo?.approval_status==="approved"&&https(photo.image_url)&&
+   https(photo.source_page_url)&&https(photo.licence_url)&&
+   filled(photo.licence)&&filled(photo.attribution);
+ }
  async function findPhotos(client,options){
   if(!client||typeof client.from!=="function")throw new Error("Supabase client required");
   const o=options||{};
@@ -13,10 +20,10 @@
   if(o.category&&CATEGORIES.has(o.category))q=q.eq("subject_category",o.category);
   const {data,error}=await q;
   if(error)throw error;
-  return (data||[]).filter(photo=>!o.year||(photo.model_year_start==null||photo.model_year_start<=o.year)&&(photo.model_year_end==null||photo.model_year_end>=o.year)).filter(photo=>!o.context||photo.usage_contexts?.includes(o.context));
+  return (data||[]).filter(publishable).filter(photo=>!o.year||(photo.model_year_start==null||photo.model_year_start<=o.year)&&(photo.model_year_end==null||photo.model_year_end>=o.year)).filter(photo=>!o.context||photo.usage_contexts?.includes(o.context));
  }
  function selectPhoto(photos,{manufacturer,model,year,category,feature,context}={}){
-  return (photos||[]).filter(p=>p.approval_status==="approved"&&p.manufacturer===manufacturer&&(!model||p.model===model)&&(!year||(p.model_year_start==null||p.model_year_start<=year)&&(p.model_year_end==null||p.model_year_end>=year))&&(!category||p.subject_category===category)&&(!context||p.usage_contexts?.includes(context))&&(!feature||p.feature_tags?.includes(feature)))[0]||null;
+  return (photos||[]).filter(p=>publishable(p)&&p.manufacturer===manufacturer&&(!model||p.model===model)&&(!year||(p.model_year_start==null||p.model_year_start<=year)&&(p.model_year_end==null||p.model_year_end>=year))&&(!category||p.subject_category===category)&&(!context||p.usage_contexts?.includes(context))&&(!feature||p.feature_tags?.includes(feature)))[0]||null;
  }
  root.AnyBikeEditorialPhotos=Object.freeze({findPhotos,selectPhoto});
 })(typeof window!=="undefined"?window:this);
