@@ -342,6 +342,29 @@ assert(!documentaryNodes.some(x=>String(x.textContent||'').length>1200&&
 assert(documentaryNodes.some(x=>x.href==='https://example.org/factory'),
  'Verified text fact lost documentary citation');
 console.log('PASS: safely render source-verified documentary string facts without unreviewed text');
+const engineeringFieldsRoot=new FakeElement('main',documentFake);
+engineeringFieldsRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(engineeringFieldsRoot,{entity:gs,sections:[mk(gs,12,{
+ verified_catalogue_facts:[{
+  label:'Verified factory engineering reference',
+  source_verification_status:'verified',editorial_status:'approved',
+  source_url:'https://example.org/verified-engineering',
+  value:{type:'liquid-cooled two-cylinder boxer',valvetrain:'DOHC',
+   power_kw:107,gears:6,drive:'shaft',diameter_mm:310,rpm:7750}
+ }]
+})]});
+const engineeringNodes=collect(engineeringFieldsRoot);
+const engineeringText=engineeringNodes.map(x=>x.textContent||'').join(' | ');
+for(const token of [
+ 'liquid-cooled two-cylinder boxer','DOHC','107 kW',
+ '6','shaft','310 mm','7750 rpm'
+])assert(engineeringText.includes(token),
+ 'Verified typed factory specification missing: '+token);
+assert(engineeringNodes.some(x=>x.href==='https://example.org/verified-engineering'),
+ 'Verified engineering facts lost source citation');
+console.log('PASS: typed engineering values show units, layouts and source reference');
+
+
 
 console.log('PASS: source-verified facts retain numeric units and announcement dates');
 
