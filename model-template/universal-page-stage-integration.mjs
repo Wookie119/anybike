@@ -35,7 +35,15 @@ export async function loadAndRenderUniversalStage({
  latestStageRequest.set(root,request);
  // Loading validates canonical identity, all section IDs, approved status,
  // 20-slot limits and content before any DOM mutation can occur.
- const published=await loadUniversalPublishedPage(client,{type,id});
+ let published;
+ try{
+  published=await loadUniversalPublishedPage(client,{type,id});
+ }catch(error){
+  // A failure from a superseded selection is not the current page's
+  // failure. The newest request still owns the root and its error state.
+  if(latestStageRequest.get(root)!==request)return null;
+  throw error;
+ }
  if(latestStageRequest.get(root)!==request)return null;
  if(!published)return null;
  const entity=published.entity.type==='model'&&
