@@ -207,6 +207,18 @@ export function renderUniversalPage(root,payload){
       // Canonical model identity is authoritative even if a stock feed carries stale display text.
       // Never label an R 1250 GS card as an R 1300 GS because of a mislabelled advert.
       const year=Number.isInteger(Number(item.year))&&Number(item.year)>=1885&&Number(item.year)<=2100?String(item.year):'';
+      // Only images already included in the authorized public stock payload
+      // can appear in a stock card. These are sale-listing pictures, not
+      // substitutes for separately licensed model-research hero photography.
+      const imageUrl=safeText(item.image_url);
+      if(imageUrl.startsWith('https://')&&approvedLink(imageUrl)){
+        const img=node(doc,'img');
+        img.src=imageUrl;
+        img.alt=view.identity.name+' motorcycle available in stock';
+        img.loading='lazy';
+        img.decoding='async';
+        a.append(img);
+      }
       a.append(node(doc,'strong',[view.identity.name,year].filter(Boolean).join(' ')));
       if(Number.isFinite(Number(item.price))&&Number(item.price)>0)
         a.append(node(doc,'span','£'+Number(item.price).toLocaleString('en-GB')));
