@@ -227,3 +227,36 @@ deployment remain separately unverified.
 
 **No public pages or publication approvals changed. No manufacturer
 or canonical model IDs were renamed. No stock permissions were widened.**
+
+
+## Independent documentary evidence triage — 10 Nov, 15:50 UK
+
+A fresh read-only Supabase audit checked **all 399** current structured
+catalogue evidence records (194 facts + 92 generations + 113 timeline events).
+The new repeatable SQL report is
+`scripts/sql/report-all-manufacturer-documentary-evidence-triage-2026-11-10.sql`.
+It assigns mutually exclusive evidence-review lanes and preserves exact
+canonical IDs, audit URLs and source URLs for manual comparison.
+
+| Review lane | Evidence records |
+| --- | ---: |
+| Missing or unsafe documentary source URL | 2 |
+| Verified fact lacking independent audit | 13 |
+| Verified fact with conflicting audit URL | 13 |
+| Fact still requiring source verification | 67 |
+| Historical generations requiring editorial review | 92 |
+| Historical timeline entries requiring editorial review | 113 |
+| Fact with consistent independent audit (NOT publication approval) | 99 |
+| **Total** | **399** |
+
+The missing/unsafe source lane includes two facts; classification intentionally
+prioritises missing source links before the fact's other deficiencies.
+Do not conflate the 99 audit-consistent entries with publication-ready facts.
+No automatic URL reconciliation, source approval, or content release occurred.
+
+A fresh production database count confirmed **979 catalogue model IDs,
+985 staged universal sections, and zero public universal sections**.
+This follow-on pass created and executed a read-only report and committed it to
+GitHub; it did **not** stage additional content or change production permissions.
+The current GitHub Actions and live deployment outcomes are not established
+by these database checks.
