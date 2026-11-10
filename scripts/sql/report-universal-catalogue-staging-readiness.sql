@@ -74,3 +74,28 @@ FROM public.motorcycle_catalog_models m
 LEFT JOIN public.motorcycle_universal_page_sections_v1 s
   ON s.entity_type='model' AND s.model_id=m.id
 GROUP BY m.manufacturer ORDER BY catalog_models DESC,m.manufacturer;
+
+-- Live-source canonical identity integrity. Reports exceptions only.
+-- A verified match can still have a stale feed label, so check both ID
+-- and normalized make/model; never reassign identity automatically.
+SELECT x.live_source_item_id,x.catalog_model_id,x.source_make,x.source_model,
+       m.manufacturer AS canonical_manufacturer,m.model AS canonical_model,
+       x.review_status
+FROM public.motorcycle_live_source_catalogue_identity_v1 x
+LEFT JOIN public.motorcycle_catalog_models m ON m.id=x.catalog_model_id
+WHERE x.review_status='verified'
+  AND (m.id IS NULL OR
+       (nullif(trim(x.source_make),'') IS NOT NULL AND
+         regexp_replace(lower(x.source_make),'[^a-z0-9]','','g') <>
+         regexp_replace(lower(m.manufacturer),'[^a-z0-9]','','g')) OR
+       (nullif(trim(x.source_model),'') IS NOT NULL AND
+         regexp_replace(lower(x.source_model),'[^a-z0-9]','','g') <>
+         regexp_replace(lower(m.model),'[^a-z0-9]','','g')))
+ORDER BY x.live_source_item_id;
+
+-- Verified parent identities must point at actual catalogue models.
+SELECT x.catalog_model_id,x.source_manufacturer_name,x.review_status
+FROM public.motorcycle_catalog_model_parent_identity_v1 x
+LEFT JOIN public.motorcycle_catalog_models m ON m.id=x.catalog_model_id
+WHERE x.review_status='verified' AND m.id IS NULL
+ORDER BY x.catalog_model_id;
