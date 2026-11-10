@@ -43,6 +43,10 @@ export function buildUniversalPageSections(entity,sections){
   seen.add(n);
   if(s.section_key!==SECTION_KEYS[n-1])throw Error('Incorrect section key');
   if(s.editorial_status!=='published'||!s.published_at||s.publication_eligible!==true)continue;
+  // This contract also runs when callers invoke the stage renderer directly.
+  // Scheduled or malformed publication timestamps may not be shown early.
+  const publicationTime=Date.parse(s.published_at);
+  if(!Number.isFinite(publicationTime)||publicationTime>Date.now())continue;
   if(!populated(s.content))continue;
   bySlot.set(n,Object.freeze({number:n,key:SECTION_KEYS[n-1],title:safeText(s.section_title),
    content:s.content,entity_id:identity.id,entity_type:identity.type}));
