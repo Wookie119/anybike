@@ -50,7 +50,8 @@ function appendContent(doc,parent,value,depth=0){
      (contentStatus&&!allowed.has(contentStatus))||
      (editorialStatus&&!allowed.has(editorialStatus)))return;
   // Strict display whitelist: arbitrary JSON keys are not rendered as speculative facts.
-  const heading=safeText(value.title)||safeText(value.label)||safeText(value.name);
+  const heading=safeText(value.title)||safeText(value.label)||
+    safeText(value.name)||safeText(value.heading);
   if(heading)parent.append(node(doc,depth>0?'h3':'h2',heading));
   // Model-year notes are explicitly reviewed editorial text, not a year
   // inferred from a press-release or a source document's publication date.
@@ -100,12 +101,24 @@ function appendContent(doc,parent,value,depth=0){
     if(url.startsWith('https://')){a.target='_blank';a.rel='noopener noreferrer';}
     parent.append(a);
   }
+  // Customer-service copy has a documented finite schema. Render its
+  // reviewed headings and paragraphs, but never turn labels/placeholders
+  // into an inert imitation enquiry form.
+  if(value.customer_copy&&typeof value.customer_copy==='object'&&
+     !Array.isArray(value.customer_copy)){
+    for(const key of ['uk_selling','international_stock',
+                      'international_enquiry','international_sourcing']){
+      const copy=value.customer_copy[key];
+      if(copy&&typeof copy==='object'&&!Array.isArray(copy))
+        appendContent(doc,parent,copy,depth+1);
+    }
+  }
   // One typed renderer for every entity. Use known editorial fields only; never
   // render source HTML, unlicensed photograph URLs or arbitrary database keys.
   for(const key of ['items','paragraphs','entries','cards','links',
     'hero','production','timeline','production_evidence','generations','milestones','specifications','colours',
     'types','related_model_links','global_stories','deep_dive','development_cards',
-    'actions','customer_copy','enquiry_form_copy','engineering','development',
+    'actions','engineering','development',
     'editions','technical_specifications','motorcycle_types','country_markets']){
     if(Array.isArray(value[key])||(value[key]&&typeof value[key]==='object'))
       appendContent(doc,parent,value[key],depth+1);
