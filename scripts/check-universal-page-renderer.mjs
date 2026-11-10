@@ -77,7 +77,7 @@ const renderedBlank=renderUniversalPage(blankRoot,{entity:gs,sections:[
  mk(gs,11,{source_blocks:[{source_file:'private/source.html'}]}),
  mk(gs,18,{related_model_links:[{label:'BMW R 1300 GS',url:'/bmw-r1300gs.html'}]})
 ],stock:[]});
-assert.equal(renderedBlank.sections.length,2,'Published sections remain in data contract');
+assert.equal(renderedBlank.sections.length,1,'Source-only draft must be excluded from the shared data contract');
 const publicResearch=blankRoot.childNodes[0].childNodes[2];
 assert.equal(publicResearch.childNodes.length,1,'Source-only sections must never create empty public cards');
 const related=publicResearch.childNodes[0];
