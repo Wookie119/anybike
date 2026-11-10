@@ -19,6 +19,9 @@ const knownLocal=[
  '/global/honda-nm4-vultus-did-you-know.html',
  '/global/suzuki-hayabusa-japan-design-speed.html',
  '/global/yamaha-niken-leaning-three-wheel-design.html',
+ '/global/honda-dream-d-type-1949-pressed-steel-origins.html',
+ '/global/suzuki-rm250-motocross-suspension-history.html',
+ '/global/yamaha-yz250-1974-monocross-history.html',
  '/global/bimota-tesi-h2-blimey-look-at-that.html',
  '/global/ducati-diavel-v4-i-want-one.html',
  '/global/royal-enfield-himalayan-india-mountain-roads.html',
@@ -76,6 +79,9 @@ function render(slug){
  return links.length;
 }
 for(const slug of local)render(slug);
+assert.equal(render('japan'),8,
+ 'Japan must link all six manufacturer history articles plus the Global hub and directory');
+
 for(let i=1;i<=217;i++){
  const slug='catalogue-test-'+i;
  assert.equal(render(slug),2,
