@@ -432,16 +432,26 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
  }
  const groups=key?guides[key]:{"All models":[]};
  const modelFacts=new Map();
+ // Give the catalogue panel a useful initial state even when the shared
+ // JSON fetch is slow, blocked or temporarily unavailable. Never leave an
+ // indefinite "Loading catalogue information" placeholder on public pages.
+ const catalogueSummary=document.getElementById("manufacturer-data-summary");
+ function showCuratedCatalogueSummary(){
+   if(!catalogueSummary)return;
+   const curated=[...new Set(Object.values(groups).flat().filter(Boolean))];
+   catalogueSummary.innerHTML='<article class="card"><strong>'+curated.length+'</strong><p>Curated '+esc(make)+' model names available to explore</p></article><article class="card"><strong>Catalogue update pending</strong><p>The full model catalogue could not be loaded. Existing model guides remain available.</p></article>';
+ }
+ showCuratedCatalogueSummary();
  // Supplement curated manufacturer content with every model in the single master catalogue.
  // Existing category descriptions and researched notes remain intact.
  fetch("/data/motorcycle-catalogue-master.json",{cache:"no-cache"}).then(r=>{
    if(!r.ok)throw Error("Catalogue unavailable");
    return r.json();
  }).then(data=>{
-   if(!Array.isArray(data.models))return;
+   if(!Array.isArray(data.models))throw Error("Invalid catalogue data");
    const match=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
    const matching=data.models.filter(x=>match(x.make)===match(make)&&x.model);
-   if(!matching.length)return;
+   if(!matching.length)throw Error("No matching catalogue models");
    const known=new Set(Object.values(groups).flat().map(match));
    const summary=document.getElementById("manufacturer-data-summary");
    if(summary){
@@ -458,7 +468,10 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
    }
    for(const list of Object.values(groups))list.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
    renderManufacturerModels();
- }).catch(error=>console.warn("Master manufacturer models unavailable",error.message));
+ }).catch(error=>{
+   showCuratedCatalogueSummary();
+   console.warn("Master manufacturer models unavailable",error.message);
+ });
  function renderManufacturerModels(){
 
  const categoryEntries=Object.entries(groups).filter(([,models])=>models.length);
