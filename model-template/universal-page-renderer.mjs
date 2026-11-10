@@ -104,6 +104,19 @@ function appendContent(doc,parent,value,depth=0){
     sourceLink.href=evidenceUrl;sourceLink.target='_blank';
     sourceLink.rel='noopener noreferrer';parent.append(sourceLink);
   }
+  // The universal researched-section schema uses source_url (not just
+  // legacy `source`). Expose the original document on an approved
+  // section only when its source verification is explicitly signed off.
+  // A draft source URL is metadata, not a licence or public citation.
+  const documentedUrl=safeText(value.source_url);
+  if(documentedUrl && documentedUrl!==evidenceUrl &&
+     ['verified','approved','published'].includes(sourceReview) &&
+     documentedUrl.startsWith('https://')&&approvedLink(documentedUrl)){
+    const citation=node(doc,'a','View manufacturer source','anybike-universal-source-link');
+    citation.href=documentedUrl;
+    citation.target='_blank';citation.rel='noopener noreferrer';
+    parent.append(citation);
+  }
   // Approved research paragraphs may cite documentary sources as
   // [URL, label]. Keep the citation without exposing arbitrary HTML or
   // allowing unsafe protocols, including when the paragraph is link-only.
