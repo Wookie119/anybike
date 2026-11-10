@@ -66,7 +66,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  const panel=doc.createElement('section');
  panel.className='card feature anybike-verified-model-research';
  panel.dataset.anybikeVerifiedModelFacts='1';
- panel.style.cssText='grid-column:1/-1;border-top:3px solid #ed1c24';
+ panel.style.cssText='grid-column:1/-1;min-width:0;background:#171717;color:#fff;border:1px solid #555;border-top:3px solid #ed1c24';
  panel.append(node(doc,'h2',make+' '+model+' — documented factory research'));
  const yearFacts=facts.filter(x=>x.category==='model_year'&&Number.isInteger(Number(x.start_year))&&Number(x.start_year)>=1885&&Number(x.start_year)<=2100);
  const sortedYears=[...new Set(yearFacts.map(x=>Number(x.start_year)))].sort((a,b)=>a-b);
@@ -85,16 +85,16 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   group.style.cssText='padding:14px 0;border-top:1px solid #444';
   group.append(node(doc,'h3',sections[category]));
   const grid=doc.createElement('div');
-  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px';
+  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px;align-items:stretch';
   for(const fact of items){
    const article=doc.createElement('article');
-   article.style.cssText='background:#202020;border:1px solid #555;border-radius:8px;padding:18px;min-width:0';
+   article.style.cssText='background:#242424;color:#fff;border:1px solid #666;border-radius:8px;padding:18px;min-width:0;overflow-wrap:anywhere';
    article.append(node(doc,'h4',fact.label));
    const detail=[fact.start_year&&'Reference year: '+fact.start_year,
     safeText(fact.market)&&'Market: '+fact.market].filter(Boolean);
    if(detail.length)article.append(node(doc,'p',detail.join(' · ')));
    const dl=doc.createElement('dl');
-   dl.style.cssText='display:grid;grid-template-columns:minmax(115px,34%) minmax(0,1fr);gap:9px 14px;line-height:1.5;overflow-wrap:anywhere';
+   dl.style.cssText='display:grid;grid-template-columns:minmax(115px,34%) minmax(0,1fr);gap:9px 14px;line-height:1.5;overflow-wrap:anywhere;color:#fff';
    for(const entry of fact.display){
     dl.append(node(doc,'dt',entry.label),node(doc,'dd',entry.value));
    }
