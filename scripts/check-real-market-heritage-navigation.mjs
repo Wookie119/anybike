@@ -3,14 +3,12 @@
 // This script is read-only and does not fetch or infer stock availability.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
 
-const root=new URL('..',import.meta.url);
 const folder=new URL('../markets/',import.meta.url);
 const files=fs.readdirSync(folder).filter(name=>/^[a-z0-9-]+\.html$/.test(name));
 assert(files.length>=217,
  'Expected at least the 217 live country HTML routes, found '+files.length);
-let withHeader=0,unsafeJumpLinks=0;
+let withHeader=0;
 const duplicateNames=new Set();
 for(const name of files){
  assert(!duplicateNames.has(name),'Duplicate country route: '+name);
@@ -26,7 +24,6 @@ for(const name of files){
  for(const match of html.matchAll(re)){
   assert(!/#models(?:$|&|\?)/i.test(match[1]),
    'Country route skips manufacturer introduction: '+name+' -> '+match[1]);
-  unsafeJumpLinks+=0; // Count only violations; any violation throws above.
  }
 }
 assert.equal(withHeader,files.length,
