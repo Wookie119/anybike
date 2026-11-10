@@ -63,4 +63,24 @@ assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[
   source_verification_status:'verified',editorial_status:'approved'})
 ])).length,1,'Reviewed content unexpectedly blocked');
 
+// Source-only import records and unverified stand-alone engineering must
+// remain hidden even if a direct caller wrongly marks the wrapper published.
+for(const content of [
+ {source_blocks:[{source_file:'legacy-source.html',import_status:'draft'}]},
+ {source_blocks:[],source_file:'legacy.html',source_blob_sha:'abc123'},
+ {engineering:{verification_status:'pending_editorial_review',rows:[['Power','not checked']]}},
+ {engineering:{rows:[['Displacement','not checked']]}}
+]){
+ assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[
+  published(gs,4,content)
+ ])).length,0,'Direct renderer exposed unreviewed source or engineering');
+}
+assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[
+ published(gs,4,{summary:'Approved description',
+  engineering:{verification_status:'pending_editorial_review'}})
+])).length,1,'Approved prose must survive unrelated pending engineering');
+assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[
+ published(gs,4,{engineering:{verification_status:'verified',rows:[['Power','verified']]}})
+])).length,1,'Verified standalone engineering was suppressed');
+
 console.log('PASS: shared 20-section manufacturer/model contract, strict ID segregation and draft filtering');
