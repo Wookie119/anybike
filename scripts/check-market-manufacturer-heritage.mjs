@@ -11,9 +11,10 @@ const script=new Script(source);
 const approved=new Set(catalogue.models.map(m=>m.make));
 const expected={
  japan:['Honda','Yamaha','Suzuki','Kawasaki'],
- italy:['Ducati','Aprilia','Moto Guzzi','Benelli','Bimota','MV Agusta'],
+ italy:['Ducati','Aprilia','Moto Guzzi','Benelli','Bimota','MV Agusta',
+  'Beta','Fantic','Piaggio','Vespa','Moto Morini','Italjet'],
  germany:['BMW'],
- 'united-kingdom':['Triumph','BSA','Norton','AJS'],
+ 'united-kingdom':['Triumph','BSA','Norton','AJS','CCM','Maeving'],
  'united-states':['Harley-Davidson','Indian Motorcycle','Zero Motorcycles'],
  india:['Royal Enfield'],
  austria:['KTM'],
@@ -68,6 +69,10 @@ function render(slug){
    make==='Harley-Davidson'?'/harley-davidson-motorcycles.html':
    '/motorcycle-brand.html?make='+encodeURIComponent(make);
   assert.equal(a.href,path,'Wrong or unsafe manufacturer link: '+make);
+  assert(!a.href.includes('#models'),
+   'Country manufacturer link must open top of manufacturer guide: '+make);
+  assert(!a.href.includes('#'),
+   'Country heritage link must not jump past manufacturer introduction: '+make);
   assert(detail.textContent.length>10,'Manufacturer history note missing: '+make);
   assert(!/stock available|ships to|import approved/i.test(detail.textContent),
    'Country brand history implied eligibility or stock');
@@ -76,8 +81,10 @@ function render(slug){
   'Historical origins must be distinguished from current ownership');
  return links;
 }
-for(const slug of Object.keys(expected))render(slug);
+let checkedLinks=0;
+for(const slug of Object.keys(expected))checkedLinks+=render(slug).length;
+assert.equal(checkedLinks,50,'Unexpected number of researched brand-country links');
 for(const slug of ['kenya','argentina','new-zealand','isle-of-man'])
  assert.deepEqual(render(slug),[],'Unreviewed local manufacturer invented');
-console.log('PASS: '+Object.keys(expected).length+
- ' heritage country groups link to existing manufacturer guides, show origin caveats and never add country-specific stock claims');
+console.log('PASS: '+checkedLinks+' verified top-of-brand heritage links across '+
+ Object.keys(expected).length+' country groups, with regional origin caveats and no false stock claims');
