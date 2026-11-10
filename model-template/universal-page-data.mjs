@@ -59,6 +59,28 @@ export async function loadUniversalPublishedPage(client,{type,id}={}){
      (Array.isArray(row.content)&&row.content.length===0)||
      (typeof row.content==='object'&&!Array.isArray(row.content)&&Object.keys(row.content).length===0))
    throw Error('Empty published research section blocked');
+  // An approved outer row may never launder an unreviewed top-level
+  // documentary source capture into a public research card. Nested pending
+  // engineering in an otherwise reviewed section remains separately filtered
+  // by the renderer; do not blanket-suppress such approved summaries.
+  if(row.content&&typeof row.content==='object'&&!Array.isArray(row.content)){
+   const rootStatus=['source_verification_status','editorial_status',
+    'content_status','verification_status','review_state'];
+   const approvedStates=new Set(['verified','approved','published']);
+   for(const key of rootStatus){
+    const state=row.content[key];
+    if(state!==undefined&&state!==null&&
+       (typeof state!=='string'||!approvedStates.has(state.trim().toLowerCase())))
+     throw Error('Unreviewed top-level research content blocked');
+   }
+   if(row.content.publication_eligible===false)
+    throw Error('Explicitly denied research content blocked');
+   if(row.content.published_at!==undefined&&row.content.published_at!==null){
+    const releaseTime=Date.parse(row.content.published_at);
+    if(!Number.isFinite(releaseTime)||releaseTime>Date.now())
+     throw Error('Nested research release date not reached');
+   }
+  }
   // Imported HTML source pointers are migration metadata, not reviewed
   // customer-facing research. In particular, a source_blocks-only section
   // must not become a blank public card just because JSON is non-empty.
