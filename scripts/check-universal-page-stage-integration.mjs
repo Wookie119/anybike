@@ -85,6 +85,33 @@ await assert.rejects(loadAndRenderUniversalStage({
 }),/Trusted manufacturer name required/);
 assert.equal(missingMake.childNodes[0],makeSentinel,'Missing manufacturer must not mutate stage');
 
+
+const licensedModelPhoto={
+ approval_status:'approved',manufacturer:'BMW',model:'R 1300 GS',
+ image_url:'https://example.org/bmw-r1300.jpg',
+ source_page_url:'https://example.org/attribution',
+ licence_url:'https://example.org/licence',
+ licence:'CC BY 4.0',attribution:'Original documented model'
+};
+const photoStage=stage();
+const photoStageView=await loadAndRenderUniversalStage({
+ client:client([published()]),root:photoStage,
+ type:'model',id:77,manufacturerName:'BMW',
+ approvedHeroPhoto:licensedModelPhoto
+});
+assert(photoStageView.heroPhoto,'Approved model photo not carried to renderer');
+assert(collectNodes(photoStage).some(x=>x.tagName==='img'&&
+ x.src===licensedModelPhoto.image_url),'Approved model photo missing from stage');
+const crossedPhotoStage=stage();
+const crossedPhotoView=await loadAndRenderUniversalStage({
+ client:client([published()]),root:crossedPhotoStage,
+ type:'model',id:77,manufacturerName:'BMW',
+ approvedHeroPhoto:{...licensedModelPhoto,model:'R 1250 GS'}
+});
+assert.equal(crossedPhotoView.heroPhoto,null,'Cross-model hero photo passed publication stage');
+assert(!collectNodes(crossedPhotoStage).some(x=>x.tagName==='img'),
+ 'A different BMW model was substituted as a hero photograph');
+
 const empty=stage(),sentinel=empty.childNodes[0];
 assert.equal(await loadAndRenderUniversalStage({
  client:client([]),root:empty,type:'model',id:77,manufacturerName:'BMW',permittedStock:[match]
