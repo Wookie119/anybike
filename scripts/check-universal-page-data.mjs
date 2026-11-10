@@ -23,6 +23,8 @@ await assert.rejects(loadUniversalPublishedPage(makeClient({data:[rows[0],{...ro
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],section_number:21}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],section_number:0}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],section_key:''}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],section_key:'section_02'}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],section_key:'section_1'}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[rows[0],{...rows[0],section_number:2}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[],error:null}),{type:'model',id:0}),/Canonical/);
 console.log('PASS: public-only universal Supabase projection and strict manufacturer/model identity checks');
