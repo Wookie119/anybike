@@ -122,3 +122,40 @@ LEFT JOIN public.motorcycle_universal_page_sections_v1 s
 WHERE m.manufacturer='BMW'
 GROUP BY m.id,m.model
 ORDER BY staged_sections DESC,embedded_evidence_facts DESC,m.model,m.id;
+
+-- Publication provenance integrity. Run before approving ANY public release.
+-- A source-section foreign key alone does not prove the source belongs to the
+-- same model, section slot or manufacturer. Report all mismatches without writes.
+SELECT pub.source_section_id,pub.entity_type,pub.entity_id,pub.manufacturer_id,
+       pub.section_number,pub.section_key,pub.publication_review_reference,
+       src.model_id AS source_model_id,src.manufacturer_id AS source_manufacturer_id,
+       m.manufacturer AS catalogue_manufacturer
+FROM public.motorcycle_universal_published_sections_v1 pub
+LEFT JOIN public.motorcycle_universal_page_sections_v1 src
+  ON src.id=pub.source_section_id
+LEFT JOIN public.motorcycle_catalog_models m
+  ON pub.entity_type='model' AND pub.entity_id=m.id
+LEFT JOIN public.motorcycle_catalog_manufacturers cm
+  ON cm.display_name=m.manufacturer
+WHERE src.id IS NULL
+   OR src.entity_type IS DISTINCT FROM pub.entity_type
+   OR src.section_number IS DISTINCT FROM pub.section_number
+   OR src.section_key IS DISTINCT FROM pub.section_key
+   OR (pub.entity_type='model' AND (
+       src.model_id IS DISTINCT FROM pub.entity_id
+       OR m.id IS NULL OR cm.id IS DISTINCT FROM pub.manufacturer_id))
+   OR (pub.entity_type='manufacturer' AND (
+       src.manufacturer_id IS DISTINCT FROM pub.entity_id
+       OR pub.manufacturer_id IS DISTINCT FROM pub.entity_id))
+ORDER BY pub.entity_type,pub.entity_id,pub.section_number;
+
+-- Staging rows must refer to their proper canonical entity.
+SELECT s.id AS source_section_id,s.entity_type,s.manufacturer_id,s.model_id
+FROM public.motorcycle_universal_page_sections_v1 s
+LEFT JOIN public.motorcycle_catalog_models m
+  ON s.entity_type='model' AND s.model_id=m.id
+LEFT JOIN public.motorcycle_catalog_manufacturers mf
+  ON s.entity_type='manufacturer' AND s.manufacturer_id=mf.id
+WHERE (s.entity_type='model' AND m.id IS NULL)
+   OR (s.entity_type='manufacturer' AND mf.id IS NULL)
+ORDER BY s.entity_type,s.id;
