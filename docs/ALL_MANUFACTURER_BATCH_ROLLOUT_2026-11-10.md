@@ -398,3 +398,39 @@ The existing public BMW and Harley templates, stock grants, manufacturer
 identities, SEO routes and live page configurations were not edited in
 this batch. GitHub Action workflow completion and live deployment need
 their own independent confirmation.
+
+
+## First Triumph and KTM research intake — 10 Nov, follow-on batch
+
+Executed `scripts/sql/stage-triumph-ktm-11-model-private-manufacturer-history-2026-11-10.sql`
+as a single, fail-closed Supabase transaction after matching every original
+manufacturer/model string and canonical ID.
+
+**22 new, private and source-linked research sections across 11 models:**
+- Triumph: Bonneville T120 (663), Bonneville T100 (662), Bonneville Bobber
+  (661), Speed Triple 1200 RS (670), SPEED TRIPLE 1050 (245), Street
+  Triple 675 (1029).
+- KTM: 390 Duke (524), 1290 Super Duke R (205), 390 Adventure (523),
+  890 Duke R (529), 790 Duke (527).
+
+All summaries are original editorial paraphrases with provenance from
+Triumph's original Bonneville and corporate retrospective sources and KTM's
+Duke anniversary and EICMA announcements. Each entry records
+`source_verification_status='pending_review'`, `editorial_status='draft'`
+and no published date. Distinct prototype, edition, region and model-year
+claims remain qualified, especially the KTM 790 Duke's 2016 prototype,
+Speed Triple 1200 RS's 2021 generation and the 390 Adventure unveiled in
+2019 for the 2020 range.
+
+**Verified final Supabase count:** catalogue 979 models; 172 canonical
+models represented in staging; **1,059** staged universal research sections,
+of which 1,019 belong to models and 40 to manufacturers; zero published
+universal research sections; zero non-draft/date leaks; zero duplicate
+entity/section-number slots. All eleven individual model imports were
+independently checked after commit to database.
+
+No approved BMW or Harley HTML, public routes, stock permissions, catalogue
+IDs, model aliases or live manufacturer pages were modified. These 22
+private notes have NOT yet passed full independent documentary fact review
+or publication readiness. GitHub Actions / live auto-deployment are
+not established by the database checks.
