@@ -68,6 +68,11 @@ assert.throws(()=>planCatalogueEvidenceReview({
  ...base,facts:[...facts,{id:99,catalog_model_id:999999,
  verification_status:'verified',source_url:'https://example.org'}]
 }),/unknown canonical model/);
+assert.throws(()=>planCatalogueEvidenceReview({
+ ...base,factAudits:[...factAudits,{fact_id:999999,
+ source_url:'https://example.org/unrelated',
+ verification_basis:'Unrelated document',checked_at:'2026-11-10T00:00:00Z'}]
+}),/Orphan verification audit/);
 assert.throws(()=>planCatalogueEvidenceReview({...base,batchSize:0}),
  /Batch size/);
 console.log('PASS: all-brand verified facts, evidence audit, unsafe URLs and unreviewed generations remain separated from publication');
