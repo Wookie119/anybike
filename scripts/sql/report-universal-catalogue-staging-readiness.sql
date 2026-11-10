@@ -365,3 +365,75 @@ LEFT JOIN public.motorcycle_universal_page_sections_v1 s
  ON s.entity_type='model' AND s.model_id=c.id
 GROUP BY c.manufacturer
 ORDER BY catalogue_models DESC,c.manufacturer;
+
+-- Detect staged JSON content shapes that the universal renderer could
+-- legitimately display after editorial approval. This is a STRUCTURAL
+-- inventory only; it does not certify sources, photography or release rights.
+-- Unsupported content must not be auto-promoted or filled with boilerplate.
+WITH shape AS (
+ SELECT s.id,s.entity_type,s.manufacturer_id,s.model_id,s.section_number,
+        s.section_key,s.section_title,s.content,
+        CASE WHEN jsonb_typeof(s.content)='object' THEN
+          s.content ?| array[
+           'summary','description','text','body','years','subtitle',
+           'items','paragraphs','entries','cards','links','hero','production',
+           'timeline','production_evidence','generations','milestones',
+           'specifications','colours','types','related_model_links',
+           'global_stories','deep_dive','development_cards','actions',
+           'customer_copy','engineering','development','editions',
+           'technical_specifications','motorcycle_types','country_markets',
+           'verified_catalogue_facts'
+          ]
+        ELSE s.content IS NOT NULL AND s.content NOT IN
+          ('{}'::jsonb,'[]'::jsonb,'""'::jsonb)
+        END AS potentially_displayable,
+        s.content ? 'source_blocks' AND
+         (s.content-'source_blocks')='{}'::jsonb AS source_only,
+        s.content ? 'photography' AND
+         (s.content-'photography')='{}'::jsonb AS photo_rights_only
+ FROM public.motorcycle_universal_page_sections_v1 s
+)
+SELECT entity_type,count(*) AS staged_sections,
+       count(*) FILTER (WHERE potentially_displayable) AS structural_candidates,
+       count(*) FILTER (WHERE NOT potentially_displayable) AS unsupported_shapes,
+       count(*) FILTER (WHERE source_only) AS source_only_imports,
+       count(*) FILTER (WHERE photo_rights_only) AS rights_only_references,
+       count(*) FILTER (WHERE content IS NULL OR content='{}'::jsonb)
+         AS blank_sections
+FROM shape GROUP BY entity_type ORDER BY entity_type;
+
+-- Exact worklist for records that need real editorial content or rights
+-- approval. These are not all equivalent defects: a rights-only photo
+-- reference may be intentionally excluded from the customer research cards.
+WITH shape AS (
+ SELECT s.id,s.entity_type,s.manufacturer_id,s.model_id,s.section_number,
+        s.section_key,s.section_title,s.content,
+        CASE WHEN jsonb_typeof(s.content)='object' THEN
+          s.content ?| array[
+           'summary','description','text','body','years','subtitle',
+           'items','paragraphs','entries','cards','links','hero','production',
+           'timeline','production_evidence','generations','milestones',
+           'specifications','colours','types','related_model_links',
+           'global_stories','deep_dive','development_cards','actions',
+           'customer_copy','engineering','development','editions',
+           'technical_specifications','motorcycle_types','country_markets',
+           'verified_catalogue_facts'
+          ]
+        ELSE s.content IS NOT NULL AND s.content NOT IN
+          ('{}'::jsonb,'[]'::jsonb,'""'::jsonb)
+        END AS potentially_displayable
+ FROM public.motorcycle_universal_page_sections_v1 s
+)
+SELECT entity_type,manufacturer_id,model_id,section_number,section_key,
+       section_title,
+       CASE
+        WHEN content IS NULL OR content='{}'::jsonb THEN 'blank'
+        WHEN content ? 'source_blocks' AND
+             (content-'source_blocks')='{}'::jsonb THEN 'source_import_only'
+        WHEN content ? 'photography' AND
+             (content-'photography')='{}'::jsonb THEN 'photo_rights_only'
+        ELSE 'unsupported_editorial_shape'
+       END AS work_type
+FROM shape
+WHERE NOT potentially_displayable
+ORDER BY entity_type,manufacturer_id,model_id,section_number;
