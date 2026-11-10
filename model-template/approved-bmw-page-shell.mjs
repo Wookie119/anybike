@@ -13,7 +13,7 @@ const safeSource=url=>{
   const parsed=new URL(url);
   return parsed.protocol==='https:'&&Boolean(parsed.hostname)&&
    !parsed.username&&!parsed.password&&
-   !/[\\s\\u0000-\\u001f]/.test(url);
+   !new RegExp('\\s').test(url);
  }catch{return false;}
 };
 async function publishedBmwResearch(){
