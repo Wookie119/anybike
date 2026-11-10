@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const folder=new URL('../markets/',import.meta.url);
-const files=fs.readdirSync(folder).filter(name=>/^[a-z0-9-]+\.html$/.test(name));
+const files=fs.readdirSync(folder).filter(name=>/^[a-z0-9-]+\.html$/.test(name)&&name!=='index.html'); // exclude noindex redirect
 assert(files.length>=217,
  'Expected at least the 217 live country HTML routes, found '+files.length);
 let withHeader=0;
