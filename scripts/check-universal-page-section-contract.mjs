@@ -31,4 +31,13 @@ assert.throws(()=>buildUniversalPageSections(gs,[published({type:'model',id:77},
 assert.throws(()=>buildUniversalPageSections(gs,[published(gs,1,'A'),published(gs,1,'B')]),/Duplicate/);
 assert.throws(()=>buildUniversalPageSections(gs,[{...published(gs,1,'A'),section_key:'section_02'}]),/Incorrect section key/);
 assert.equal(buildUniversalPageSections(gs,[]).length,20);
+assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[{
+ ...published(gs,2,'Future content'),published_at:'2099-01-01T00:00:00Z'
+}])).length,0,'Scheduled future research was shown early');
+assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[{
+ ...published(gs,2,'Invalid time'),published_at:'invalid-date'
+}])).length,0,'Malformed publication timestamp was accepted');
+assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[{
+ ...published(gs,2,'Past approved content'),published_at:'2026-11-09T00:00:00Z'
+}])).length,1,'Approved prior publication date was suppressed');
 console.log('PASS: shared 20-section manufacturer/model contract, strict ID segregation and draft filtering');
