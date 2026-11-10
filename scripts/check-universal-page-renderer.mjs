@@ -40,8 +40,8 @@ renderUniversalPage(wrongLabelRoot,{entity:gs,sections:[],stock:[{
  ...good,make:'Harley-Davidson',model:'R 1300 GS',year:2021
 }]});
 const wrongLabelStock=wrongLabelRoot.childNodes[0].childNodes[1];
-const wrongLabelTitle=wrongLabelStock.childNodes[1].childNodes[0].childNodes[0].textContent;
-assert.equal(wrongLabelTitle,'R 1250 GS 2021','Stock feed display labels must never override canonical page model');
+assert.equal(wrongLabelStock.childNodes.length,2,'Conflicting advert model must be excluded, not relabelled');
+assert.equal(wrongLabelStock.childNodes[1].tagName,'p','Rejected stock must not produce a listing card');
 
 const page=root.childNodes[0];
 assert.deepEqual(page.childNodes.map(el=>el.dataset.anybikeRole||el.tagName),
