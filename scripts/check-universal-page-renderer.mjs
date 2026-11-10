@@ -69,6 +69,12 @@ renderUniversalPage(guardedRoot,{entity:gs,sections:[mk(gs,6,{
    verification_status:'pending_review'},
   {label:'Pending editorial card',description:'Needs source review',
    content_status:'pending_editorial_review'},
+  {label:'Hidden source candidate',description:'Source not yet verified',
+   source_verification_status:'pending_review'},
+  {label:'Unpublished editorial record',description:'Editorial review required',
+   editorial_status:'draft'},
+  {label:'Verified source record',description:'Source checked',
+   source_verification_status:'verified'},
   {label:'Manufacturer verified generation',description:'Reference retained',
    verification_status:'verified'}
  ]
@@ -77,5 +83,8 @@ const guardedNodes=collect(guardedRoot);
 const shownText=guardedNodes.map(x=>x.textContent||'').join(' | ');
 assert(!shownText.includes('Unverified generation'),'Pending generation leaked from approved section');
 assert(!shownText.includes('Pending editorial card'),'Pending editorial card leaked from approved section');
+assert(!shownText.includes('Hidden source candidate'),'Pending source record leaked');
+assert(!shownText.includes('Unpublished editorial record'),'Nested draft editorial record leaked');
+assert(shownText.includes('Verified source record'),'Verified source record incorrectly suppressed');
 assert(shownText.includes('Manufacturer verified generation'),'Verified generation was incorrectly suppressed');
 console.log('PASS: nested draft model research cannot leak through published parent sections');
