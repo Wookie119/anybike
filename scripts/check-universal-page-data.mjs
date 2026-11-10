@@ -43,5 +43,17 @@ await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],co
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],content:{
  engineering:{verification_status:'pending_editorial_review',rows:[['Power','unreviewed']]}
 }}],error:null}),{type:'model',id:68}),/Unverified engineering-only section blocked/);
+const reviewedAndSourced=await loadUniversalPublishedPage(makeClient({data:[{
+ ...rows[0],content:{summary:'Reviewed customer-facing research',
+ source_blocks:[{source_file:'legacy.html',import_status:'draft'}]}
+}],error:null}),{type:'model',id:68});
+assert.equal(reviewedAndSourced.sections.length,1,
+ 'Reviewed research must remain usable when it retains provenance pointers');
+const approvedOtherContent=await loadUniversalPublishedPage(makeClient({data:[{
+ ...rows[0],content:{summary:'Approved independently documented overview',
+ engineering:{verification_status:'pending_editorial_review'}}
+}],error:null}),{type:'model',id:68});
+assert.equal(approvedOtherContent.sections.length,1,
+ 'Approved summary should not vanish because separate engineering is pending');
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[],error:null}),{type:'model',id:0}),/Canonical/);
 console.log('PASS: public-only universal Supabase projection and strict manufacturer/model identity checks');
