@@ -22,6 +22,7 @@ const stage=()=>{
 };
 const published=(id=77,model='R 1300 GS')=>({
  entity_type:'model',entity_id:id,entity_name:model,manufacturer_id:15,
+ source_section_id:1001,publication_review_reference:'BMW-REVIEW-2026-11-10',
  section_number:3,section_key:'section_03',section_title:'Model history',
  content:{timeline:[{period:'2024',description:'Factory model history'}]},
  editorial_status:'published',publication_eligible:true,
@@ -54,6 +55,12 @@ assert.deepEqual(root.childNodes[0].childNodes.map(x=>x.dataset.anybikeRole||x.t
  ['header','stock','research','customer-actions']);
 assert.equal(root.dataset.anybikeRenderedEntity,'model:77');
 
+const missingReview=stage(),reviewSentinel=missingReview.childNodes[0];
+await assert.rejects(loadAndRenderUniversalStage({
+ client:client([{...published(),publication_review_reference:''}]),
+ root:missingReview,type:'model',id:77
+}),/Missing reviewed publication provenance/);
+assert.equal(missingReview.childNodes[0],reviewSentinel,'Missing review must not mutate stage');
 const empty=stage(),sentinel=empty.childNodes[0];
 assert.equal(await loadAndRenderUniversalStage({
  client:client([]),root:empty,type:'model',id:77,permittedStock:[match]
