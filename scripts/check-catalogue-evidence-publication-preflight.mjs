@@ -60,6 +60,11 @@ assert.throws(()=>preflightModelFactPublication({modelId:77,
 assert.throws(()=>preflightModelFactPublication({modelId:77,
  facts:[facts[0]],audits:[audits[0],audits[0]]}),
  /Repeated source verification audit/);
+assert.throws(()=>preflightModelFactPublication({modelId:77,
+ facts:[facts[0]],audits:[...audits,{fact_id:999999,
+ source_url:'https://example.org/unrelated',
+ verification_basis:'Unrelated document',checked_at:'2026-11-10T00:00:00Z'}]
+}),/Orphan source verification audit/);
 assert.equal(preflightModelFactPublication({modelId:77,facts:[]})
  .readyForPublication,false,'No research is not an approved release');
 console.log('PASS: exact model, source audit, editorial approval and time gate; wrong model or missing audit cannot publish');
