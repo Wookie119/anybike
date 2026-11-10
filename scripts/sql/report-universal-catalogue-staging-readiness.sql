@@ -159,3 +159,33 @@ LEFT JOIN public.motorcycle_catalog_manufacturers mf
 WHERE (s.entity_type='model' AND m.id IS NULL)
    OR (s.entity_type='manufacturer' AND mf.id IS NULL)
 ORDER BY s.entity_type,s.id;
+
+-- Editorial photography rights and exact identity worklist. Only approved
+-- pictures are eligible for public display; this query never promotes assets.
+SELECT asset_key,manufacturer,model,approval_status,
+       CASE
+         WHEN image_url IS NULL OR image_url !~ '^https://' THEN 'image_url'
+         WHEN source_page_url IS NULL OR source_page_url !~ '^https://' THEN 'source_page_url'
+         WHEN licence_url IS NULL OR licence_url !~ '^https://' THEN 'licence_url'
+         WHEN nullif(trim(licence),'') IS NULL THEN 'licence'
+         WHEN nullif(trim(attribution),'') IS NULL THEN 'attribution'
+       END AS missing_rights_field
+FROM public.anybike_editorial_photo_bank
+WHERE approval_status='approved'
+  AND (image_url IS NULL OR image_url !~ '^https://'
+       OR source_page_url IS NULL OR source_page_url !~ '^https://'
+       OR licence_url IS NULL OR licence_url !~ '^https://'
+       OR nullif(trim(licence),'') IS NULL
+       OR nullif(trim(attribution),'') IS NULL)
+ORDER BY manufacturer,model,asset_key;
+
+-- Model-level approved photo coverage is separate from staged research.
+SELECT m.id,m.manufacturer,m.model,
+       count(distinct p.asset_key) AS approved_model_photo_assets
+FROM public.motorcycle_catalog_models m
+LEFT JOIN public.anybike_editorial_photo_bank p
+  ON p.manufacturer=m.manufacturer AND p.model=m.model
+ AND p.approval_status='approved'
+WHERE m.manufacturer='BMW'
+GROUP BY m.id,m.manufacturer,m.model
+ORDER BY approved_model_photo_assets DESC,m.model,m.id;
