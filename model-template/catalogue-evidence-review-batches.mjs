@@ -70,6 +70,10 @@ export function planCatalogueEvidenceReview({
  for(const item of facts)add('fact',item,'catalog_model_id');
  for(const item of generations)add('generation',item,'catalog_model_id');
  for(const item of timeline)add('timeline',item,'catalog_model_id');
+ for(const auditId of audited.keys()){
+  if(!seen.has('fact/'+auditId))
+   throw Error('Orphan verification audit references an unknown fact');
+ }
  const batches={},counts={};
  for(const [key,entries] of Object.entries(work)){
   entries.sort((a,b)=>a.model_id-b.model_id||a.evidence_id-b.evidence_id);
