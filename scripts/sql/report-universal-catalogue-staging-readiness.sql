@@ -350,3 +350,18 @@ SELECT entity_type,count(*) entities,sum(staged_slots) research_slots,
        sum(20-staged_slots) absent_slots,
        sum(approved_staging_slots) approved_staging_slots
 FROM entities GROUP BY entity_type ORDER BY entity_type;
+
+-- Manufacturer-wide catalogue progress; count distinct model IDs rather than
+-- joined staging rows. Existing HTML guides are not automatically migrated.
+SELECT c.manufacturer,
+ count(DISTINCT c.id) AS catalogue_models,
+ count(DISTINCT s.model_id) AS models_with_staged_sections,
+ count(s.id) AS staged_sections,
+ count(s.id) FILTER (
+  WHERE s.content->'engineering'->>'verification_status'='pending_editorial_review'
+ ) AS pending_engineering_sections
+FROM public.motorcycle_catalog_models c
+LEFT JOIN public.motorcycle_universal_page_sections_v1 s
+ ON s.entity_type='model' AND s.model_id=c.id
+GROUP BY c.manufacturer
+ORDER BY catalogue_models DESC,c.manufacturer;
