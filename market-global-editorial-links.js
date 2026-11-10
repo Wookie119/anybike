@@ -123,7 +123,12 @@
   china:[
    ['CFMOTO','Chinese motorcycle manufacturer'],
    ['QJMotor','Chinese motorcycle manufacturer'],
-   ['Voge','Chinese motorcycle brand']
+   ['Voge','Chinese motorcycle brand'],
+   ['NIU','Smart electric two-wheelers; founded in Beijing in 2014'],
+   ['KOVE','Motorcycle manufacturer founded in Chongqing in 2017'],
+   ['Surron','Chinese electric-motorcycle engineering origins, beginning in 2014'],
+   ['Talaria','Electric off-road motorcycles associated with Chongqing engineering'],
+   ['Zontes','Motorcycle marque of Guangdong Tayo Motorcycle Technology']
   ]
  };
  // Country-level historical context. This deliberately separates brand
@@ -141,7 +146,7 @@
   spain:'Spanish motorcycle history includes trials, off-road and road-bike development associated with GASGAS and Rieju. Modern ownership and individual model assembly locations need separate confirmation.',
   france:'France has a long powered-two-wheeler history, including Peugeot Motocycles. The brand heritage illustrates why the birthplace of a marque and its present corporate arrangements should be treated as distinct questions.',
   taiwan:'Taiwan developed substantial scooter and powered-two-wheeler manufacturing expertise. KYMCO and SYM represent different Taiwanese manufacturers with their own model histories and international activities.',
-  china:'China has become important to modern motorcycle and electric two-wheeler development. CFMOTO, QJMotor and Voge have distinct engineering and company histories; model-specific factories and ownership should be verified individually.'
+  china:'China has become important to modern motorcycle and electric two-wheeler development. CFMOTO, QJMotor, Voge, KOVE and Zontes represent distinct road and off-road manufacturers, while NIU, Surron and Talaria illustrate newer electric-mobility engineering. Their corporate histories and individual model assembly locations must be verified separately.'
  };
  const dedicatedManufacturerLink=make=>
   make==='BMW'?'/bmw-motorcycles.html':
