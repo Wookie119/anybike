@@ -9,7 +9,7 @@ export async function loadUniversalPublishedPage(client,{type,id}={}){
  const requested={type,id,name:'pending',manufacturer_id:type==='manufacturer'?id:1};
  canonicalPageEntity(requested); // validates type, numeric canonical ID
  const {data,error}=await client.from(UNIVERSAL_PUBLIC_SECTIONS)
-  .select('entity_type,entity_id,entity_name,manufacturer_id,section_number,section_key,section_title,content,editorial_status,publication_eligible,published_at')
+  .select('source_section_id,entity_type,entity_id,entity_name,manufacturer_id,section_number,section_key,section_title,content,editorial_status,publication_eligible,published_at,publication_review_reference')
   .eq('entity_type',type)
   .eq('entity_id',Number(id))
   .eq('publication_eligible',true)
@@ -45,6 +45,11 @@ export async function loadUniversalPublishedPage(client,{type,id}={}){
    throw Error('Mixed manufacturer/model publication records');
   if(row.editorial_status!=='published'||row.publication_eligible!==true||
      !row.published_at)throw Error('Unpublished content returned');
+  if(!Number.isSafeInteger(Number(row.source_section_id))||
+     Number(row.source_section_id)<=0||
+     typeof row.publication_review_reference!=='string'||
+     !row.publication_review_reference.trim())
+   throw Error('Missing reviewed publication provenance');
   if(typeof row.section_title!=='string'||!row.section_title.trim()||
      row.content===null||row.content===undefined||
      (typeof row.content==='string'&&!row.content.trim())||
