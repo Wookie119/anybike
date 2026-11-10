@@ -37,6 +37,14 @@ test('candidate and other-manufacturer images are never returned',async()=>{
  assert.deepEqual(Array.from(photos,p=>p.asset_key).sort(),['bmw-r1250','bmw-r1300']);
  assert.equal(selectPhoto(photos,{manufacturer:'Harley-Davidson'}),null);
 });
+test('selector rejects unapproved candidates even if supplied directly',()=>{
+ const valid=records[0];
+ const candidate={...valid,asset_key:'candidate-first',approval_status:'candidate'};
+ const rejected={...valid,asset_key:'rejected-first',approval_status:'rejected'};
+ const photos=[candidate,rejected,valid];
+ assert.equal(selectPhoto(photos,{manufacturer:'BMW',model:'R 1300 GS',year:2025})?.asset_key,'bmw-r1300');
+ assert.equal(selectPhoto([candidate,rejected],{manufacturer:'BMW',model:'R 1300 GS',year:2025}),null);
+});
 test('missing manufacturer or database client fails closed',async()=>{
  await assert.rejects(()=>findPhotos(null,{manufacturer:'BMW'}),/Supabase client required/);
  await assert.rejects(()=>findPhotos(client(),{}),/Manufacturer required/);
