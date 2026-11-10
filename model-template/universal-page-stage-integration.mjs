@@ -33,13 +33,12 @@ export async function loadAndRenderUniversalStage({
  // A later selection is authoritative even if its response is empty or denied.
  const request=(latestStageRequest.get(root)||0)+1;
  latestStageRequest.set(root,request);
- // If this opt-in test root previously rendered another canonical entity,
- // immediately remove that entity's old display. Otherwise an empty, denied
- // or slow response for the new selection could leave the *wrong motorcycle*
- // visible indefinitely. Never clear unrelated approved public HTML roots.
- const expectedEntity=type+':'+String(Number(id));
- if(root.dataset.anybikeRenderedEntity&&
-    root.dataset.anybikeRenderedEntity!==expectedEntity){
+ // An opt-in stage can be reused for a different model OR a different
+ // signed-in buyer/stock entitlement for the same model. Clear the previous
+ // authorised snapshot at request start: stale inventory must never remain
+ // visible while the next authorised result loads, denies or returns empty.
+ // The approved public BMW/Harley DOM is outside this stage root.
+ if(root.dataset.anybikeRenderedEntity){
   root.replaceChildren();
   delete root.dataset.anybikeRenderedEntity;
  }
