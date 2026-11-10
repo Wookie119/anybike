@@ -34,6 +34,17 @@
   }catch(e){}
 })();
 
+(function loadMarketGlobalResearch(){
+  try{
+    if(!/^\/markets\/[a-z0-9-]+\.html$/i.test(window.location.pathname))return;
+    if(document.querySelector('script[data-anybike-global-market-links="true"]'))return;
+    const script=document.createElement("script");
+    script.src="/market-global-editorial-links.js?v=20261110global1";
+    script.defer=true;
+    script.dataset.anybikeGlobalMarketLinks="true";
+    document.head.appendChild(script);
+  }catch(error){console.warn("Country research links unavailable",error);}
+})();
 (function markInternationalMarketPage(){
   try{
     if(window.location.pathname.toLowerCase().includes("/markets/")){
