@@ -126,7 +126,8 @@ function appendVerifiedFacts(doc,parent,facts){
     ['Battery','battery_kwh','kWh'],['Factory colour','name',''],
     ['Edition','variant',''],['Model-year reference','reference_model_year',''],
     ['Model-year reference','model_year',''],
-    ['Description','evidence',''],['Transmission','transmission','']
+    ['Description','evidence',''],['Transmission','transmission',''],
+    ['Announcement date','announcement_date',''],['Documented date','date','']
    ];
    for(const [label,key,unit] of fields){
     const value=data[key];
@@ -135,6 +136,14 @@ function appendVerifiedFacts(doc,parent,facts){
     if(!v)continue;
     rows.append(node(doc,'dt',label),node(doc,'dd',v+(unit?' '+unit:'')));
    }
+   // Published source facts may store a numeric amount and its measurement
+   // unit separately. Show both together; never invent a unit or a fact.
+   const amount=data.amount;
+   const unit=safeText(data.unit);
+   if((typeof amount==='number'&&Number.isFinite(amount)||
+       typeof amount==='string'&&amount.trim()&&Number.isFinite(Number(amount)))&&
+       /^[a-z0-9%°/. -]{1,24}$/i.test(unit))
+    rows.append(node(doc,'dt','Verified value'),node(doc,'dd',String(amount).trim()+' '+unit));
    if(rows.childNodes.length)item.append(rows);
   }
   const meta=[
