@@ -55,5 +55,30 @@ const approvedOtherContent=await loadUniversalPublishedPage(makeClient({data:[{
 }],error:null}),{type:'model',id:68});
 assert.equal(approvedOtherContent.sections.length,1,
  'Approved summary should not vanish because separate engineering is pending');
+// Root-level draft import metadata cannot become public merely because a
+// server projection (or faulty importer) marks its outer section published.
+for(const field of ['source_verification_status','editorial_status',
+ 'content_status','verification_status','review_state']){
+ await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{
+  ...rows[0],content:{summary:'Unreviewed document excerpt',[field]:'pending_review'}
+ }],error:null}),{type:'model',id:68}),
+ /Unreviewed top-level research content blocked/,
+ 'Root-level unreviewed state must block publication: '+field);
+}
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{
+ ...rows[0],content:{summary:'Not released',publication_eligible:false}
+}],error:null}),{type:'model',id:68}),/Explicitly denied research content blocked/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{
+ ...rows[0],content:{summary:'Scheduled future',published_at:'2099-01-01T00:00:00Z'}
+}],error:null}),{type:'model',id:68}),/Nested research release date not reached/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{
+ ...rows[0],content:{summary:'Malformed release',published_at:'invalid-date'}
+}],error:null}),{type:'model',id:68}),/Nested research release date not reached/);
+const reviewedRoot=await loadUniversalPublishedPage(makeClient({data:[{
+ ...rows[0],content:{summary:'Editorially approved source',
+ source_verification_status:'verified',editorial_status:'approved',
+ publication_eligible:true}
+}],error:null}),{type:'model',id:68});
+assert.equal(reviewedRoot.sections.length,1);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[],error:null}),{type:'model',id:0}),/Canonical/);
 console.log('PASS: public-only universal Supabase projection and strict manufacturer/model identity checks');
