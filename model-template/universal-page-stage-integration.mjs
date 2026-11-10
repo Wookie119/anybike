@@ -25,6 +25,10 @@ export async function loadAndRenderUniversalStage({
  if(type==='model'&&permittedStock.length>0&&
     (typeof manufacturerName!=='string'||!manufacturerName.trim()))
   throw Error('Trusted manufacturer name required for model stock validation');
+ // Capture the caller's already-authorized feed at request start. A live
+ // refresh must not mutate this request's contents while public research loads.
+ const stockSnapshot=permittedStock.map(item=>
+  item&&typeof item==='object'&&!Array.isArray(item)?{...item}:item);
  // Advance the root's request generation before awaiting the public feed.
  // A later selection is authoritative even if its response is empty or denied.
  const request=(latestStageRequest.get(root)||0)+1;
@@ -40,6 +44,6 @@ export async function loadAndRenderUniversalStage({
   :published.entity;
  return renderUniversalPage(root,{
   entity,sections:published.sections,
-  stock:entity.type==='model'?permittedStock:[]
+  stock:entity.type==='model'?stockSnapshot:[]
  });
 }
