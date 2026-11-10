@@ -366,6 +366,38 @@ console.log('PASS: typed engineering values show units, layouts and source refer
 
 
 
+const nestedReleaseRoot=new FakeElement('main',documentFake);
+nestedReleaseRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(nestedReleaseRoot,{entity:gs,sections:[mk(gs,3,{
+ timeline:[
+  {period:'2024',description:'Approved historical model evidence',
+   source_verification_status:'verified',review_state:'approved'},
+  {period:'2025',description:'BLOCKED: denied model evidence',
+   publication_eligible:false},
+  {period:'2026',description:'BLOCKED: captured unreviewed source',
+   review_state:'source_captured'},
+  {period:'2027',description:'BLOCKED: future documentary evidence',
+   published_at:'2099-01-01T00:00:00Z'},
+  {period:'2028',description:'BLOCKED: invalid release timestamp',
+   published_at:'not-a-date'},
+  {period:'2023',description:'Past approved model evidence',
+   published_at:'2026-11-01T00:00:00Z',
+   editorial_status:'approved'}
+ ]
+})]});
+const nestedText=collect(nestedReleaseRoot).map(x=>x.textContent||'').join(' | ');
+assert(nestedText.includes('Approved historical model evidence'),
+ 'Reviewed nested model history was hidden');
+assert(nestedText.includes('Past approved model evidence'),
+ 'Existing approved history was blocked by a valid past release date');
+for(const marker of [
+ 'BLOCKED: denied model evidence',
+ 'BLOCKED: captured unreviewed source',
+ 'BLOCKED: future documentary evidence',
+ 'BLOCKED: invalid release timestamp'
+])assert(!nestedText.includes(marker),'Unreleased nested content leaked: '+marker);
+console.log('PASS: nested denied, source-captured and embargoed history stays private');
+
 console.log('PASS: source-verified facts retain numeric units and announcement dates');
 
 
