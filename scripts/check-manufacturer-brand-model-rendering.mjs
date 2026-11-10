@@ -17,6 +17,15 @@ const inline=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
  .map(m=>m[1]).filter(s=>s.trim());
 assert(inline.length>=2,'Shared brand scripts missing');
 for(const code of inline)new Script(code); // syntax-check every inline script
+// Linked generic model-guide destination must parse too. A working card
+// is not useful if the shared destination script is syntactically broken.
+const modelGuideHtml=readFileSync(
+ new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
+const modelGuideScripts=[...modelGuideHtml.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/g)]
+ .map(m=>m[1]).filter(s=>s.trim());
+assert(modelGuideScripts.length>0,'Generic model-guide script missing');
+for(const code of modelGuideScripts)new Script(code);
+
 const main=inline.find(s=>s.includes('function renderManufacturerModels()'));
 assert(main,'Shared category and model renderer missing');
 const mainScript=new Script(main,{filename:'motorcycle-brand.html:inline-brand'});
