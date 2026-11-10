@@ -474,3 +474,43 @@ No authorised stock access, manufacturer IDs, model aliases, website links,
 approved BMW/Harley page design, or original HTML was modified. This
 database verification does not establish GitHub Actions success or live
 deployment availability.
+
+
+## Eight-model, four-manufacturer documentary intake — continued 10 November
+
+Two guarded SQL migrations were committed and successfully executed in the
+AnyBike Supabase project. They imported **24 private staged research sections**
+for eight exact existing catalogue identities, without any new canonical
+models, merges, public approval, stock rights or HTML changes.
+
+- `scripts/sql/stage-four-royal-enfield-triumph-factory-research-2026-11-10.sql`:
+  12 sections for Royal Enfield Himalayan 450 (626), Shotgun 650 (631),
+  Bear 650 (970) and Triumph TIGER 1200 (255). Research sources were Royal
+  Enfield's 2024 Himalayan upgrade announcement, current official Shotgun
+  650 product information, its EICMA 2024 press release, and Triumph's
+  August 2022 Tiger 1200 factory Q&A.
+- `scripts/sql/stage-four-bullet-scram-rs457-v100-private-research-2026-11-10.sql`:
+  12 sections for Royal Enfield BULLET 350 (223), Scram 411 (630),
+  Aprilia RS 457 (759), and Moto Guzzi V100 MANDELLO (216). Source
+  documents were official manufacturer launch content, the manufacturer-
+  hosted Scram 411 news archive, the Aprilia January 2024 UK retailer
+  preview announcement and Moto Guzzi's V100 model page.
+
+Each source is scoped to a particular year, original model or market:
+2022-generation Triumph Tiger 1200 specifications must not be applied to
+2026 model updates; 2024 Himalayan 450 tubeless-wheel availability must not
+be silently assumed for the 2023 launch; the V100 Mandello S radar system
+is not universal base-model equipment. Editorial entries use original
+paraphrased summaries with manufacturer URL provenance, and remain
+`draft`, `pending_review` and `published_at=NULL`.
+
+**Database recheck after both imports:** 979 canonical model IDs,
+**196 staged model IDs**, **1,115 total staged universal sections**;
+24 new sections confirmed across the eight intended model IDs; **zero**
+published universal sections; **zero** publication-state anomalies;
+**zero** duplicated section slots.
+
+This is research draft progress, NOT eight finished 20-section public pages.
+No changes were made to approved BMW or Harley-Davidson designs,
+international exact-model stock ordering or stock permissions. GitHub Actions
+and independent live deployment verification remain outstanding.
