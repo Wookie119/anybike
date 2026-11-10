@@ -37,4 +37,8 @@ test('all manufacturer frontends reuse the same database model index without cha
  assert.ok(!code.includes('service_role'));
  assert.ok(!code.includes('#813438'),'Off-brand burgundy must not appear in shared model chips');
  assert.ok(code.includes('border:1px solid #555'),'Database-backed directory uses approved neutral outlines');
+ assert.ok(code.includes("summary.textContent='Browse '+links.length+' database-linked model guides'"),
+  'DB-backed guide count must not imply all editorial guide routes have canonical records');
+ assert.ok(code.includes("allGuides.href='#models'"),
+  'Additional existing manufacturer guide routes must remain discoverable');
 });
