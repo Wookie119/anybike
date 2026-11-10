@@ -164,6 +164,11 @@ function appendVerifiedFacts(doc,parent,facts){
   const item=node(doc,'article','','anybike-universal-evidence');
   item.append(node(doc,'h3',fact.label));
   const data=fact.value;
+  // Catalogue fact values may be verified documentary text rather than a
+  // numeric engineering object. Display only the reviewed plain-text value;
+  // never parse the source as HTML, infer units or substitute other models.
+  if(typeof data==='string'&&data.trim()&&data.trim().length<=1200)
+   item.append(node(doc,'p',data.trim(),'anybike-universal-evidence-text'));
   if(data&&typeof data==='object'&&!Array.isArray(data)){
    const rows=node(doc,'dl','','anybike-universal-evidence-values');
    const fields=[
