@@ -177,7 +177,27 @@ function appendVerifiedFacts(doc,parent,facts){
  if(list.childNodes.length)parent.append(list);
 }
 
-export function composeUniversalPage({entity,sections=[],stock=[]}={}){
+// Hero photographs must come from a pre-approved, buyer-safe editorial
+// source. Never use a stock advert or a different motorcycle as a fallback.
+function approvedHeroPhoto(photo,identity,manufacturerName){
+ if(!photo||typeof photo!=='object'||Array.isArray(photo)||
+    photo.approval_status!=='approved'||identity.type!=='model')return null;
+ const normalise=v=>safeText(v).toLowerCase().replace(/[^a-z0-9]/g,'');
+ if(!normalise(manufacturerName)||!normalise(photo.manufacturer)||
+    normalise(photo.manufacturer)!==normalise(manufacturerName)||
+    normalise(photo.model)!==normalise(identity.name))return null;
+ for(const key of ['image_url','source_page_url','licence_url']){
+  if(!safeText(photo[key]).startsWith('https://')||!approvedLink(photo[key]))return null;
+ }
+ if(!safeText(photo.licence)||!safeText(photo.attribution))return null;
+ return Object.freeze({
+  src:photo.image_url,source:photo.source_page_url,
+  licence_url:photo.licence_url,licence:photo.licence,
+  attribution:photo.attribution
+ });
+}
+
+export function composeUniversalPage({entity,sections=[],stock=[],heroPhoto=null}={}){
   const identity=canonicalPageEntity(entity);
   const slots=buildUniversalPageSections(entity,sections);
   const visible=visibleUniversalSections(slots);
@@ -186,6 +206,7 @@ export function composeUniversalPage({entity,sections=[],stock=[]}={}){
       manufacturer_name:safeText(entity.manufacturer_name)},24) : [];
   return Object.freeze({
     identity,sections:visible,stock:permittedStock,
+    heroPhoto:approvedHeroPhoto(heroPhoto,identity,safeText(entity.manufacturer_name)),
     layout:'anybike-universal-v1',
     order:Object.freeze(['hero','stock','research','customer_actions'])
   });
@@ -205,6 +226,24 @@ export function renderUniversalPage(root,payload){
   const hero=node(doc,'header','','anybike-universal-hero');
   hero.append(node(doc,'p',view.identity.type==='model'?'Motorcycle model guide':'Motorcycle manufacturer guide','eyebrow'));
   hero.append(node(doc,'h1',view.identity.name));
+  if(view.heroPhoto){
+    const figure=node(doc,'figure','','anybike-universal-licensed-hero');
+    const img=node(doc,'img');
+    img.src=view.heroPhoto.src;
+    img.alt=view.identity.name+' — approved motorcycle model photograph';
+    img.loading='eager';
+    img.decoding='async';
+    figure.append(img);
+    const caption=node(doc,'figcaption','','anybike-universal-photo-credit');
+    const source=node(doc,'a',view.heroPhoto.attribution);
+    source.href=view.heroPhoto.source;
+    source.target='_blank';source.rel='noopener noreferrer';
+    const licence=node(doc,'a',view.heroPhoto.licence);
+    licence.href=view.heroPhoto.licence_url;
+    licence.target='_blank';licence.rel='noopener noreferrer';
+    caption.append(source,licence);
+    figure.append(caption);hero.append(figure);
+  }
   fragment.append(hero);
   // Always before any research, including when there is no permitted stock.
   const stock=node(doc,'section','','anybike-universal-stock');
