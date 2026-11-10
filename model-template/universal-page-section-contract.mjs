@@ -32,6 +32,11 @@ export function buildUniversalPageSections(entity,sections){
   if(!safeRecord(s))throw Error('Invalid section record');
   if(s.entity_type!==identity.type||!validId(s.entity_id)||Number(s.entity_id)!==identity.id)
    throw Error('Cross-entity section rejected');
+  // The direct renderer shares this contract with the database loader. A
+  // matching model ID alone must never import a different manufacturer's data.
+  if(s.manufacturer_id!==undefined&&
+     (!validId(s.manufacturer_id)||Number(s.manufacturer_id)!==identity.manufacturer_id))
+   throw Error('Cross-manufacturer section rejected');
   const n=Number(s.section_number);
   if(!Number.isInteger(n)||n<1||n>SECTION_COUNT)throw Error('Section number outside universal contract');
   if(seen.has(n))throw Error('Duplicate universal section');
