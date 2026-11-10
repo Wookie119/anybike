@@ -49,6 +49,13 @@ export function modelReleaseReadiness({
   seen.add(n);
   if(section.editorial_status!=='published'||section.publication_eligible!==true||
      !str(section.publication_review_reference))editorialDrafts++;
+  // A publishable row also needs a real release date. A draft section
+  // with a future/invalid timestamp is NOT ready even if its status says
+  // published. The public loader enforces this again at point of use.
+  const publicTime=Date.parse(section.published_at);
+  if(typeof section.published_at!=='string'||
+     !Number.isFinite(publicTime)||publicTime>Date.now())
+   issues.push('section_publication_date_unverified');
   if(section.content===null||section.content===undefined||
      (typeof section.content==='object'&&Object.keys(section.content).length===0))
    unreviewedData++;
@@ -59,6 +66,19 @@ export function modelReleaseReadiness({
    if(nested.source_verification_status&&
       !reviewStatuses.has(nested.source_verification_status))
      unreviewedData++;
+   if(nested.publication_eligible===false)
+    unreviewedData++;
+   const nestedPublished= nested.published_at;
+   if(nestedPublished!==undefined&&nestedPublished!==null&&
+      (typeof nestedPublished!=='string'||
+       !Number.isFinite(Date.parse(nestedPublished))||
+       Date.parse(nestedPublished)>Date.now()))
+    unreviewedData++;
+   for(const field of ['content_status','verification_status','review_state']){
+    if(nested[field]!==undefined&&
+       !reviewStatuses.has(str(nested[field]).toLowerCase()))
+     unreviewedData++;
+   }
    if(nested.photography&&Object.keys(nested).length===1)
      unreviewedData++;
    if(nested.source_blocks&&Object.keys(nested).every(k=>
