@@ -15,8 +15,16 @@ const p=new URLSearchParams(location.search),make=(p.get("make")||"").trim(),mod
 if(!make||!model){document.querySelector('link[rel="canonical"]').href="https://www.anybike.co.uk/motorcycle-manufacturers.html";el("summary").textContent="Choose a motorcycle from a manufacturer page.";el("nextAction").hidden=true;return}
 try{
 const [catalogueResult,guideResult]=await Promise.allSettled([fetch("/data/motorcycle-catalogue-master.json",{cache:"no-cache"}),fetch("/data/motorcycle-model-guides.json",{cache:"no-cache"})]);
-if(guideResult.status!=="fulfilled"||!guideResult.value.ok)throw Error("Guides unavailable");
-const guides=await guideResult.value.json();
+// The optional deep-research guide file must never take down an otherwise
+// valid exact-model catalogue page or block a customer's sourcing enquiry.
+let guides={models:{}};
+if(guideResult.status==="fulfilled"&&guideResult.value.ok){
+ try{
+  const value=await guideResult.value.json();
+  if(value&&value.models&&typeof value.models==="object"&&!Array.isArray(value.models))
+   guides=value;
+ }catch(error){console.warn("Model research guide fallback",error)}
+}
 let catalogue={models:[]};
 if(catalogueResult.status==="fulfilled"&&catalogueResult.value.ok){try{const value=await catalogueResult.value.json();if(Array.isArray(value.models))catalogue=value}catch(error){console.warn("Model catalogue fallback",error)}}
 const row=catalogue.models.find(x=>x.make?.toLowerCase()===make.toLowerCase()&&x.model?.toLowerCase()===model.toLowerCase());
