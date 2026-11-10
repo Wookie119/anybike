@@ -473,7 +473,7 @@ function dedupeMarketEditorialCards(){
     const seenTitles=new Set(),seenPlaceholders=new Set();
     [...grid.querySelectorAll("a.model-card")].forEach(card=>{
       const title=(card.querySelector("h3")?.textContent||"").trim()
-       .toLowerCase().replace(/\\s+/g," ");
+       .toLowerCase().replace(/\s+/g," ");
       if(!title)return;
       const generic=title==="another make or model";
       const href=card.getAttribute("href")||"";
@@ -490,7 +490,7 @@ function dedupeMarketEditorialCards(){
     const seen=new Set();
     [...container.querySelectorAll("details")].forEach(details=>{
       const question=(details.querySelector("summary")?.textContent||"")
-       .trim().toLowerCase().replace(/\\s+/g," ").replace(/[^a-z0-9 ]/g,"");
+       .trim().toLowerCase().replace(/\s+/g," ").replace(/[^a-z0-9 ]/g,"");
       if(!question)return;
       if(seen.has(question)){details.remove();return;}
       seen.add(question);
