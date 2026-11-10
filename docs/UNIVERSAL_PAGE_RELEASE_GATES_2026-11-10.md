@@ -94,3 +94,40 @@ Country navigation regression: `scripts/check-country-navigation-integrity.mjs`.
 - Harley-Davidson has 82 catalogue model records and **no universal model
   section staging**, despite its existing preserved HTML guides. This must not
   be represented as completed database migration.
+
+## 10 November continued: research schema and in-flight request QA
+
+- R 1300 GS section JSON was audited against the actual universal renderer.
+  The existing draft covers **15 canonical section slots**. An executed
+  synthetic-shape regression confirms **14 readable cards** can render,
+  deliberately excluding the photography-rights-only section; this test
+  does not promote the draft or certify all underlying facts.
+- Reviewed customer-copy groups (`uk_selling`, `international_stock`,
+  `international_enquiry`, `international_sourcing`) now render their
+  existing headings and paragraphs without displaying an imitation form.
+  Actual live enquiry forms stay in the approved production pages.
+- Inline research references in the documented `[url,label]` shape now
+  render as safe links, preserving citation provenance without script URLs.
+- Structural staging audit: **40 manufacturer sections** have no supported
+  display shape (**29** draft imported-source-only, **11** empty).
+  Of **876 model sections**, **846** have potentially displayable shapes
+  and **30** are not displayable (**26** rights-only photo references,
+  **4** empty). **Structural potential is not editorial approval.**
+- New 15-section BMW research-shape regression is wired into GitHub CI;
+  renderer and stage-integration tests were executed directly against
+  current fetched modules and passed.
+- Stage request generation now ignores stale rejected calls after a newer
+  model selection, not merely stale successful responses.
+- The universal published table remains empty; no existing BMW/Harley HTML
+  page was replaced and no buyer stock entitlement changed.
+
+## Still required before production activation
+
+- Explicit editorial signoff with source-section and review references;
+  there is no authorization to bulk-promote 916 draft sections.
+- Buyer-safe UK and international stock access, tested server-side for
+  guest, private and approved dealer views; do not bypass the current
+  international-stock geographic restrictions on the client.
+- Full CI result and independently verified live deployment.
+- Visual parity with the existing R 1300 GS page, including mobile layout,
+  exact stock above research, sourced model history, forms and SEO.
