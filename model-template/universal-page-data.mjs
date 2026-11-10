@@ -59,6 +59,21 @@ export async function loadUniversalPublishedPage(client,{type,id}={}){
      (Array.isArray(row.content)&&row.content.length===0)||
      (typeof row.content==='object'&&!Array.isArray(row.content)&&Object.keys(row.content).length===0))
    throw Error('Empty published research section blocked');
+  // Imported HTML source pointers are migration metadata, not reviewed
+  // customer-facing research. In particular, a source_blocks-only section
+  // must not become a blank public card just because JSON is non-empty.
+  if(row.content&&typeof row.content==='object'&&!Array.isArray(row.content)&&
+     Object.keys(row.content).every(key=>key==='source_blocks'||
+       key==='source_file'||key==='source_blob_sha')&&
+     Array.isArray(row.content.source_blocks))
+   throw Error('Unreviewed source-only research section blocked');
+  // Pending technical evidence cannot be the sole customer-facing payload.
+  if(row.content&&typeof row.content==='object'&&!Array.isArray(row.content)&&
+     Object.keys(row.content).length===1&&
+     row.content.engineering&&typeof row.content.engineering==='object'&&
+     !['verified','approved','published'].includes(
+       String(row.content.engineering.verification_status||'').toLowerCase()))
+   throw Error('Unverified engineering-only section blocked');
   return {...row,entity_type:identity.type,entity_id:identity.id};
  });
  return Object.freeze({entity:identity,sections,stock:[]});
