@@ -118,7 +118,7 @@
  const dedicatedManufacturerLink=make=>
   make==='BMW'?'/bmw-motorcycles.html':
   make==='Harley-Davidson'?'/harley-davidson-motorcycles.html':
-  '/motorcycle-brand.html?make='+encodeURIComponent(make)+'#models';
+  '/motorcycle-brand.html?make='+encodeURIComponent(make);
  const anchor=(label,url)=>{
   const a=document.createElement('a');
   a.href=url;a.textContent=label+' →';
