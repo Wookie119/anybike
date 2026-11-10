@@ -10,6 +10,13 @@ let covered=0,dedicated=0,shared=0;
 for(const file of files){
  const html=fs.readFileSync(file,'utf8');
  assert(html.includes('/public-header.js'),file+' missing shared public model renderer');
+ assert(html.includes('https://www.anybike.co.uk/'+file),
+   file+' missing correct exact-page canonical URL');
+ assert(html.includes('name="robots" content="index,follow"'),
+   file+' missing approved indexability metadata');
+ assert(/enquir/i.test(html),file+' missing customer enquiry pathway');
+ assert(!html.includes('data-anybike-universal-stage="true"'),
+   file+' activated unapproved research stage over existing design');
  const hasDedicated=html.includes('id="internationalModelStock"')||html.includes('id="r1250LiveStock"');
  const hasStandard=html.includes('id="generationPanel"')&&html.includes('id="nextAction"');
  const harley=file.startsWith('harley-davidson-');
