@@ -13,7 +13,10 @@
   japan:[
    ['Honda NM4 Vultus: Japanese design','/global/honda-nm4-vultus-did-you-know.html'],
    ['Suzuki Hayabusa: aerodynamics and design','/global/suzuki-hayabusa-japan-design-speed.html'],
-   ['Yamaha NIKEN: leaning front-wheel engineering','/global/yamaha-niken-leaning-three-wheel-design.html']
+   ['Yamaha NIKEN: leaning front-wheel engineering','/global/yamaha-niken-leaning-three-wheel-design.html'],
+   ['Honda Dream D-Type: the 1949 motorcycle','/global/honda-dream-d-type-1949-pressed-steel-origins.html'],
+   ['Suzuki RM250: motocross generations','/global/suzuki-rm250-motocross-suspension-history.html'],
+   ['Yamaha YZ250: the 1974 Monocross milestone','/global/yamaha-yz250-1974-monocross-history.html']
   ],
   italy:[
    ['Bimota Tesi H2: Italian chassis engineering','/global/bimota-tesi-h2-blimey-look-at-that.html'],
