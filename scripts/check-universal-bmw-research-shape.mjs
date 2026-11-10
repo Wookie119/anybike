@@ -39,6 +39,7 @@ const sections=[
  record(9,'Motorcycle types',{types:[{label:'Adventure',url:'/motorcycle-type-adventure.html'}]}),
  record(12,'Technical specifications',{specifications:[{summary:'Factory technical data'}],
   verified_catalogue_facts:[{label:'Documented engine',source_verification_status:'verified',
+   editorial_status:'approved',publication_eligible:true,
    source_url:source,value:{amount:1300,unit:'cc'}}]}),
  record(13,'Factory colours and editions',{colours:[{name:'Approved colour name'}],
   editions:[{label:'Documented edition'}]}),
