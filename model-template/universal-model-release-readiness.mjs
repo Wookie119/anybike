@@ -10,6 +10,13 @@ const validId=x=>Number.isSafeInteger(Number(x))&&Number(x)>0&&
 const str=x=>typeof x==='string'?x.trim():'';
 const reviewStatuses=new Set(['verified','approved','published']);
 const hashIdentity=x=>str(x).toLowerCase().replace(/[^a-z0-9]/g,'');
+const approvedHttps=x=>{
+ if(!str(x).startsWith('https://'))return false;
+ try{
+  const uri=new URL(x);
+  return uri.protocol==='https:'&&!uri.username&&!uri.password;
+ }catch{return false;}
+};
 
 export function modelReleaseReadiness({
  model,sections=[],factReview=[],pendingHistory=0,approvedPhotographs=[],
@@ -79,7 +86,7 @@ export function modelReleaseReadiness({
      hashIdentity(photo.manufacturer)===hashIdentity(model.manufacturer)&&
      hashIdentity(photo.model)===hashIdentity(model.model)&&
      ['image_url','source_page_url','licence_url'].every(k=>
-       str(photo[k]).startsWith('https://'))&&
+       approvedHttps(photo[k]))&&
      str(photo.licence)&&str(photo.attribution))approvedPhotos++;
  }
  if(!approvedPhotos)issues.push('approved_exact_model_hero_missing');
