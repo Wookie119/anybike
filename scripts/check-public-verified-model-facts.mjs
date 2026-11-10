@@ -35,6 +35,14 @@ const body={ownerDocument:doc,children:[],firstChild:null,querySelector(){return
 assert.equal(mountVerifiedModelFacts(body,[sample()],'Suzuki','RM250'),1);
 assert.equal(body.children.length,1);
 assert.equal(body.children[0].dataset.anybikeVerifiedModelFacts,'1');
+assert(body.children[0].children.some(x=>x.tag==='p'&&
+ String(x.textContent).includes('1976')&&String(x.textContent).includes('not a claim of continuous production')),
+ 'Factory chronology must identify sourced reference years without inventing continuous production');
+const sourceCode=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
+assert(sourceCode.includes("engine_cc:'Engine capacity (cc)'"),
+ 'Engine displacement should use meaningful English units in every shared model card');
+assert(sourceCode.includes("technical_changes:'Engineering changes'"),
+ 'Verified engineering changes must have a readable public label');
 assert.equal(mountVerifiedModelFacts(body,[sample()],'Suzuki','RM250'),0);
 const empty={...body,children:[],firstChild:null};
 let call;
@@ -54,7 +62,7 @@ const denied=await installVerifiedModelFacts({
 });
 assert.equal(denied,0,'Never hide or alter the approved page when public facts unavailable');
 const html=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
-assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261110d'));
+assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261110e'));
 assert(html.indexOf('id="body"')>html.indexOf('id="generationPanel"'));
 const renderSource=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
 assert(renderSource.includes('minmax(min(100%,420px),1fr)'),
