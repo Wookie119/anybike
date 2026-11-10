@@ -61,9 +61,16 @@ await assert.rejects(loadAndRenderUniversalStage({
  root:missingReview,type:'model',id:77
 }),/Missing reviewed publication provenance/);
 assert.equal(missingReview.childNodes[0],reviewSentinel,'Missing review must not mutate stage');
+const missingMake=stage(),makeSentinel=missingMake.childNodes[0];
+await assert.rejects(loadAndRenderUniversalStage({
+ client:client([published()]),root:missingMake,type:'model',id:77,
+ permittedStock:[match]
+}),/Trusted manufacturer name required/);
+assert.equal(missingMake.childNodes[0],makeSentinel,'Missing manufacturer must not mutate stage');
+
 const empty=stage(),sentinel=empty.childNodes[0];
 assert.equal(await loadAndRenderUniversalStage({
- client:client([]),root:empty,type:'model',id:77,permittedStock:[match]
+ client:client([]),root:empty,type:'model',id:77,manufacturerName:'BMW',permittedStock:[match]
 }),null);
 assert.equal(empty.childNodes[0],sentinel,'No public approval must not replace stage content');
 
