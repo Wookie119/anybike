@@ -99,3 +99,26 @@ FROM public.motorcycle_catalog_model_parent_identity_v1 x
 LEFT JOIN public.motorcycle_catalog_models m ON m.id=x.catalog_model_id
 WHERE x.review_status='verified' AND m.id IS NULL
 ORDER BY x.catalog_model_id;
+
+-- BMW research readiness ranked by staged section coverage and cited facts.
+-- The report counts facts embedded in private draft sections only; numbers
+-- are NOT publication approvals or a claim all research is verified.
+SELECT m.id,m.model,
+       count(s.id) AS staged_sections,
+       count(s.id) FILTER (
+         WHERE s.content->'engineering'->>'verification_status'='pending_editorial_review'
+       ) AS pending_engineering,
+       coalesce(sum(jsonb_array_length(
+         CASE WHEN jsonb_typeof(s.content->'verified_catalogue_facts')='array'
+              THEN s.content->'verified_catalogue_facts'
+              ELSE '[]'::jsonb END
+       )),0) AS embedded_evidence_facts,
+       count(s.id) FILTER (
+         WHERE s.content IS NULL OR s.content='{}'::jsonb
+       ) AS empty_sections
+FROM public.motorcycle_catalog_models m
+LEFT JOIN public.motorcycle_universal_page_sections_v1 s
+  ON s.entity_type='model' AND s.model_id=m.id
+WHERE m.manufacturer='BMW'
+GROUP BY m.id,m.model
+ORDER BY staged_sections DESC,embedded_evidence_facts DESC,m.model,m.id;
