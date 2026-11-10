@@ -64,6 +64,21 @@ export function buildUniversalPageSections(entity,sections){
     if(!Number.isFinite(contentDate)||contentDate>Date.now())continue;
    }
   }
+  // Source-import metadata is not customer-facing editorial text. The public
+  // loader rejects this shape; direct renderer callers must reject it too.
+  if(safeRecord(s.content)){
+   const keys=Object.keys(s.content);
+   if(Array.isArray(s.content.source_blocks)&&
+      keys.every(k=>['source_blocks','source_file','source_blob_sha'].includes(k)))
+    continue;
+   // A pending engineering payload on its own is not a published section.
+   // Approved surrounding editorial may still display independently, with
+   // nested technical claims filtered by the renderer.
+   if(keys.length===1&&safeRecord(s.content.engineering)&&
+      !['verified','approved','published'].includes(
+       safeText(s.content.engineering.verification_status).toLowerCase()))
+    continue;
+  }
   bySlot.set(n,Object.freeze({number:n,key:SECTION_KEYS[n-1],title:safeText(s.section_title),
    content:s.content,entity_id:identity.id,entity_type:identity.type}));
  }
