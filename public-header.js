@@ -3052,7 +3052,7 @@ async function anybikeShowPublicSignedInIdentity(){
     stockLink.href=matches.length?'/available-stock.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model):'/bulk-buying-request.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
     stockLink.textContent=matches.length?'View matching Available Stock →':'Ask AnyBike to source this model →';
    }catch(_){
-    note.textContent='Matching published stock cannot be displayed from this connection. You can still enquire about '+make+' '+model+' motorcycles or request sourcing.';
+    note.textContent='Current availability could not be confirmed. Ask AnyBike to check '+make+' '+model+' stock or source the exact motorcycle for you.';
    }
   })();
  }
