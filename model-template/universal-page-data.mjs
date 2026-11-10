@@ -45,6 +45,12 @@ export async function loadUniversalPublishedPage(client,{type,id}={}){
    throw Error('Mixed manufacturer/model publication records');
   if(row.editorial_status!=='published'||row.publication_eligible!==true||
      !row.published_at)throw Error('Unpublished content returned');
+  if(typeof row.section_title!=='string'||!row.section_title.trim()||
+     row.content===null||row.content===undefined||
+     (typeof row.content==='string'&&!row.content.trim())||
+     (Array.isArray(row.content)&&row.content.length===0)||
+     (typeof row.content==='object'&&!Array.isArray(row.content)&&Object.keys(row.content).length===0))
+   throw Error('Empty published research section blocked');
   return {...row,entity_type:identity.type,entity_id:identity.id};
  });
  return Object.freeze({entity:identity,sections,stock:[]});
