@@ -616,3 +616,57 @@ per-claim validation and cannot auto-authorize editorial publication.
 
 GitHub writes and live Supabase DB verification are confirmed; CI and live
 hosting deployment require separate independent observation.
+
+
+## Catalogue publication-blocker triage — 10 Nov, latest continuation
+
+A read-only full-identity, exact-model editorial readiness gate was
+committed and **executed**:
+
+- `scripts/sql/report-universal-model-release-gates-2026-11-10.sql`
+- `scripts/sql/report-exact-model-fact-audit-fix-worklist-2026-11-10.sql`
+- `scripts/sql/report-exact-catalogue-identity-exceptions-2026-11-10.sql`
+
+Results for **all 979 existing catalogue model records**, assigned to
+mutually exclusive *next* action lanes:
+
+| Actionable next gate | Exact catalogue model IDs |
+| --- | ---: |
+| Manufacturer identity or alias review | 17 |
+| Documentary audit or integrity correction | 12 |
+| Manufacturer-backed initial research | 734 |
+| Existing research, claims and editorial review | 216 |
+| **Total** | **979** |
+
+Fact-source worklist shows **99** 'verified' facts with matching independent
+audit records but *without public editorial approval*, **9** marked-verified
+facts lacking an independent audit, **13** marked-verified facts whose audit
+URL differs from the fact URL, and **69** facts still pending primary-source
+review. All are segregated by manufacturer, retaining exact model and fact
+IDs. The 12 model-level audit exceptions are **not** the same unit as 22
+fact-level audit exceptions.
+
+The 17 identity exceptions explicitly include Mugen (3), Indian-labelled
+entries (4), VMoto-labelled entries (6), and four alias-review entries
+under Aprilia, BMW and Kawasaki. Examples needing careful decisions:
+Aprilia RS660 -> RS 660 suggestion, BMW CE 02 marketing finance title,
+Kawasaki Z900RS / Z900 RS and manufacturer display-label mismatches.
+No aliases or manufacturer labels were renamed, merged, or approved.
+
+The provenance report was also rerun on 1,164 staged model research
+sections: 18 sections cited sources used by at least 4 different model IDs;
+66 shared sources cited by 2–3 model IDs; 135 single-model documentary
+source sections still require evidence review; and 945 legacy/structured
+sections remain to examine. A shared official publication may be a valid
+source for multiple models, but every claim needs its own per-model
+verification and year/market scope.
+
+**Final independent Supabase integrity recheck:** 979 catalogue models,
+232 models represented in staging, **1,204** staged universal sections,
+0 public universal sections, 0 abnormal publication states, 0 duplicate
+entity/section slots, 0 blank source references.
+
+All three new SQL files are audit/report-only. No public releases, stock
+permissions, BMW/Harley layouts, model IDs, aliases, or manufacturer
+definitions were modified. GitHub commit confirmation is independent
+of CI and hosting verification.
