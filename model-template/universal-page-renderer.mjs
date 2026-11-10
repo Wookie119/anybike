@@ -80,6 +80,14 @@ function appendContent(doc,parent,value,depth=0){
     if(typeof value[key]==='string'&&value[key].trim())
       parent.append(node(doc,'p',value[key]));
   }
+  // A published factory milestone can carry its own source. Preserve the
+  // documentary link without treating the press-release date as production.
+  const evidenceUrl=safeText(value.source);
+  if(evidenceUrl.startsWith('https://')&&approvedLink(evidenceUrl)){
+    const sourceLink=node(doc,'a','View source document','anybike-universal-source-link');
+    sourceLink.href=evidenceUrl;sourceLink.target='_blank';
+    sourceLink.rel='noopener noreferrer';parent.append(sourceLink);
+  }
   const url=safeText(value.url);
   if(approvedLink(url)&&heading){
     const a=node(doc,'a','Read more');a.href=url;
