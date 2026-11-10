@@ -20,7 +20,8 @@ function client(){
   select(fields){state.selected=fields;return builder},
   eq(key,value){state.filters.push([key,value]);return builder},
   order(){return builder},
-  limit(){return Promise.resolve({data:records.filter(row=>state.filters.every(([key,value])=>row[key]===value)).map(row=>Object.fromEntries(state.selected.split(',').map(key=>[key,row[key]]))),error:null})}
+  limit(){return builder},
+  then(resolve,reject){return Promise.resolve({data:records.filter(row=>state.filters.every(([key,value])=>row[key]===value)).map(row=>Object.fromEntries(state.selected.split(',').map(key=>[key,row[key]]))),error:null}).then(resolve,reject)}
  };
  return {from(table){assert.equal(table,'anybike_editorial_photo_bank');return builder}};
 }
