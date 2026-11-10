@@ -52,6 +52,12 @@ function appendContent(doc,parent,value,depth=0){
   // Strict display whitelist: arbitrary JSON keys are not rendered as speculative facts.
   const heading=safeText(value.title)||safeText(value.label)||safeText(value.name);
   if(heading)parent.append(node(doc,depth>0?'h3':'h2',heading));
+  // Model-year notes are explicitly reviewed editorial text, not a year
+  // inferred from a press-release or a source document's publication date.
+  if(safeText(value.years))
+    parent.append(node(doc,'p',value.years,'anybike-universal-model-years'));
+  if(safeText(value.subtitle))
+    parent.append(node(doc,'p',value.subtitle,'anybike-universal-subtitle'));
   for(const key of ['summary','description','text','body']){
     if(typeof value[key]==='string'&&value[key].trim())parent.append(node(doc,'p',value[key]));
   }
