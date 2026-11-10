@@ -95,6 +95,22 @@ function appendContent(doc,parent,value,depth=0){
     sourceLink.href=evidenceUrl;sourceLink.target='_blank';
     sourceLink.rel='noopener noreferrer';parent.append(sourceLink);
   }
+  // Approved research paragraphs may cite documentary sources as
+  // [URL, label]. Keep the citation without exposing arbitrary HTML or
+  // allowing unsafe protocols, including when the paragraph is link-only.
+  if(Array.isArray(value.link)&&value.link.length===2){
+    const [sourceUrl,sourceLabel]=value.link;
+    if(typeof sourceUrl==='string'&&approvedLink(sourceUrl)&&
+       safeText(sourceLabel)){
+      const sourceAnchor=node(doc,'a',sourceLabel,'anybike-universal-inline-reference');
+      sourceAnchor.href=sourceUrl;
+      if(sourceUrl.startsWith('https://')){
+        sourceAnchor.target='_blank';
+        sourceAnchor.rel='noopener noreferrer';
+      }
+      parent.append(sourceAnchor);
+    }
+  }
   const url=safeText(value.url);
   if(approvedLink(url)&&heading){
     const a=node(doc,'a','Read more');a.href=url;
