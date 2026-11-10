@@ -765,3 +765,54 @@ No private database records were promoted. The last checked Supabase state
 was 979 canonical model records, 1,204 staged research sections and **zero**
 published universal sections. The actual public website/deployment and any
 individual role-view parity tests require separate verification.
+
+
+## 24-view audience parity, four-model 20-slot contract, catalogue completeness — continued 10 Nov 2026
+
+A larger **no-publication** QA and readiness batch was committed:
+
+- `scripts/check-universal-24-view-model-matrix.mjs` exercises 24 synthetic
+  cases across canonical BMW R 1250 GS (68), R 1300 GS (77),
+  Harley-Davidson Sportster S (153) and Street Glide (157):
+  UK/international × guest/private/dealer. It supplies **already authorised**
+  stock payloads, checks exact-ID isolation and rejects another model,
+  candidate identities and non-public listings. It verifies Available Stock
+  before research and excludes source drafts. **The test does not assert
+  real user account entitlements or the live stock feed.**
+- `scripts/check-universal-20-section-four-model-fixtures.mjs` checks all
+  20 numbered sections in the same universal renderer for four exact models,
+  suppresses unlicensed pictures, enforces stock-before-research, and rejects
+  overflow and cross-model section records. Synthetic approved sections are
+  *test fixtures only*, not genuine authored 20-section publication.
+- Both tests were added to
+  `.github/workflows/universal-catalogue-integrity.yml`.
+- `scripts/sql/report-979-model-research-20-slot-readiness-2026-11-10.sql`
+  is a read-only manufacturer-by-manufacturer inventory: actual documented
+  section numbers, source-review counts and missing slots without filler.
+  Executed against Supabase: **747** unstaged models, **69** models with
+  1–2 sections, **74** with 3–5, **63** with 6–10, and **26**
+  with 11–15, all on the 20-slot contract. No model yet has all 20
+  research sections in universal staging.
+- `scripts/sql/report-bmw-26-high-coverage-release-review-2026-11-10.sql`
+  was executed for the 26 BMW models with 11–15 staged sections.
+  All 26 have source-checked route records but **zero live-verified
+  routes**; all sections remain drafts. These source checks do not
+  establish editorial source-fact approval, completed visual parity,
+  hero photo licensing or public research publication.
+- `model-template/universal-page-section-contract.mjs` now independently
+  rejects top-level pending research, explicitly denied publication or
+  future/malformed nested release dates even if called directly without
+  the public loader. The updated
+  `scripts/check-universal-page-section-contract.mjs` covers this.
+
+**Targeted verification actually executed:** The shared section contract
+test passed, then both 24-view and four-model 20-section suites passed
+again **after** the contract change, using the latest GitHub module sources
+in a local JS test harness. This is not yet a GitHub-hosted full workflow
+run or live account/stock permission test.
+
+**Last verified Supabase state:** 979 canonical models, 232 models with
+staged research, 1,204 staged universal sections, zero published universal
+sections. No staging rows were promoted; no BMW/Harley public HTML,
+protected stock grants, manufacturer IDs, alias decisions or photo rights
+were changed by this batch.
