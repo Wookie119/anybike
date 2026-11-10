@@ -235,6 +235,48 @@ assert(visibleFactsText.includes('145 hp'),'Approved verified fact was hidden');
 assert(embargoedNodes.some(x=>x.href==='https://example.org/approved'),'Approved fact source missing');
 console.log('PASS: verified source facts still require editorial approval and release time');
 
+const photo={approval_status:'approved',manufacturer:'BMW',model:'R 1250 GS',
+ image_url:'https://example.org/bmw-r1250.jpg',
+ source_page_url:'https://example.org/rights',
+ licence_url:'https://example.org/licence',licence:'CC BY 4.0',
+ attribution:'BMW source photo'};
+const approvedHeroRoot=new FakeElement('main',documentFake);
+approvedHeroRoot.dataset.anybikeUniversalRoot='true';
+const heroView=renderUniversalPage(approvedHeroRoot,{
+ entity:{...gs,manufacturer_name:'BMW'},sections:[],heroPhoto:photo
+});
+assert(heroView.heroPhoto,'Exact-model approved photography must survive validation');
+const heroNodes=collect(approvedHeroRoot);
+const heroImages=heroNodes.filter(x=>x.tagName==='img');
+assert.equal(heroImages.length,1,'Approved model hero should render exactly once');
+assert.equal(heroImages[0].src,photo.image_url);
+assert(heroNodes.some(x=>x.tagName==='a'&&x.href===photo.licence_url),
+ 'Approved hero must provide licence link');
+assert(heroNodes.some(x=>x.tagName==='a'&&x.href===photo.source_page_url),
+ 'Approved hero must retain attribution source');
+
+for(const invalid of [
+ {...photo,model:'R 1300 GS'},
+ {...photo,manufacturer:'Harley-Davidson'},
+ {...photo,approval_status:'candidate'},
+ {...photo,licence:''},
+ {...photo,attribution:''},
+ {...photo,image_url:'http://example.org/insecure.jpg'},
+ {...photo,source_page_url:'javascript:alert(1)'},
+ {...photo,licence_url:'http://example.org/not-licensed'}
+]){
+ const wrongRoot=new FakeElement('main',documentFake);
+ wrongRoot.dataset.anybikeUniversalRoot='true';
+ const wrongView=renderUniversalPage(wrongRoot,{
+  entity:{...gs,manufacturer_name:'BMW'},sections:[],heroPhoto:invalid
+ });
+ assert.equal(wrongView.heroPhoto,null,'Invalid hero asset passed publication gate');
+ assert(!collect(wrongRoot).some(x=>x.tagName==='img'),
+  'Different model or unlicensed image leaked into hero');
+}
+console.log('PASS: editorial hero photography requires exact model and complete rights');
+
+
 console.log('PASS: source-verified facts retain numeric units and announcement dates');
 
 
