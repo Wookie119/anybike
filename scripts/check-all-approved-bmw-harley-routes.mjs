@@ -29,9 +29,9 @@ for(const route of allRoutes){
 }
 for(const {file,model} of harleyRoutes){
  const html=readFileSync(new URL('../'+file,import.meta.url),'utf8');
- const heading=(html.match(/<h1[^>]*>([\\s\\S]*?)<\\/h1>/i)?.[1]||'')
+ const heading=(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]||'')
   .replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&')
-  .replace(/\\s+/g,' ').trim();
+  .replace(/\s+/g,' ').trim();
  assert.equal(heading,'Harley-Davidson '+model,
   file+' points at wrong Harley model identity');
 }
