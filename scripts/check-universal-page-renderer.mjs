@@ -42,6 +42,21 @@ renderUniversalPage(wrongLabelRoot,{entity:gs,sections:[],stock:[{
 const wrongLabelStock=wrongLabelRoot.childNodes[0].childNodes[1];
 assert.equal(wrongLabelStock.childNodes.length,2,'Conflicting advert model must be excluded, not relabelled');
 assert.equal(wrongLabelStock.childNodes[1].tagName,'p','Rejected stock must not produce a listing card');
+const wrongManufacturerRoot=new FakeElement('main',documentFake);
+wrongManufacturerRoot.dataset.anybikeUniversalRoot='true';
+const makeGuard=renderUniversalPage(wrongManufacturerRoot,{
+ entity:{...gs,manufacturer_name:'BMW'},sections:[],
+ stock:[{...good,make:'Harley-Davidson'}]
+});
+assert.equal(makeGuard.stock.length,0,'Contradictory manufacturer must never appear on model stock');
+const validManufacturerRoot=new FakeElement('main',documentFake);
+validManufacturerRoot.dataset.anybikeUniversalRoot='true';
+const validMake=renderUniversalPage(validManufacturerRoot,{
+ entity:{...gs,manufacturer_name:'BMW'},sections:[],
+ stock:[{...good,make:'BMW'}]
+});
+assert.equal(validMake.stock.length,1,'Matching manufacturer should preserve verified stock');
+
 
 const page=root.childNodes[0];
 assert.deepEqual(page.childNodes.map(el=>el.dataset.anybikeRole||el.tagName),
