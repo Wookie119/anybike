@@ -33,6 +33,16 @@ export async function loadAndRenderUniversalStage({
  // A later selection is authoritative even if its response is empty or denied.
  const request=(latestStageRequest.get(root)||0)+1;
  latestStageRequest.set(root,request);
+ // If this opt-in test root previously rendered another canonical entity,
+ // immediately remove that entity's old display. Otherwise an empty, denied
+ // or slow response for the new selection could leave the *wrong motorcycle*
+ // visible indefinitely. Never clear unrelated approved public HTML roots.
+ const expectedEntity=type+':'+String(Number(id));
+ if(root.dataset.anybikeRenderedEntity&&
+    root.dataset.anybikeRenderedEntity!==expectedEntity){
+  root.replaceChildren();
+  delete root.dataset.anybikeRenderedEntity;
+ }
  // Loading validates canonical identity, all section IDs, approved status,
  // 20-slot limits and content before any DOM mutation can occur.
  let published;
