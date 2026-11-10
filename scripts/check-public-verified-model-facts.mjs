@@ -54,6 +54,11 @@ const denied=await installVerifiedModelFacts({
 });
 assert.equal(denied,0,'Never hide or alter the approved page when public facts unavailable');
 const html=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
-assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261110c'));
+assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261110d'));
 assert(html.indexOf('id="body"')>html.indexOf('id="generationPanel"'));
+const renderSource=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
+assert(renderSource.includes('minmax(min(100%,420px),1fr)'),
+ 'Factory research columns must be wide enough for legible specifications');
+assert(renderSource.includes('minmax(0,1fr);gap:9px 14px'),
+ 'Long technical values must wrap instead of forming cramped columns');
 console.log('PASS: shared exact-model verified records, no foreign/draft records, safe source URLs, reused renderer and missing-data fallback');
