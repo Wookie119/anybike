@@ -30,7 +30,7 @@ const matches=links.filter(a=>norm(a.textContent).includes(norm(make))||norm(a.t
 const unique=[...new Map(matches.map(a=>[a.getAttribute("href"),a])).values()];
 if(unique.length){
 const section=document.createElement("section");section.className="card feature";section.id="catalogueGlobalStories";
-section.innerHTML="<h2>Related AnyBike Global stories</h2><ul class='facts'>"+unique.map(a=>"<li><a href='"+escape(a.getAttribute("href"))+"'>"+escape(a.textContent.trim().replace(/(?:\\s*[→↗])+\\s*$/u,""))+" →</a></li>").join("")+"</ul><p><a href='/anybike-global.html'>Explore AnyBike Global →</a></p>";
+section.innerHTML="<h2>Related AnyBike Global stories</h2><ul class='facts'>"+unique.map(a=>"<li><a href='"+escape(a.getAttribute("href"))+"'>"+escape(a.textContent.trim().replace(/(?:\s*[→↗])+\s*$/u,""))+" →</a></li>").join("")+"</ul><p><a href='/anybike-global.html'>Explore AnyBike Global →</a></p>";
 target.appendChild(section);
 }}
 }).catch(()=>{});
