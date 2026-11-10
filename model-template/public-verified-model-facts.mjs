@@ -67,16 +67,16 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   group.style.cssText='padding:14px 0;border-top:1px solid #444';
   group.append(node(doc,'h3',sections[category]));
   const grid=doc.createElement('div');
-  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:12px';
+  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px';
   for(const fact of items){
    const article=doc.createElement('article');
-   article.style.cssText='background:#202020;border:1px solid #555;border-radius:8px;padding:14px';
+   article.style.cssText='background:#202020;border:1px solid #555;border-radius:8px;padding:18px;min-width:0';
    article.append(node(doc,'h4',fact.label));
-   const detail=[fact.start_year&&'Model/source year: '+fact.start_year,
+   const detail=[fact.start_year&&'Reference year: '+fact.start_year,
     safeText(fact.market)&&'Market: '+fact.market].filter(Boolean);
    if(detail.length)article.append(node(doc,'p',detail.join(' · ')));
    const dl=doc.createElement('dl');
-   dl.style.cssText='display:grid;grid-template-columns:minmax(90px,auto) 1fr;gap:5px 12px';
+   dl.style.cssText='display:grid;grid-template-columns:minmax(115px,34%) minmax(0,1fr);gap:9px 14px;line-height:1.5;overflow-wrap:anywhere';
    for(const entry of fact.display){
     dl.append(node(doc,'dt',entry.label),node(doc,'dd',entry.value));
    }
