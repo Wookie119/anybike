@@ -117,11 +117,19 @@ const ambiguous=await check('Suzuki','Clean Example Model',{
  ]});
 assert(ambiguous.get('summary').textContent.includes('could not find'),
  'Ambiguous database identity must never invent a model or choose a variant');
+assert.equal(ambiguous.get('nextAction').hidden,false,
+ 'Ambiguous model data must not block a buyer sourcing enquiry');
+assert(ambiguous.get('sourceBottom').href.includes('model=Clean%20Example%20Model'),
+ 'Sourcing link must retain the requested exact model when database identity is ambiguous');
 const wrongMake=await check('Suzuki','Clean Example Model',{
  catalogueAvailable:false,databaseRows:[{make:'Yamaha',model:'Clean Example Model',category:'Touring'}]
 });
 assert(wrongMake.get('summary').textContent.includes('could not find'),
  'One manufacturer must not receive another manufacturer’s model');
+assert.equal(wrongMake.get('nextAction').hidden,false,
+ 'Unknown models still need a functioning UK sourcing request');
+assert(wrongMake.get('source').href.includes('make=Suzuki'),
+ 'Wrong-manufacturer database records must not alter buyer sourcing make');
 assert.equal((await check('Suzuki','RM250')).get('heading').textContent,'Suzuki RM250',
  'Pages must remain usable without a Supabase client');
 
