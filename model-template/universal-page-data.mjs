@@ -27,7 +27,16 @@ export async function loadUniversalPublishedPage(client,{type,id}={}){
  const identity=canonicalPageEntity({type:first.entity_type,id:first.entity_id,
   name:first.entity_name,manufacturer_id:first.manufacturer_id});
  if(identity.type!==type||identity.id!==Number(id))throw Error('Public page identity mismatch');
+ // Never render duplicate or out-of-contract sections from the public projection.
+ // Missing sections remain unpublished; do not fill them from previews or drafts.
+ const seenNumbers=new Set(),seenKeys=new Set();
  const sections=data.map(row=>{
+  const n=Number(row.section_number);
+  if(!Number.isInteger(n)||n<1||n>20||
+     typeof row.section_key!=='string'||!row.section_key.trim()||
+     seenNumbers.has(n)||seenKeys.has(row.section_key))
+   throw Error('Invalid or duplicate universal section identity');
+  seenNumbers.add(n);seenKeys.add(row.section_key);
   if(row.entity_type!==identity.type||Number(row.entity_id)!==identity.id||
      row.entity_name!==identity.name||Number(row.manufacturer_id)!==identity.manufacturer_id)
    throw Error('Mixed manufacturer/model publication records');
