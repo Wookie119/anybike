@@ -19,5 +19,10 @@ await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],pu
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[],error:{message:'Denied'}}),{type:'model',id:68}),/unavailable/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],entity_name:'CE 02 AM 7.9% APR Representative'}],error:null}),{type:'model',id:68}),/promotional catalogue identity blocked/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],entity_name:'S 1000 RR PCP finance offer'}],error:null}),{type:'model',id:68}),/promotional catalogue identity blocked/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[rows[0],{...rows[0]}],error:null}),{type:'model',id:68}),/duplicate universal section identity/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],section_number:21}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],section_number:0}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],section_key:''}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[rows[0],{...rows[0],section_number:2}],error:null}),{type:'model',id:68}),/Invalid or duplicate universal section identity/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[],error:null}),{type:'model',id:0}),/Canonical/);
 console.log('PASS: public-only universal Supabase projection and strict manufacturer/model identity checks');
