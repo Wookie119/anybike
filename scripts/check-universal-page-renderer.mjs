@@ -190,6 +190,23 @@ assert(yearContextText.includes('Documented owner guidance'),
 assert(yearContextNodes.some(x=>x.className==='anybike-universal-model-years'),
  'Model-year context class missing from shared layout');
 
+
+const imageRoot=new FakeElement('main',documentFake);
+imageRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(imageRoot,{entity:{...gs,manufacturer_name:'BMW'},sections:[],stock:[
+ {...good,item_id:990,image_url:'https://cdn.example.org/stock-990.jpg',model:'R 1250 GS',make:'BMW'},
+ {...good,item_id:991,image_url:'http://cdn.example.org/insecure.jpg',model:'R 1250 GS',make:'BMW'},
+ {...good,item_id:992,image_url:'https://cdn.example.org/wrong-model.jpg',model:'R 1300 GS',make:'BMW'}
+]});
+const imageNodes=collect(imageRoot),images=imageNodes.filter(x=>x.tagName==='img');
+assert.equal(images.length,1,'Only HTTPS exact-model stock photography may be rendered');
+assert.equal(images[0].src,'https://cdn.example.org/stock-990.jpg');
+assert.equal(images[0].alt,'R 1250 GS motorcycle available in stock');
+assert.equal(images[0].loading,'lazy');
+assert(!imageNodes.some(x=>String(x.src||'').includes('wrong-model.jpg')),
+ 'A mismatched motorcycle image leaked into stock cards');
+console.log('PASS: exact-model authorized stock pictures, HTTPS only, with accessible labels');
+
 console.log('PASS: source-verified facts retain numeric units and announcement dates');
 
 
