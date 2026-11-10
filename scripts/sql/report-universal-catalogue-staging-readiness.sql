@@ -42,3 +42,35 @@ SELECT entity_type,manufacturer_id,model_id,section_number,count(*) AS duplicate
 FROM public.motorcycle_universal_page_sections_v1
 GROUP BY entity_type,manufacturer_id,model_id,section_number
 HAVING count(*)>1;
+
+-- BMW canonical model-name review. The readiness view flags ambiguous identities:
+-- review them individually; do not automatically rename legitimate variants.
+SELECT m.id,m.model,r.name_issue_count,r.verified_specification_count,
+       r.generation_count,r.timeline_count
+FROM public.motorcycle_catalog_models m
+JOIN public.motorcycle_catalog_readiness r ON r.id=m.id
+WHERE m.manufacturer='BMW' AND r.name_issue_count>0
+ORDER BY m.model,m.id;
+
+-- BMW model staging coverage and nested engineering review, without promoting drafts.
+-- Count left-join rows using s.id, not count(*): missing sections must remain zero.
+SELECT m.id,m.model,
+       count(s.id) AS staged_sections,
+       count(s.id) FILTER (WHERE s.content IS NULL OR s.content='{}'::jsonb) AS empty_sections,
+       count(s.id) FILTER (
+         WHERE s.content->'engineering'->>'verification_status'='pending_editorial_review'
+       ) AS pending_engineering_sections,
+       count(s.id) FILTER (WHERE s.editorial_status='published') AS published_sections
+FROM public.motorcycle_catalog_models m
+LEFT JOIN public.motorcycle_universal_page_sections_v1 s
+  ON s.entity_type='model' AND s.model_id=m.id
+WHERE m.manufacturer='BMW'
+GROUP BY m.id,m.model ORDER BY staged_sections DESC,m.model,m.id;
+
+-- Coverage by manufacturer is staging only, never a count of approved live pages.
+SELECT m.manufacturer,count(DISTINCT m.id) AS catalog_models,
+       count(s.id) AS staged_model_sections
+FROM public.motorcycle_catalog_models m
+LEFT JOIN public.motorcycle_universal_page_sections_v1 s
+  ON s.entity_type='model' AND s.model_id=m.id
+GROUP BY m.manufacturer ORDER BY catalog_models DESC,m.manufacturer;
