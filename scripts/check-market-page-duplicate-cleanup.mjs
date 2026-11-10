@@ -49,7 +49,7 @@ for(let i=0;i<2;i++){
  cleanup.runInNewContext({document},{timeout:1000});
  assert.equal(cards.filter(x=>!x.removed).length,5,'Unexpected live model card count');
  assert.equal(cards.filter(x=>!x.removed&&
-  /another make or model/i.test(x.querySelector('h3').textContent)).length,1,
+  /another\s+make\s+or\s+model/i.test(x.querySelector('h3').textContent)).length,1,
   'Generic sourcing placeholders not deduplicated');
  assert.equal(faqs.filter(x=>!x.removed).length,3,'Duplicate market FAQ remained');
 }
