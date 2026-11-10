@@ -15,6 +15,18 @@ assert.equal(auditUniversalPage(gs,[published(gs,2,'Technical')]).populated,1);
 assert.equal(visibleUniversalSections(buildUniversalPageSections(bmw,[published(bmw,20,'Export')])).length,1);
 assert.throws(()=>canonicalPageEntity({type:'model',id:68,name:'GS'}));
 assert.throws(()=>buildUniversalPageSections(gs,[published(bmw,1,'Wrong manufacturer')]),/Cross-entity/);
+assert.throws(()=>buildUniversalPageSections(gs,[{
+ ...published(gs,1,'Foreign manufacturer attached to exact model ID'),
+ manufacturer_id:28
+}]),/Cross-manufacturer/);
+assert.throws(()=>buildUniversalPageSections(bmw,[{
+ ...published(bmw,2,'Foreign manufacturer'),
+ manufacturer_id:28
+}]),/Cross-manufacturer/);
+assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[{
+ ...published(gs,3,'BMW research'),manufacturer_id:15
+}])).length,1);
+
 assert.throws(()=>buildUniversalPageSections(gs,[published({type:'model',id:77},1,'Wrong GS')]),/Cross-entity/);
 assert.throws(()=>buildUniversalPageSections(gs,[published(gs,1,'A'),published(gs,1,'B')]),/Duplicate/);
 assert.throws(()=>buildUniversalPageSections(gs,[{...published(gs,1,'A'),section_key:'section_02'}]),/Incorrect section key/);
