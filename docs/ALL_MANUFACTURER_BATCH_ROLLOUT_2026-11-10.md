@@ -718,3 +718,50 @@ The last independently measured Supabase state is unchanged:
 No Supabase schema or data writes, model aliases, stock-permission changes,
 BMW/Harley layout edits or individual market-file rewrites occurred in
 this batch.
+
+
+## Universal renderer release gates and multi-account stage safety — Nov 10 further large batch
+
+Updated the **single existing** manufacturer/model page renderer and its public-only
+loader, not the approved BMW/Harley HTML layouts:
+
+1. `model-template/universal-page-data.mjs`: a public section whose content
+   itself carries `source_verification_status=pending_review` (or another
+   explicit pending/denied review flag) is rejected even if the outer row
+   appears published; nested future-dated and explicitly denied release
+   metadata is rejected. Separate pending subcards remain individually filtered.
+2. `model-template/universal-model-release-readiness.mjs`: release candidates
+   need a valid non-future top-level publication timestamp, and fail
+   readiness on explicit nested denial, pending review or future release.
+3. `model-template/universal-page-renderer.mjs`: manufacturer documentary
+   `source_url` is linked only when its source-verification status is
+   explicitly approved and the URL is safe HTTPS. Bare source candidates
+   remain private metadata. Source-verified catalogue facts additionally
+   require **explicit fact-level editorial approval** and
+   `publication_eligible=true`; source verification alone is insufficient.
+   Existing exact-model approved hero-photo and canonical stock identity
+   rules remain intact.
+4. `model-template/universal-page-stage-integration.mjs`: every new request
+   immediately clears any existing opt-in stage output, even for the same
+   motorcycle. This prevents previous buyer/session stock listings remaining
+   visible during reauthorisation, a denied research response or a different
+   motorcycle selection. Older async responses are still discarded.
+5. Regression tests strengthened:
+   `scripts/check-universal-page-data.mjs`,
+   `scripts/check-universal-model-release-readiness.mjs`,
+   `scripts/check-universal-page-renderer.mjs`,
+   `scripts/check-universal-bmw-research-shape.mjs` and
+   `scripts/check-universal-page-stage-integration.mjs`.
+
+**Direct integration checks actually executed** against dynamically loaded
+repository module contents: valid published content allowed; pending,
+denied, future-dated research blocked; five stage scenarios passed,
+including clearing authorised stock on same-model buyer entitlement
+refresh, clearing cross-model content, empty response and denied response.
+Full GitHub Actions workflow remains unverified at time of writing; do not
+mistake these targeted checks for the complete suite passing.
+
+No private database records were promoted. The last checked Supabase state
+was 979 canonical model records, 1,204 staged research sections and **zero**
+published universal sections. The actual public website/deployment and any
+individual role-view parity tests require separate verification.
