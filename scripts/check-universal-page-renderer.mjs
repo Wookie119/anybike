@@ -310,6 +310,39 @@ console.log('PASS: reviewed selling and international sourcing copy renders, wit
 
 
 
+const documentaryTextRoot=new FakeElement('main',documentFake);
+documentaryTextRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(documentaryTextRoot,{entity:gs,sections:[mk(gs,12,{
+ verified_catalogue_facts:[
+  {label:'Verified factory history',source_verification_status:'verified',
+   editorial_status:'published',source_url:'https://example.org/factory',
+   source_name:'Original manufacturer',value:'Documented factory production history'},
+  {label:'Pending source fact',source_verification_status:'pending_review',
+   source_url:'https://example.org/pending',value:'UNVERIFIED SOURCE TEXT'},
+  {label:'Approved source, editorial draft',source_verification_status:'verified',
+   editorial_status:'draft',source_url:'https://example.org/draft',
+   value:'EDITORIAL DRAFT TEXT'},
+  {label:'Invalid source protocol',source_verification_status:'verified',
+   source_url:'javascript:alert(1)',value:'UNSAFE SOURCE TEXT'},
+  {label:'Overlong value',source_verification_status:'verified',
+   source_url:'https://example.org/long',value:'Q'.repeat(1201)}
+ ]
+})]});
+const documentaryNodes=collect(documentaryTextRoot);
+const documentaryText=documentaryNodes.map(x=>x.textContent||'').join(' | ');
+assert(documentaryText.includes('Documented factory production history'),
+ 'Verified reviewed string-value fact was suppressed');
+assert(documentaryNodes.some(x=>x.className==='anybike-universal-evidence-text'),
+ 'Verified scalar value lost its evidence styling');
+for(const forbidden of ['UNVERIFIED SOURCE TEXT','EDITORIAL DRAFT TEXT','UNSAFE SOURCE TEXT'])
+ assert(!documentaryText.includes(forbidden),'Unreviewed documentary text leaked: '+forbidden);
+assert(!documentaryNodes.some(x=>String(x.textContent||'').length>1200&&
+ x.className==='anybike-universal-evidence-text'),
+ 'Overlong unreviewed fact displayed');
+assert(documentaryNodes.some(x=>x.href==='https://example.org/factory'),
+ 'Verified text fact lost documentary citation');
+console.log('PASS: safely render source-verified documentary string facts without unreviewed text');
+
 console.log('PASS: source-verified facts retain numeric units and announcement dates');
 
 
