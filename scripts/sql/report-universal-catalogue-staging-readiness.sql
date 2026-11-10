@@ -313,3 +313,40 @@ FROM public.motorcycle_universal_page_sections_v1 s
 WHERE s.entity_type='manufacturer'
  AND jsonb_typeof(s.content->'source_blocks')='array'
  AND (s.content-'source_blocks')='{}'::jsonb;
+
+-- Every staged entity, missing canonical 20-slot positions. A missing slot is
+-- NOT automatically required or approved: record applicability before writing
+-- research. Do not fabricate filler content to reach twenty.
+WITH entities AS (
+ SELECT entity_type,manufacturer_id,model_id,
+        coalesce(model_id,manufacturer_id) AS entity_id
+ FROM public.motorcycle_universal_page_sections_v1
+ GROUP BY entity_type,manufacturer_id,model_id
+), slots AS (
+ SELECT e.entity_type,e.entity_id,e.manufacturer_id,e.model_id,
+        n AS section_number,
+        'section_'||lpad(n::text,2,'0') AS section_key
+ FROM entities e CROSS JOIN generate_series(1,20) n
+)
+SELECT v.entity_type,v.entity_id,v.model_id,v.section_number,v.section_key
+FROM slots v
+LEFT JOIN public.motorcycle_universal_page_sections_v1 s
+ ON s.entity_type=v.entity_type
+ AND s.section_number=v.section_number
+ AND (CASE WHEN v.entity_type='model'
+       THEN s.model_id=v.model_id ELSE s.manufacturer_id=v.manufacturer_id END)
+WHERE s.id IS NULL
+ORDER BY v.entity_type,v.entity_id,v.section_number;
+
+-- Summary by entity type distinguishes staged coverage from published work.
+WITH entities AS (
+ SELECT entity_type,coalesce(model_id,manufacturer_id) entity_id,
+        count(*) staged_slots,
+        count(*) FILTER(WHERE editorial_status='published') approved_staging_slots
+ FROM public.motorcycle_universal_page_sections_v1
+ GROUP BY entity_type,coalesce(model_id,manufacturer_id)
+)
+SELECT entity_type,count(*) entities,sum(staged_slots) research_slots,
+       sum(20-staged_slots) absent_slots,
+       sum(approved_staging_slots) approved_staging_slots
+FROM entities GROUP BY entity_type ORDER BY entity_type;
