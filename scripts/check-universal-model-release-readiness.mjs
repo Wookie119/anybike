@@ -44,6 +44,16 @@ for(const code of [
  'approved_page_visual_parity_unverified','formal_editorial_signoff_missing'
 ])assert(unreviewed.issueCodes.includes(code),'Missing safety gate: '+code);
 assert.equal(unreviewed.verifiedPhotoAssets,0,'Borrowed GS photograph was accepted');
+const credentialedPhoto=modelReleaseReadiness({
+ model,manufacturerRegistryName:'BMW',
+ sections:[modelSection(1)],stockContractVerified:true,visualParityVerified:true,
+ editorialSignoffReference:'HYPOTHETICAL-APPROVAL',
+ approvedPhotographs:[{...photo,image_url:'https://user:pass@example.org/suspicious.jpg'}]
+});
+assert.equal(credentialedPhoto.verifiedPhotoAssets,0,
+ 'Credential-bearing photo URL must never qualify as rights-approved');
+assert(credentialedPhoto.issueCodes.includes('approved_exact_model_hero_missing'));
+
 const flagged=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',
  pendingAlias:true,collision:true});
 assert(flagged.issueCodes.includes('model_alias_review'));
