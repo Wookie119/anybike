@@ -16,7 +16,7 @@
   return (data||[]).filter(photo=>!o.year||(photo.model_year_start==null||photo.model_year_start<=o.year)&&(photo.model_year_end==null||photo.model_year_end>=o.year)).filter(photo=>!o.context||photo.usage_contexts?.includes(o.context));
  }
  function selectPhoto(photos,{manufacturer,model,year,category,feature,context}={}){
-  return (photos||[]).filter(p=>p.manufacturer===manufacturer&&(!model||p.model===model)&&(!year||(p.model_year_start==null||p.model_year_start<=year)&&(p.model_year_end==null||p.model_year_end>=year))&&(!category||p.subject_category===category)&&(!context||p.usage_contexts?.includes(context))&&(!feature||p.feature_tags?.includes(feature))[0]||null;
+  return (photos||[]).filter(p=>p.manufacturer===manufacturer&&(!model||p.model===model)&&(!year||(p.model_year_start==null||p.model_year_start<=year)&&(p.model_year_end==null||p.model_year_end>=year))&&(!category||p.subject_category===category)&&(!context||p.usage_contexts?.includes(context))&&(!feature||p.feature_tags?.includes(feature)))[0]||null;
  }
  root.AnyBikeEditorialPhotos=Object.freeze({findPhotos,selectPhoto});
 })(typeof window!=="undefined"?window:this);
