@@ -54,6 +54,6 @@ const denied=await installVerifiedModelFacts({
 });
 assert.equal(denied,0,'Never hide or alter the approved page when public facts unavailable');
 const html=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
-assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261110a'));
+assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261110b'));
 assert(html.indexOf('id="body"')>html.indexOf('id="generationPanel"'));
 console.log('PASS: shared exact-model verified records, no foreign/draft records, safe source URLs, reused renderer and missing-data fallback');
