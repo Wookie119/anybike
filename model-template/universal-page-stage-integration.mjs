@@ -10,6 +10,10 @@
 import {loadUniversalPublishedPage} from './universal-page-data.mjs';
 import {renderUniversalPage} from './universal-page-renderer.mjs';
 
+// One request sequence per stage root prevents an older model response from
+// replacing a newer selection when network replies arrive out of order.
+const latestStageRequest=new WeakMap();
+
 export async function loadAndRenderUniversalStage({
  client,root,type,id,permittedStock=[],manufacturerName=''
 }={}){
@@ -21,9 +25,14 @@ export async function loadAndRenderUniversalStage({
  if(type==='model'&&permittedStock.length>0&&
     (typeof manufacturerName!=='string'||!manufacturerName.trim()))
   throw Error('Trusted manufacturer name required for model stock validation');
+ // Advance the root's request generation before awaiting the public feed.
+ // A later selection is authoritative even if its response is empty or denied.
+ const request=(latestStageRequest.get(root)||0)+1;
+ latestStageRequest.set(root,request);
  // Loading validates canonical identity, all section IDs, approved status,
  // 20-slot limits and content before any DOM mutation can occur.
  const published=await loadUniversalPublishedPage(client,{type,id});
+ if(latestStageRequest.get(root)!==request)return null;
  if(!published)return null;
  const entity=published.entity.type==='model'&&
      typeof manufacturerName==='string'&&manufacturerName.trim()
