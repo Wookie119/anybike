@@ -12,6 +12,13 @@ export function canonicalStockMatches(item, page) {
       !validCatalogueId(item.catalog_model_id)) return false;
   if (Number(item.catalog_model_id) !== Number(page.catalog_model_id)) return false;
   if (item.catalogue_identity_status !== 'verified') return false;
+  // A verified ID must not silently override a contradictory advert model label.
+  // When both labels are supplied, require exact normalized model identity;
+  // missing labels may be legitimate for old feeds and are not used to infer IDs.
+  const normalize = value => String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (typeof page.model_name === 'string' && page.model_name.trim() &&
+      typeof item.model === 'string' && item.model.trim() &&
+      normalize(page.model_name) !== normalize(item.model)) return false;
   // The endpoint has final authority over publication, permissions and available listings.
   if (item.publication_eligible !== true) return false;
   return item.item_id != null && String(item.item_id).length > 0;
