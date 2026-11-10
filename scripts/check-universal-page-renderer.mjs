@@ -117,7 +117,8 @@ const detailRoot=new FakeElement('main',documentFake);
 detailRoot.dataset.anybikeUniversalRoot='true';
 renderUniversalPage(detailRoot,{entity:gs,sections:[
  mk(gs,3,{timeline:[
-  {period:'September 2018',description:'Factory introduction, not verified build date'},
+  {period:'September 2018',description:'Factory introduction, not verified build date',
+   source:'https://www.press.bmwgroup.com/example'},
   {period:'2021 model year',description:'Updated electronics'}
  ]}),
  mk(gs,4,{production_evidence:[
@@ -131,6 +132,10 @@ renderUniversalPage(detailRoot,{entity:gs,sections:[
 const detailNodes=collect(detailRoot);
 const detailText=detailNodes.map(x=>x.textContent||'').join(' | ');
 assert(detailText.includes('September 2018'),'Model history timeline was not rendered');
+const citations=detailNodes.filter(x=>x.className==='anybike-universal-source-link');
+assert(citations.some(x=>x.href==='https://www.press.bmwgroup.com/example'),'Factory citation link missing');
+assert(citations.every(x=>x.rel==='noopener noreferrer'),'Source link lacks safe external navigation');
+
 assert(detailText.includes('2021 model year'),'Dated generation history was not rendered');
 assert(detailText.includes('2023-06-21'),'Production evidence date was not rendered');
 assert(detailText.includes('A documented Berlin factory milestone'),'Production evidence not displayed');
