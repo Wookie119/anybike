@@ -670,3 +670,51 @@ All three new SQL files are audit/report-only. No public releases, stock
 permissions, BMW/Harley layouts, model IDs, aliases, or manufacturer
 definitions were modified. GitHub commit confirmation is independent
 of CI and hosting verification.
+
+
+## Expanded historically sourced country/manufacturer navigation — 10 Nov further large batch
+
+**Shared public feature updated:** `market-global-editorial-links.js`.
+13 additional manufacturer-country historical connections were added, not
+hardcoded on each individual country file:
+
+- Italy +6: Beta, Fantic, Piaggio, Vespa, Moto Morini, Italjet.
+- United Kingdom +2: CCM, Maeving.
+- China +5: NIU, KOVE, Surron, Talaria, Zontes.
+
+This brings the country-history table to **42 sourced manufacturer links
+across 12 historically supported country groups**. All 42 manufacturer
+names were checked against `data/motorcycle-catalogue-master.json`
+(889 catalogue-snapshot model entries; distinct from the larger Supabase
+catalogue of 979 canonical models). None of the 42 names was missing.
+Each manufacturer link targets the beginning of its canonical brand page,
+without `#models`. Existing manufacturer intro/history remains visible
+before the model families. Manufacturer origin is separated from current
+factory location, ownership and stock/export status.
+
+Primary historical source ledger and editorial caveats:
+`docs/MARKET_MANUFACTURER_HERITAGE_SOURCES_2026-11-10.md`.
+
+**Automated regression work:**
+- Updated `scripts/check-market-manufacturer-heritage.mjs` with the 13
+  additions and an exact **42-link** expectation, and explicit checks
+  that country links cannot skip to `#models`.
+- Added `scripts/check-real-market-heritage-navigation.mjs` to examine
+  actual on-disk `markets/*.html` documents and ensure the common
+  public header/heritage loader and no deep-link-to-models shortcuts.
+- Connected this new route check to the existing
+  `.github/workflows/universal-catalogue-integrity.yml` checks.
+- Confirmed statically that all 42 source map names are represented in
+  the checked-in public catalogue snapshot and new CI command is included.
+
+The new on-disk market route test and complete GitHub Actions workflow are
+**committed but not independently observed to pass**; live Italy, China
+and Japan pages were not independently fetchable during this turn.
+Do not equate code commit to verified deployment.
+
+The last independently measured Supabase state is unchanged:
+979 canonical models, 232 model IDs represented in universal staging,
+1,204 staged universal sections, and zero published universal sections.
+No Supabase schema or data writes, model aliases, stock-permission changes,
+BMW/Harley layout edits or individual market-file rewrites occurred in
+this batch.
