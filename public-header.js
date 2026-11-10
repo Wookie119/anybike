@@ -39,7 +39,7 @@
     if(!/^\/markets\/[a-z0-9-]+\.html$/i.test(window.location.pathname))return;
     if(document.querySelector('script[data-anybike-global-market-links="true"]'))return;
     const script=document.createElement("script");
-    script.src="/market-global-editorial-links.js?v=20261110japanhistory3";
+    script.src="/market-global-editorial-links.js?v=20261110regionalhistory4";
     script.defer=true;
     script.dataset.anybikeGlobalMarketLinks="true";
     document.head.appendChild(script);
