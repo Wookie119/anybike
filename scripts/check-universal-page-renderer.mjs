@@ -173,6 +173,23 @@ assert(verifiedText.includes('2018-09-17'),'Announcement date missing');
 assert(!verifiedText.includes('9999 hp'),'Candidate fact leaked');
 assert(verifiedNodes.some(x=>x.tagName==='a'&&x.href==='https://www.press.bmwgroup.com/engine'),
  'Documented capacity source URL missing');
+
+const yearContextRoot=new FakeElement('main',documentFake);
+yearContextRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(yearContextRoot,{entity:gs,sections:[
+ mk(gs,1,{hero:{years:'2018 launch, 2019 model references; exact production start not asserted',
+  paragraphs:['Original factory-documented launch overview']}}),
+ mk(gs,16,{deep_dive:[{title:'BMW ownership notes',subtitle:'Documented owner guidance'}]})
+]});
+const yearContextNodes=collect(yearContextRoot);
+const yearContextText=yearContextNodes.map(x=>x.textContent||'').join(' | ');
+assert(yearContextText.includes('2018 launch, 2019 model references'),
+ 'Documented model-year note suppressed by generic renderer');
+assert(yearContextText.includes('Documented owner guidance'),
+ 'Approved research subtitle suppressed by generic renderer');
+assert(yearContextNodes.some(x=>x.className==='anybike-universal-model-years'),
+ 'Model-year context class missing from shared layout');
+
 console.log('PASS: source-verified facts retain numeric units and announcement dates');
 
 
