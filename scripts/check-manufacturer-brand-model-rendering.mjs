@@ -64,8 +64,9 @@ async function verify(make,{catalogueAvailable=true}={}){
  },{timeout:2500});
  for(let i=0;i<12;i++)await Promise.resolve();
  return {make,groupHtml:get('modelGroups').innerHTML,
-  categoryHtml:get('categoryCards').innerHTML,redirects,warnings,
-  title:get('title').textContent};
+  categoryHtml:get('categoryCards').innerHTML,
+  summaryHtml:get('manufacturer-data-summary').innerHTML,
+  redirects,warnings,title:get('title').textContent};
 }
 const normal=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
 const makes=[...new Set(catalog.models.map(x=>x.make).filter(Boolean))];
@@ -84,6 +85,10 @@ for(const make of makes){
  assert(cards>=expected,
   make+' lost model cards: expected '+expected+', rendered '+cards);
  assert(result.categoryHtml.includes('category-card'),make+' category navigation missing');
+ assert(!result.summaryHtml.includes('Loading catalogue information'),
+  make+' catalogue summary stuck loading');
+ assert(result.summaryHtml.includes('Motorcycle model records currently'),
+  make+' failed to display loaded catalogue totals');
  assert(!result.warnings.some(x=>x.includes('model rendering')),
   make+' rendering failed');
  checked++;
@@ -94,6 +99,10 @@ for(const make of ['Suzuki','Honda','Yamaha','Kawasaki','Ducati']){
  assert(cards>0,make+' lost curated model cards when catalogue fetch failed');
  assert(failure.categoryHtml.includes('category-card'),
   make+' category navigation disappeared during a catalogue outage');
+ assert(!failure.summaryHtml.includes('Loading catalogue information'),
+  make+' catalogue summary stuck loading after fetch error');
+ assert(failure.summaryHtml.includes('Catalogue update pending'),
+  make+' did not show catalogue outage fallback');
 }
 const suzuki=await verify('Suzuki'),honda=await verify('Honda');
 assert(suzuki.groupHtml.includes('Hayabusa'),'Suzuki Hayabusa missing');
