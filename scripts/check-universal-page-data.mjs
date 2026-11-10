@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {loadUniversalPublishedPage,UNIVERSAL_PUBLIC_SECTIONS} from '../model-template/universal-page-data.mjs';
 const rows=[{entity_type:'model',entity_id:68,entity_name:'R 1250 GS',manufacturer_id:15,
+ source_section_id:1001,publication_review_reference:'BMW-REVIEW-2026-11-10',
  section_number:1,section_key:'section_01',section_title:'History',content:{summary:'Approved research'},
  editorial_status:'published',publication_eligible:true,published_at:'2026-11-09T00:00:00Z'}];
 const makeClient=(result)=>({from(table){
@@ -32,5 +33,7 @@ await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],se
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],content:{}}],error:null}),{type:'model',id:68}),/Empty published research section blocked/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],content:null}],error:null}),{type:'model',id:68}),/Empty published research section blocked/);
 
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],publication_review_reference:' '}],error:null}),{type:'model',id:68}),/Missing reviewed publication provenance/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],source_section_id:null}],error:null}),{type:'model',id:68}),/Missing reviewed publication provenance/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[],error:null}),{type:'model',id:0}),/Canonical/);
 console.log('PASS: public-only universal Supabase projection and strict manufacturer/model identity checks');
