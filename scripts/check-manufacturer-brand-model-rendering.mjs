@@ -21,7 +21,7 @@ for(const code of inline)new Script(code); // syntax-check every inline script
 // is not useful if the shared destination script is syntactically broken.
 const modelGuideHtml=readFileSync(
  new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
-const modelGuideScripts=[...modelGuideHtml.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/g)]
+const modelGuideScripts=[...modelGuideHtml.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
  .map(m=>m[1]).filter(s=>s.trim());
 assert(modelGuideScripts.length>0,'Generic model-guide script missing');
 for(const code of modelGuideScripts)new Script(code);
