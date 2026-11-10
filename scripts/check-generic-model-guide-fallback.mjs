@@ -36,11 +36,12 @@ function fakeDOM(){
   createElement:create,createTextNode:text=>({textContent:text})
  }};
 }
-async function check(make,model,{guidesAvailable=false}={}){
- const {document,get}=fakeDOM(),warnings=[];
+async function check(make,model,{guidesAvailable=false,databaseRows=null,databaseError=false,catalogueAvailable=true}={}){
+ const {document,get}=fakeDOM(),warnings=[],rpcCalls=[],requests=[];
  const fetch=async path=>{
+  requests.push(path);
   if(path==='/data/motorcycle-catalogue-master.json')
-   return {ok:true,json:async()=>catalog};
+   return catalogueAvailable?{ok:true,json:async()=>catalog}:{ok:false,status:503};
   if(path==='/data/motorcycle-model-guides.json')
    return guidesAvailable?
     {ok:true,json:async()=>({schema_version:2,models:{}})}:
@@ -48,12 +49,19 @@ async function check(make,model,{guidesAvailable=false}={}){
   throw Error('Unexpected resource '+path);
  };
  const search='?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
+ const window={supabase:databaseRows!==null||databaseError?{
+  createClient:()=>({rpc:async (name,args)=>{
+   rpcCalls.push({name,args});
+   return databaseError?{data:null,error:{message:'Denied'}}:
+    {data:databaseRows,error:null};
+  }})
+ }:undefined};
  const result=script.runInNewContext({
-  document,fetch,URLSearchParams,location:{search},
+  document,window,fetch,URLSearchParams,location:{search},
   console:{warn(...args){warnings.push(args.join(' '));}}
  },{timeout:2000});
  await result;
- return {get,warnings,document};
+ return {get,warnings,document,rpcCalls,requests};
 }
 for(const [make,model] of [
  ['Suzuki','RM250'],
@@ -85,4 +93,36 @@ for(const [make,model] of [
   assert(document.title.includes(make+' '+model));
  }
 }
+// Supabase public identity must use an exact make AND model, never a related
+// model, and must not require privately staged editorial or invented facts.
+const supabaseOnly=await check('Suzuki','Clean Example Model',{
+ catalogueAvailable:false,databaseRows:[
+  {make:'Suzuki',model:'Clean Example Model',category:'Sports'},
+  {make:'Yamaha',model:'Clean Example Model',category:'Touring'},
+  {make:'Suzuki',model:'Clean Example Model 2',category:'Off-road'}
+ ]});
+assert.equal(supabaseOnly.get('heading').textContent,'Suzuki Clean Example Model');
+assert.equal(supabaseOnly.get('category').textContent,'Sports');
+assert(supabaseOnly.get('source').href.includes('model=Clean%20Example%20Model'));
+assert(supabaseOnly.get('summary').textContent.includes('AnyBike can help'));
+assert.equal(supabaseOnly.rpcCalls[0]?.name,'public_anybike_manufacturer_catalogue_names_v1');
+assert.equal(supabaseOnly.rpcCalls[0]?.args?.p_make,'Suzuki');
+const denied=await check('Honda','Dream D-Type',{databaseError:true});
+assert.equal(denied.get('heading').textContent,'Honda Dream D-Type',
+ 'Denied public database access must preserve existing static catalogue');
+const ambiguous=await check('Suzuki','Clean Example Model',{
+ catalogueAvailable:false,databaseRows:[
+  {make:'Suzuki',model:'Clean Example Model',category:'Sports'},
+  {make:'Suzuki',model:'Clean Example Model',category:'Touring'}
+ ]});
+assert(ambiguous.get('summary').textContent.includes('could not find'),
+ 'Ambiguous database identity must never invent a model or choose a variant');
+const wrongMake=await check('Suzuki','Clean Example Model',{
+ catalogueAvailable:false,databaseRows:[{make:'Yamaha',model:'Clean Example Model',category:'Touring'}]
+});
+assert(wrongMake.get('summary').textContent.includes('could not find'),
+ 'One manufacturer must not receive another manufacturer’s model');
+assert.equal((await check('Suzuki','RM250')).get('heading').textContent,'Suzuki RM250',
+ 'Pages must remain usable without a Supabase client');
+
 console.log('PASS: six newly surfaced exact model guides preserve customer sourcing and avoid invented research when optional guide JSON is unavailable');
