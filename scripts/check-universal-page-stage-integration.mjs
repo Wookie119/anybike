@@ -161,4 +161,22 @@ finishFirst();
 assert.equal(await first,null,'Older response must not display after newer empty selection');
 assert.equal(raceEmptyRoot.childNodes[0].tagName,'sentinel','Older result replaced empty view');
 
+
+const mutableStock=[{...match}];
+const mutableRoot=stage();
+let finishMutable;
+const pendingMutable=loadAndRenderUniversalStage({
+ client:delayed(client([published()]),finish=>{finishMutable=finish}),
+ root:mutableRoot,type:'model',id:77,manufacturerName:'BMW',
+ permittedStock:mutableStock
+});
+mutableStock[0].model='R 1250 GS';
+mutableStock.push({...match,item_id:900});
+finishMutable();
+const immutableResult=await pendingMutable;
+assert.equal(immutableResult.stock.length,1,
+ 'Late changes to the input feed must not change an in-flight rendering');
+assert.equal(immutableResult.stock[0].model,'R 1300 GS',
+ 'Existing authorized stock identity mutated during research load');
+
 console.log('PASS: stage-only public integration, safe stock ordering, no drafts, no cross-model fallback and no live-page mutation');
