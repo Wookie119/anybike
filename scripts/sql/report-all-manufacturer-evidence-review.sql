@@ -102,3 +102,32 @@ FROM evidence GROUP BY manufacturer ORDER BY evidence_entries DESC,manufacturer;
 -- E. Strict public release confirmation, not inferred from audits.
 SELECT count(*) AS actual_published_universal_sections
 FROM public.motorcycle_universal_published_sections_v1;
+
+-- F. Independent fact-audit URL discrepancy triage. Query-parameter-only
+-- changes still need review, but different paths may describe different
+-- model years, country editions or separate factory announcements.
+SELECT m.manufacturer,m.model,f.catalog_model_id,f.id AS fact_id,
+ f.source_url AS canonical_fact_source,
+ a.source_url AS audited_source,
+ CASE
+  WHEN split_part(f.source_url,'?',1)=split_part(a.source_url,'?',1)
+    THEN 'same_path_query_parameters_differ'
+  ELSE 'different_document_url_path' END AS discrepancy_type
+FROM public.motorcycle_catalog_facts f
+JOIN public.motorcycle_catalog_models m ON m.id=f.catalog_model_id
+JOIN public.motorcycle_catalog_fact_verification_audit a ON a.fact_id=f.id
+WHERE f.verification_status='verified'
+ AND a.source_url IS DISTINCT FROM f.source_url
+ORDER BY m.manufacturer,m.model,f.id;
+
+-- Summary for large-batch independent source review.
+SELECT CASE
+  WHEN split_part(f.source_url,'?',1)=split_part(a.source_url,'?',1)
+    THEN 'same_path_query_parameters_differ'
+  ELSE 'different_document_url_path' END AS discrepancy_type,
+ count(*) AS facts,count(DISTINCT f.catalog_model_id) AS canonical_models
+FROM public.motorcycle_catalog_facts f
+JOIN public.motorcycle_catalog_fact_verification_audit a ON a.fact_id=f.id
+WHERE f.verification_status='verified'
+ AND a.source_url IS DISTINCT FROM f.source_url
+GROUP BY 1 ORDER BY discrepancy_type;
