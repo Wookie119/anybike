@@ -62,9 +62,11 @@ const denied=await installVerifiedModelFacts({
 });
 assert.equal(denied,0,'Never hide or alter the approved page when public facts unavailable');
 const html=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
-assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261110e'));
+assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261110f'));
 assert(html.indexOf('id="body"')>html.indexOf('id="generationPanel"'));
 const renderSource=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
+assert(renderSource.includes('background:#242424;color:#fff;border:1px solid #666'),
+ 'Shared model specification cards must have legible foreground and background');
 assert(renderSource.includes('minmax(min(100%,420px),1fr)'),
  'Factory research columns must be wide enough for legible specifications');
 assert(renderSource.includes('minmax(0,1fr);gap:9px 14px'),
