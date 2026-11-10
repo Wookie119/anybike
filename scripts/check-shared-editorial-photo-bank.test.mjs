@@ -56,7 +56,7 @@ test('photo publication requires verified licensing metadata and HTTPS sources',
  const customClient={from(){return {
   select(){return this},eq(){return this},order(){return this},limit(){return this},
   then(resolve,reject){return Promise.resolve({data:[bad,valid],error:null}).then(resolve,reject)}
- }}}};
+ }}};
  const photos=await findPhotos(customClient,{manufacturer:'BMW',model:'R 1300 GS'});
  assert.deepEqual(Array.from(photos,p=>p.asset_key),['bmw-r1300']);
 });
