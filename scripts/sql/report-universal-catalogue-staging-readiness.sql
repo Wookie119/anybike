@@ -284,3 +284,32 @@ WHERE item->>'catalogue_identity_status'='verified'
   regexp_replace(lower(coalesce(item->>'model','')),'[^a-z0-9]','','g') <>
   regexp_replace(lower(m.model),'[^a-z0-9]','','g'))
 ORDER BY published_item_id;
+
+-- Manufacturer imported-source backlog: these rows are not researched content.
+-- A JSON object containing only draft source pointers must NOT be published.
+SELECT s.manufacturer_id,m.display_name AS manufacturer,s.section_number,
+       s.section_key,s.section_title,
+       jsonb_array_length(s.content->'source_blocks') AS imported_source_blocks,
+       count(*) FILTER(WHERE b.value->>'import_status'='draft') AS draft_source_blocks
+FROM public.motorcycle_universal_page_sections_v1 s
+JOIN public.motorcycle_catalog_manufacturers m ON m.id=s.manufacturer_id
+CROSS JOIN LATERAL jsonb_array_elements(
+ CASE WHEN jsonb_typeof(s.content->'source_blocks')='array'
+ THEN s.content->'source_blocks' ELSE '[]'::jsonb END
+) AS b(value)
+WHERE s.entity_type='manufacturer'
+ AND (s.content-'source_blocks')='{}'::jsonb
+GROUP BY s.manufacturer_id,m.display_name,s.section_number,
+         s.section_key,s.section_title,s.content
+ORDER BY manufacturer,s.section_number;
+
+-- Overall scope: only-source-pointer records with all imports still draft.
+SELECT count(*) AS manufacturer_source_only_sections,
+       count(*) FILTER(WHERE NOT EXISTS (
+         SELECT 1 FROM jsonb_array_elements(s.content->'source_blocks') b
+         WHERE b->>'import_status' IS DISTINCT FROM 'draft'
+       )) AS all_imports_still_draft
+FROM public.motorcycle_universal_page_sections_v1 s
+WHERE s.entity_type='manufacturer'
+ AND jsonb_typeof(s.content->'source_blocks')='array'
+ AND (s.content-'source_blocks')='{}'::jsonb;
