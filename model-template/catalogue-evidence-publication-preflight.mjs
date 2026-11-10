@@ -48,6 +48,10 @@ export function preflightModelFactPublication({
   results.push(Object.freeze({factId:key,modelId:Number(fact.catalog_model_id),
    allowed:reasons.length===0,reasons:Object.freeze(reasons)}));
  }
+ for(const factId of byFact.keys()){
+  if(!seen.has(factId))
+   throw Error('Orphan source verification audit');
+ }
  results.sort((a,b)=>a.factId-b.factId);
  return Object.freeze({
   modelId:model,factCount:results.length,
