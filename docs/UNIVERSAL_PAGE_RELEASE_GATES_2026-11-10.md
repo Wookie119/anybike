@@ -67,3 +67,30 @@ but it is not implemented by the current international endpoint.
 Repeatable read-only database audit: `scripts/sql/report-universal-catalogue-staging-readiness.sql`.
 Stage regression: `scripts/check-universal-page-stage-integration.mjs`.
 Country navigation regression: `scripts/check-country-navigation-integrity.mjs`.
+
+## 10 November follow-on: approved source parity and model hero contract
+
+- Repository source audit inspected **all 27 BMW guide HTML files**: each
+  retained the shared header/stock integration, canonical link, research and
+  generation containers, indexability and enquiry anchors. Both GS-specific
+  gallery/stock-panel anchors were also present. This is **source parity only**,
+  not browser rendering or successful UK stock access.
+- `scripts/check-bmw-approved-model-route-parity.mjs` is now wired into the
+  universal catalogue CI workflow. Shared BMW and Harley page changes trigger
+  the existing cross-model integrity checks.
+- Shared universal staged renderer now accepts an **optional approved hero
+  photograph**, supplied by an authorized caller with exact manufacturer and
+  model names, approved status, HTTPS image/source/licence URLs and attribution.
+  There is no model-substitution fallback. The current BMW R 1300 GS photo bank
+  contains five fully documented approved assets.
+- Nested source-verified fact records now also respect explicit editorial
+  draft, publication denial, pending copy review and future release timestamps.
+  Source verification alone is not authorization to publish editorial facts.
+- Tests for both the shared renderer and stage-only integration were executed
+  against the fetched current modules and passed. CI run and the real deployed
+  page remain unverified.
+- **No research has been promoted**: 916 sections still staged and the new
+  public universal publication table remains empty.
+- Harley-Davidson has 82 catalogue model records and **no universal model
+  section staging**, despite its existing preserved HTML guides. This must not
+  be represented as completed database migration.
