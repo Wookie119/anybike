@@ -113,4 +113,52 @@ const manufacturerView=await loadAndRenderUniversalStage({
 });
 assert.equal(manufacturerView.stock.length,0,'Manufacturer pages must not inherit model stock');
 
+
+const raceRoot=stage();
+let finishOld,finishNew;
+const oldClient=client([published()]);
+const newClient=client([published(68,'R 1250 GS')]);
+function delayed(base,setFinish){
+ return {from(table){
+  const q=base.from(table);
+  return {
+   select(...args){q.select(...args);return this;},
+   eq(...args){q.eq(...args);return this;},
+   order(...args){q.order(...args);return this;},
+   limit(...args){return new Promise(resolve=>setFinish(()=>q.limit(...args).then(resolve))); }
+  };
+ }};
+}
+const oldRequest=loadAndRenderUniversalStage({
+ client:delayed(oldClient,finish=>{finishOld=finish}),root:raceRoot,
+ type:'model',id:77,manufacturerName:'BMW'
+});
+const newRequest=loadAndRenderUniversalStage({
+ client:delayed(newClient,finish=>{finishNew=finish}),root:raceRoot,
+ type:'model',id:68,manufacturerName:'BMW'
+});
+finishNew();
+const newest=await newRequest;
+assert.equal(newest.identity.id,68,'Newest selection must render');
+finishOld();
+assert.equal(await oldRequest,null,'Older response must be ignored');
+assert.equal(raceRoot.dataset.anybikeRenderedEntity,'model:68',
+ 'Slow older research response overwrote new model selection');
+
+const raceEmptyRoot=stage();
+let finishFirst,finishEmpty;
+const first=loadAndRenderUniversalStage({
+ client:delayed(oldClient,finish=>{finishFirst=finish}),
+ root:raceEmptyRoot,type:'model',id:77,manufacturerName:'BMW'
+});
+const second=loadAndRenderUniversalStage({
+ client:delayed(client([]),finish=>{finishEmpty=finish}),
+ root:raceEmptyRoot,type:'model',id:68,manufacturerName:'BMW'
+});
+finishEmpty();
+assert.equal(await second,null,'Empty newer selection must be preserved');
+finishFirst();
+assert.equal(await first,null,'Older response must not display after newer empty selection');
+assert.equal(raceEmptyRoot.childNodes[0].tagName,'sentinel','Older result replaced empty view');
+
 console.log('PASS: stage-only public integration, safe stock ordering, no drafts, no cross-model fallback and no live-page mutation');
