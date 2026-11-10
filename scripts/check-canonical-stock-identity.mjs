@@ -10,6 +10,10 @@ assert(!canonicalStockMatches({...ok,catalog_model_id:null,model:'R 1250 GS'},ta
 assert(!canonicalStockMatches({...ok,catalogue_identity_status:'candidate'},target),'Candidate was published');
 assert(!canonicalStockMatches({...ok,publication_eligible:false},target),'Unpublished item leaked');
 assert(!canonicalStockMatches({...ok,item_id:null},target));
+assert(!canonicalStockMatches({...ok,model:'R 1300 GS'},{...target,model_name:'R 1250 GS'}),'Conflicting advert model accepted despite verified ID');
+assert(canonicalStockMatches({...ok,model:'R1250GS'},{...target,model_name:'R 1250 GS'}),'Equivalent spacing should match');
+assert(canonicalStockMatches({...ok,model:''},{...target,model_name:'R 1250 GS'}),'Missing feed label cannot override trusted canonical ID');
+
 const picked=stockForCanonicalModel([ok,ok,{...ok,item_id:'stock-2'},{...ok,catalog_model_id:77}],target);
 assert.deepEqual(picked.map(x=>x.item_id),['stock-1','stock-2']);
 assert.deepEqual(stockForCanonicalModel([ok],{catalog_model_id:null}),[]);
