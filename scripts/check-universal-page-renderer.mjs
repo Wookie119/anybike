@@ -207,6 +207,34 @@ assert(!imageNodes.some(x=>String(x.src||'').includes('wrong-model.jpg')),
  'A mismatched motorcycle image leaked into stock cards');
 console.log('PASS: exact-model authorized stock pictures, HTTPS only, with accessible labels');
 
+
+const embargoedFactsRoot=new FakeElement('main',documentFake);
+embargoedFactsRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(embargoedFactsRoot,{entity:gs,sections:[mk(gs,12,{
+ verified_catalogue_facts:[
+  {label:'Verified source but editorial draft',source_verification_status:'verified',
+   editorial_status:'draft',source_url:'https://example.org/draft',value:{power_hp:9999}},
+  {label:'Verified source but denied for publication',source_verification_status:'verified',
+   publication_eligible:false,source_url:'https://example.org/denied',value:{power_hp:9998}},
+  {label:'Verified source with pending copy review',source_verification_status:'verified',
+   content_status:'pending_review',source_url:'https://example.org/pending',value:{power_hp:9997}},
+  {label:'Verified future release',source_verification_status:'verified',
+   published_at:'2099-01-01T00:00:00Z',source_url:'https://example.org/future',value:{power_hp:9996}},
+  {label:'Verified invalid release',source_verification_status:'verified',
+   published_at:'invalid-date',source_url:'https://example.org/invalid',value:{power_hp:9995}},
+  {label:'Reviewed and released fact',source_verification_status:'verified',
+   editorial_status:'published',published_at:'2026-11-09T00:00:00Z',
+   source_url:'https://example.org/approved',value:{power_hp:145}}
+ ]
+})]});
+const embargoedNodes=collect(embargoedFactsRoot);
+const visibleFactsText=embargoedNodes.map(x=>x.textContent||'').join(' | ');
+for(const forbidden of ['9999','9998','9997','9996','9995'])
+ assert(!visibleFactsText.includes(forbidden),'Unapproved verified-source fact leaked: '+forbidden);
+assert(visibleFactsText.includes('145 hp'),'Approved verified fact was hidden');
+assert(embargoedNodes.some(x=>x.href==='https://example.org/approved'),'Approved fact source missing');
+console.log('PASS: verified source facts still require editorial approval and release time');
+
 console.log('PASS: source-verified facts retain numeric units and announcement dates');
 
 
