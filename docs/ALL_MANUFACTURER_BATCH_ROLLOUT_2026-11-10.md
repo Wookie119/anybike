@@ -434,3 +434,43 @@ IDs, model aliases or live manufacturer pages were modified. These 22
 private notes have NOT yet passed full independent documentary fact review
 or publication readiness. GitHub Actions / live auto-deployment are
 not established by the database checks.
+
+
+## Four-manufacturer 16-model documentary intake — 10 November continuation
+
+Ran the atomic source-capture file
+`scripts/sql/stage-sixteen-cross-brand-factory-private-research-2026-11-10.sql`
+against Supabase and verified all 32 records were inserted as **private
+draft, pending source review** without changing publication projection.
+
+- **Triumph — 6 models, 12 sections:** Scrambler 1200 (242), STREET TRIPLE
+  765 (250), TIGER 900 (256), TIGER 900 GT PRO (257), TIGER 900 RALLY PRO
+  (258), TRIDENT 660 (261). Source material includes Triumph corporate
+  chronology and MY20+ original equipment matrix.
+- **KTM — 2 models, 4 sections:** 1290 Super Adventure (520), 890 Duke
+  (931). The 2021 1290 Super Adventure S announcement is retained with
+  explicit *S-specific* qualification, not copied onto R/base generations.
+- **Aprilia — 1 model, 2 sections:** TUONO 660 (7), sourced to 2021 Aprilia
+  launch-era manufacturer's technical brochure. **RS 660** was deliberately
+  excluded because its catalogue contains a normalized identity collision.
+- **Royal Enfield — 7 models, 14 sections:** Classic 350 (623),
+  Continental GT 650 (624), Himalayan 411 (625), Hunter 350 (627),
+  Interceptor 650 (628), Meteor 350 (629), SUPER METEOR 650 (229).
+  Sources include official annual reports, EICMA product announcements and
+  original 2016 Himalayan documentation.
+
+Every row has an original editorial summary, URL provenance,
+`source_verification_status='pending_review'`,
+`editorial_status='draft'`, and `published_at=NULL`. Launch-year,
+market and model-variant details remain explicitly scoped. **None is an
+approved fact audit, completed 20-section model page or live publication.**
+
+**Verified Supabase totals immediately after import:**
+979 canonical catalogue models, **188** model IDs with staged research,
+**1,091** total staged universal sections, **0** published sections,
+**0** non-draft/publication-date leaks, **0** duplicate entity/section slots.
+
+No authorised stock access, manufacturer IDs, model aliases, website links,
+approved BMW/Harley page design, or original HTML was modified. This
+database verification does not establish GitHub Actions success or live
+deployment availability.
