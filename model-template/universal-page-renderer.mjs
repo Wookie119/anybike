@@ -172,14 +172,16 @@ function appendVerifiedFacts(doc,parent,facts){
   if(!fact||fact.source_verification_status!=='verified'||
      !safeText(fact.label)||!approvedLink(fact.source_url)||
      !String(fact.source_url).startsWith('https://'))continue;
-  // Source verification is evidence quality, not editorial release approval.
-  // Fail closed on explicit nested draft, embargo or publication denial flags.
-  if(fact.publication_eligible===false)continue;
-  if(fact.editorial_status&&
-     !['verified','approved','published'].includes(safeText(fact.editorial_status).toLowerCase()))continue;
-  if(fact.content_status&&
-     !['verified','approved','published'].includes(safeText(fact.content_status).toLowerCase()))continue;
-  if(fact.published_at){
+  // A verified manufacturer source is NOT a public editorial approval.
+  // Require explicit fact-level authorisation as well as an approved parent
+  // section. Missing fields fail closed; no implicit "verified = published".
+  if(fact.publication_eligible!==true)continue;
+  if(!['approved','published'].includes(
+       safeText(fact.editorial_status).toLowerCase()))continue;
+  if(fact.content_status &&
+     !['approved','published'].includes(
+       safeText(fact.content_status).toLowerCase()))continue;
+  if(fact.published_at!==undefined&&fact.published_at!==null){
    const released=Date.parse(fact.published_at);
    if(!Number.isFinite(released)||released>Date.now())continue;
   }
