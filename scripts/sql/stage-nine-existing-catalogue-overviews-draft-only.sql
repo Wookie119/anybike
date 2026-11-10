@@ -27,9 +27,9 @@ BEGIN
  END IF;
 
  INSERT INTO public.motorcycle_universal_page_sections_v1
-  (entity_type,manufacturer_id,model_id,section_number,section_key,
+  (entity_type,manufacturer_id,model_id,section_number,
    section_title,content,editorial_status,source_reference,published_at)
- SELECT 'model',NULL,m.id,1,'section_01','Model introduction',
+ SELECT 'model',NULL,m.id,1,'Model introduction',
    jsonb_build_object(
       'summary',trim(m.overview),
       'source_verification_status','pending_review',
