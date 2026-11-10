@@ -26,14 +26,14 @@ function client(){
 }
 test('approved exact-model photo only, with year and context filtering',async()=>{
  const photos=await findPhotos(client(),{manufacturer:'BMW',model:'R 1300 GS',year:2025,category:'whole_motorcycle',context:'model'});
- assert.deepEqual(photos.map(p=>p.asset_key),['bmw-r1300']);
+ assert.deepEqual(Array.from(photos,p=>p.asset_key),['bmw-r1300']);
  assert.equal(selectPhoto(photos,{manufacturer:'BMW',model:'R 1250 GS'}),null);
  assert.equal(selectPhoto(photos,{manufacturer:'BMW',model:'R 1300 GS',year:2023}),null);
  assert.equal(selectPhoto(photos,{manufacturer:'BMW',model:'R 1300 GS',year:2025})?.asset_key,'bmw-r1300');
 });
 test('candidate and other-manufacturer images are never returned',async()=>{
  const photos=await findPhotos(client(),{manufacturer:'BMW'});
- assert.deepEqual(photos.map(p=>p.asset_key).sort(),['bmw-r1250','bmw-r1300']);
+ assert.deepEqual(Array.from(photos,p=>p.asset_key).sort(),['bmw-r1250','bmw-r1300']);
  assert.equal(selectPhoto(photos,{manufacturer:'Harley-Davidson'}),null);
 });
 test('missing manufacturer or database client fails closed',async()=>{
