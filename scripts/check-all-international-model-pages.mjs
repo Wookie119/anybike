@@ -14,7 +14,10 @@ for(const file of files){
    file+' missing correct exact-page canonical URL');
  assert(html.includes('name="robots" content="index,follow"'),
    file+' missing approved indexability metadata');
- assert(/enquir/i.test(html),file+' missing customer enquiry pathway');
+ // Customer entry points are actionable links, not merely an occurrence of
+ // the word "enquiry". Some approved guides say "Request" or "Check availability".
+ const customerLink=/<a\b[^>]*\bhref=["']\/(?:bulk-buying-request|contact-us|motorcycle-request)\.html(?:\?[^"']*)?["'][^>]*>/i;
+ assert(customerLink.test(html),file+' missing linked customer enquiry/sourcing pathway');
  assert(!html.includes('data-anybike-universal-stage="true"'),
    file+' activated unapproved research stage over existing design');
  const hasDedicated=html.includes('id="internationalModelStock"')||html.includes('id="r1250LiveStock"');
