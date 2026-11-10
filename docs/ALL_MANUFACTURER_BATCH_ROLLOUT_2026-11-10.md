@@ -342,3 +342,59 @@ All new model facts remain non-public. Existing BMW/Harley HTML, international
 access rights, registered routes, stock, manufacturer identity and page design
 were untouched. GitHub commit success does not independently prove an
 end-to-end live deploy or GitHub Actions pass.
+
+
+## Larger Suzuki/Yamaha/Kawasaki source intake — 10 November follow-on
+
+Factory primary-source articles independently located and reviewed:
+- Suzuki GSX-R750 1985 heritage and generation index:
+  https://www.globalsuzuki.com/motorcycle/smgs/digital-archive/2_bike/sports_081.php
+- Suzuki GSX-R1000 generational history including the 2005 K5:
+  https://www.globalsuzuki.com/motorcycle/smgs/digital-archive/2_bike/sports_080.php
+- Suzuki SV650/650S:
+  https://www.globalsuzuki.com/motorcycle/smgs/digital-archive/2_bike/ss4_045.php
+- Suzuki V-Strom 650:
+  https://www.globalsuzuki.com/motorcycle/smgs/digital-archive/2_bike/dual_109.php
+- Suzuki DR-Z400SM:
+  https://www.globalsuzuki.com/motorcycle/smgs/digital-archive/2_bike/dual_111.php
+- Yamaha 1998 YZF-R1:
+  https://global.yamaha-motor.com/showroom/cp/collection/yzf-r1/
+- Yamaha 2006 FJR1300AS heritage; its variant-specific YCC-S is **not**
+  attributed to the entire base FJR1300 model:
+  https://global.yamaha-motor.com/showroom/cp/collection/fjr1300as/
+- Yamaha 1999 YZF-R6:
+  https://global.yamaha-motor.com/showroom/cp/collection/yzf-r6/
+- Kawasaki GPz900R 1984 corporate history:
+  https://global.kawasaki.com/en/corp/profile/division/motorcycle_engine/history.html
+
+**Two atomic private imports executed successfully:**
+
+1. `scripts/sql/stage-seven-suzuki-yamaha-kawasaki-factory-drafts-2026-11-10.sql`:
+   19 sections across Suzuki GSX-R750 (644), GSX-R1000 (232), SV650
+   (648), V-Strom 650 (650), Yamaha YZF-R1 (719), FJR1300 (701),
+   and Kawasaki GPZ900R (889).
+2. `scripts/sql/stage-three-exact-year-suzuki-yamaha-drafts-2026-11-10.sql`:
+   nine further sections for Suzuki DR-Z400SM (952), GSX-R1000 K5 (968)
+   and Yamaha YZF-R6 (722).
+
+The imports preserve original canonical make/model IDs, refuse unexpected
+existing staging or pending aliases, check inserted row counts, and assert
+the published universal section projection is unchanged. All 28 sections
+are short original editorial notes with manufacturer URL provenance,
+`draft` editorial status and `pending_review` source status.
+They are **not** independent factual audits or public editorial signoff.
+Year-specific specifications must not be generalized to later editions;
+no new model images or rights permissions were added.
+
+**Fresh Supabase final verification:**
+- Catalogue models **979**; staged model IDs **161**
+- Staged model sections **997**, manufacturer sections **40**
+- Total staged universal sections **1,037** (up 28)
+- Public universal sections **0**
+- Non-draft/publication-date anomalies **0**
+- Duplicate entity/section slots **0**
+
+The existing public BMW and Harley templates, stock grants, manufacturer
+identities, SEO routes and live page configurations were not edited in
+this batch. GitHub Action workflow completion and live deployment need
+their own independent confirmation.
