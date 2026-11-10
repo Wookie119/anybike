@@ -173,8 +173,12 @@ function appendVerifiedFacts(doc,parent,facts){
    const rows=node(doc,'dl','','anybike-universal-evidence-values');
    const fields=[
     ['Engine','engine_cc','cc'],['Power','power_hp','hp'],
-    ['Power','max_power_hp','hp maximum'],['Torque','torque_nm','Nm'],
-    ['Battery','battery_kwh','kWh'],['Factory colour','name',''],
+    ['Power','max_power_hp','hp maximum'],['Power','power_kw','kW'],
+    ['Torque','torque_nm','Nm'],['Engine layout','type',''],
+    ['Valvetrain','valvetrain',''],['Battery','battery_kwh','kWh'],
+    ['Gears','gears',''],['Final drive','drive',''],
+    ['Wheel diameter','diameter',''],['Brake diameter','diameter_mm','mm'],
+    ['Engine speed','rpm','rpm'],['Factory colour','name',''],
     ['Edition','variant',''],['Model-year reference','reference_model_year',''],
     ['Model-year reference','model_year',''],
     ['Description','evidence',''],['Transmission','transmission',''],
