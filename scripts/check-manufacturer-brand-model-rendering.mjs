@@ -49,15 +49,23 @@ function dom(){
   createElement(tag){return {...get('_element_'+elements.size),tagName:tag};}
  }};
 }
-async function verify(make,{catalogueAvailable=true}={}){
- const {document,get}=dom(),warnings=[],redirects=[];
+async function verify(make,{catalogueAvailable=true,databaseRows=null,databaseError=false}={}){
+ const {document,get}=dom(),warnings=[],redirects=[],fetches=[],rpcCalls=[];
  const fetch=async path=>{
+  fetches.push(path);
   if(path==='/data/motorcycle-catalogue-master.json')
    return catalogueAvailable?{ok:true,json:async()=>catalog}:{ok:false};
   return {ok:true,json:async()=>({results:[]})};
  };
+ const window={supabase:databaseRows!==null||databaseError?{
+  createClient:()=>({rpc:async (name,args)=>{
+   rpcCalls.push({name,args});
+   return databaseError?{data:null,error:{message:'Denied'}}:
+    {data:databaseRows,error:null};
+  }})
+ }:undefined};
  mainScript.runInNewContext({
-  document,location:{search:'?make='+encodeURIComponent(make),
+  document,window,location:{search:'?make='+encodeURIComponent(make),
    replace(to){redirects.push(to);}},
   URLSearchParams,fetch,
   console:{warn(...args){warnings.push(args.join(' '));}}
@@ -66,7 +74,7 @@ async function verify(make,{catalogueAvailable=true}={}){
  return {make,groupHtml:get('modelGroups').innerHTML,
   categoryHtml:get('categoryCards').innerHTML,
   summaryHtml:get('manufacturer-data-summary').innerHTML,
-  redirects,warnings,title:get('title').textContent};
+  redirects,warnings,fetches,rpcCalls,title:get('title').textContent};
 }
 const normal=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
 const makes=[...new Set(catalog.models.map(x=>x.make).filter(Boolean))];
@@ -104,6 +112,27 @@ for(const make of ['Suzuki','Honda','Yamaha','Kawasaki','Ducati']){
  assert(failure.summaryHtml.includes('Catalogue update pending'),
   make+' did not show catalogue outage fallback');
 }
+// The generic manufacturer page now prefers the cleaned PUBLIC Supabase
+// identity projection. These records are model names only, not published facts.
+const databaseModel=await verify('Suzuki',{catalogueAvailable:false,databaseRows:[
+ {make:'Suzuki',model:'Synthetic Test Motorcycle',category:'Sports'},
+ {make:'Honda',model:'Wrong Manufacturer',category:'Adventure'},
+ {make:'Suzuki',model:'',category:'Sports'}
+]});
+assert(databaseModel.groupHtml.includes('Synthetic Test Motorcycle'),
+ 'Clean Supabase catalogue model was not rendered');
+assert(!databaseModel.groupHtml.includes('Wrong Manufacturer'),
+ 'Cross-manufacturer Supabase row leaked into page');
+assert.equal(databaseModel.rpcCalls[0]?.name,'public_anybike_manufacturer_catalogue_names_v1');
+assert.equal(databaseModel.rpcCalls[0]?.args?.p_make,'Suzuki');
+assert(!databaseModel.fetches.includes('/data/motorcycle-catalogue-master.json'),
+ 'Valid Supabase data must be first choice without requiring static catalogue');
+const deniedDatabase=await verify('Honda',{databaseError:true});
+assert(deniedDatabase.fetches.includes('/data/motorcycle-catalogue-master.json'),
+ 'Supabase error must preserve approved static catalogue fallback');
+assert(deniedDatabase.groupHtml.includes('Africa Twin'),
+ 'Supabase error must not blank the original curated Honda models');
+
 const suzuki=await verify('Suzuki'),honda=await verify('Honda');
 assert(suzuki.groupHtml.includes('Hayabusa'),'Suzuki Hayabusa missing');
 assert(honda.groupHtml.includes('Africa Twin'),'Honda Africa Twin missing');
