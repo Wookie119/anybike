@@ -155,3 +155,24 @@ assert(!collect(pendingDetailRoot).some(x=>String(x.textContent).includes('UNVER
  'Nested pending engineering was published');
 console.log('PASS: shared approved timeline, provenance and technical row rendering; pending engineering suppressed');
 
+const verifiedAmountRoot=new FakeElement('main',documentFake);
+verifiedAmountRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(verifiedAmountRoot,{entity:gs,sections:[mk(gs,12,{
+ verified_catalogue_facts:[
+  {label:'Verified engine capacity',source_verification_status:'verified',
+   source_url:'https://www.press.bmwgroup.com/engine',value:{amount:1254,unit:'cc'}},
+  {label:'BMW press announcement',source_verification_status:'verified',
+   source_url:'https://www.press.bmwgroup.com/launch',value:{announcement_date:'2018-09-17'}},
+  {label:'Pending fact',source_verification_status:'candidate',
+   source_url:'https://www.press.bmwgroup.com/candidate',value:{amount:9999,unit:'hp'}}
+ ]
+})]});
+const verifiedNodes=collect(verifiedAmountRoot),verifiedText=verifiedNodes.map(x=>x.textContent||'').join(' | ');
+assert(verifiedText.includes('1254 cc'),'Verified numeric amount and unit missing');
+assert(verifiedText.includes('2018-09-17'),'Announcement date missing');
+assert(!verifiedText.includes('9999 hp'),'Candidate fact leaked');
+assert(verifiedNodes.some(x=>x.tagName==='a'&&x.href==='https://www.press.bmwgroup.com/engine'),
+ 'Documented capacity source URL missing');
+console.log('PASS: source-verified facts retain numeric units and announcement dates');
+
+
