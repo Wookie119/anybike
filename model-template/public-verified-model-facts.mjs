@@ -18,7 +18,14 @@ const sections={
 };
 const safeText=x=>typeof x==='string'?x.trim():'';
 const validUrl=x=>typeof x==='string'&&/^https:\/\/[^\s/?#]+(?:[^\s]*)$/i.test(x);
-const pretty=x=>x.replace(/_/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
+const factLabels={
+ engine_cc:'Engine capacity (cc)',power:'Power',weight:'Weight',
+ technical_changes:'Engineering changes',torque_nm:'Torque (Nm)',
+ engine_capacity_cc:'Engine capacity (cc)',fuel_capacity_litres:'Fuel capacity (litres)',
+ model_year:'Model year',production_year:'Production year',
+ power_hp:'Power (hp)',engine_type:'Engine configuration'
+};
+const pretty=x=>factLabels[x]||x.replace(/_/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
 const scalar=x=>typeof x==='string'?x:typeof x==='number'&&Number.isFinite(x)?String(x):null;
 export function exactVerifiedModelFacts(rows,make,model){
  if(!Array.isArray(rows)||!safeText(make)||!safeText(model))return [];
@@ -61,6 +68,17 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  panel.dataset.anybikeVerifiedModelFacts='1';
  panel.style.cssText='grid-column:1/-1;border-top:3px solid #ed1c24';
  panel.append(node(doc,'h2',make+' '+model+' — documented factory research'));
+ const yearFacts=facts.filter(x=>x.category==='model_year'&&Number.isInteger(Number(x.start_year))&&Number(x.start_year)>=1885&&Number(x.start_year)<=2100);
+ const sortedYears=[...new Set(yearFacts.map(x=>Number(x.start_year)))].sort((a,b)=>a-b);
+ if(sortedYears.length){
+  const intro=node(doc,'p',
+   'Factory-source records document '+sortedYears.length+' individual reference year'+
+   (sortedYears.length===1?'':'s')+' for the '+make+' '+model+
+   ': '+sortedYears.join(', ')+
+   '. These are documented versions, not a claim of continuous production.');
+  intro.style.cssText='font-size:16px;line-height:1.65;color:#f0f0f0';
+  panel.append(intro);
+ }
  panel.append(node(doc,'p','Model-year and market-specific source records. Figures are not interchangeable between generations; verify the exact motorcycle before buying.'));
  for(const [category,items] of grouped){
   const group=doc.createElement('div');
