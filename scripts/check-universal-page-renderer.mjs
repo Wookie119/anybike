@@ -112,3 +112,41 @@ assert(!shownText.includes('Unpublished editorial record'),'Nested draft editori
 assert(shownText.includes('Verified source record'),'Verified source record incorrectly suppressed');
 assert(shownText.includes('Manufacturer verified generation'),'Verified generation was incorrectly suppressed');
 console.log('PASS: nested draft model research cannot leak through published parent sections');
+
+const detailRoot=new FakeElement('main',documentFake);
+detailRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(detailRoot,{entity:gs,sections:[
+ mk(gs,3,{timeline:[
+  {period:'September 2018',description:'Factory introduction, not verified build date'},
+  {period:'2021 model year',description:'Updated electronics'}
+ ]}),
+ mk(gs,4,{production_evidence:[
+  {date:'2023-06-21',evidence:'A documented Berlin factory milestone'}
+ ]}),
+ mk(gs,5,{engineering:{verification_status:'approved',rows:[
+  ['Engine','1,254 cc boxer'],['Torque','143 Nm'],
+  ['Unapproved HTML','<script>alert(1)</script>'],['Malformed'],['Blank','']
+ ]}})
+]});
+const detailNodes=collect(detailRoot);
+const detailText=detailNodes.map(x=>x.textContent||'').join(' | ');
+assert(detailText.includes('September 2018'),'Model history timeline was not rendered');
+assert(detailText.includes('2021 model year'),'Dated generation history was not rendered');
+assert(detailText.includes('2023-06-21'),'Production evidence date was not rendered');
+assert(detailText.includes('A documented Berlin factory milestone'),'Production evidence not displayed');
+assert(detailText.includes('1,254 cc boxer'),'Approved engineering pair not rendered');
+assert(detailText.includes('143 Nm'),'Approved torque row missing');
+assert(!detailNodes.some(x=>x.tagName==='script'),'Research data created an HTML script');
+const approvedSpecs=detailNodes.find(x=>x.className==='anybike-universal-specification-rows');
+assert(approvedSpecs,'Approved technical rows need a semantic description list');
+assert.equal(approvedSpecs.childNodes.filter(x=>x.tagName==='dt').length,3,'Malformed or blank rows must be suppressed');
+
+const pendingDetailRoot=new FakeElement('main',documentFake);
+pendingDetailRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(pendingDetailRoot,{entity:gs,sections:[
+ mk(gs,5,{engineering:{verification_status:'pending_editorial_review',rows:[['Power','UNVERIFIED VALUE']]}})
+]});
+assert(!collect(pendingDetailRoot).some(x=>String(x.textContent).includes('UNVERIFIED VALUE')),
+ 'Nested pending engineering was published');
+console.log('PASS: shared approved timeline, provenance and technical row rendering; pending engineering suppressed');
+
