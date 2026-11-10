@@ -14,9 +14,11 @@ export async function loadUniversalPublishedPage(client,{type,id}={}){
   .eq('entity_id',Number(id))
   .eq('publication_eligible',true)
   .order('section_number',{ascending:true})
-  .limit(20);
+  .limit(21); // Fetch one beyond the contract so overflow cannot be hidden.
  if(error)throw Error('Published catalogue unavailable');
- if(!Array.isArray(data)||data.length===0)return null; // never substitute drafts
+ if(!Array.isArray(data))throw Error('Invalid published catalogue response');
+ if(data.length>20)throw Error('Universal publication exceeds 20 sections');
+ if(data.length===0)return null; // never substitute drafts
  // Finance promotions, APR adverts and offers imported as model names are
  // not canonical motorcycles. A row entering the public projection must not
  // turn those into indexable research pages.
