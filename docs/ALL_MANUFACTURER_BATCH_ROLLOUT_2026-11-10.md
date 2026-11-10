@@ -98,3 +98,57 @@ research-batch planner and legacy-guide identity matcher. SQL dashboard
 queries executed against the real Supabase project. The private draft
 imports were verified after execution. GitHub Actions full completion
 and live deployment remain unverified.
+
+## Follow-on batch — Harley-Davidson exact-model source preservation (10 Nov)
+
+The existing `scripts/audit-harley-model-pages.mjs` covers **21** source
+guides. An exact catalogue-make/model audit resolved **18** to one existing
+Harley-Davidson canonical ID. Three were intentionally excluded:
+
+- **CVO** is a multi-model factory programme, not one motorcycle model.
+- **Hydra-Glide Revival** has no exact catalogue model ID.
+- **XR1000** has no exact catalogue model ID.
+
+The 18 exact matches were source-checked against their individual HTML `h1`
+and introductory `lead` copy before a single atomic **18-section** import.
+The existing conservative `extract-model-section-candidates.mjs` then
+captured **40 more** explicit source sections from those 18 pages:
+18 buying-guidance, 16 chronology, five technical-reference and one
+generation section. A second atomic import copied these into private review
+staging with category, source path and exact Git blob revision.
+
+**Verified post-import state:** 58 Harley-Davidson research sections across
+18 canonical models, all `draft`, all `pending_review`, with no publication
+dates and zero source-review exceptions. These are source captures, **not**
+fully fact-checked production specifications.
+
+Global staged state after this batch:
+
+| Measure | Verified |
+| --- | ---: |
+| Catalogue model IDs | 979 |
+| Staged canonical model IDs | 142 |
+| Model research sections | 945 |
+| Manufacturer research sections | 40 |
+| Total universal staged sections | 985 |
+| Public universal published sections | 0 |
+
+Identity/research workstreams after the imports: **19** identity review,
+**138** existing draft review, **822** need new research. No outstanding
+overview-only source-verification queue remains in the current catalogue.
+
+New repeatable controls:
+
+- `scripts/sql/stage-harley-eighteen-model-introductions-draft-only.sql`
+- `scripts/sql/stage-harley-research-excerpts-draft-only.sql`
+- `scripts/check-harley-source-intake.mjs`
+- `scripts/sql/report-all-manufacturer-draft-provenance.sql`
+
+The two import scripts are **one-time** guarded inserts, not scheduled imports.
+They will refuse to overwrite existing staging records. GitHub CI now includes
+the Harley source-identity and extraction parity check.
+
+**Preservation:** neither BMW nor Harley approved HTML was edited;
+stock access, customer enquiries, published content, and catalogue IDs
+remained unchanged. The site deploy and complete GitHub Actions run still
+require independent verification before any claim of live rollout.
