@@ -19,6 +19,9 @@ export function canonicalStockMatches(item, page) {
   if (typeof page.model_name === 'string' && page.model_name.trim() &&
       typeof item.model === 'string' && item.model.trim() &&
       normalize(page.model_name) !== normalize(item.model)) return false;
+  if (typeof page.manufacturer_name === 'string' && page.manufacturer_name.trim() &&
+      typeof item.make === 'string' && item.make.trim() &&
+      normalize(page.manufacturer_name) !== normalize(item.make)) return false;
   // The endpoint has final authority over publication, permissions and available listings.
   if (item.publication_eligible !== true) return false;
   return item.item_id != null && String(item.item_id).length > 0;
