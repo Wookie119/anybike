@@ -182,7 +182,14 @@
    section.append(heading,context,brands);
    block.appendChild(section);
   }
-  root.appendChild(block);
+  // Put research immediately after the motorcycle-model section rather
+  // than after UK port handover and directly above the footer. Rich market
+  // layouts have a model grid; compact layouts retain the safe end fallback.
+  const modelGrid=document.querySelector('.model-grid');
+  const modelSection=modelGrid?.closest('section');
+  if(modelSection&&root.contains(modelSection))
+   modelSection.insertAdjacentElement('afterend',block);
+  else root.appendChild(block);
  }
  if(document.readyState==='loading')
   document.addEventListener('DOMContentLoaded',mount,{once:true});
