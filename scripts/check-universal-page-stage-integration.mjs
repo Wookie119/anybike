@@ -206,6 +206,23 @@ assert.equal(await first,null,'Older response must not display after newer empty
 assert.equal(raceEmptyRoot.childNodes[0].tagName,'sentinel','Older result replaced empty view');
 
 
+const staleFailureRoot=stage();
+let failOld,finishLatest;
+const obsolete=loadAndRenderUniversalStage({
+ client:delayed(client([], {message:'Old request denied'}),finish=>{failOld=finish}),
+ root:staleFailureRoot,type:'model',id:77,manufacturerName:'BMW'
+});
+const latest=loadAndRenderUniversalStage({
+ client:delayed(client([published(68,'R 1250 GS')]),finish=>{finishLatest=finish}),
+ root:staleFailureRoot,type:'model',id:68,manufacturerName:'BMW'
+});
+finishLatest();
+assert.equal((await latest).identity.id,68,'Latest BMW selection failed');
+failOld();
+assert.equal(await obsolete,null,'Stale fetch error must be discarded');
+assert.equal(staleFailureRoot.dataset.anybikeRenderedEntity,'model:68',
+ 'An obsolete request failure interrupted the newer model page');
+
 const mutableStock=[{...match}];
 const mutableRoot=stage();
 let finishMutable;
