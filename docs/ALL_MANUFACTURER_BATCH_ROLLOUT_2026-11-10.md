@@ -152,3 +152,78 @@ the Harley source-identity and extraction parity check.
 stock access, customer enquiries, published content, and catalogue IDs
 remained unchanged. The site deploy and complete GitHub Actions run still
 require independent verification before any claim of live rollout.
+
+## Primary manufacturer evidence verification — 10 Nov follow-on
+
+The existing manufacturer-wide structured catalogue contains **399 evidence
+records**: 194 individual facts, 92 generation records and 113 dated
+timeline events. Original source/index dates and exact model IDs are
+preserved. The generation and timeline records remain pending editorial
+review and MUST NOT be promoted based on their HTTPS links alone.
+
+Implemented one **cross-manufacturer evidence review planner** and one
+**independent publication preflight**. The preflight requires a canonical
+model ID, a fact marked source-verified, an exact matching HTTPS audit URL,
+a documented verification basis and checked date, plus explicit editorial
+signoff. A source review is not permission to publish.
+
+The source-review worklist initially identified 64 facts with matching
+independent audit trails, 48 verified facts without audit records, and
+13 with different URLs between the fact and audit. Among the 13,
+three differ only by URL query parameters while ten refer to different
+document paths; these have **not** been automatically reconciled.
+
+Directly inspected these original manufacturer sources on 10 Nov 2026:
+- Suzuki Global motorcycle digital archive pages for TM125/RM125 and
+  TM250/RM250 (15 exact-year facts).
+- Honda Global's CB750 FOUR heritage chapter (two factory-location/
+  production-transfer facts).
+- Yamaha Communication Plaza's original 1974 YZ250/M listing (three
+  exact-year engineering facts).
+- Honda Global's 1950s history and its 75-year automatic transmission
+  chapter (1958 Super Cub C100 introduction and centrifugal clutch).
+
+**22 fact-audit records were inserted, append-only, into
+`motorcycle_catalog_fact_verification_audit`**, with exact canonical fact ID,
+matching existing source URL, source-document scope, factual verification
+basis, and date. All inserts were guarded as atomic transactions that refuse
+changed model IDs, changed sources, or pre-existing audits. Related claims
+not fully supported by the inspected source were deliberately excluded;
+the existing fact rows were never altered.
+
+Verified after both operations:
+
+| Fact-review measure | Current |
+| --- | ---: |
+| Source-verified catalogue facts | 125 |
+| Complete consistent source audits | 86 |
+| Missing source-audit records | 26 |
+| Fact/audit source URL disagreements | 13 |
+| Universal sections staged | 985 |
+| Universal sections published | 0 |
+
+The existing **64** previously audited facts were already embedded in
+research sections; none was imported twice. The 205 historical generation
+and timeline records all have valid canonical model IDs, HTTPS documentary
+URLs, titles and plausible dates, but all still await editorial review.
+
+Code/test/report additions:
+- `model-template/catalogue-evidence-review-batches.mjs`
+- `model-template/catalogue-evidence-publication-preflight.mjs`
+- Corresponding unit/regression checks in `scripts/`, wired into the
+  universal catalogue CI workflow
+- `scripts/sql/report-all-manufacturer-evidence-review.sql`
+- `scripts/sql/report-universal-embedded-fact-release-gates.sql`
+- `scripts/sql/report-catalogue-history-evidence-readiness.sql`
+- `scripts/sql/audit-17-honda-suzuki-primary-source-facts.sql`
+- `scripts/sql/audit-five-honda-yamaha-primary-source-facts.sql`
+
+Also extended the one universal renderer's verified-fact field whitelist
+to display source-backed documentary text and typed engine layout,
+valvetrain, power, gearbox, shaft drive and brake figures. The full
+renderer and stage-integration regression scripts passed against the
+current fetched GitHub modules. Full GitHub Actions and actual live
+deployment remain separately unverified.
+
+**No public pages or publication approvals changed. No manufacturer
+or canonical model IDs were renamed. No stock permissions were widened.**
