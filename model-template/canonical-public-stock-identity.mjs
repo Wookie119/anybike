@@ -24,7 +24,9 @@ export function canonicalStockMatches(item, page) {
       normalize(page.manufacturer_name) !== normalize(item.make)) return false;
   // The endpoint has final authority over publication, permissions and available listings.
   if (item.publication_eligible !== true) return false;
-  return item.item_id != null && String(item.item_id).length > 0;
+  // The listing route accepts a positive integer stock ID. Arbitrary values
+  // would create unusable or misleading motorcycle detail links.
+  return validCatalogueId(item.item_id);
 }
 export function stockForCanonicalModel(items, page, limit = 6) {
   if (!Array.isArray(items)) return [];
