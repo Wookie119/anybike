@@ -155,7 +155,10 @@ export function renderUniversalPage(root,payload){
     for(const item of view.stock){
       const a=node(doc,'a','','anybike-universal-stock-item');
       a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(String(item.item_id));
-      a.append(node(doc,'strong',[item.make,item.model,item.year].filter(Boolean).join(' ')||view.identity.name));
+      // Canonical model identity is authoritative even if a stock feed carries stale display text.
+      // Never label an R 1250 GS card as an R 1300 GS because of a mislabelled advert.
+      const year=Number.isInteger(Number(item.year))&&Number(item.year)>=1885&&Number(item.year)<=2100?String(item.year):'';
+      a.append(node(doc,'strong',[view.identity.name,year].filter(Boolean).join(' ')));
       if(Number.isFinite(Number(item.price))&&Number(item.price)>0)
         a.append(node(doc,'span','£'+Number(item.price).toLocaleString('en-GB')));
       list.append(a);
