@@ -191,6 +191,31 @@ assert(yearContextNodes.some(x=>x.className==='anybike-universal-model-years'),
  'Model-year context class missing from shared layout');
 
 
+// Manufacturer-provided source_url is a citation only with explicit source
+// verification; raw draft provenance must not become a public link.
+const manufacturerCitationRoot=new FakeElement('main',documentFake);
+manufacturerCitationRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(manufacturerCitationRoot,{entity:gs,sections:[
+ mk(gs,1,{summary:'Reviewed introduction',source_url:'https://example.org/factory',
+  source_verification_status:'verified'}),
+ mk(gs,7,{timeline:[
+  {description:'Verified original source',source_url:'https://example.org/model-history',
+   source_verification_status:'verified'},
+  {description:'Unreviewed source link may not appear',
+   source_url:'https://example.org/pending-factory',
+   source_verification_status:'pending_review'},
+  {description:'Invalid original source',source_url:'javascript:alert(1)',
+   source_verification_status:'verified'}
+ ]})
+]});
+const manufacturerCitations=collect(manufacturerCitationRoot).filter(x=>x.tagName==='a');
+for(const url of ['https://example.org/factory','https://example.org/model-history'])
+ assert(manufacturerCitations.some(x=>x.href===url&&x.rel==='noopener noreferrer'),
+  'Approved factory source citation suppressed: '+url);
+assert(!manufacturerCitations.some(x=>x.href==='https://example.org/pending-factory'),
+ 'Unreviewed source was exposed as an approved citation');
+assert(!manufacturerCitations.some(x=>String(x.href).startsWith('javascript:')),
+ 'Unsafe manufacturer URL became a citation');
 const imageRoot=new FakeElement('main',documentFake);
 imageRoot.dataset.anybikeUniversalRoot='true';
 renderUniversalPage(imageRoot,{entity:{...gs,manufacturer_name:'BMW'},sections:[],stock:[
