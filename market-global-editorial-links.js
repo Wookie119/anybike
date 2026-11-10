@@ -57,6 +57,68 @@
    ['Works riders and motorcycle racing stories','/anybike-global.html#racing-legends']
   ]
  };
+ // Editorial country connections, not a claim about current factory location,
+ // ownership, local dealerships or motorcycle availability. The note beside
+ // each brand explains why it is relevant to that country's motorcycle history.
+ const manufacturerHeritage={
+  japan:[
+   ['Honda','Japanese manufacturer established in 1948'],
+   ['Yamaha','Japanese motorcycle manufacturer'],
+   ['Suzuki','Japanese motorcycle manufacturer'],
+   ['Kawasaki','Japanese motorcycle and engineering history']
+  ],
+  italy:[
+   ['Ducati','Founded in Bologna'],
+   ['Aprilia','Italian motorcycle heritage'],
+   ['Moto Guzzi','Founded in Mandello del Lario'],
+   ['Benelli','Historic motorcycle brand founded in Pesaro'],
+   ['Bimota','Italian specialist motorcycle engineering'],
+   ['MV Agusta','Historic Italian motorcycle marque']
+  ],
+  germany:[
+   ['BMW','German motorcycle manufacturing and engineering']
+  ],
+  'united-kingdom':[
+   ['Triumph','British motorcycle heritage'],
+   ['BSA','Historic British motorcycle marque; ownership has changed'],
+   ['Norton','British motorcycle heritage'],
+   ['AJS','Historic British motorcycle marque']
+  ],
+  'united-states':[
+   ['Harley-Davidson','American motorcycle heritage'],
+   ['Indian Motorcycle','Historic American motorcycle marque'],
+   ['Zero Motorcycles','American electric-motorcycle brand']
+  ],
+  india:[
+   ['Royal Enfield','British origins; modern production strongly associated with India']
+  ],
+  austria:[
+   ['KTM','Austrian motorcycle heritage']
+  ],
+  sweden:[
+   ['Husqvarna','Swedish roots; later ownership and manufacturing moved']
+  ],
+  spain:[
+   ['GASGAS','Motorcycle marque with Spanish origins'],
+   ['Rieju','Historic Spanish motorcycle manufacturer']
+  ],
+  france:[
+   ['Peugeot Motocycles','French powered-two-wheeler heritage']
+  ],
+  taiwan:[
+   ['Kymco','Taiwanese powered-two-wheeler manufacturer'],
+   ['SYM','Taiwanese powered-two-wheeler manufacturer']
+  ],
+  china:[
+   ['CFMOTO','Chinese motorcycle manufacturer'],
+   ['QJMotor','Chinese motorcycle manufacturer'],
+   ['Voge','Chinese motorcycle brand']
+  ]
+ };
+ const dedicatedManufacturerLink=make=>
+  make==='BMW'?'/bmw-motorcycles.html':
+  make==='Harley-Davidson'?'/harley-davidson-motorcycles.html':
+  '/motorcycle-brand.html?make='+encodeURIComponent(make)+'#models';
  const anchor=(label,url)=>{
   const a=document.createElement('a');
   a.href=url;a.textContent=label+' →';
@@ -93,6 +155,33 @@
    nav.appendChild(anchor(label,url));
   }
   block.append(h,p,nav);
+  const heritage=manufacturerHeritage[slug]||[];
+  if(heritage.length){
+   const section=document.createElement('div');
+   section.dataset.anybikeManufacturerHeritage='true';
+   section.style.cssText='margin-top:24px;padding-top:18px;border-top:1px solid #393939';
+   const heading=document.createElement('h3');
+   heading.textContent='Motorcycle manufacturers connected with this country';
+   heading.style.cssText='margin:0 0 8px;font-size:clamp(20px,2.5vw,25px);color:#fff';
+   const context=document.createElement('p');
+   context.textContent='Explore the history of motorcycle marques associated with '+
+    country+'. Historical origins do not necessarily reflect current ownership or factory location.';
+   context.style.cssText='margin:0 0 14px;color:#ddd;line-height:1.5';
+   const brands=document.createElement('nav');
+   brands.setAttribute('aria-label','Motorcycle manufacturer heritage for '+country);
+   brands.style.cssText='display:flex;flex-wrap:wrap;gap:10px';
+   for(const [make,history] of heritage){
+    const item=document.createElement('div');
+    item.style.cssText='display:flex;flex-direction:column;gap:5px;max-width:270px';
+    item.appendChild(anchor(make,dedicatedManufacturerLink(make)));
+    const detail=document.createElement('small');
+    detail.textContent=history;
+    detail.style.cssText='color:#c9c9c9;line-height:1.4';
+    item.appendChild(detail);brands.appendChild(item);
+   }
+   section.append(heading,context,brands);
+   block.appendChild(section);
+  }
   root.appendChild(block);
  }
  if(document.readyState==='loading')
