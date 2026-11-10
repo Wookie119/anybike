@@ -76,7 +76,13 @@
    ['Moto Guzzi','Founded in Mandello del Lario'],
    ['Benelli','Historic motorcycle brand founded in Pesaro'],
    ['Bimota','Italian specialist motorcycle engineering'],
-   ['MV Agusta','Historic Italian motorcycle marque']
+   ['MV Agusta','Historic Italian motorcycle marque'],
+   ['Beta','Florence origins in 1905; subsequently developed off-road motorcycles'],
+   ['Fantic','Italian motorcycle manufacturer established in 1968'],
+   ['Piaggio','Italian vehicle group founded in 1884; creator of Vespa'],
+   ['Vespa','Italian scooter marque introduced by Piaggio in 1946'],
+   ['Moto Morini','Bologna motorcycle company founded by Alfonso Morini in 1937'],
+   ['Italjet','Italian two-wheeler marque founded in Bologna in 1960']
   ],
   germany:[
    ['BMW','German motorcycle manufacturing and engineering']
@@ -85,7 +91,9 @@
    ['Triumph','British motorcycle heritage'],
    ['BSA','Historic British motorcycle marque; ownership has changed'],
    ['Norton','British motorcycle heritage'],
-   ['AJS','Historic British motorcycle marque']
+   ['AJS','Historic British motorcycle marque'],
+   ['CCM','Bolton motorcycle manufacturer founded in 1971'],
+   ['Maeving','British electric-motorcycle company founded in 2018']
   ],
   'united-states':[
    ['Harley-Davidson','American motorcycle heritage'],
@@ -123,9 +131,9 @@
  // Keep this editorial layer in one shared data map for all 217 markets.
  const regionalHistory={
   japan:'Japan grew into a major motorcycle engineering centre after the Second World War. Honda, Yamaha, Suzuki and Kawasaki developed distinct approaches to road motorcycles, racing and manufacturing. Explore their histories and compare documented model generations.',
-  italy:'Italy has a long tradition of motorcycle design, racing and specialist engineering, from Moto Guzzi and Ducati to Benelli, Aprilia, Bimota and MV Agusta. Several historic marque names have changed ownership over time.',
+  italy:'Italy has a long tradition of motorcycle design, racing, scooters and specialist engineering. Moto Guzzi, Ducati, Benelli, Aprilia, Bimota and MV Agusta sit alongside historic off-road specialists Beta and Fantic, Bologna-born Moto Morini and Italjet, and Piaggio’s Vespa story. Founding origins are distinct from present ownership and factory locations.',
   germany:'German motorcycle history includes BMW boxer-engine development and changing approaches to touring, adventure motorcycles and vehicle engineering. Factory origins and modern model specifications should be researched separately.',
-  'united-kingdom':'Britain has a deep motorcycle heritage, including Triumph, BSA, Norton and AJS. Many historic marques were reorganised or revived, so their founding history must be distinguished from current ownership and production.',
+  'united-kingdom':'Britain has a deep motorcycle heritage, including Triumph, BSA, Norton and AJS. Bolton-based CCM and newer British electric-motorcycle company Maeving add different chapters. Many historic marques were reorganised or revived, so their founding history must be distinguished from current ownership and production.',
   'united-states':'American motorcycle history includes Harley-Davidson and Indian Motorcycle, alongside newer electric-motorcycle ventures such as Zero Motorcycles. Motorcycle heritage and present-day factory locations are not interchangeable.',
   india:'India is a major centre of modern motorcycle production. Royal Enfield provides a particularly useful case study: a historic British-origin marque whose later development and manufacturing have become closely associated with India.',
   austria:'Austrian motorcycle development includes KTM and competition-led engineering. Its corporate ownership and manufacturing arrangements have evolved; brand origins should not be read as a promise about where a given motorcycle was built.',
