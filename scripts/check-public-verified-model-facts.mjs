@@ -37,8 +37,8 @@ assert.deepEqual(measured[1].display,[
 assert(measured[2].display.some(x=>x.value==='237 kg'));
 assert.deepEqual(exactVerifiedModelFacts([sample({
  fact_id:144,value:{amount:5,unit:'<img onerror=alert(1)>',model_year:1976}
-})],'Suzuki','RM250')[0].display.map(x=>x.label),['Amount','Unit','Model year'],
- 'Invalid units must never be treated as approved measurement markup');
+})],'Suzuki','RM250')[0].display.map(x=>x.label),['Model year'],
+ 'Invalid unit payloads must not appear as public specifications');
 
 const documentedColour=exactVerifiedModelFacts([sample({
  fact_id:52,category:'factory_colours',label:'Factory colour: Blackstorm metallic',
