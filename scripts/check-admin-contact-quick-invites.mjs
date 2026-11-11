@@ -50,6 +50,36 @@ assert(page.includes("functions.invoke('anybike-send-dealer-invitation-sms'"),
  'Actual chargeable SMS send still needs the existing confirmed server call');
 assert(page.includes('This is a REAL chargeable SMS.'),
  'A chargeable provider send must have final explicit confirmation');
+
+// Everyday dealer recruitment uses open contact cards. The full table remains
+// available for advanced editing and historic/bulk invitation workflows.
+assert(page.includes('id="contactCards" class="dealer-cards"'),
+ 'The primary dealer directory must render spacious contact cards');
+assert(page.includes('id="directoryTable" hidden'),
+ 'The dense contact table must not be the initial view');
+assert(page.includes('function renderContactCards(shown)'),
+ 'Contact cards must respect the current filtered and paginated results');
+assert(page.includes("renderContactCards(shown)"),
+ 'The normal directory refresh must update the card view');
+assert(page.includes('data-card-channel="email"')&&page.includes('data-card-channel="sms"'),
+ 'Each card must expose email and SMS invitation review together');
+assert(page.includes("reviewSingleQuickInvite(channel,{card:true})"),
+ 'Card invitations must use the original guarded preview/send handlers');
+assert(page.includes("target.replaceChildren(preview)"),
+ 'A new card preview must move the existing source reviewed message');
+assert(page.includes("if(existing)existing.remove()")&&page.includes("if(target)target.append(existing)"),
+ 'A contact refresh must retain the already reviewed invitation');
+assert(page.includes("table.classList.toggle('simple-contact-table',!showTable)"),
+ 'Switching to the advanced table must restore its permission columns');
+assert(page.includes("const smsOK=/^07\\d{9}$/.test(phone)"),
+ 'SMS cards must require a valid UK mobile');
+assert(page.includes("!/^unknown@/i.test(email)"),
+ 'Imported placeholder email addresses cannot be invited');
+assert(page.includes("const prohibited=!consent||registered"),
+ 'Unapproved and already registered contacts must not get active invitation buttons');
+assert(page.includes('id="pageSize"><option value="12" selected>12'),
+ 'The open directory must show a manageable number of cards per page');
+
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
