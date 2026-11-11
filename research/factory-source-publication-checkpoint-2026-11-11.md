@@ -9,7 +9,7 @@ publish draft content, or alter customer stock/enquiry pathways.
 - Master catalogue: **979** models; clean public catalogue: **965** exact IDs.
 - Catalogue facts: **194** rows, including **125** marked `verified`; **69**
   remain unverified or pending.
-- **125** verified facts now have a database audit record with matching source
+- **135** verified facts now have a database audit record with matching source
   URL, a checked timestamp and verification basis. This is an **audit-record
   matching result**; it does not replace editorial acceptance or prove all
   historic sources are still online.
@@ -64,7 +64,7 @@ available to the customer when separately permitted.
 
 ## Next large publication batches
 
-1. Resolve the **69 unverified fact rows** in source groups, not one public
+1. Resolve the **59 unverified fact rows** in source groups, not one public
    page at a time.
 2. Review 277 staged model research packets against the verified-facts audit,
    manufacturer source, year, country and photograph permissions.
@@ -81,3 +81,45 @@ Run `scripts/sql/check-verified-source-and-publication-safety-2026-11-11.sql`
 and `scripts/sql/audit-all-model-coverage-2026-11-11.sql` against Supabase.
 GitHub Actions `Universal catalogue integrity` also guards the shared
 renderer, approved R 1300 GS, dedicated model stock and guide routes.
+
+## Second source-verification batch — 11 November 2026
+
+Ten existing fact records were cross-checked against factory press material,
+individually audited in Supabase and changed from pending to verified:
+
+- **2023 BMW R 1250 R** (facts 124–126): Ice Grey standard, Triple Black /
+  Black Storm Metallic and Style Sport / Racing Blue Metallic. Original
+  BMW Canada press kit:
+  https://www.press.bmwgroup.com/canada/article/detail/T0405140EN/the-new-bmw-r-1250-r-roadster?language=en
+- **2017-era BMW K 1600 GT** (facts 108,110,111): Blackstorm metallic,
+  Lupine Blue metallic / Blackstorm metallic and Mars Red metallic. Factory
+  launch source:
+  https://www.press.bmwgroup.com/global/article/detail/T0263816EN/the-new-bmw-k-1600-gt?language=en
+  Canada 2017 market launch corroboration:
+  https://www.press.bmwgroup.com/canada/article/detail/T0264869EN/the-new-bmw-k-1600-gt
+  BMW model year 2019 update records withdrawal of the Mars Red and Lupine
+  Blue finish:
+  https://www.press.bmwgroup.com/africa-dom-easteurope/article/detail/T0282746EN/bmw-motorrad-model-revision-measures-for-model-year-2019?language=en
+- **BMW CE 02** (fact 92): label corrected to say **motor-cover finish**
+  rather than whole-bike body colour. BMW factory 2023 launch:
+  https://www.press.bmwgroup.com/global/article/detail/T0422302EN/the-new-bmw-ce-02?language=en
+- **BMW R 18, model year 2022** (fact 134): Option 719 Galaxy Dust metallic /
+  Titanium silver2 metallic from BMW model revision bulletin:
+  https://www.press.bmwgroup.com/global/article/detail/T0336699EN/updates-for-bmw-r-18-and-r-18-classic?language=en
+- **BMW R 1200 RT** (facts 145,146): Ostra Grey metallic matt and Polar
+  metallic explicitly named in the 2009 factory press kit; no exact
+  production year inferred:
+  https://www.press.bmwgroup.com/global/article/detail/T0060833EN/the-new-bmw-r-1200-rt?language=en
+
+Production database confirmed 194 facts: **135 verified with matching audit
+records**, **59 pending**. None of these updates authorise universal editorial
+publication. The unchanged approved BMW/Harley designs remain protected.
+
+## Public connection release gate
+
+The existing `public_anybike_verified_model_facts_v1` Supabase RPC was
+updated in place with a matching-fact source audit requirement (same source
+URL, non-empty verification basis and checked timestamp not in future).
+Six existing model results were checked both before and after and retained
+their original counts. A repeatable read-only SQL regression script is in
+`scripts/sql/check-public-verified-fact-rpc-audit-2026-11-11.sql`.
