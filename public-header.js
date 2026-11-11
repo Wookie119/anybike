@@ -3005,10 +3005,13 @@ async function anybikeShowPublicSignedInIdentity(){
     const res=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
     if(!res.ok)throw Error('Research unavailable');
     const all=await res.json();
-    const guide=Object.values(all.models||{}).find(x=>safe(x.make)===safe(make)&&safe(x.model)===safe(model));
-    const generations=(guide?.production?.generations||[]).filter(x=>x.description);
+    // One incomplete research row must not hide the entire model's verified content.
+    const guides=all&&all.models&&typeof all.models==='object'&&!Array.isArray(all.models)?Object.values(all.models):[];
+    const guide=guides.find(x=>x&&typeof x.make==='string'&&typeof x.model==='string'&&
+      safe(x.make)===safe(make)&&safe(x.model)===safe(model));
+    const generations=(Array.isArray(guide?.production?.generations)?guide.production.generations:[]).filter(x=>x&&typeof x.description==='string'&&x.description.trim());
     const notes=generations.length?generations.map(x=>({label:x.model_year||x.label||'Model year',body:x.description,image:x.image})):
-     (guide?.sections||[]).filter(x=>Array.isArray(x)&&x[1]).map(x=>({label:x[0],body:x[1]}));
+     (Array.isArray(guide?.sections)?guide.sections:[]).filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&typeof x[1]==='string'&&x[1].trim()).map(x=>({label:x[0],body:x[1]}));
     for(const n of notes.slice(0,14))researchCard(n.label,n.body,n.image);
     if(!notes.length){research.remove();}
    }catch(_){research.remove();}
