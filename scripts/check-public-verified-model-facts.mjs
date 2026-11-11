@@ -21,6 +21,10 @@ const clean=exactVerifiedModelFacts([
 ],'Suzuki','RM250');
 assert.equal(clean.length,1);
 assert.equal(clean[0].display[0].label,'Engine capacity (cc)');
+assert.deepEqual(exactVerifiedModelFacts([sample({value:'  '})],'Suzuki','RM250'),[],
+ 'Whitespace-only source values must never create empty research cards');
+assert.equal(exactVerifiedModelFacts([sample({make:' Suzuki ',model:' RM250 '})],'Suzuki','RM250').length,1,
+ 'Identity comparison should tolerate surrounding whitespace but never another model');
 function fakeElement(tag){
  return {
   tag,children:[],dataset:{},style:{},textContent:'',href:'',target:'',rel:'',
@@ -71,4 +75,8 @@ assert(renderSource.includes('minmax(min(100%,420px),1fr)'),
  'Factory research columns must be wide enough for legible specifications');
 assert(renderSource.includes('minmax(0,1fr);gap:9px 14px'),
  'Long technical values must wrap instead of forming cramped columns');
+assert(renderSource.includes("term.style.cssText='color:#e1e1e1"),'Technical labels must remain readable');
+assert(renderSource.includes("value.style.cssText='color:#fff"),'Verified values must remain readable');
+assert(renderSource.includes("source.style.cssText='display:inline-block;color:#fff"),'Factory source links must have legible colour');
+assert(renderSource.includes("groupHeading.style.cssText='color:#fff"),'Research headings must remain readable');
 console.log('PASS: shared exact-model verified records, no foreign/draft records, safe source URLs, reused renderer and missing-data fallback');
