@@ -181,7 +181,7 @@
   <div class="bulk-review-buttons">
    <button type="button" id="bulkSelectVisible">Select 12 visible</button>
    <button type="button" id="bulkClearSelected">Clear selection</button>
-   <button type="button" id="bulkReviewSelected" disabled>Review selected invitations</button>
+   <button type="button" id="bulkReviewSelected" disabled>Review selected email drafts</button>
   </div>
  </div>
  <div id="bulkReviewResults" hidden>
@@ -539,8 +539,8 @@ async function reviewInvitations({savedSmsOnly=false,channel='both'}={}){
  $('invitePreviews').replaceChildren();
  try{await refreshSmsHistory({savedSmsOnly})}catch(e){$('queue').textContent='SMS history unavailable: '+e.message+'. No invitations can be sent until this is resolved.';$('invitePreviews').innerHTML='';return;}
 
- const approved=items.filter(r=>r.approved_for_invitation);
- queue=savedSmsOnly||channel==='sms'?[]:approved.filter(r=>chosen.has(r.id)&&r.email&&!String(r.email).toLowerCase().startsWith('unknown@')&&!/@app\.movemotorcycles\.co\.uk$/i.test(String(r.email)));
+ const approved=items.filter(r=>r.approved_for_invitation&&!['registered','approved'].includes(contactRecruitmentStatus(r)));
+ queue=savedSmsOnly||channel==='sms'?[]:approved.filter(r=>chosen.has(r.id)&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(r.email||''))&&!String(r.email).toLowerCase().startsWith('unknown@')&&!/@app\.movemotorcycles\.co\.uk$/i.test(String(r.email)));
  smsQueue=approved.filter(r=>(savedSmsOnly||channel!=='email')&&r.sms_invite_selected&&(savedSmsOnly||chosen.has(r.id))&&/^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,'')));
  pos=0;smsPos=0;$('draft').disabled=true;$('smsDraft').disabled=true;
  $('queue').textContent=savedSmsOnly
