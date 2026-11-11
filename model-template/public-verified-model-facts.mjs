@@ -26,13 +26,13 @@ const factLabels={
  power_hp:'Power (hp)',engine_type:'Engine configuration'
 };
 const pretty=x=>factLabels[x]||x.replace(/_/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
-const scalar=x=>typeof x==='string'?x:typeof x==='number'&&Number.isFinite(x)?String(x):null;
+const scalar=x=>typeof x==='string'&&x.trim()?x.trim():typeof x==='number'&&Number.isFinite(x)?String(x):null;
 export function exactVerifiedModelFacts(rows,make,model){
  if(!Array.isArray(rows)||!safeText(make)||!safeText(model))return [];
  const seen=new Set(),out=[];
  for(const row of rows){
-  if(!row||safeText(row.make).toLowerCase()!==make.toLowerCase()||
-      safeText(row.model).toLowerCase()!==model.toLowerCase()||
+  if(!row||safeText(row.make).toLowerCase()!==safeText(make).toLowerCase()||
+      safeText(row.model).toLowerCase()!==safeText(model).toLowerCase()||
       !Object.hasOwn(sections,row.category)||!safeText(row.label)||
       !validUrl(row.source_url)||!Number.isSafeInteger(Number(row.fact_id))||
       Number(row.fact_id)<=0||seen.has(row.fact_id))continue;
@@ -67,7 +67,9 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  panel.className='card feature anybike-verified-model-research';
  panel.dataset.anybikeVerifiedModelFacts='1';
  panel.style.cssText='grid-column:1/-1;min-width:0;background:#171717;color:#fff;border:1px solid #555;border-top:3px solid #ed1c24';
- panel.append(node(doc,'h2',make+' '+model+' — documented factory research'));
+ const heading=node(doc,'h2',make+' '+model+' — documented factory research');
+ heading.style.cssText='color:#fff;line-height:1.3;overflow-wrap:anywhere';
+ panel.append(heading);
  const yearFacts=facts.filter(x=>x.category==='model_year'&&Number.isInteger(Number(x.start_year))&&Number(x.start_year)>=1885&&Number(x.start_year)<=2100);
  const sortedYears=[...new Set(yearFacts.map(x=>Number(x.start_year)))].sort((a,b)=>a-b);
  if(sortedYears.length){
@@ -79,24 +81,37 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   intro.style.cssText='font-size:16px;line-height:1.65;color:#f0f0f0';
   panel.append(intro);
  }
- panel.append(node(doc,'p','Model-year and market-specific source records. Figures are not interchangeable between generations; verify the exact motorcycle before buying.'));
+ const caveat=node(doc,'p','Model-year and market-specific source records. Figures are not interchangeable between generations; verify the exact motorcycle before buying.');
+ caveat.style.cssText='color:#e8e8e8;line-height:1.65';
+ panel.append(caveat);
  for(const [category,items] of grouped){
   const group=doc.createElement('div');
   group.style.cssText='padding:14px 0;border-top:1px solid #444';
-  group.append(node(doc,'h3',sections[category]));
+  const groupHeading=node(doc,'h3',sections[category]);
+  groupHeading.style.cssText='color:#fff;line-height:1.35';
+  group.append(groupHeading);
   const grid=doc.createElement('div');
   grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px;align-items:stretch';
   for(const fact of items){
    const article=doc.createElement('article');
    article.style.cssText='background:#242424;color:#fff;border:1px solid #666;border-radius:8px;padding:18px;min-width:0;overflow-wrap:anywhere';
-   article.append(node(doc,'h4',fact.label));
+   const factHeading=node(doc,'h4',fact.label);
+   factHeading.style.cssText='color:#fff;line-height:1.4;margin:0 0 10px;overflow-wrap:anywhere';
+   article.append(factHeading);
    const detail=[fact.start_year&&'Reference year: '+fact.start_year,
     safeText(fact.market)&&'Market: '+fact.market].filter(Boolean);
-   if(detail.length)article.append(node(doc,'p',detail.join(' · ')));
+   if(detail.length){
+    const detailLine=node(doc,'p',detail.join(' · '));
+    detailLine.style.cssText='color:#e5e5e5;line-height:1.5';
+    article.append(detailLine);
+   }
    const dl=doc.createElement('dl');
-   dl.style.cssText='display:grid;grid-template-columns:minmax(115px,34%) minmax(0,1fr);gap:9px 14px;line-height:1.5;overflow-wrap:anywhere;color:#fff';
+   dl.style.cssText='display:grid;grid-template-columns:minmax(0,34%) minmax(0,1fr);gap:9px 14px;line-height:1.55;overflow-wrap:anywhere;color:#fff;margin:0';
    for(const entry of fact.display){
-    dl.append(node(doc,'dt',entry.label),node(doc,'dd',entry.value));
+    const term=node(doc,'dt',entry.label),value=node(doc,'dd',entry.value);
+    term.style.cssText='color:#e1e1e1;font-weight:600;min-width:0;margin:0';
+    value.style.cssText='color:#fff;min-width:0;margin:0;overflow-wrap:anywhere';
+    dl.append(term,value);
    }
    article.append(dl);
    grid.append(article);
@@ -110,12 +125,12 @@ export function mountVerifiedModelFacts(body,rows,make,model){
     sources.set(fact.source_url,safeText(fact.source_name)||'Manufacturer source');
   }
   const references=doc.createElement('p');
-  references.style.cssText='margin:12px 0 0';
+  references.style.cssText='margin:12px 0 0;color:#f0f0f0;line-height:1.7;overflow-wrap:anywhere';
   references.append(node(doc,'strong',sources.size===1?'Source: ':'Sources: '));
   for(const [url,name] of sources){
    const source=node(doc,'a',name+' ↗');
    source.href=url;source.target='_blank';source.rel='noopener noreferrer';
-   source.style.cssText='margin-right:16px';
+   source.style.cssText='display:inline-block;color:#fff;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px;margin-right:16px;overflow-wrap:anywhere';
    references.append(source);
   }
   group.append(references);
