@@ -139,6 +139,13 @@ assert(html.includes('Object.values(guides.models).find(g=>g&&typeof g.make==="s
 assert(html.includes('el("sourceBottom").href=request'),
  'Unavailable model research must retain the customer sourcing enquiry route');
 
+const relatedScript=readFileSync(new URL('../shared-model-catalogue.js',import.meta.url),'utf8');
+assert(relatedScript.includes('.filter(x=>x&&typeof x.make==="string"&&typeof x.model==="string"'),
+ 'Malformed master catalogue entries must never blank linked model research');
+assert(html.includes('/shared-model-catalogue.js?v=20261111safe1'),
+ 'Generic model pages must load the validated shared catalogue script');
+
+
 const renderSource=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
 assert(renderSource.includes('background:#242424;color:#fff;border:1px solid #666'),
  'Shared model specification cards must have legible foreground and background');
