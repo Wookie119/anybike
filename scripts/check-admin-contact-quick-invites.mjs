@@ -104,7 +104,7 @@ assert(page.includes('edit(Number(button.dataset.cardEdit),{inCard:true})'),
  'Daily Edit contact must open inside its own card instead of scrolling');
 assert(page.includes("slot.append(editor)")&&page.includes("if(inlineEditId&&editId===Number(inlineEditId))editor.remove()"),
  'Card refreshes must preserve the form, unsaved values and status');
-assert(page.includes("if(pending)shown=[pending,...shown]"),
+assert(page.includes("if(!cardsShown.some(r=>r.id===pending.id))cardsShown=[pending,...cardsShown]"),
  'Saving consent should not remove the current card from the active filter');
 assert(page.includes('const previousTop=editingCard?.getBoundingClientRect().top'),
  'Saving must anchor the contact card to its viewport position');
