@@ -86,7 +86,7 @@ export function exactVerifiedModelFacts(rows,make,model){
    facts.push(...Object.entries(row.value).filter(([key,value])=>
     /^[a-z][a-z0-9_]{0,50}$/i.test(key)&&
     !internalValueKeys.has(key.toLowerCase())&&
-    !(measurement&&(key==='amount'||key==='unit'))&&
+    !((measurement||Object.hasOwn(row.value,'unit'))&&(key==='amount'||key==='unit'))&&
     displayValue(value)!==null&&
     String(displayValue(value)).length<=500).slice(0,measurement?11:12)
     .map(([key,value])=>({label:pretty(key),value:displayValue(value)})));
