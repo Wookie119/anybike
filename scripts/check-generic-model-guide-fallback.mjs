@@ -133,4 +133,13 @@ assert(wrongMake.get('source').href.includes('make=Suzuki'),
 assert.equal((await check('Suzuki','RM250')).get('heading').textContent,'Suzuki RM250',
  'Pages must remain usable without a Supabase client');
 
+
+// Shared related-content display must not manufacture a blank panel when no
+// related motorcycle is present. This is a cross-manufacturer renderer guard.
+const relatedSource=readFileSync(new URL('../shared-model-catalogue.js',import.meta.url),'utf8');
+assert(relatedSource.includes('if(related.length){'),
+ 'Related motorcycle cards must be omitted when there are zero real matches');
+assert(!relatedSource.includes('Related model guides will appear as catalogue records are approved.'),
+ 'Never show a placeholder research card in place of real related motorcycles');
+
 console.log('PASS: six newly surfaced exact model guides preserve customer sourcing and avoid invented research when optional guide JSON is unavailable');
