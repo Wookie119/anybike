@@ -117,8 +117,8 @@ assert(page.includes("$('editorHome').after(editor)"),
 
 assert(page.includes("recentlySavedContactId=anchorId?Number(anchorId):null"),
  'Successful edit must show saved state on the same contact');
-assert(page.includes("$('editor').hidden=true;editId=null;$('editorHome').after($('editor'))"),
- 'Successful save must collapse and return the editor to its home');
+assert(page.includes("closeSavedContactEditor();\n }\n // Update the contact card"),
+ 'Successful save must collapse before refreshing the card');
 assert(page.includes("recentlySavedContactId===id?'✓ Saved successfully."),
  'The updated contact card must display saved confirmation');
 assert(page.includes("if((editingInline&&editId!==null||recentlySavedContactId!==null)"),
