@@ -70,6 +70,16 @@ test('stock is independent, development follows specifications, R1250 gallery st
  assert.ok(!r1300.includes('approved-bmw-page-shell.mjs'));
  assert.ok(r1300.includes('id="internationalModelStock"'));
 });
+test('optional BMW guide data cannot blank existing approved model sections',()=>{
+ const shell=fs.readFileSync('model-template/approved-bmw-page-shell.mjs','utf8');
+ assert.ok(shell.includes("const guides=data&&data.models&&typeof data.models==='object'&&!Array.isArray(data.models)"));
+ assert.ok(shell.includes("guides.find(g=>g&&typeof g.make==='string'&&typeof g.model==='string'"));
+ assert.ok(shell.includes("Array.isArray(local?.production?.generations)"));
+ assert.ok(shell.includes("typeof g.label==='string'&&typeof g.description==='string'"));
+ assert.ok(shell.includes("if(main.querySelector('#ukR1300ModelGallery'))return false"),'Approved R 1300 GS must remain untouched');
+ assert.ok(shell.includes('if(existing){'),'R 1250 GS approved model-year gallery must remain intact');
+});
+
 test('active shared public header protects exact-model stock above BMW research',()=>{
  const shared=fs.readFileSync('public-header.js','utf8');
  const segment=shared.slice(shared.indexOf('/* PROTECTED MODEL GALLERY'));
