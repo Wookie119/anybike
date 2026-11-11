@@ -73,6 +73,8 @@
 #contactCards[hidden],#directoryTable[hidden]{display:none!important}
 #directoryTable:not([hidden]){display:block}
 .dealer-contact-card{min-width:0;border:1px solid #494949;border-radius:13px;padding:20px 22px;background:#161616;box-shadow:0 2px 12px #0003}
+.dealer-contact-card.is-saved{border-color:#397c4b}
+.dealer-contact-card.is-saved .dealer-contact-feedback{color:#a7e7ab;font-weight:700}
 .dealer-contact-card.is-active{border-color:#ed1c24;grid-column:1/-1;background:#191919}
 .dealer-contact-head{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
 .dealer-contact-head h3{font-size:19px;line-height:1.3;margin:0 0 7px;color:#fff;overflow-wrap:anywhere}
@@ -171,7 +173,7 @@
 </div>
 <details id="advancedInvitations" style="margin:10px 0;border:1px solid #444;border-radius:8px;padding:8px"><summary style="cursor:pointer;font-weight:700;padding:8px">Invitation preview, email and SMS</summary><section class="panel"><h2>Selected contact — invitation actions</h2><p>Only contacts individually approved for invitations may be prepared. Email and SMS are drafts, not automatically sent.</p><label style="display:inline-flex;align-items:center;gap:6px;margin-right:10px">Recruitment status <select id="recruitmentFilter"><option value="all">All contacts</option><option value="not_invited">No sent invitation recorded</option><option value="invited">Invited / awaiting registration</option><option value="registered">Registered / awaiting approval</option><option value="approved">Approved dealer</option></select></label><button id="review">Review selected</button><button id="clearReview" type="button" title="Clear this preview and the current contact selections without deleting saved SMS history">Clear current review</button><button id="clearSentSelections" type="button" title="Reset invitation tick boxes only for emails already recorded as sent">Clear ticks on sent emails</button><button id="savedSms" type="button">Saved SMS invitations</button><button id="draft" disabled>Next email draft</button><button id="smsDraft" disabled>Next SMS draft</button><span id="queue"></span><div id="invitePreviews" style="display:grid;gap:12px;margin-top:14px"></div></section></details></section><div id="editorHome"></div><section id="editor" class="panel" hidden><h2 id="editTitle"></h2><div id="fields" class="edit"></div><label><input id="approved" type="checkbox">Permission reviewed and approved for invitations</label><label><input id="personal" type="checkbox">Personal intro from Andy</label><button id="save">Save selected contact</button><button id="cancel">Cancel</button><span id="editMsg"></span></section><section class="panel" id="recruitmentQuickActions" aria-label="Quick dealer recruitment" style="background:#151515!important;border:1px solid #444!important;border-left:3px solid #ed1c24!important;border-radius:10px!important;padding:14px!important;margin:10px 0!important"><h2 style="margin:0 0 7px;font-size:20px">Dealer recruitment — quick actions</h2><p style="margin:0 0 12px;color:#ccc">Choose what you need to do. No emails or SMS are sent by these buttons.</p><div class="row" style="gap:9px"><button type="button" data-recruitment-go="invited" style="background:#ed1c24;border-color:#ed1c24">Follow up invited contacts</button><button type="button" data-recruitment-go="not_invited">Find new dealers to invite</button><button type="button" data-recruitment-go="registered">Awaiting dealer approval</button><a href="/admin-onboarding.html#dealer-login-followups" style="display:inline-block;padding:10px;border:1px solid #555;border-radius:6px;text-decoration:none;color:#fff;background:#222">Existing dealer follow-ups</a></div><p id="recruitmentQuickStatus" role="status" style="color:#bbb;font-size:12px;margin:9px 0 0">Use the filtered contact list below to select and review a contact before preparing an invitation.</p></section><section class="panel" aria-label="Dealer recruitment overview"><h2 style="margin:6px 0 10px">Dealer recruitment overview</h2><div id="recruitmentSummary" aria-live="polite" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px"><span style="color:#aaa">Loading contact statuses…</span></div><p style="color:#aaa;font-size:12px;margin:10px 0">Directory totals count contacts, not dealerships. Invitation counts only include recorded sends and exclude registered dealers. Registered dealer contacts are matched by email to UK/international dealer profiles. Approved dealer accounts are counted across AnyBike, including those outside this directory.</p></section></main></div></div><script>
 const $=x=>document.getElementById(x),esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),db=window.supabase.createClient('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
-let activeInlineInviteId=null,activeCardInviteId=null,cardQuickFilter="all";
+let activeInlineInviteId=null,activeCardInviteId=null,cardQuickFilter="all",recentlySavedContactId=null;
 let expandedDealerId=null,registeredByEmail=new Map(),registeredByCompany=new Map(),approvedCustomerIds=new Set(),dealerApprovalLoaded=false,verifiedDealerCount=null,dealerLoginCount=null,lastSmsByContact=new Map(),items=[],chosen=new Set(),smsChosen=new Set(),smsQueue=[],smsPos=0,sort='company',asc=true,page=0,editId=null,queue=[],pos=0;const pageSize=()=>Number($('pageSize').value);
 const cols=['company','first_name','last_name','email','phone','segment','priority','tags','marketing_permission','approved_for_invitation','personal_intro'];
 function parse(s){let rows=[],row=[],cell='',quote=false;for(let i=0;i<s.length;i++){let c=s[i];if(c==='"'){if(quote&&s[i+1]==='"'){cell+='"';i++}else quote=!quote;}else if(c===','&&!quote){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quote){if(c==='\r'&&s[i+1]==='\n')i++;row.push(cell);if(row.some(Boolean))rows.push(row);row=[];cell=''}else cell+=c}row.push(cell);if(row.some(Boolean))rows.push(row);let head=rows.shift();return rows.map((v,i)=>({line:i+2,d:Object.fromEntries(head.map((k,j)=>[k.trim(),v[j]||'']))}));}
@@ -246,7 +248,7 @@ function renderContactCards(shown){
   const recruitment=contactRecruitmentStatus(r);
   const already=!!contactLastSent(r);
   const consent=!!r.approved_for_invitation;
-  const active=activeCardInviteId===id;
+  const active=activeCardInviteId===id,saved=recentlySavedContactId===id;
   const registered=recruitment==='registered'||recruitment==='approved';
   const state=registered?'Already registered':already?'Previously invited':consent?'Approved to invite':'Permission review required';
   const stateStyle=registered||already?'already':consent?'ready':'';
@@ -256,7 +258,7 @@ function renderContactCards(shown){
   const phone=String(r.phone||'').replace(/\s/g,'');
   const smsOK=/^07\d{9}$/.test(phone);
   const prohibited=!consent||registered;
-  return '<article class="dealer-contact-card'+(active?' is-active':'')+'" data-card-id="'+id+'">'+
+  return '<article class="dealer-contact-card'+(active?' is-active':'')+(saved?' is-saved':'')+'" data-card-id="'+id+'">'+
     '<div class="dealer-contact-head"><div><h3>'+esc(company)+'</h3><p class="dealer-contact-person">'+esc(name)+'</p></div>'+
     '<span class="dealer-contact-state '+stateStyle+'">'+esc(state)+'</span></div>'+
     '<div class="dealer-contact-meta">'+
@@ -270,7 +272,7 @@ function renderContactCards(shown){
      '<button type="button" data-card-channel="sms"'+(prohibited||!smsOK?' disabled title="Approved permission and UK mobile required"':'')+'>SMS invitation</button>'+
      '<button type="button" data-card-edit="'+id+'">Edit contact</button>'+
     '</div><p class="dealer-contact-feedback" role="status">'+
-     (active?'Select Review, Email or SMS; a chargeable SMS still requires confirmation.':registered?'This contact is registered. Use Onboarding instead of sending a recruitment invitation.':!consent?'Permission must be reviewed before an invitation can be prepared.':already?'Previous invitation recorded. Check history before contacting again.':'Choose Email or SMS to preview. Nothing has been sent.')+
+     (recentlySavedContactId===id?'✓ Saved successfully. Contact updated.':active?'Select Review, Email or SMS; a chargeable SMS still requires confirmation.':registered?'This contact is registered. Use Onboarding instead of sending a recruitment invitation.':!consent?'Permission must be reviewed before an invitation can be prepared.':already?'Previous invitation recorded. Check history before contacting again.':'Choose Email or SMS to preview. Nothing has been sent.')+
     '</p><div class="dealer-contact-preview"></div></article>';
  }).join(''):'<p style="padding:20px;border:1px solid #555;border-radius:10px;color:#ddd">No contacts match the current search. Try a different dealership, town or postcode.</p>';
  if(existing){
@@ -310,6 +312,7 @@ function renderContactCards(shown){
   }
  });
  host.querySelectorAll('[data-card-edit]').forEach(button=>button.onclick=()=>{
+  recentlySavedContactId=null;
   edit(Number(button.dataset.cardEdit),{inCard:true});
  });
 }
@@ -323,8 +326,8 @@ function render(){
  // If saving consent changes the active recruitment filter, keep the edited
  // card visible until the editor closes rather than making it disappear.
  const editingInline=$('editor')?.closest('[data-card-id]');
- if(editingInline&&editId!==null&&!shown.some(r=>r.id===editId)){
-  const pending=items.find(r=>r.id===editId);
+ if((editingInline&&editId!==null||recentlySavedContactId!==null)&&!shown.some(r=>r.id===(editId??recentlySavedContactId))){
+  const pending=items.find(r=>r.id===(editId??recentlySavedContactId));
   if(pending)shown=[pending,...shown];
  }
  $('head').innerHTML='<tr><th class="fixed"><label title="Select all contacts on this page"><input type="checkbox" id="allPick" aria-label="Select all visible contacts"> Select</label></th><th class="fixed-edit">Edit row</th><th><label title="Set permission for contacts on this page"><input type="checkbox" id="allPermission" aria-label="Approve permission for all visible contacts"> Permission approved</label></th><th><label title="Set personal intro for contacts on this page"><input type="checkbox" id="allPersonal" aria-label="Personal intro for all visible contacts"> Personal intro from Andy</label></th><th><label title="Select eligible contacts for SMS drafts only; no messages sent"><input type="checkbox" id="allSms" aria-label="Select all visible eligible UK mobiles for SMS"> Invite by SMS</label></th>'+keys.map(k=>'<th data-key="'+esc(k)+'">'+esc(({company:'Company',first_name:'First name',last_name:'Surname',email:'Email address',phone:'Telephone'})[k]||k)+(sort===k?(asc?' ▲':' ▼'):'')+'</th>').join('')+'<th>Email invitation</th><th>Recruitment status</th><th>Last contacted</th><th>AnyBike account</th><th>Dealer review</th></tr>';
@@ -408,9 +411,16 @@ $('save').onclick=async()=>{let p={approved_for_invitation:$('approved').checked
  const editingCard=$('editor').closest('[data-card-id]');
  const anchorId=editingCard?.dataset.cardId;
  const previousTop=editingCard?.getBoundingClientRect().top;
- if(editId===null){items.push(data);$('editor').hidden=true;$('editorHome').after($('editor'));}
- else{Object.assign(items.find(x=>x.id===editId),data);}
- // Refresh the card while keeping it at the same viewport position.
+ if(editId===null){
+  items.push(data);$('editor').hidden=true;editId=null;$('editorHome').after($('editor'));
+ }else{
+  const savedId=editId;
+  Object.assign(items.find(x=>x.id===savedId),data);
+  recentlySavedContactId=anchorId?Number(anchorId):null;
+  // Collapse only after a confirmed database save. Errors leave all inputs open.
+  $('editor').hidden=true;editId=null;$('editorHome').after($('editor'));
+ }
+ // Update the contact card in the same position with a visible saved result.
  render();
  if(anchorId&&Number.isFinite(previousTop)){
   const sameCard=$('contactCards').querySelector('[data-card-id="'+anchorId+'"]');
