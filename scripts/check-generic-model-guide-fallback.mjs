@@ -86,11 +86,13 @@ for(const [make,model] of [
   assert.equal(get('sourceBottom').href,get('source').href);
   assert.equal(get('nextAction').hidden,false,
    'Optional research failure must not hide customer next action');
-  assert(get('body').children.length>=2,
-   'Customer research fallback sections failed to render');
+  assert.equal(get('body').children.length,0,
+   'Missing editorial research must not manufacture empty generic cards');
   assert(!get('years').textContent,
    'Unverified model production years were guessed');
   assert(document.title.includes(make+' '+model));
+  assert(get('manufacturer').href.includes('make='+encodeURIComponent(make)),
+   'Brand navigation must remain available without research cards');
  }
 }
 // Supabase public identity must use an exact make AND model, never a related
@@ -137,6 +139,12 @@ assert.equal((await check('Suzuki','RM250')).get('heading').textContent,'Suzuki 
 // Shared related-content display must not manufacture a blank panel when no
 // related motorcycle is present. This is a cross-manufacturer renderer guard.
 const relatedSource=readFileSync(new URL('../shared-model-catalogue.js',import.meta.url),'utf8');
+assert(!html.includes('add("About this model"'),
+ 'Generic unsourced About card must never appear on a catalogue page');
+assert(!html.includes('add("Finding a motorcycle in the UK"'),
+ 'Generic sourcing placeholder duplicates the real working actions');
+assert(html.includes('Array.isArray(guide.sections)?guide.sections:[]'),
+ 'Malformed editorial sections must not blank an otherwise working model page');
 assert(relatedSource.includes('if(related.length){'),
  'Related motorcycle cards must be omitted when there are zero real matches');
 assert(!relatedSource.includes('Related model guides will appear as catalogue records are approved.'),
