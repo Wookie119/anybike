@@ -14,7 +14,8 @@ const sections={
  manufacturing_evidence:'Factory and manufacturing evidence',
  manufacturing:'Manufacturing',production:'Production records',
  market_launch:'Market introductions',history:'Motorcycle history',
- competition:'Competition history',design:'Design and development'
+ competition:'Competition history',design:'Design and development',
+ touring:'Touring equipment and specifications'
 };
 const safeText=x=>typeof x==='string'?x.trim():'';
 const validUrl=x=>typeof x==='string'&&/^https:\/\/[^\s/?#]+(?:[^\s]*)$/i.test(x);
@@ -27,6 +28,17 @@ const factLabels={
 };
 const pretty=x=>factLabels[x]||x.replace(/_/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
 const scalar=x=>typeof x==='string'&&x.trim()?x.trim():typeof x==='number'&&Number.isFinite(x)?String(x):null;
+const displayValue=value=>{
+ const single=scalar(value);
+ if(single!==null)return single;
+ // Verified factory style/edition lists are usable research; never treat
+ // nested editorial drafts, objects, or an unsourced image array as text.
+ if(Array.isArray(value)&&value.length>0&&value.length<=12&&
+    value.every(x=>typeof x==='string'&&x.trim()&&x.trim().length<=90)){
+  return value.map(x=>x.trim()).join(' · ');
+ }
+ return null;
+};
 export function exactVerifiedModelFacts(rows,make,model){
  if(!Array.isArray(rows)||!safeText(make)||!safeText(model))return [];
  const seen=new Set(),out=[];
@@ -44,9 +56,9 @@ export function exactVerifiedModelFacts(rows,make,model){
    facts=Object.entries(row.value).filter(([key,value])=>
     /^[a-z][a-z0-9_]{0,50}$/i.test(key)&&
     !['source','source_url','source_name','url','photo_url','image_url'].includes(key.toLowerCase())&&
-    scalar(value)!==null&&
-    String(scalar(value)).length<=350).slice(0,12)
-    .map(([key,value])=>({label:pretty(key),value:scalar(value)}));
+    displayValue(value)!==null&&
+    String(displayValue(value)).length<=500).slice(0,12)
+    .map(([key,value])=>({label:pretty(key),value:displayValue(value)}));
   }
   if(!facts.length)continue;
   seen.add(row.fact_id);
