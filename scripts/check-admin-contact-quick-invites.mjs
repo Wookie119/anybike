@@ -194,6 +194,13 @@ assert(page.includes("$('pages').textContent=(page+1)+' / '+totalPages"),
 assert(page.includes("$('prev').disabled=page===0")&&page.includes("$('next').disabled=page>=totalPages-1"),
  'Pagination must disable unavailable directions');
 
+assert((page.match(/id="hideUnknown"/g)||[]).length===1,
+ 'Keep one Hide unknown email addresses filter, not duplicate inputs');
+assert(page.indexOf('id="hideUnknown"')>page.indexOf('class="dealer-card-filters"')&&
+ page.indexOf('id="hideUnknown"')<page.indexOf('id="simpleContactMessage"'),
+ 'Unknown email filter must stay visible in the everyday contact search');
+assert(page.includes("$('hideUnknown').onchange=()=>{page=0;render()}"),
+ 'Hide unknown emails must continue to re-render the cards immediately');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
