@@ -463,7 +463,7 @@ $('clearSentSelections').onclick=async()=>{
  $('clearSentSelections').disabled=false;render();$('queue').textContent=count+' sent-email selections cleared. '+(errors.length?errors.length+' not updated; '+errors.slice(0,2).join('; '):'Sent dates retained.');
 };
 async function reviewSingleQuickInvite(channel='both',{inline=false,card=false}={}){
- const selected=items.filter(r=>chosen.has(r.id)),status=(card?$('contactCards')?.querySelector('[data-card-id="'+activeCardInviteId+'"] .dealer-contact-feedback'):inline?$('inlineInviteActions')?.querySelector('.inline-invite-message'):null)||$('quickInviteStatus');
+ const selected=items.filter(r=>chosen.has(r.id));let status=(card?$('contactCards')?.querySelector('[data-card-id="'+activeCardInviteId+'"] .dealer-contact-feedback'):inline?$('inlineInviteActions')?.querySelector('.inline-invite-message'):null)||$('quickInviteStatus');
  if(selected.length!==1){status.textContent='Select exactly one contact first.';return;}
  const r=selected[0],registration=contactRecruitmentStatus(r);
  if(registration==='approved'||registration==='registered'){
@@ -486,6 +486,7 @@ async function reviewSingleQuickInvite(channel='both',{inline=false,card=false}=
    const {data,error}=await db.from('anybike_master_contacts').update({sms_invite_selected:true}).eq('id',r.id).select().single();
    if(error||!data){status.textContent='SMS selection not saved: '+(error?.message||'Contact unavailable');return;}
    Object.assign(r,data);smsChosen.add(r.id);render();
+   if(card)status=$('contactCards')?.querySelector('[data-card-id="'+r.id+'"] .dealer-contact-feedback')||status;
   }
  }
  if(!card)$('advancedInvitations').open=true;
@@ -557,7 +558,7 @@ document.querySelectorAll('[data-card-filter]').forEach(b=>b.onclick=()=>{
 });
 $('simpleContactFind').onclick=runSimpleContactSearch;
 $('simpleContactQuery').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();runSimpleContactSearch();}});
-$('simpleContactReset').onclick=()=>{$('simpleContactQuery').value='';runSimpleContactSearch();};
+$('simpleContactReset').onclick=()=>{cardQuickFilter='all';$('simpleContactQuery').value='';$('hideUnknown').checked=false;$('onlyMobile').checked=false;$('onlyCompany').checked=false;runSimpleContactSearch();};
 
 document.querySelectorAll('[data-recruitment-go]').forEach(btn=>btn.addEventListener('click',()=>{const status=btn.getAttribute('data-recruitment-go');$('recruitmentFilter').value=status;$('emailSentFilter').value='all';page=0;render();$('recruitmentQuickStatus').textContent=status==='invited'?'Showing invited contacts awaiting registration. Check their history before contacting them again.':status==='not_invited'?'Showing contacts without a recorded invitation. Permission is required before preparing an invitation.':'Showing registered dealer contacts awaiting approval.';($('directoryTable').hidden?$('contactCards'):$('directoryTable')).scrollIntoView({behavior:'smooth',block:'start'});}));
 
