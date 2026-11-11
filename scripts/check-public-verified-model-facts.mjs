@@ -96,6 +96,22 @@ assert(sourceCode.includes("engine_cc:'Engine capacity (cc)'"),
 assert(sourceCode.includes("technical_changes:'Engineering changes'"),
  'Verified engineering changes must have a readable public label');
 assert.equal(mountVerifiedModelFacts(body,[sample()],'Suzuki','RM250'),0);
+
+const reordered={...body,children:[],firstChild:null};
+assert.equal(mountVerifiedModelFacts(reordered,[
+ sample({fact_id:91,category:'motorsport',start_year:null,label:'Racing record',value:{result:'Verified'}}),
+ sample({fact_id:92,category:'engine',start_year:2001,label:'Engine record',value:{engine_cc:249}}),
+ sample({fact_id:93,category:'model_year',start_year:null,label:'Documented model',value:{engine_cc:246}})
+],'Suzuki','RM250'),3);
+const researchPanel=reordered.children[0];
+const categoryHeadings=researchPanel.children.filter(x=>x.tag==='div')
+ .map(section=>section.children.find(x=>x.tag==='h3')?.textContent);
+assert.deepEqual(categoryHeadings,[
+ 'Documented model years and specifications','Engine and powertrain','Documented racing and motorsport'
+], 'Supabase return order must not change the approved shared research section order');
+assert(!researchPanel.children.some(x=>x.tag==='p'&&String(x.textContent).includes('reference year')),
+ 'Missing model-year values must not be converted to a false year zero');
+
 const empty={...body,children:[],firstChild:null};
 let call;
 const count=await installVerifiedModelFacts({
