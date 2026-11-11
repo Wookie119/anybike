@@ -15,7 +15,9 @@ fetch("/data/motorcycle-catalogue-master.json").then(r=>{if(!r.ok)throw Error("c
 fetch("/anybike-global.html").then(r=>{if(!r.ok)throw Error("Global");return r.text()})
 ]).then(results=>{
 if(results[0].status==="fulfilled"){
-const entries=Array.isArray(results[0].value.models)?results[0].value.models:[];
+// Invalid JSON records must not suppress every related-model link.
+const entries=(Array.isArray(results[0].value.models)?results[0].value.models:[])
+ .filter(x=>x&&typeof x.make==="string"&&typeof x.model==="string"&&x.make.trim()&&x.model.trim());
 const exact=entries.find(x=>norm(x.make)===norm(make)&&norm(x.model)===norm(model));
 const related=entries.filter(x=>norm(x.make)===norm(make)&&norm(x.model)!==norm(model)&&(exact?.category?x.category===exact.category:true)).slice(0,8);
 if(related.length){
