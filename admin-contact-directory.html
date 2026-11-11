@@ -185,8 +185,11 @@ function emailBody(r){return 'Hello '+(r.first_name||'there')+',\n\n'+inviteIntr
 function richInvitationHtml(r){const url='https://www.anybike.co.uk/uk-dealer-welcome.html';return '<div style="background:#fff;color:#222;font:16px Arial,sans-serif;line-height:1.55">'+emailBody(r).split('\n\n').map(p=>p.includes('You can learn more and register here:')?'<p>You can learn more and register below:</p><table role="presentation" width="240" cellpadding="0" cellspacing="0" border="0" style="width:240px;table-layout:fixed;margin:16px 0 22px 0;border-collapse:collapse"><tr><td width="240" align="center" bgcolor="#b71925" style="width:240px;background:#b71925;border-radius:5px;padding:0"><a href="'+url+'" style="display:block;width:240px;box-sizing:border-box;padding:13px 8px;color:#ffffff;font:bold 16px Arial,sans-serif;text-align:center;text-decoration:none">Register with AnyBike &rarr;</a></td></tr></table><p style="font-size:12px;color:#555;clear:both;margin-top:18px">If the button does not work: <a href="'+url+'">'+url+'</a></p>':'<p>'+esc(p).replace(/\n/g,'<br>')+'</p>').join('')+'</div>'}
 let smsHistory=new Map();
 async function refreshContactSmsSummary(){lastSmsByContact=new Map();for(let offset=0;;offset+=750){const {data,error}=await db.from('anybike_invitation_sms_log').select('contact_id,status,requested_at,sent_at').order('requested_at',{ascending:false}).range(offset,offset+749);if(error)throw error;for(const s of data||[]){if(s.contact_id&&!lastSmsByContact.has(s.contact_id)&&['sent','submitted','delivered'].includes(String(s.status||'').toLowerCase()))lastSmsByContact.set(s.contact_id,s)}if(!data||data.length<750)break}}
-async function refreshSmsHistory(){
- const ids=[...new Set(items.filter(r=>r.sms_invite_selected).map(r=>r.id))];
+async function refreshSmsHistory({savedSmsOnly=false}={}){
+ // Only fetch history for the current preview. Historic SMS ticks are not a
+ // standing send queue; they remain available through "Saved SMS invitations".
+ const ids=[...new Set(items.filter(r=>
+  r.sms_invite_selected&&(savedSmsOnly||chosen.has(r.id))).map(r=>r.id))];
  smsHistory=new Map();
  for(let i=0;i<ids.length;i+=200){
   const {data,error}=await db.from('anybike_invitation_sms_log').select('id,contact_id,recipient,status,requested_at,sent_at,provider_message_id,error_message').in('contact_id',ids.slice(i,i+200)).order('requested_at',{ascending:false}).limit(1000);
@@ -194,14 +197,19 @@ async function refreshSmsHistory(){
   for(const record of data||[])if(!smsHistory.has(record.contact_id))smsHistory.set(record.contact_id,record);
  }
 }
-async function reviewInvitations(){
- try{await refreshSmsHistory()}catch(e){$('queue').textContent='SMS history unavailable: '+e.message+'. No invitations can be sent until this is resolved.';$('invitePreviews').innerHTML='';return;}
+async function reviewInvitations({savedSmsOnly=false}={}){
+ // Preview contacts explicitly selected in THIS session. Loading directory
+ // rows must never bring back old SMS draft previews automatically.
+ $('invitePreviews').replaceChildren();
+ try{await refreshSmsHistory({savedSmsOnly})}catch(e){$('queue').textContent='SMS history unavailable: '+e.message+'. No invitations can be sent until this is resolved.';$('invitePreviews').innerHTML='';return;}
 
  const approved=items.filter(r=>r.approved_for_invitation);
- queue=approved.filter(r=>chosen.has(r.id)&&r.email&&!String(r.email).toLowerCase().startsWith('unknown@')&&!/@app\.movemotorcycles\.co\.uk$/i.test(String(r.email)));
- smsQueue=approved.filter(r=>r.sms_invite_selected&&/^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,'')));
+ queue=savedSmsOnly?[]:approved.filter(r=>chosen.has(r.id)&&r.email&&!String(r.email).toLowerCase().startsWith('unknown@')&&!/@app\.movemotorcycles\.co\.uk$/i.test(String(r.email)));
+ smsQueue=approved.filter(r=>r.sms_invite_selected&&(savedSmsOnly||chosen.has(r.id))&&/^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,'')));
  pos=0;smsPos=0;$('draft').disabled=true;$('smsDraft').disabled=true;
- $('queue').textContent=queue.length+' email and '+smsQueue.length+' SMS drafts ready to preview. No messages have been sent.';
+ $('queue').textContent=savedSmsOnly
+  ?smsQueue.length+' saved SMS invitation selections shown for history review. This does not send or resend any message.'
+  :queue.length+' email and '+smsQueue.length+' SMS drafts for the '+chosen.size+' contacts selected now. Previous SMS selections are not included. Nothing sent.';
  const recipients=[...new Map([...queue,...smsQueue].map(r=>[r.id,r])).values()];
  $('invitePreviews').innerHTML=recipients.map(r=>{
  const canEmail=queue.some(t=>t.id===r.id),canSms=smsQueue.some(t=>t.id===r.id),alreadyEmail=!!r.email_invite_sent_at;
@@ -273,7 +281,7 @@ $('clearSentSelections').onclick=async()=>{
  $('clearSentSelections').disabled=false;render();$('queue').textContent=count+' sent-email selections cleared. '+(errors.length?errors.length+' not updated; '+errors.slice(0,2).join('; '):'Sent dates retained.');
 };
 $('review').onclick=()=>{$('advancedInvitations').open=true;reviewInvitations();};
-$('savedSms').onclick=()=>{smsChosen=new Set(items.filter(r=>r.sms_invite_selected).map(r=>r.id));chosen.clear();reviewInvitations();$('invitePreviews').scrollIntoView({behavior:'smooth',block:'start'});};
+$('savedSms').onclick=()=>{reviewInvitations({savedSmsOnly:true});$('invitePreviews').scrollIntoView({behavior:'smooth',block:'start'});};
 function inviteIntro(r){return r.personal_intro?'Andy Gifford at Move Motorcycles personally thought AnyBike might help your dealership reach more motorcycle buyers.\n\n':''}
 function smsMessage(r){const name=String(r.first_name||'there').trim().slice(0,14)||'there',link='https://www.anybike.co.uk/uk-dealer-welcome.html';return r.personal_intro ? 'Hi '+name+', Text from Andy at Move Motorcycles. We collect/deliver for AnyBike. UK dealer sign-up: '+link : 'Hi '+name+', Text from AnyBike. Join our UK motorcycle trade network. Dealer registration is free: '+link;}
 
