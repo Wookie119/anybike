@@ -119,6 +119,8 @@
 .dealer-contact-meta span{display:block;color:#aaa;font-size:12px;margin-bottom:5px}
 .dealer-mobile-ready,.dealer-mobile-note{display:block;font-size:11px;margin-top:4px;line-height:1.35}
 .dealer-mobile-ready{color:#a7e7ab}.dealer-mobile-note{color:#aaa}
+.dealer-sms-approval{display:inline-flex;align-items:center;gap:7px;color:#ddd;font-size:12px;margin-top:7px;cursor:pointer}
+.dealer-sms-approval input{width:17px;height:17px;margin:0;accent-color:#ed1c24}
 .dealer-contact-meta strong{display:block;font-size:14px;font-weight:500;color:#fff;overflow-wrap:anywhere}
 .dealer-contact-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-top:14px;border-top:1px solid #444}
 .dealer-contact-actions button{min-height:40px;padding:9px 15px;font-size:13px;margin:0;background:#262626;border:1px solid #666;border-radius:7px}
@@ -331,7 +333,8 @@ function renderContactCards(shown){
     '<span class="dealer-contact-state '+stateStyle+'">'+esc(state)+'</span></div>'+
     '<div class="dealer-contact-meta">'+
      '<div><span>Email</span><strong>'+esc(email||'Not supplied')+'</strong></div>'+
-     '<div><span>'+ (smsOK?'Mobile for SMS':'Telephone / mobile') +'</span><strong>'+esc(r.phone||'Not supplied')+'</strong>'+ (smsOK?'<small class="dealer-mobile-ready">UK mobile number found</small>':'<small class="dealer-mobile-note">No valid UK 07 mobile recorded</small>')+'</div>'+
+     '<div><span>'+ (smsOK?'Mobile for SMS':'Telephone / mobile') +'</span><strong>'+esc(r.phone||'Not supplied')+'</strong>'+ (smsOK?'<small class="dealer-mobile-ready">UK mobile number found</small>':'<small class="dealer-mobile-note">No valid UK 07 mobile recorded</small>')+
+ (smsOK&&!registered?'<label class="dealer-sms-approval"><input type="checkbox" data-approve-sms="'+id+'" '+(consent?'checked':'')+'> Approved for invitation</label>':'')+'</div>'+
      '<div><span>Last invitation</span><strong>'+esc(contactDate(r))+'</strong></div>'+
      '<div><span>Invitation permission</span><strong>'+esc(consent?'Approved':'Not approved')+'</strong></div>'+
     '</div><div class="dealer-contact-actions">'+
@@ -357,6 +360,31 @@ function renderContactCards(shown){
    $('editorHome').after(editor);
   }
  }
+ host.querySelectorAll('[data-approve-sms]').forEach(input=>input.onchange=async()=>{
+  const id=Number(input.dataset.approveSms),record=items.find(r=>r.id===id);
+  if(!record)return;
+  const approved=input.checked;
+  // A search-filter tick never updates consent. Only this specific contact's
+  // explicit approval, after admin confirmation, changes the stored record.
+  if(approved&&!confirm('Confirm you have reviewed and have a lawful basis to invite '+(record.company||record.first_name||record.email)+' using '+record.phone+'? This approves this individual contact for invitations, but does not send an SMS.')){
+   input.checked=false;return;
+  }
+  if(!approved&&!confirm('Remove invitation approval for this contact? No SMS will be sent.')){
+   input.checked=true;return;
+  }
+  input.disabled=true;
+  const {data,error}=await db.from('anybike_master_contacts')
+   .update({approved_for_invitation:approved}).eq('id',id).select().single();
+  if(error||!data){
+   input.checked=!approved;input.disabled=false;
+   const card=input.closest('[data-card-id]'),message=card?.querySelector('.dealer-contact-feedback');
+   if(message)message.textContent='Could not save invitation approval: '+(error?.message||'Please retry.');
+   return;
+  }
+  Object.assign(record,data);
+  recentlySavedContactId=id;
+  render();
+ });
  host.querySelectorAll('[data-card-select]').forEach(input=>input.onchange=()=>{
   const id=Number(input.dataset.cardSelect);
   input.checked?chosen.add(id):chosen.delete(id);
