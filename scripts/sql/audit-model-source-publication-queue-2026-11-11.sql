@@ -19,7 +19,7 @@ per_model AS (
                      AND f.source_url=ANY(a.audited_urls)) AS verified_and_independently_audited,
  count(f.id) FILTER (WHERE f.verification_status='verified'
                      AND (a.has_independent_source_audit IS DISTINCT FROM TRUE
-                          OR f.source_url IS DISTINCT FROM ALL(a.audited_urls))) AS verified_missing_matching_audit,
+                          OR NOT (f.source_url=ANY(coalesce(a.audited_urls,ARRAY[]::text[]))))) AS verified_missing_matching_audit,
  count(f.id) FILTER (WHERE f.verification_status IS DISTINCT FROM 'verified'
                      OR f.source_url IS NULL) AS unverified_or_unsourced
  FROM public.motorcycle_catalog_models m
