@@ -181,8 +181,15 @@ export async function applyApprovedBmwPageShell(){
    const response=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
    if(!response.ok)throw Error('Model guide source unavailable');
    const data=await response.json();
-   const local=Object.values(data.models||{}).find(g=>normalise(g.make)==='bmw'&&normalise(g.model)===normalise(model));
-   events=Array.isArray(local?.production?.generations)?local.production.generations:[];
+   // A malformed optional guide row must not suppress an approved BMW page.
+   const guides=data&&data.models&&typeof data.models==='object'&&!Array.isArray(data.models)
+    ?Object.values(data.models):[];
+   const local=guides.find(g=>g&&typeof g.make==='string'&&typeof g.model==='string'&&
+    normalise(g.make)==='bmw'&&normalise(g.model)===normalise(model));
+   events=Array.isArray(local?.production?.generations)
+    ?local.production.generations.filter(g=>g&&typeof g==='object'&&
+      typeof g.label==='string'&&typeof g.description==='string'&&g.label.trim()&&g.description.trim())
+    :[];
   }catch(error){console.warn('Model gallery unavailable; preserving existing page research',error);}
  }
  if(!events.length)return true;
