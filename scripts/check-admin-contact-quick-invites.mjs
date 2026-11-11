@@ -12,6 +12,20 @@ assert(result>=0&&quick>result&&preview>quick&&editor>preview,
 for(const id of ['quickInviteReview','quickInviteEmail','quickInviteSms','quickInviteClear'])
  assert(page.includes('id="'+id+'"'),'Missing quick invitation action: '+id);
 assert(page.includes('data-quick-invite'), 'Each directory row needs a one-click Invite shortcut');
+
+assert(page.includes("function mountInlineInviteActions(id)"),
+ 'Invite must expand email/SMS controls beside the selected table row');
+assert(page.includes("btn.closest('tr').after(tr)"),
+ 'Inline invitation controls must appear immediately below the contact');
+assert(page.includes("activeInlineInviteId=id;chosen.clear();chosen.add(id);render();"),
+ 'Inviting a row must select only that contact');
+assert(page.includes("reviewSingleQuickInvite(button.dataset.inlineChannel,{inline:true})"),
+ 'Inline controls must reuse the existing guarded invitation review');
+assert(page.includes("target.replaceChildren(preview)"),
+ 'Reviewed email/SMS card and original send handlers must be moved, not re-created');
+assert(page.includes("const smsOk=/^07\\d{9}$/.test(String(r.phone||'').replace(/\\s/g,''))"),
+ 'Inline SMS must only be available for a valid UK 07 mobile');
+
 assert(page.includes('chosen.clear();chosen.add(id);render();'),
  'Clicking Invite must focus exactly one contact without sending anything');
 assert(page.includes('if(selected.length!==1)'),
