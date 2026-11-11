@@ -11,6 +11,9 @@ assert(result>=0&&quick>result&&preview>quick&&editor>preview,
  'Selected contact actions and their preview must be directly under contact results');
 for(const id of ['quickInviteReview','quickInviteEmail','quickInviteSms','quickInviteClear'])
  assert(page.includes('id="'+id+'"'),'Missing quick invitation action: '+id);
+assert(page.includes('data-quick-invite'), 'Each directory row needs a one-click Invite shortcut');
+assert(page.includes('chosen.clear();chosen.add(id);render();'),
+ 'Clicking Invite must focus exactly one contact without sending anything');
 assert(page.includes('if(selected.length!==1)'),
  'Quick invitations must never accidentally include another selected contact');
 assert(page.includes('if(!r.approved_for_invitation)'),
