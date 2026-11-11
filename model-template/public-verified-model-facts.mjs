@@ -42,7 +42,9 @@ export function exactVerifiedModelFacts(rows,make,model){
   if(scalar(row.value)!==null)facts=[{label:'Record',value:scalar(row.value)}];
   else if(row.value&&typeof row.value==='object'&&!Array.isArray(row.value)){
    facts=Object.entries(row.value).filter(([key,value])=>
-    /^[a-z][a-z0-9_]{0,50}$/i.test(key)&&scalar(value)!==null&&
+    /^[a-z][a-z0-9_]{0,50}$/i.test(key)&&
+    !['source','source_url','source_name','url','photo_url','image_url'].includes(key.toLowerCase())&&
+    scalar(value)!==null&&
     String(scalar(value)).length<=350).slice(0,12)
     .map(([key,value])=>({label:pretty(key),value:scalar(value)}));
   }
