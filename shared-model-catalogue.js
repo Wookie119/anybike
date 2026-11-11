@@ -18,9 +18,9 @@ if(results[0].status==="fulfilled"){
 const entries=Array.isArray(results[0].value.models)?results[0].value.models:[];
 const exact=entries.find(x=>norm(x.make)===norm(make)&&norm(x.model)===norm(model));
 const related=entries.filter(x=>norm(x.make)===norm(make)&&norm(x.model)!==norm(model)&&(exact?.category?x.category===exact.category:true)).slice(0,8);
-if(exact||related.length){
+if(related.length){
 const section=document.createElement("section");section.className="card feature";section.id="catalogueRelatedModels";
-section.innerHTML="<h2>Model family and related motorcycles</h2><p>Explore other "+escape(make)+" models in the AnyBike motorcycle catalogue.</p>"+(exact?.category?"<p class='meta'>Category: "+escape(exact.category)+"</p>":"")+(related.length?"<ul class='facts'>"+related.map(x=>"<li><a href='"+relatedUrl(x.make,x.model)+"'>"+escape(x.make+" "+x.model)+" →</a></li>").join("")+"</ul>":"<p>Related model guides will appear as catalogue records are approved.</p>");
+section.innerHTML="<h2>Model family and related motorcycles</h2><p>Explore other "+escape(make)+" models in the AnyBike motorcycle catalogue.</p>"+(exact?.category?"<p class='meta'>Category: "+escape(exact.category)+"</p>":"")+"<ul class='facts'>"+related.map(x=>"<li><a href='"+relatedUrl(x.make,x.model)+"'>"+escape(x.make+" "+x.model)+" →</a></li>").join("")+"</ul>";
 target.appendChild(section);
 }}
 if(results[1].status==="fulfilled"){
