@@ -85,6 +85,17 @@ export function modelReleaseReadiness({
    }
    if(nested.photography&&Object.keys(nested).length===1)
      unreviewedData++;
+   // The existing universal renderer refuses fact cards without their own
+   // editorial approval. A fact-only draft must not count as a finished
+   // research section merely because its source facts are independently verified.
+   if(Object.keys(nested).length===1&&Array.isArray(nested.verified_catalogue_facts)){
+    const hasReviewedFact=nested.verified_catalogue_facts.some(f=>
+      f&&f.source_verification_status==='verified'&&
+      f.publication_eligible===true&&
+      ['approved','published'].includes(str(f.editorial_status).toLowerCase())&&
+      str(f.label)&&approvedHttps(f.source_url));
+    if(!hasReviewedFact)unreviewedData++;
+   }
    if(nested.source_blocks&&Object.keys(nested).every(k=>
      ['source_blocks','source_file','source_blob_sha'].includes(k)))
      unreviewedData++;
