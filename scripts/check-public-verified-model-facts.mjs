@@ -21,6 +21,17 @@ const clean=exactVerifiedModelFacts([
 ],'Suzuki','RM250');
 assert.equal(clean.length,1);
 assert.equal(clean[0].display[0].label,'Engine capacity (cc)');
+const documentedColour=exactVerifiedModelFacts([sample({
+ fact_id:52,category:'factory_colours',label:'Factory colour: Blackstorm metallic',
+ value:{name:'Blackstorm metallic',source:'https://example.org/press',source_url:'https://example.org/press',model_year:2024}
+})],'Suzuki','RM250');
+assert.equal(documentedColour.length,1);
+assert.deepEqual(documentedColour[0].display.map(x=>x.label),['Name','Model Year'],
+ 'Factory citation URLs belong only in source links, not technical values');
+const competition=exactVerifiedModelFacts([sample({
+ fact_id:53,category:'competition',label:'Race result',value:'Documented rider achievement'
+})],'Suzuki','RM250');
+assert.equal(competition.length,1,'Verified competition history must display through shared renderer');
 assert.deepEqual(exactVerifiedModelFacts([sample({value:'  '})],'Suzuki','RM250'),[],
  'Whitespace-only source values must never create empty research cards');
 assert.equal(exactVerifiedModelFacts([sample({make:' Suzuki ',model:' RM250 '})],'Suzuki','RM250').length,1,
