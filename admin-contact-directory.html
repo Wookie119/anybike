@@ -99,6 +99,7 @@
 #contactInviteActions{display:none}
 #simpleInvitePanel{display:none}
 @media(max-width:700px){#contactCards.dealer-cards{display:block}.dealer-contact-card{margin-bottom:12px;padding:15px}.dealer-contact-meta{grid-template-columns:1fr}.dealer-contact-actions button{flex:1}}
+.dealer-contact-card #editor[hidden]{display:none!important}
 .dealer-contact-card #editor{position:static!important;margin:16px 0 0!important;padding:16px!important;border:1px solid #555!important;background:#101010!important;border-radius:10px!important;box-shadow:none!important;scroll-margin-top:0}
 .dealer-contact-card #editor .edit{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
 .dealer-contact-card #editor .edit label{display:flex;flex-direction:column;gap:5px;width:auto!important;min-width:0}
@@ -392,6 +393,7 @@ function duplicateContact(id){const r=items.find(x=>x.id===id);if(!r)return;edit
 function edit(id,{inCard=false}={}){
  const r=items.find(x=>x.id===id);if(!r)return;
  const editor=$('editor');
+ editor.style.removeProperty('display');
  if(inCard){
   const card=$('contactCards')?.querySelector('[data-card-id="'+id+'"]');
   if(!card)return;
@@ -406,19 +408,27 @@ function edit(id,{inCard=false}={}){
  $('personal').checked=!!r.personal_intro;
  if(!inCard)editor.scrollIntoView({behavior:'smooth',block:'start'});
 }
-$('cancel').onclick=()=>{$('editor').hidden=true;editId=null;$('editorHome').after($('editor'));};
+function closeSavedContactEditor(){
+ const editor=$('editor');
+ editor.hidden=true;
+ editor.setAttribute('hidden','');
+ editor.style.setProperty('display','none','important');
+ editId=null;
+ $('editorHome').after(editor);
+}
+$('cancel').onclick=()=>{closeSavedContactEditor();};
 $('save').onclick=async()=>{let p={approved_for_invitation:$('approved').checked,personal_intro:$('personal').checked};$('fields').querySelectorAll('[data-field]').forEach(x=>p[x.dataset.field]=x.value.trim());if(editId===null){if(!p.first_name||!p.email){$('editMsg').textContent='Enter the new contact’s first name and email address.';return}const matches=items.filter(r=>String(r.email||'').trim().toLowerCase()===p.email.toLowerCase());if(matches.length&&!confirm('This email is already used by '+matches.length+' directory contact(s). If it is a shared dealership inbox, create a separate named contact anyway?'))return;p.source_key='manual:'+crypto.randomUUID();p.source_data={created_via:'duplicate_contact'};}if(p.approved_for_invitation&&!confirm('Confirm lawful invitation permission for this contact?'))return;$('save').disabled=true;const {data,error}=editId===null?await db.from('anybike_master_contacts').insert(p).select().single():await db.from('anybike_master_contacts').update(p).eq('id',editId).select().single();$('save').disabled=false;$('editMsg').textContent=error?'Could not save: '+error.message:editId===null?'New contact created successfully.':'Saved';if(!error){
  const editingCard=$('editor').closest('[data-card-id]');
  const anchorId=editingCard?.dataset.cardId;
  const previousTop=editingCard?.getBoundingClientRect().top;
  if(editId===null){
-  items.push(data);$('editor').hidden=true;editId=null;$('editorHome').after($('editor'));
+  items.push(data);closeSavedContactEditor();
  }else{
   const savedId=editId;
   Object.assign(items.find(x=>x.id===savedId),data);
   recentlySavedContactId=anchorId?Number(anchorId):null;
   // Collapse only after a confirmed database save. Errors leave all inputs open.
-  $('editor').hidden=true;editId=null;$('editorHome').after($('editor'));
+  closeSavedContactEditor();
  }
  // Update the contact card in the same position with a visible saved result.
  render();
