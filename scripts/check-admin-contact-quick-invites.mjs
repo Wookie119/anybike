@@ -96,6 +96,23 @@ assert(page.includes('id="contactCards" class="dealer-cards"'),
 assert(page.includes('id="directoryTable" hidden'),
  'Dense table must start hidden');
 
+
+// Open contact editor is the SAME existing form, moved into the selected card.
+// Saving preserves the current scroll position and keeps the card visible.
+assert(page.includes('id="editorHome"'),'The original admin editor must have a stable home');
+assert(page.includes('edit(Number(button.dataset.cardEdit),{inCard:true})'),
+ 'Daily Edit contact must open inside its own card instead of scrolling');
+assert(page.includes("slot.append(editor)")&&page.includes("if(inlineEditId&&editId===Number(inlineEditId))editor.remove()"),
+ 'Card refreshes must preserve the form, unsaved values and status');
+assert(page.includes("if(pending)shown=[pending,...shown]"),
+ 'Saving consent should not remove the current card from the active filter');
+assert(page.includes('const previousTop=editingCard?.getBoundingClientRect().top'),
+ 'Saving must anchor the contact card to its viewport position');
+assert(page.includes('window.scrollBy(0,sameCard.getBoundingClientRect().top-previousTop)'),
+ 'Saving must not jump away from the selected contact');
+assert(page.includes("$('editorHome').after($('editor'))"),
+ 'Cancelling must return the editor to its safe home');
+
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
