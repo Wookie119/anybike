@@ -110,8 +110,10 @@ assert(page.includes('const previousTop=editingCard?.getBoundingClientRect().top
  'Saving must anchor the contact card to its viewport position');
 assert(page.includes('window.scrollBy(0,sameCard.getBoundingClientRect().top-previousTop)'),
  'Saving must not jump away from the selected contact');
-assert(page.includes("$('editorHome').after($('editor'))"),
- 'Cancelling must return the editor to its safe home');
+assert(page.includes("$('cancel').onclick=()=>{closeSavedContactEditor();}"),
+ 'Cancelling must use the same safe editor collapse as Save');
+assert(page.includes("$('editorHome').after(editor)"),
+ 'Closing must restore the single editor node to its home');
 
 assert(page.includes("recentlySavedContactId=anchorId?Number(anchorId):null"),
  'Successful edit must show saved state on the same contact');
