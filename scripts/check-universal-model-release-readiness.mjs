@@ -14,7 +14,7 @@ const modelSection=(n,content={summary:'Reviewed documentary research'})=>({
  publication_review_reference:'REVIEW-REFERENCE-2026'
 });
 const approved=modelReleaseReadiness({
- model,manufacturerRegistryName:'BMW',
+ model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
  sections:[modelSection(1),modelSection(3)],
  approvedPhotographs:[photo],
  stockContractVerified:true,visualParityVerified:true,
@@ -29,7 +29,7 @@ assert.equal(approved.stagedSectionCount,2,
  'Do not fabricate twenty research sections');
 assert.equal(approved.verifiedPhotoAssets,1);
 const unreviewed=modelReleaseReadiness({
- model,manufacturerRegistryName:'BMW',
+ model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
  sections:[modelSection(1,{summary:'Imported copy',
   source_verification_status:'pending_review'}),
   {...modelSection(3),editorial_status:'draft',publication_eligible:false}],
@@ -46,7 +46,7 @@ for(const code of [
 ])assert(unreviewed.issueCodes.includes(code),'Missing safety gate: '+code);
 assert.equal(unreviewed.verifiedPhotoAssets,0,'Borrowed GS photograph was accepted');
 const credentialedPhoto=modelReleaseReadiness({
- model,manufacturerRegistryName:'BMW',
+ model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
  sections:[modelSection(1)],stockContractVerified:true,visualParityVerified:true,
  editorialSignoffReference:'HYPOTHETICAL-APPROVAL',
  approvedPhotographs:[{...photo,image_url:'https://user:pass@example.org/suspicious.jpg'}]
@@ -55,7 +55,21 @@ assert.equal(credentialedPhoto.verifiedPhotoAssets,0,
  'Credential-bearing photo URL must never qualify as rights-approved');
 assert(credentialedPhoto.issueCodes.includes('approved_exact_model_hero_missing'));
 
-const flagged=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',
+const pendingManufacturer=modelReleaseReadiness({
+ model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'review',
+ sections:[modelSection(7)],approvedPhotographs:[photo],
+ stockContractVerified:true,visualParityVerified:true,
+ editorialSignoffReference:'QA-ONLY'
+});
+assert(pendingManufacturer.issueCodes.includes('manufacturer_registry_approval_missing'),
+ 'A manufacturer registry still under review must not qualify for universal publication');
+assert.equal(pendingManufacturer.publicationAuthorized,false);
+const unprovidedManufacturer=modelReleaseReadiness({
+ model,manufacturerRegistryName:'BMW',sections:[modelSection(7)]
+});
+assert(unprovidedManufacturer.issueCodes.includes('manufacturer_registry_approval_missing'),
+ 'Omitting the manufacturer review outcome must fail closed');
+const flagged=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
  pendingAlias:true,collision:true});
 assert(flagged.issueCodes.includes('model_alias_review'));
 assert(flagged.issueCodes.includes('canonical_name_collision_review'));
@@ -72,25 +86,25 @@ assert.throws(()=>modelReleaseReadiness({model,factReview:[
  {factId:10,modelId:77,allowed:false,reasons:['audit']},
  {factId:10,modelId:77,allowed:true,reasons:[]}
 ]}),/Duplicate source fact/);
-const futureSection=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',
+const futureSection=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
  sections:[{...modelSection(1),published_at:'2099-01-01T00:00:00Z'}],
  approvedPhotographs:[photo],stockContractVerified:true,visualParityVerified:true,
  editorialSignoffReference:'HYPOTHETICAL-APPROVAL'});
 assert(futureSection.issueCodes.includes('section_publication_date_unverified'),
  'Future-dated section must not pass readiness review');
-const undatedSection=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',
+const undatedSection=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
  sections:[{...modelSection(1),published_at:null}],
  approvedPhotographs:[photo],stockContractVerified:true,visualParityVerified:true,
  editorialSignoffReference:'HYPOTHETICAL-APPROVAL'});
 assert(undatedSection.issueCodes.includes('section_publication_date_unverified'),
  'Undated section cannot pass even when status is published');
-const deniedNested=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',
+const deniedNested=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
  sections:[modelSection(1,{summary:'Do not release',publication_eligible:false})],
  approvedPhotographs:[photo],stockContractVerified:true,visualParityVerified:true,
  editorialSignoffReference:'HYPOTHETICAL-APPROVAL'});
 assert(deniedNested.issueCodes.includes('nested_or_empty_content_unreviewed'),
  'Explicitly denied nested research cannot pass readiness');
-const scheduledNested=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',
+const scheduledNested=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
  sections:[modelSection(1,{summary:'Not yet public',published_at:'2099-01-01T00:00:00Z'})],
  approvedPhotographs:[photo],stockContractVerified:true,visualParityVerified:true,
  editorialSignoffReference:'HYPOTHETICAL-APPROVAL'});
@@ -98,7 +112,7 @@ assert(scheduledNested.issueCodes.includes('nested_or_empty_content_unreviewed')
  'Future nested research cannot pass readiness');
 const finance=modelReleaseReadiness({model:{
  id:88,manufacturer:'BMW',model:'CE 02 7.9% APR Representative'
-},manufacturerRegistryName:'BMW'});
+},manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved'});
 assert(finance.issueCodes.includes('promotional_model_name'),
  'Finance promotion must not become customer research');
 console.log('PASS: one all-brand release readiness tool preserves exact models, editorial approval, photo rights and buyer stock safety');
