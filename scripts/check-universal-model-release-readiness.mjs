@@ -69,6 +69,30 @@ const unprovidedManufacturer=modelReleaseReadiness({
 });
 assert(unprovidedManufacturer.issueCodes.includes('manufacturer_registry_approval_missing'),
  'Omitting the manufacturer review outcome must fail closed');
+const sourceOnly=modelReleaseReadiness({
+ model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
+ sections:[modelSection(7,{verified_catalogue_facts:[{
+  fact_id:49,label:'RM250 archived model year',source_url:'https://example.org/source',
+  source_verification_status:'verified'
+ }]})],
+ approvedPhotographs:[photo],stockContractVerified:true,visualParityVerified:true,
+ editorialSignoffReference:'QA-ONLY'
+});
+assert(sourceOnly.issueCodes.includes('nested_or_empty_content_unreviewed'),
+ 'Sourced fact-only section must still require explicit fact-level editorial approval');
+const reviewedFactOnly=modelReleaseReadiness({
+ model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
+ sections:[modelSection(7,{verified_catalogue_facts:[{
+  fact_id:49,label:'Documented source year',
+  source_url:'https://example.org/source',
+  source_verification_status:'verified',
+  editorial_status:'approved',publication_eligible:true
+ }]})],
+ approvedPhotographs:[photo],stockContractVerified:true,visualParityVerified:true,
+ editorialSignoffReference:'QA-ONLY'
+});
+assert(!reviewedFactOnly.issueCodes.includes('nested_or_empty_content_unreviewed'),
+ 'Explicitly reviewed and sourced fact-only content should pass the content-shape gate');
 const flagged=modelReleaseReadiness({model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
  pendingAlias:true,collision:true});
 assert(flagged.issueCodes.includes('model_alias_review'));
