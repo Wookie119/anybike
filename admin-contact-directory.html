@@ -78,6 +78,9 @@
 .contact-pager span{font-size:13px;color:#ddd;min-width:80px;text-align:center}
 .contact-pager button:disabled{opacity:.4}
 .bulk-review-bar{gap:12px}
+@media(min-width:800px){#bulkContactReview{position:sticky;top:8px;z-index:15;box-shadow:0 4px 14px #0008}}
+@media(max-width:780px){.bulk-review-buttons{width:100%}.bulk-review-buttons button{flex:1 1 auto}}
+
 .bulk-review-buttons{justify-content:flex-start;flex:1 1 auto}
 #bulkReviewContacts:not(:disabled){background:#ed1c24;border-color:#ed1c24;color:#fff}
 .bulk-contact-review{background:#171717;border:1px solid #555;border-left:3px solid #ed1c24;border-radius:11px;padding:16px 20px;margin:10px 0}
@@ -447,7 +450,10 @@ function render(){
    if(error){x.checked=!value;alert('Could not save: '+error.message);}else{Object.assign(r,data);if(editId===id&&$('editor')&&!$('editor').hidden){$('approved').checked=!!r.approved_for_invitation;$('personal').checked=!!r.personal_intro;}}
    x.disabled=false;
  });
- updateQuickInviteSelection();renderContactCards(shown);updateBulkContactReview();if(activeInlineInviteId!==null&&!$('directoryTable').hidden)mountInlineInviteActions(activeInlineInviteId);$('count').textContent=v.length+' matching · '+chosen.size+' selected';$('pages').textContent='Page '+(page+1)+' of '+Math.max(1,Math.ceil(v.length/pageSize()));
+ updateQuickInviteSelection();renderContactCards(shown);updateBulkContactReview();if(activeInlineInviteId!==null&&!$('directoryTable').hidden)mountInlineInviteActions(activeInlineInviteId);$('count').textContent=v.length+' matching · '+chosen.size+' selected';const totalPages=Math.max(1,Math.ceil(v.length/pageSize()));
+ $('pages').textContent=(page+1)+' / '+totalPages;
+ $('prev').disabled=page===0;
+ $('next').disabled=page>=totalPages-1;
 }
 ['q','dealerSearch','tagSearch','postcodeSearch'].forEach(id=>$(id).oninput=()=>{page=0;render()});$('hideUnknown').onchange=()=>{page=0;render()};$('onlyMobile').onchange=()=>{page=0;render()};$('onlyCompany').onchange=()=>{page=0;render()};$('emailSentFilter').onchange=()=>{page=0;render()};$('pageSize').onchange=()=>{page=0;render()};$('columnMode').onchange=()=>{page=0;render()};$('prev').onclick=()=>{page=Math.max(0,page-1);render()};$('next').onclick=()=>{page=Math.max(0,Math.min(Math.ceil(view().length/pageSize())-1,page+1));render()};$('reload').onclick=load;$('bulkSelectVisible').onclick=()=>{
  view().slice(page*pageSize(),page*pageSize()+pageSize()).forEach(r=>chosen.add(r.id));
