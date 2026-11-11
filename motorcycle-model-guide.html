@@ -146,7 +146,12 @@ if(guide){
  if(specs.length&&!generations.length)add("Technical specifications",'<ul class="facts">'+specs.map(x=>'<li><strong>'+esc(x.model_year||x.market||"Model-specific data")+(x.variant?" · "+esc(x.variant):"")+'</strong> '+[x.engine_cc?x.engine_cc+" cc":"",x.power_hp?x.power_hp+" hp":"",x.torque_nm?x.torque_nm+" Nm":"",x.battery_kwh?x.battery_kwh+" kWh battery":"",x.transmission||""].filter(Boolean).map(esc).join(" · ")+(x.source?' <a href="'+esc(x.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer information ↗</a>':"")+'</li>').join("")+"</ul>");
  const colours=guide.production?.official_colours||[];
  if(colours.length)add("Factory colours",'<ul class="facts">'+colours.map(x=>'<li>'+esc(x.model_year||x.market||"Factory option")+" "+esc(x.variant||"")+" — "+esc(x.name)+(x.variant?" ("+esc(x.variant)+")":"")+(x.source?' <a href="'+esc(x.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer information ↗</a>':"")+"</li>").join("")+"</ul>");
- guide.sections.forEach(([title,description])=>add(title,"<p>"+esc(description)+"</p>"));
+ (Array.isArray(guide.sections)?guide.sections:[]).forEach(section=>{
+  if(!Array.isArray(section)||section.length<2)return;
+  const [title,description]=section;
+  if(typeof title!=="string"||!title.trim()||typeof description!=="string"||!description.trim())return;
+  add(title,"<p>"+esc(description)+"</p>");
+ });
  // Shared, data-driven enrichment for every make and model; only grounded content appears.
  const evidenceRows=(guide.production?.documented_production_evidence||[]).filter(x=>x.source&&x.evidence);
  const sourceRows=(guide.production?.generation_milestones||[]).filter(x=>x.source&&x.change);
@@ -176,15 +181,16 @@ if(guide){
    details.append(content);deepGrid.append(details);
  };
  addTopic("Model history & factory", "Verified dates, development and manufacturing",referenceItems);
- const technicalTopics=guide.sections.filter(([t])=>/engine|chassis|technology|suspension|transmission|equipment|design/i.test(t)).slice(0,4);
+ const technicalTopics=(Array.isArray(guide.sections)?guide.sections:[]).filter(([t])=>/engine|chassis|technology|suspension|transmission|equipment|design/i.test(t)).slice(0,4);
  addTopic("Engineering & equipment", "Technical background",technicalTopics.map(([heading,body])=>({heading,body})));
- const ownershipTopics=guide.sections.filter(([t])=>/buying|used|service|maintenance|reliability|ownership|check/i.test(t)).slice(0,4);
+ const ownershipTopics=(Array.isArray(guide.sections)?guide.sections:[]).filter(([t])=>/buying|used|service|maintenance|reliability|ownership|check/i.test(t)).slice(0,4);
  addTopic("Ownership & buying guide", "Model-specific buying guidance",ownershipTopics.map(([heading,body])=>({heading,body})));
  if(deepGrid.children.length)el("body").after(extraPanel);
 
 }else{
- add("About this model","<p>For details of model years, generations and variants, ask AnyBike about the specific motorcycle you're interested in.</p>",true);
- add("Finding a motorcycle in the UK","<p>Tell us your preferred year, specification and budget. Our team can check suitable UK sourcing opportunities for international trade buyers.</p>");
+ // No approved editorial record: keep hero, exact-model stock and sourcing
+ // actions. Never manufacture placeholder research sections.
+ // Verified source facts load independently through the shared renderer.
 }
 }catch(err){el("summary").textContent="Motorcycle information is temporarily unavailable. You can still send AnyBike a sourcing enquiry.";el("source").href="/bulk-buying-request.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);el("sourceBottom").href=el("source").href;el("nextAction").hidden=false;}
 })();</script><script src="/public-header.js?v=20261110modelresearch1"></script><script defer src="/shared-model-catalogue.js?v=20261110fix1"></script><script type="module" src="/model-template/public-verified-model-facts.mjs?v=20261111a"></script></body></html>
