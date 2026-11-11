@@ -139,6 +139,14 @@ assert(html.includes('Object.values(guides.models).find(g=>g&&typeof g.make==="s
 assert(html.includes('el("sourceBottom").href=request'),
  'Unavailable model research must retain the customer sourcing enquiry route');
 
+assert(html.includes('Array.isArray(x)&&typeof x[0]==="string"&&typeof x[1]==="string"'),
+ 'Deep-dive topic filters must ignore malformed optional section rows');
+assert(html.includes('Array.isArray(guide.production?.documented_production_evidence)'),
+ 'Optional factory evidence must not break model and stock content');
+assert(html.includes('Array.isArray(guide.production?.generation_milestones)'),
+ 'Optional generation milestones must not break customer enquiries');
+
+
 const relatedScript=readFileSync(new URL('../shared-model-catalogue.js',import.meta.url),'utf8');
 assert(relatedScript.includes('.filter(x=>x&&typeof x.make==="string"&&typeof x.model==="string"'),
  'Malformed master catalogue entries must never blank linked model research');
