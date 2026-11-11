@@ -226,6 +226,18 @@ assert(page.includes('Mobile number is ready. Review invitation permission to en
  'An SMS-ready contact without permission needs an explanatory next action');
 assert(page.includes('Review and approve invitation permission first'),
  'SMS disabled state must explain why permission is needed');
+assert(page.includes('data-approve-sms'),
+ 'Contact cards must offer an explicit per-contact invitation approval beside a valid UK mobile');
+assert(page.includes("host.querySelectorAll('[data-approve-sms]')"),
+ 'Contact approval must be saved through its own checkbox handler');
+assert(page.includes("Confirm you have reviewed and have a lawful basis to invite "),
+ 'Approval must require explicit confirmation of lawful invitation basis');
+assert(page.includes(".update({approved_for_invitation:approved}).eq('id',id)"),
+ 'Approval must update only the one confirmed contact');
+assert(page.includes("This approves this individual contact for invitations, but does not send an SMS."),
+ 'Approval must not be confused with sending');
+assert(page.includes("input.checked=!approved;input.disabled=false"),
+ 'Save failures must restore the checkbox and allow retry');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
