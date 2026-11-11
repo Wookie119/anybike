@@ -165,3 +165,60 @@ public RPC rules were preserved: the verified-fact view is separate from
 universal editorial publication. **1,265 draft universal model sections
 are not published**, and all existing approved BMW/Harley editorial,
 photography, stock-first layout and guest enquiry remain untouched.
+
+## Fourth source-verification and cross-manufacturer expansion — 11 Nov 2026
+
+The current database contains **202 fact records: 169 verified** (all with
+matching independent audit records) and **33 pending**, across **62 models**
+with verified facts. This supersedes earlier numerical snapshots above.
+
+### Six existing BMW launch/manufacturing facts verified
+
+- BMW S 1000 RR: 2009 factory 193 hp / 142 kW, Monza May 2009 launch,
+  serial production at Berlin BMW Motorrad plant. Source:
+  https://www.press.bmwgroup.com/united-kingdom/article/detail/T0018555EN_GB/the-new-bmw-s-1000-rr?language=en_GB
+  and https://www.press.bmwgroup.com/global/article/detail/T0011582EN/the-race-is-on%3A-supersports-bike-bmw-s-1000-rr-comes-off-the-production-line-at-the-bmw-motorrad-plant-in-berlin?language=en
+- BMW F 850 GS: the November 2017 USA manufacturer announcement of the 2018
+  model, distinct from first factory production:
+  https://www.press.bmwgroup.com/usa/article/detail/T0276939EN_US/model-year-2018-%E2%80%93-new-models-equipment-updates-and-pricing
+- BMW S 1000 R: factory announcement on 5 November 2013; not necessarily
+  the first day of factory production:
+  https://www.press.bmwgroup.com/usa/article/detail/T0154044EN_US/the-new-bmw-s-1000-r
+- BMW S 1000 XR: original BMW Berlin factory 23 April 2015 plant report,
+  confirming production underway that April:
+  https://www.press.bmwgroup.com/deutschland/article/detail/T0214042DE/sportlicher-familienzuwachs-im-bmw-werk-berlin
+
+### Five other verified existing BMW facts
+
+- F 850 GS MY2021 40 Years GS Edition
+- S 1000 XR MY2026 Sport Sage Green metallic
+- R 1300 RS and RT initial 2025 factory variant names, explicitly treated
+  as launch styles rather than universal model-year colour schedules
+- R 18 B launch-generation touring specs, distinct from R 18 Transcontinental
+
+### Eight newly inserted primary-manufacturer research facts
+
+Each has an **exact Supabase catalogue model ID**, manufacturer source URL,
+reference generation/year, independent audit record and successful live
+public RPC result. New verified model coverage:
+
+| Manufacturer | Exact catalogue model | Manufacturer document |
+|---|---|---|
+| Aprilia | RS 660 | https://wlassets.aprilia.com/wlassets/aprilia/master/tech_spec/2020/RS_660_EN/original/RS_660_EN.pdf |
+| Ducati | PANIGALE V4 | https://www.ducati.com/us/en/news/the-new-panigale-v4-my-2020-available-at-ducati-dealers |
+| Honda | CBR600RR | https://global.honda/en/newsroom/news/2020/2200821eng.html |
+| Honda | Africa Twin CRF1100L | https://global.honda/en/AfricaTwin/history/stories/2019/ |
+| Royal Enfield | Classic 350 | https://www.royalenfield.com/content/dam/royal-enfield/india/our-world/news-and-media/press-release/product-launches/all-new-classic-350/all-new-classic-350-launch-release-sept%202021.pdf |
+| Suzuki | GSX-R750 | https://www.globalsuzuki.com/motorcycle/smgs/digital-archive/2_bike/sports_081.php |
+| Triumph | Bonneville T120 | https://www.triumphmotorcycles.com/our-story/bonneville |
+| Yamaha | MT-07 | https://global.yamaha-motor.com/jp/news/2014/0707/mt-07.html |
+
+The sources explicitly limit data to the stated generations and markets;
+no false cross-year specifications or publication of staged editorial.
+The public model RPC also now includes verified touring records, and the
+shared renderer safely displays flat lists of factory variant/style names
+without emitting nested unsourced objects. The tests cover both cases.
+
+Regression SQL: `scripts/sql/check-multibrand-sourced-research-2026-11-11.sql`
+was run and all four reports passed: eight public models with one verified
+fact each, 169 matching source audits, zero universal editorial publications.
