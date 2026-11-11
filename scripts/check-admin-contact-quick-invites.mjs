@@ -158,6 +158,17 @@ assert(page.includes("chosen.has(r.id)&&/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test"),
 assert(!page.includes('bulkSendSelected'),
  'Multiple contact review must not introduce an automatic bulk sender');
 
+assert(page.includes('id="bulkReviewPermissions" disabled'),
+ 'Unapproved selected contacts need a visible manual permission review action');
+assert(page.includes("$('bulkReviewPermissions').onclick=()=>"),
+ 'Permission review button must be functional');
+assert(page.includes("edit(r.id,{inCard:true})"),
+ 'Bulk selection should open the existing individual contact editor');
+assert(page.includes("!r.approved_for_invitation&&"),
+ 'Permission review queue should only include contacts needing individual review');
+assert(page.includes("Click Review selected permissions again for the next contact."),
+ 'Permission queue must advance by explicit admin action, not automatically approve');
+
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
