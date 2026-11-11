@@ -113,6 +113,16 @@ assert(page.includes('window.scrollBy(0,sameCard.getBoundingClientRect().top-pre
 assert(page.includes("$('editorHome').after($('editor'))"),
  'Cancelling must return the editor to its safe home');
 
+assert(page.includes("recentlySavedContactId=anchorId?Number(anchorId):null"),
+ 'Successful edit must show saved state on the same contact');
+assert(page.includes("$('editor').hidden=true;editId=null;$('editorHome').after($('editor'))"),
+ 'Successful save must collapse and return the editor to its home');
+assert(page.includes("recentlySavedContactId===id?'✓ Saved successfully."),
+ 'The updated contact card must display saved confirmation');
+assert(page.includes("if((editingInline&&editId!==null||recentlySavedContactId!==null)"),
+ 'Saving while a recruitment filter is active must keep the edited card visible');
+assert(page.includes("if(!error){"),
+ 'Editor must collapse only after database save success');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
