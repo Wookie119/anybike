@@ -180,7 +180,7 @@
   <div><strong id="bulkSelectionCount">0 selected</strong><p id="bulkSelectionStatus" role="status">Tick the contacts you wish to review. Selecting does not send anything.</p></div>
   <div class="bulk-review-buttons">
    <button type="button" id="bulkSelectVisible">Select 12 visible</button>
-   <button type="button" id="bulkClearSelected">Clear selection</button>
+   <button type="button" id="bulkClearSelected">Clear selection</button><button type="button" id="bulkReviewPermissions" disabled>Review selected permissions</button>
    <button type="button" id="bulkReviewSelected" disabled>Review selected email drafts</button>
   </div>
  </div>
@@ -270,6 +270,7 @@ function updateBulkContactReview(){
   ?eligible.length+' approved for invitation · '+(selected.length-eligible.length)+' not yet eligible. No messages sent.'
   :'Tick contacts on their cards to review invitations together. Nothing is sent automatically.';
  $('bulkReviewSelected').disabled=!eligible.length;
+ $('bulkReviewPermissions').disabled=!selected.some(r=>!r.approved_for_invitation&&!['registered','approved'].includes(contactRecruitmentStatus(r)));
  const visible=view().slice(page*pageSize(),page*pageSize()+pageSize());
  $('bulkSelectVisible').textContent='Select these '+visible.length+' visible';
 }
@@ -444,6 +445,25 @@ $('bulkClearSelected').onclick=()=>{
  const previews=$('invitePreviews'),home=$('advancedInvitations').querySelector('.panel');
  if(previews&&home)home.append(previews);
  render();
+};
+$('bulkReviewPermissions').onclick=()=>{
+ const candidates=view().filter(r=>chosen.has(r.id)&&!r.approved_for_invitation&&
+  !['registered','approved'].includes(contactRecruitmentStatus(r)));
+ if(!candidates.length){
+  $('bulkSelectionStatus').textContent='No unapproved selected contacts remain in the current search. Clear filters to find others.';
+  return;
+ }
+ const r=candidates[0],idx=view().findIndex(x=>x.id===r.id);
+ page=Math.floor(idx/pageSize());
+ if($('directoryTable').hidden===false){
+  $('directoryTable').hidden=true;$('contactCards').hidden=false;
+  $('toggleDetailedColumns').textContent='Full directory table';
+ }
+ render();
+ edit(r.id,{inCard:true});
+ const card=$('contactCards').querySelector('[data-card-id="'+r.id+'"]');
+ card?.scrollIntoView({behavior:'smooth',block:'nearest'});
+ $('bulkSelectionStatus').textContent='Review '+(r.first_name||r.company||r.email)+', then save. Click Review selected permissions again for the next contact.';
 };
 $('bulkReviewSelected').onclick=async()=>{
  const selected=items.filter(r=>chosen.has(r.id));
