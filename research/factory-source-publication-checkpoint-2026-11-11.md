@@ -123,3 +123,45 @@ URL, non-empty verification basis and checked timestamp not in future).
 Six existing model results were checked both before and after and retained
 their original counts. A repeatable read-only SQL regression script is in
 `scripts/sql/check-public-verified-fact-rpc-audit-2026-11-11.sql`.
+
+## Third source-verification batch — 11 November 2026 (current baseline)
+
+**15 more** previously pending factory facts were source-checked and given
+matching independent audit records, taking the actual production database to
+**150 verified / 44 pending, 50 models with verified facts**, out of 194 fact
+records. The earlier numeric checkpoints above are historical snapshots.
+
+- BMW R 18, MY2022: new Manhattan metallic matt and Mars red metallic
+  (facts 135–136); BMW original MY2022 update,
+  https://www.press.bmwgroup.com/global/article/detail/T0336699EN/updates-for-bmw-r-18-and-r-18-classic?language=en
+- BMW S 1000 R, MY2017: Catalano Grey, BMW Motorsport tricolour and Racing
+  Red / Black Storm (facts 137–139); BMW USA MY2017 press kit,
+  https://www.press.bmwgroup.com/usa/article/detail/T0266152EN_US/the-new-bmw-s-1000-rr-and-bmw-s-1000-r?language=en_US
+- BMW R 1250 RT MY2022: Triple Black / Black storm metallic 2
+  (fact 128), https://www.press.bmwgroup.com/global/article/detail/T0336232EN/bmw-motorrad-model-revision-measures-for-the-model-year-2022
+- BMW R nineT, MY2017: Black Storm metallic (fact 151),
+  https://www.press.bmwgroup.com/usa/article/detail/T0266150EN_US/the-new-bmw-r-ninet-and-r-ninet-urban-g/s
+- BMW HP4: original 2012 factory colour and Competition Package (facts 143,
+  144), https://www.press.bmwgroup.com/global/article/detail/T0128804EN/the-new-bmw-hp4
+  **Important correction:** 2012 was the global launch/premiere year,
+  not asserted as the production model-year. These two entries were
+  amended to `launch_year: 2012`, with labels explicitly stating
+  `Introduced: 2012`.
+- BMW R 90 S: Daytona Orange from 1975, Silver Smoke metallic
+  (facts 149,150), https://www.bmwgroup-classic.com/en/models/bmw-motorcycle-classics/product-description-page.md-623-1.bmw-r-90-s.html
+- BMW R 32: 1923 Berlin Motor Show debut and Max Friz design (fact 67),
+  original R 32 494 cc, 8.5 hp, flat-twin and shaft drive (fact 68),
+  https://www.bmwgroup-classic.com/en/models/bmw-motorcycle-classics/product-description-page.md-569-1.bmw-r-32.html
+  and https://www.bmwgroup.com/en/company/history.html
+- BMW R 90 S: Hans Muth design and original finishes (fact 69), as per
+  BMW Group Classic above.
+- BMW R 1200 RS: fifth boxer-RS generation, 2015–2018 retrospective
+  production period, 1,170 cc, 125 hp (fact 87), BMW 21 April 2026
+  factory historical retrospective:
+  https://www.press.bmwgroup.com/global/article/detail/T0457144EN/bmw-motorrad-celebrates-50-years-of-bmw-rs-production-and-competition-motorcycles
+
+All these fact records have a matching, dated source audit. Existing
+public RPC rules were preserved: the verified-fact view is separate from
+universal editorial publication. **1,265 draft universal model sections
+are not published**, and all existing approved BMW/Harley editorial,
+photography, stock-first layout and guest enquiry remain untouched.
