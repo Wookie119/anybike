@@ -208,6 +208,18 @@ assert(page.indexOf('id="onlyMobile"')>page.indexOf('id="hideUnknown"')&&
  'UK mobile filter must appear immediately after Hide unknown emails');
 assert(page.includes("$('onlyMobile').onchange=()=>{page=0;render()}"),
  'Mobile filter must update results immediately');
+assert(page.includes('let cardsShown=cardMode?v:shown'),
+ 'Every filtered dealer must appear on the same card page, not just the first 12');
+assert(page.includes("renderContactCards(cardsShown)"),
+ 'The everyday card renderer must receive all matching contacts');
+assert(page.includes("$('contactPager').hidden=cardMode"),
+ 'Pagination must disappear in everyday dealer card view');
+assert(page.includes("($('directoryTable').hidden?view():view().slice(page*pageSize(),page*pageSize()+pageSize())).forEach(r=>chosen.add(r.id))"),
+ 'Select matching must cover all visible cards rather than a hidden first page');
+assert(page.includes("if(!cardsShown.some(r=>r.id===pending.id))cardsShown=[pending,...cardsShown]"),
+ 'Saving permission must keep edited card visible on the same page');
+assert(page.includes('.dealer-contact-card{content-visibility:auto;contain-intrinsic-size:auto 260px}'),
+ 'Long one-page results need deferred browser layout for off-screen cards');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
