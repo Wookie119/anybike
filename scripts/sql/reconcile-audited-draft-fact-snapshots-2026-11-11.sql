@@ -55,7 +55,8 @@ RETURNING s.id,s.model_id,s.section_number,s.editorial_status;
 -- foreign/missing model identity or unaudited reference can be published.
 WITH embedded AS (
  SELECT s.model_id,(e.elem->>'fact_id')::bigint fact_id,
-        e.elem->>'label' cached_label,e.elem->>'source_url' cached_source_url
+        e.elem->>'label' cached_label,e.elem->>'source_url' cached_source_url,
+        e.elem->'value' cached_value
  FROM public.motorcycle_universal_page_sections_v1 s
  CROSS JOIN LATERAL jsonb_array_elements(
   CASE WHEN jsonb_typeof(s.content->'verified_catalogue_facts')='array'
@@ -70,6 +71,7 @@ SELECT count(*) embedded_refs,
  count(*) FILTER(WHERE f.catalog_model_id<>e.model_id) wrong_model,
  count(*) FILTER(WHERE f.label IS DISTINCT FROM e.cached_label) stale_labels,
  count(*) FILTER(WHERE f.source_url IS DISTINCT FROM e.cached_source_url) stale_sources,
+ count(*) FILTER(WHERE f.value IS DISTINCT FROM e.cached_value) stale_values,
  count(*) FILTER(WHERE NOT EXISTS(
   SELECT 1 FROM public.motorcycle_catalog_fact_verification_audit a
   WHERE a.fact_id=f.id AND a.source_url=f.source_url
