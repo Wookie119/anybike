@@ -123,6 +123,18 @@ assert(page.includes("if((editingInline&&editId!==null||recentlySavedContactId!=
  'Saving while a recruitment filter is active must keep the edited card visible');
 assert(page.includes("if(!error){"),
  'Editor must collapse only after database save success');
+assert(page.includes("function closeSavedContactEditor()"),
+ 'Successful save needs a single explicit editor-collapse function');
+assert(page.includes("editor.style.setProperty('display','none','important')"),
+ 'Editor collapse must override legacy CSS on card forms');
+assert(page.includes(".dealer-contact-card #editor[hidden]{display:none!important}"),
+ 'Hidden editor cannot be reopened by card-specific legacy CSS');
+assert(page.includes("editor.style.removeProperty('display')"),
+ 'Opening the editor must clear forced display-none from previous save');
+assert(page.includes("items.push(data);closeSavedContactEditor()"),
+ 'Created contacts must also collapse after save');
+assert(page.includes("closeSavedContactEditor();\n }\n // Update the contact card"),
+ 'Saved existing contacts must collapse before refreshing the card');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
