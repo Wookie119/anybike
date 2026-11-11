@@ -220,6 +220,12 @@ assert(page.includes("if(!cardsShown.some(r=>r.id===pending.id))cardsShown=[pend
  'Saving permission must keep edited card visible on the same page');
 assert(page.includes('.dealer-contact-card{content-visibility:auto;contain-intrinsic-size:auto 260px}'),
  'Long one-page results need deferred browser layout for off-screen cards');
+assert(page.includes("smsOK?'Mobile for SMS':'Telephone / mobile'"),
+ 'Mobile number must be clearly labelled for SMS in the filtered card view');
+assert(page.includes('Mobile number is ready. Review invitation permission to enable SMS.'),
+ 'An SMS-ready contact without permission needs an explanatory next action');
+assert(page.includes('Review and approve invitation permission first'),
+ 'SMS disabled state must explain why permission is needed');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
