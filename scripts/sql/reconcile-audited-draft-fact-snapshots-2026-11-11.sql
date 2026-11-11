@@ -1,11 +1,11 @@
 -- AnyBike source-of-truth drift correction — 11 November 2026.
 -- Applied to production: seven DRAFT sections containing eleven stale label/source
--- snapshots were reconciled with independently audited canonical fact records.
+-- snapshots were reconciled with independently audited canonical fact records.\n-- Extended review: four nested BMW source fields and the verified Honda\n-- Dream CB750 Four Japanese on-sale date (10 August 1969) are also reconciled.
 -- No factual values, photography, editorial status or published sections changed.
 -- Idempotent: reruns make no updates when current metadata matches.
 WITH expanded AS (
  SELECT s.id section_id,s.model_id,e.ord,e.elem,
-        f.label canonical_label,f.source_url canonical_source,
+        f.label canonical_label,f.source_url canonical_source,f.value canonical_value,
         (f.id IS NOT NULL AND f.catalog_model_id=s.model_id
          AND f.verification_status='verified'
          AND EXISTS(
@@ -29,8 +29,13 @@ WITH expanded AS (
  SELECT section_id,
   jsonb_agg(
    CASE WHEN canonical_safe THEN
-    jsonb_set(jsonb_set(elem,'{label}',to_jsonb(canonical_label),true),
-              '{source_url}',to_jsonb(canonical_source),true)
+    jsonb_set(
+      jsonb_set(
+       jsonb_set(elem,'{label}',to_jsonb(canonical_label),true),
+       '{source_url}',to_jsonb(canonical_source),true
+      ),
+      '{value}',canonical_value,true
+    )
    ELSE elem END ORDER BY ord
   ) facts
  FROM expanded GROUP BY section_id
