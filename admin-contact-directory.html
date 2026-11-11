@@ -261,6 +261,18 @@ function mountInlineInviteActions(id){
 }
 // Daily card view renders only current search/page results. A reviewed
 // message card is preserved across record updates, including SMS selection.
+function updateBulkContactReview(){
+ const selected=items.filter(r=>chosen.has(r.id));
+ const eligible=selected.filter(r=>r.approved_for_invitation&&
+  !['registered','approved'].includes(contactRecruitmentStatus(r)));
+ $('bulkSelectionCount').textContent=selected.length+' contact'+(selected.length===1?'':'s')+' selected';
+ $('bulkSelectionStatus').textContent=selected.length
+  ?eligible.length+' approved for invitation · '+(selected.length-eligible.length)+' not yet eligible. No messages sent.'
+  :'Tick contacts on their cards to review invitations together. Nothing is sent automatically.';
+ $('bulkReviewSelected').disabled=!eligible.length;
+ const visible=view().slice(page*pageSize(),page*pageSize()+pageSize());
+ $('bulkSelectVisible').textContent='Select these '+visible.length+' visible';
+}
 function renderContactCards(shown){
  const host=$('contactCards');if(!host)return;
  const existing=activeCardInviteId!==null
@@ -422,7 +434,40 @@ function render(){
  });
  updateQuickInviteSelection();renderContactCards(shown);updateBulkContactReview();if(activeInlineInviteId!==null&&!$('directoryTable').hidden)mountInlineInviteActions(activeInlineInviteId);$('count').textContent=v.length+' matching · '+chosen.size+' selected';$('pages').textContent='Page '+(page+1)+' of '+Math.max(1,Math.ceil(v.length/pageSize()));
 }
-['q','dealerSearch','tagSearch','postcodeSearch'].forEach(id=>$(id).oninput=()=>{page=0;render()});$('hideUnknown').onchange=()=>{page=0;render()};$('onlyMobile').onchange=()=>{page=0;render()};$('onlyCompany').onchange=()=>{page=0;render()};$('emailSentFilter').onchange=()=>{page=0;render()};$('pageSize').onchange=()=>{page=0;render()};$('columnMode').onchange=()=>{page=0;render()};$('prev').onclick=()=>{page=Math.max(0,page-1);render()};$('next').onclick=()=>{page=Math.max(0,Math.min(Math.ceil(view().length/pageSize())-1,page+1));render()};$('reload').onclick=load;$('select').onclick=()=>{view().slice(page*pageSize(),page*pageSize()+pageSize()).forEach(r=>chosen.add(r.id));render()};$('clear').onclick=()=>{chosen.clear();render()};
+['q','dealerSearch','tagSearch','postcodeSearch'].forEach(id=>$(id).oninput=()=>{page=0;render()});$('hideUnknown').onchange=()=>{page=0;render()};$('onlyMobile').onchange=()=>{page=0;render()};$('onlyCompany').onchange=()=>{page=0;render()};$('emailSentFilter').onchange=()=>{page=0;render()};$('pageSize').onchange=()=>{page=0;render()};$('columnMode').onchange=()=>{page=0;render()};$('prev').onclick=()=>{page=Math.max(0,page-1);render()};$('next').onclick=()=>{page=Math.max(0,Math.min(Math.ceil(view().length/pageSize())-1,page+1));render()};$('reload').onclick=load;$('bulkSelectVisible').onclick=()=>{
+ view().slice(page*pageSize(),page*pageSize()+pageSize()).forEach(r=>chosen.add(r.id));
+ render();
+};
+$('bulkClearSelected').onclick=()=>{
+ chosen.clear();
+ $('bulkReviewResults').hidden=true;
+ const previews=$('invitePreviews'),home=$('advancedInvitations').querySelector('.panel');
+ if(previews&&home)home.append(previews);
+ render();
+};
+$('bulkReviewSelected').onclick=async()=>{
+ const selected=items.filter(r=>chosen.has(r.id));
+ const eligible=selected.filter(r=>r.approved_for_invitation&&
+  !['registered','approved'].includes(contactRecruitmentStatus(r)));
+ if(!eligible.length){
+  $('bulkSelectionStatus').textContent='Selected contacts need approved invitation permission before review.';
+  return;
+ }
+ const button=$('bulkReviewSelected');
+ button.disabled=true;
+ try{
+  await reviewInvitations({channel:'email'});
+  const preview=$('invitePreviews'),slot=$('bulkPreviewSlot');
+  slot.replaceChildren(preview); // Move existing reviewed cards, never duplicate send handlers
+  $('bulkReviewResults').hidden=false;
+  $('bulkReviewSummary').textContent=
+   preview.querySelectorAll('[data-review-contact]').length+' individual email previews prepared from '+
+   selected.length+' selected contacts. SMS history is separate. Nothing has been sent.';
+ }catch(error){
+  $('bulkSelectionStatus').textContent='Unable to prepare invitations: '+error.message;
+ }finally{updateBulkContactReview();}
+};
+$('select').onclick=()=>{view().slice(page*pageSize(),page*pageSize()+pageSize()).forEach(r=>chosen.add(r.id));render()};$('clear').onclick=()=>{chosen.clear();render()};
 const editFields=['company','first_name','last_name','email','phone','segment','priority','tags','marketing_permission'];
 function duplicateContact(id){const r=items.find(x=>x.id===id);if(!r)return;editId=null;$('editor').hidden=false;$('editTitle').textContent='New contact at '+(r.company||'this dealership');const defaults={...r,first_name:'',last_name:'',email:'',phone:'',marketing_permission:''};$('fields').innerHTML=editFields.map(k=>'<label>'+k+'<input data-field="'+k+'" value="'+esc(defaults[k])+'"></label>').join('');$('approved').checked=false;$('personal').checked=false;$('editMsg').textContent='Rob’s contact remains unchanged. Enter the new person’s details and save.';$('save').textContent='Create new contact';$('editor').scrollIntoView({behavior:'smooth'})}
 function edit(id,{inCard=false}={}){
