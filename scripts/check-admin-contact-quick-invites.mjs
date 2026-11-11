@@ -158,17 +158,25 @@ assert(page.includes("chosen.has(r.id)&&/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test"),
 assert(!page.includes('bulkSendSelected'),
  'Multiple contact review must not introduce an automatic bulk sender');
 
-assert(page.includes('id="bulkReviewPermissions" disabled'),
- 'Unapproved selected contacts need a visible manual permission review action');
-assert(page.includes("$('bulkReviewPermissions').onclick=()=>"),
- 'Permission review button must be functional');
+assert(page.includes('id="bulkReviewContacts" disabled'),
+ 'Selected contacts need a visible review action even when none are approved');
+assert(page.includes("$('bulkReviewContacts').onclick=()=>"),
+ 'Selected-contact review button must open the permission queue');
 assert(page.includes("edit(r.id,{inCard:true})"),
  'Bulk selection should open the existing individual contact editor');
 assert(page.includes("!r.approved_for_invitation&&"),
  'Permission review queue should only include contacts needing individual review');
-assert(page.includes("Click Review selected permissions again for the next contact."),
+assert(page.includes("Click Review selected contacts again for the next contact."),
  'Permission queue must advance by explicit admin action, not automatically approve');
 
+assert(page.includes("$('bulkReviewContacts').disabled=!selected.length"),
+ 'Ten selected contacts must have an enabled review action even with zero approvals');
+assert(page.includes("pending.length?'Review '+pending.length+' selected permissions'"),
+ 'The button must explain that consent review is the current next step');
+assert(page.includes("if(approved.length){$('bulkReviewSelected').click();return;}"),
+ 'Once individually approved, selected contacts can progress to individual email drafts');
+assert(page.includes("edit(r.id,{inCard:true})"),
+ 'Contact permission review uses the existing individual editor');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
