@@ -32,6 +32,23 @@ const competition=exactVerifiedModelFacts([sample({
  fact_id:53,category:'competition',label:'Race result',value:'Documented rider achievement'
 })],'Suzuki','RM250');
 assert.equal(competition.length,1,'Verified competition history must display through shared renderer');
+const factoryStyles=exactVerifiedModelFacts([sample({
+ fact_id:54,make:'BMW',model:'R 1300 RS',category:'factory_colours',
+ label:'Initial factory style names',value:{styles:['Basic','Triple Black','Performance','Option 719 Cuyamaca'],launch_year:2025}
+})],'BMW','R 1300 RS');
+assert.equal(factoryStyles.length,1);
+assert(factoryStyles[0].display.some(x=>x.label==='Styles'&&x.value==='Basic · Triple Black · Performance · Option 719 Cuyamaca'),
+ 'Verified launch style arrays should display as readable text');
+assert.deepEqual(exactVerifiedModelFacts([sample({
+ fact_id:55,value:{nested:[{private:'draft'}],image_url:'https://example.com/img.jpg',styles:['Valid',{private:'draft'}]}
+})],'Suzuki','RM250'),[],
+ 'Never publish mixed nested draft content or image metadata as research');
+const touring=exactVerifiedModelFacts([sample({
+ fact_id:56,make:'BMW',model:'R 18 B',category:'touring',
+ label:'Original R 18 B equipment specifications',value:{engine_cc:1802,power_hp:91,tft_screen_in:10.25}
+})],'BMW','R 18 B');
+assert.equal(touring.length,1,'Exact-model sourced touring specifications must display');
+
 assert.deepEqual(exactVerifiedModelFacts([sample({value:'  '})],'Suzuki','RM250'),[],
  'Whitespace-only source values must never create empty research cards');
 assert.equal(exactVerifiedModelFacts([sample({make:' Suzuki ',model:' RM250 '})],'Suzuki','RM250').length,1,
