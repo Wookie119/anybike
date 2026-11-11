@@ -80,6 +80,10 @@
 .bulk-review-buttons{display:flex;gap:9px;flex-wrap:wrap}
 .bulk-review-buttons button{padding:10px 14px;margin:0}
 #bulkReviewSelected:not(:disabled){background:#ed1c24;border-color:#ed1c24}
+.bulk-review-buttons{max-width:100%;align-items:center}
+.bulk-review-buttons button{white-space:normal;min-height:42px}
+#bulkReviewContacts:not(:disabled){background:#ed1c24;border-color:#ed1c24;color:#fff}
+#bulkReviewSelected:not(:disabled){background:#242424;border-color:#888}
 #bulkReviewResults{border-top:1px solid #555;margin-top:15px;padding-top:12px}
 #bulkReviewResults[hidden]{display:none!important}
 #bulkPreviewSlot{display:grid;gap:12px}
@@ -180,8 +184,9 @@
   <div><strong id="bulkSelectionCount">0 selected</strong><p id="bulkSelectionStatus" role="status">Tick the contacts you wish to review. Selecting does not send anything.</p></div>
   <div class="bulk-review-buttons">
    <button type="button" id="bulkSelectVisible">Select 12 visible</button>
-   <button type="button" id="bulkClearSelected">Clear selection</button><button type="button" id="bulkReviewPermissions" disabled>Review selected permissions</button>
-   <button type="button" id="bulkReviewSelected" disabled>Review selected email drafts</button>
+   <button type="button" id="bulkClearSelected">Clear selection</button>
+   <button type="button" id="bulkReviewContacts" disabled>Review selected contacts</button>
+   <button type="button" id="bulkReviewSelected" disabled>Prepare approved email drafts</button>
   </div>
  </div>
  <div id="bulkReviewResults" hidden>
@@ -270,7 +275,9 @@ function updateBulkContactReview(){
   ?eligible.length+' approved for invitation · '+(selected.length-eligible.length)+' not yet eligible. No messages sent.'
   :'Tick contacts on their cards to review invitations together. Nothing is sent automatically.';
  $('bulkReviewSelected').disabled=!eligible.length;
- $('bulkReviewPermissions').disabled=!selected.some(r=>!r.approved_for_invitation&&!['registered','approved'].includes(contactRecruitmentStatus(r)));
+ $('bulkReviewContacts').disabled=!selected.length;
+ const pending=selected.filter(r=>!r.approved_for_invitation&&!['registered','approved'].includes(contactRecruitmentStatus(r)));
+ $('bulkReviewContacts').textContent=pending.length?'Review '+pending.length+' selected permissions':eligible.length?'Review '+eligible.length+' approved contacts':'Review selected contacts';
  const visible=view().slice(page*pageSize(),page*pageSize()+pageSize());
  $('bulkSelectVisible').textContent='Select these '+visible.length+' visible';
 }
@@ -446,15 +453,29 @@ $('bulkClearSelected').onclick=()=>{
  if(previews&&home)home.append(previews);
  render();
 };
-$('bulkReviewPermissions').onclick=()=>{
- const candidates=view().filter(r=>chosen.has(r.id)&&!r.approved_for_invitation&&
-  !['registered','approved'].includes(contactRecruitmentStatus(r)));
+$('bulkReviewContacts').onclick=()=>{
+ const candidates=[...view(),...items.filter(r=>chosen.has(r.id)&&!view().some(v=>v.id===r.id))]
+  .filter(r=>chosen.has(r.id)&&!r.approved_for_invitation&&
+   !['registered','approved'].includes(contactRecruitmentStatus(r)));
  if(!candidates.length){
-  $('bulkSelectionStatus').textContent='No unapproved selected contacts remain in the current search. Clear filters to find others.';
+  const approved=items.filter(r=>chosen.has(r.id)&&r.approved_for_invitation&&
+   !['registered','approved'].includes(contactRecruitmentStatus(r)));
+  if(approved.length){$('bulkReviewSelected').click();return;}
+  $('bulkSelectionStatus').textContent='No selected contacts are currently eligible for an invitation. Registered dealers should use Onboarding.';
   return;
  }
- const r=candidates[0],idx=view().findIndex(x=>x.id===r.id);
- page=Math.floor(idx/pageSize());
+ const r=candidates[0];
+ // If a selected contact is outside the current filter, make that contact
+ // visible for the review rather than opening an editor with no matching card.
+ let idx=view().findIndex(x=>x.id===r.id);
+ if(idx<0){
+  cardQuickFilter='all';$('simpleContactQuery').value='';$('q').value='';
+  $('dealerSearch').value='';$('tagSearch').value='';$('postcodeSearch').value='';
+  $('recruitmentFilter').value='all';$('emailSentFilter').value='all';
+  $('hideUnknown').checked=false;$('onlyMobile').checked=false;$('onlyCompany').checked=false;
+  idx=view().findIndex(x=>x.id===r.id);
+ }
+ page=Math.max(0,Math.floor(idx/pageSize()));
  if($('directoryTable').hidden===false){
   $('directoryTable').hidden=true;$('contactCards').hidden=false;
   $('toggleDetailedColumns').textContent='Full directory table';
@@ -463,7 +484,7 @@ $('bulkReviewPermissions').onclick=()=>{
  edit(r.id,{inCard:true});
  const card=$('contactCards').querySelector('[data-card-id="'+r.id+'"]');
  card?.scrollIntoView({behavior:'smooth',block:'nearest'});
- $('bulkSelectionStatus').textContent='Review '+(r.first_name||r.company||r.email)+', then save. Click Review selected permissions again for the next contact.';
+ $('bulkSelectionStatus').textContent='Review '+(r.first_name||r.company||r.email)+', then save. Click Review selected contacts again for the next contact.';
 };
 $('bulkReviewSelected').onclick=async()=>{
  const selected=items.filter(r=>chosen.has(r.id));
