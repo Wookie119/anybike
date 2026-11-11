@@ -116,6 +116,13 @@ assert.equal(denied,0,'Never hide or alter the approved page when public facts u
 const html=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
 assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261111d'));
 assert(html.indexOf('id="body"')>html.indexOf('id="generationPanel"'));
+assert(html.includes('catalogue.models.find(x=>x&&typeof x.make==="string"&&typeof x.model==="string"'),
+ 'Malformed catalogue entries must not crash public model guides');
+assert(html.includes('Object.values(guides.models).find(g=>g&&typeof g.make==="string"&&typeof g.model==="string"'),
+ 'Malformed optional research entries must not blank the model and enquiry cards');
+assert(html.includes('el("sourceBottom").href=request'),
+ 'Unavailable model research must retain the customer sourcing enquiry route');
+
 const renderSource=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
 assert(renderSource.includes('background:#242424;color:#fff;border:1px solid #666'),
  'Shared model specification cards must have legible foreground and background');
