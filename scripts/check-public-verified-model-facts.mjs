@@ -49,6 +49,26 @@ const touring=exactVerifiedModelFacts([sample({
 })],'BMW','R 18 B');
 assert.equal(touring.length,1,'Exact-model sourced touring specifications must display');
 
+const motorsport=exactVerifiedModelFacts([sample({
+ fact_id:57,category:'motorsport',label:'Factory racing history',
+ value:{result:'Documented factory race achievement'}
+})],'Suzuki','RM250');
+assert.equal(motorsport.length,1,'Audited motorsport history must render through the shared model research panel');
+const metadataSafe=exactVerifiedModelFacts([sample({
+ fact_id:58,value:{
+  engine_cc:246,editorial_status:'draft',publication_status:'unapproved',
+  internal_notes:'Never display',reviewer_notes:'Confidential',
+  source_name:'Internal database copy',created_at:'2026-11-11'
+ }
+})],'Suzuki','RM250');
+assert.deepEqual(metadataSafe[0].display,[{label:'Engine capacity (cc)',value:'246'}],
+ 'Never expose administrative publication, provenance or reviewer metadata as model facts');
+assert.deepEqual(exactVerifiedModelFacts([
+ sample({fact_id:60}),sample({fact_id:'60'})
+],'Suzuki','RM250').length,1,
+ 'Numeric and string representations of one fact ID must not duplicate cards');
+
+
 assert.deepEqual(exactVerifiedModelFacts([sample({value:'  '})],'Suzuki','RM250'),[],
  'Whitespace-only source values must never create empty research cards');
 assert.equal(exactVerifiedModelFacts([sample({make:' Suzuki ',model:' RM250 '})],'Suzuki','RM250').length,1,
