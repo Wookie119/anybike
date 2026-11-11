@@ -20,7 +20,7 @@ const approvedHttps=x=>{
 
 export function modelReleaseReadiness({
  model,sections=[],factReview=[],pendingHistory=0,approvedPhotographs=[],
- manufacturerRegistryName='',pendingAlias=false,collision=false,
+ manufacturerRegistryName='',manufacturerRegistryStatus='',pendingAlias=false,collision=false,
  stockContractVerified=false,visualParityVerified=false,
  editorialSignoffReference=''
 }={}){
@@ -31,6 +31,10 @@ export function modelReleaseReadiness({
  const modelId=Number(model.id),issues=[];
  if(!str(manufacturerRegistryName)||str(manufacturerRegistryName)!==str(model.manufacturer))
   issues.push('registry_identity_review');
+ // A catalogue's presence is not an editorial approval. An explicit
+ // manufacturer registry decision is required for universal publication.
+ if(str(manufacturerRegistryStatus).toLowerCase()!=='approved')
+  issues.push('manufacturer_registry_approval_missing');
  if(pendingAlias)issues.push('model_alias_review');
  if(collision)issues.push('canonical_name_collision_review');
  if(/\b(?:apr|representative|finance|financing|pcp|deposit)\b|\d+(?:\.\d+)?\s*%/i.test(model.model))
