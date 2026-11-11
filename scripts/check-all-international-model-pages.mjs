@@ -41,4 +41,14 @@ assert(renderer.includes('const exactIds=new Set(candidates.map(x=>Number(x.cata
 assert(renderer.includes('return safe(x.model)===requested;'), 'Exact-model identity acceptance missing');
 assert(!renderer.includes("exact.length ? exact : brandStock"),'Wrong-model stock fallback found');
 assert(renderer.includes("if(!res.ok)throw Error('Research unavailable')"),'Model research must load independently');
+
+assert(renderer.includes("const guides=all&&all.models&&typeof all.models==='object'&&!Array.isArray(all.models)?Object.values(all.models):[]"),
+ 'Unexpected research JSON shape must not prevent loading exact-model stock');
+assert(renderer.includes("const guide=guides.find(x=>x&&typeof x.make==='string'&&typeof x.model==='string'"),
+ 'One malformed research row must not remove other model information');
+assert(renderer.includes("const generations=(Array.isArray(guide?.production?.generations)?guide.production.generations:[])"),
+ 'Optional generations must be validated before rendering');
+assert(renderer.includes("(Array.isArray(guide?.sections)?guide.sections:[]).filter(x=>Array.isArray(x)"),
+ 'Optional research sections must tolerate missing or malformed records');
+
 console.log('PASS: '+covered+' dedicated BMW/Harley model routes ('+dedicated+' approved galleries; '+shared+' shared-renderer routes); exact-model inventory above research.');
