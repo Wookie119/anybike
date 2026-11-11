@@ -137,6 +137,27 @@ assert(page.includes("items.push(data);closeSavedContactEditor()"),
  'Created contacts must also collapse after save');
 assert(page.includes("closeSavedContactEditor();\n }\n // Update the contact card"),
  'Saved existing contacts must collapse before refreshing the card');
+
+// Multi-contact selection stays on the open dealer cards, with no bulk send.
+assert(page.includes('id="bulkContactReview"')&&page.includes('id="bulkPreviewSlot"'),
+ 'Card selection and reviewed drafts must be visible together');
+assert(page.includes('data-card-select')&&page.includes("input.checked?chosen.add(id):chosen.delete(id)"),
+ 'Each visible contact card must support multi-selection');
+assert(page.includes("view().slice(page*pageSize(),page*pageSize()+pageSize()).forEach(r=>chosen.add(r.id))"),
+ 'Select visible must never select unrelated directory pages');
+assert(page.includes('updateBulkContactReview()'),
+ 'Current selected counts must update without opening the dense directory');
+assert(page.includes("await reviewInvitations({channel:'email'})"),
+ 'Multi-contact review prepares email drafts and never sends them');
+assert(page.includes("slot.replaceChildren(preview)"),
+ 'Bulk preview must move the existing guarded previews, not copy send handlers');
+assert(page.includes("const approved=items.filter(r=>r.approved_for_invitation&&!['registered','approved'].includes(contactRecruitmentStatus(r)))"),
+ 'Registered dealers and unapproved contacts cannot enter the invitation preview');
+assert(page.includes("chosen.has(r.id)&&/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test"),
+ 'Bulk email invitations require valid email addresses');
+assert(!page.includes('bulkSendSelected'),
+ 'Multiple contact review must not introduce an automatic bulk sender');
+
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
