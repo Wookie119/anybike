@@ -14,7 +14,7 @@ const sections={
  manufacturing_evidence:'Factory and manufacturing evidence',
  manufacturing:'Manufacturing',production:'Production records',
  market_launch:'Market introductions',history:'Motorcycle history',
- competition:'Competition history',design:'Design and development',
+ competition:'Competition history',motorsport:'Documented racing and motorsport',design:'Design and development',
  touring:'Touring equipment and specifications'
 };
 const safeText=x=>typeof x==='string'?x.trim():'';
