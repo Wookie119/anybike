@@ -75,6 +75,8 @@
 #contactCards[hidden],#directoryTable[hidden]{display:none!important}
 #directoryTable:not([hidden]){display:block}
 .dealer-contact-card{min-width:0;border:1px solid #494949;border-radius:13px;padding:20px 22px;background:#161616;box-shadow:0 2px 12px #0003}
+.contact-pager[hidden]{display:none!important}
+.dealer-contact-card{content-visibility:auto;contain-intrinsic-size:auto 260px}
 .contact-pager{display:flex;align-items:center;justify-content:center;gap:10px;margin:14px 0 22px}
 .contact-pager button{height:34px;min-width:38px;padding:5px 11px;font-size:20px;line-height:1;border-radius:7px;background:#242424}
 .contact-pager span{font-size:13px;color:#ddd;min-width:80px;text-align:center}
@@ -209,7 +211,7 @@
   <div id="bulkPreviewSlot"></div>
  </div>
 </section>
-<div id="contactCards" class="dealer-cards" aria-live="polite"></div><div class="scroll simple-contact-table" id="directoryTable" hidden><table><thead id="head"></thead><tbody id="body"></tbody></table></div><nav class="contact-pager" aria-label="Contact pages"><button type="button" id="prev" aria-label="Previous page">‹</button><span id="pages"></span><button type="button" id="next" aria-label="Next page">›</button></nav><div id="contactInviteActions" style="margin:14px 0 4px;padding:13px 14px;background:#171717;border:1px solid #555;border-left:3px solid #ed1c24;border-radius:10px">
+<div id="contactCards" class="dealer-cards" aria-live="polite"></div><div class="scroll simple-contact-table" id="directoryTable" hidden><table><thead id="head"></thead><tbody id="body"></tbody></table></div><nav id="contactPager" class="contact-pager" aria-label="Advanced table pages" hidden><button type="button" id="prev" aria-label="Previous page">‹</button><span id="pages"></span><button type="button" id="next" aria-label="Next page">›</button></nav><div id="contactInviteActions" style="margin:14px 0 4px;padding:13px 14px;background:#171717;border:1px solid #555;border-left:3px solid #ed1c24;border-radius:10px">
 <strong style="display:block;margin-bottom:6px">Invite selected contact</strong>
 <p id="quickInviteSelection" role="status" style="margin:5px 0 10px;color:#ddd">Select a contact above to prepare an invitation.</p>
 <div class="row" style="align-items:center;gap:8px;flex-wrap:wrap">
@@ -292,8 +294,8 @@ function updateBulkContactReview(){
  $('bulkReviewContacts').disabled=!selected.length;
  const pending=selected.filter(r=>!r.approved_for_invitation&&!['registered','approved'].includes(contactRecruitmentStatus(r)));
  $('bulkReviewContacts').textContent=pending.length?'Review '+pending.length+' selected permissions':eligible.length?'Review '+eligible.length+' approved contacts':'Review selected contacts';
- const visible=view().slice(page*pageSize(),page*pageSize()+pageSize());
- $('bulkSelectVisible').textContent='Select these '+visible.length+' visible';
+ const visible=$('directoryTable').hidden?view():view().slice(page*pageSize(),page*pageSize()+pageSize());
+ $('bulkSelectVisible').textContent='Select '+visible.length+' matching contact'+(visible.length===1?'':'s');
 }
 function renderContactCards(shown){
  const host=$('contactCards');if(!host)return;
@@ -393,6 +395,9 @@ function render(){
  });
  renderRecruitmentSummary();$('columnMode').value==='compact'?document.querySelector('.scroll').classList.add('compact-contacts'):document.querySelector('.scroll').classList.remove('compact-contacts');
  let v=view(),keys=$('columnMode').value==='all'?[...new Set([...cols,...items.flatMap(x=>Object.keys(x.source_data||{}))])].filter(k=>!['approved_for_invitation','personal_intro'].includes(k)):['company','first_name','last_name','email','phone'],shown=v.slice(page*pageSize(),page*pageSize()+pageSize());
+ const cardMode=$('directoryTable').hidden;
+ let cardsShown=cardMode?v:shown;
+ $('contactPager').hidden=cardMode;
  // If saving consent changes the active recruitment filter, keep the edited
  // card visible until the editor closes rather than making it disappear.
  const editingInline=$('editor')?.closest('[data-card-id]');
@@ -454,13 +459,13 @@ function render(){
    if(error){x.checked=!value;alert('Could not save: '+error.message);}else{Object.assign(r,data);if(editId===id&&$('editor')&&!$('editor').hidden){$('approved').checked=!!r.approved_for_invitation;$('personal').checked=!!r.personal_intro;}}
    x.disabled=false;
  });
- updateQuickInviteSelection();renderContactCards(shown);updateBulkContactReview();if(activeInlineInviteId!==null&&!$('directoryTable').hidden)mountInlineInviteActions(activeInlineInviteId);$('count').textContent=v.length+' matching · '+chosen.size+' selected';const totalPages=Math.max(1,Math.ceil(v.length/pageSize()));
+ updateQuickInviteSelection();renderContactCards(cardsShown);updateBulkContactReview();if(activeInlineInviteId!==null&&!$('directoryTable').hidden)mountInlineInviteActions(activeInlineInviteId);$('count').textContent=v.length+' matching · '+chosen.size+' selected';const totalPages=Math.max(1,Math.ceil(v.length/pageSize()));
  $('pages').textContent=(page+1)+' / '+totalPages;
  $('prev').disabled=page===0;
  $('next').disabled=page>=totalPages-1;
 }
 ['q','dealerSearch','tagSearch','postcodeSearch'].forEach(id=>$(id).oninput=()=>{page=0;render()});$('hideUnknown').onchange=()=>{page=0;render()};$('onlyMobile').onchange=()=>{page=0;render()};$('onlyCompany').onchange=()=>{page=0;render()};$('emailSentFilter').onchange=()=>{page=0;render()};$('pageSize').onchange=()=>{page=0;render()};$('columnMode').onchange=()=>{page=0;render()};$('prev').onclick=()=>{page=Math.max(0,page-1);render()};$('next').onclick=()=>{page=Math.max(0,Math.min(Math.ceil(view().length/pageSize())-1,page+1));render()};$('reload').onclick=load;$('bulkSelectVisible').onclick=()=>{
- view().slice(page*pageSize(),page*pageSize()+pageSize()).forEach(r=>chosen.add(r.id));
+ ($('directoryTable').hidden?view():view().slice(page*pageSize(),page*pageSize()+pageSize())).forEach(r=>chosen.add(r.id));
  render();
 };
 $('bulkClearSelected').onclick=()=>{
@@ -749,7 +754,7 @@ $('toggleDetailedColumns').onclick=()=>{
  table.classList.toggle('simple-contact-table',!showTable);
  $('toggleDetailedColumns').textContent=showTable?'Show open contact cards':'Full directory table';
  $('toggleDetailedColumns').setAttribute('aria-pressed',String(showTable));
- if(showTable&&activeInlineInviteId!==null)render();
+ render();
 };
 
 $('simpleInviteReview').onclick=async()=>{const selected=items.filter(r=>chosen.has(r.id));const status=$('simpleInviteStatus');if(selected.length!==1){status.textContent=selected.length?'Please select only one contact for this simple review.':'Select one contact using the checkbox in the results table first.';return;}const r=selected[0];if(contactRecruitmentStatus(r)==='approved'||contactRecruitmentStatus(r)==='registered'){status.textContent='This contact is already registered. Use Onboarding rather than sending another recruitment invitation.';return;}if(contactLastSent(r)){status.textContent='An invitation has already been recorded for this contact. Check their history before preparing a reminder.';return;}if(/@app\.movemotorcycles\.co\.uk$/i.test(String(r.email||''))){status.textContent='This is an imported Move Motorcycles app address, not a verified customer inbox. Do not prepare an email invitation to it.';return;}if(!r.approved_for_invitation){status.textContent='Invitation permission has not been approved for this contact. Review the source and marketing eligibility first; do not tick permission without evidence.';return;}status.textContent='Permission flag present. Verify the recipient is eligible for this marketing message and check the preview before sending.';$('advancedInvitations').open=true;await reviewInvitations();$('invitePreviews').scrollIntoView({behavior:'smooth',block:'start'});};
