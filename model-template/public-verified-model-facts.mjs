@@ -17,6 +17,14 @@ const sections={
  competition:'Competition history',motorsport:'Documented racing and motorsport',design:'Design and development',
  touring:'Touring equipment and specifications'
 };
+// Fixed category order keeps every exact-model guide consistent even when
+// factory facts arrive in a different year/order from Supabase.
+const researchOrder=[
+ 'model_year','market_launch','history','design','engineering','engine',
+ 'transmission','performance','specification','dimensions','chassis','wheels',
+ 'brakes','factory_colours','manufacturing_evidence','manufacturing','production',
+ 'competition','motorsport','touring'
+];
 const safeText=x=>typeof x==='string'?x.trim():'';
 const validUrl=x=>typeof x==='string'&&/^https:\/\/[^\s/?#]+(?:[^\s]*)$/i.test(x);
 const factLabels={
@@ -93,7 +101,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  const heading=node(doc,'h2',make+' '+model+' — documented factory research');
  heading.style.cssText='color:#fff;line-height:1.3;overflow-wrap:anywhere';
  panel.append(heading);
- const yearFacts=facts.filter(x=>x.category==='model_year'&&Number.isInteger(Number(x.start_year))&&Number(x.start_year)>=1885&&Number(x.start_year)<=2100);
+ const yearFacts=facts.filter(x=>x.category==='model_year'&&x.start_year!==null&&x.start_year!==''&&Number.isInteger(Number(x.start_year))&&Number(x.start_year)>=1885&&Number(x.start_year)<=2100);
  const sortedYears=[...new Set(yearFacts.map(x=>Number(x.start_year)))].sort((a,b)=>a-b);
  if(sortedYears.length){
   const intro=node(doc,'p',
@@ -107,7 +115,9 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  const caveat=node(doc,'p','Model-year and market-specific source records. Figures are not interchangeable between generations; verify the exact motorcycle before buying.');
  caveat.style.cssText='color:#e8e8e8;line-height:1.65';
  panel.append(caveat);
- for(const [category,items] of grouped){
+ for(const category of researchOrder){
+  const items=grouped.get(category);
+  if(!items?.length)continue;
   const group=doc.createElement('div');
   group.style.cssText='padding:14px 0;border-top:1px solid #444';
   const groupHeading=node(doc,'h3',sections[category]);
@@ -121,7 +131,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
    const factHeading=node(doc,'h4',fact.label);
    factHeading.style.cssText='color:#fff;line-height:1.4;margin:0 0 10px;overflow-wrap:anywhere';
    article.append(factHeading);
-   const detail=[fact.start_year&&'Reference year: '+fact.start_year,
+   const detail=[fact.start_year!==null&&fact.start_year!==''&&Number.isInteger(Number(fact.start_year))&&Number(fact.start_year)>=1885&&Number(fact.start_year)<=2100&&'Reference year: '+fact.start_year,
     safeText(fact.market)&&'Market: '+fact.market].filter(Boolean);
    if(detail.length){
     const detailLine=node(doc,'p',detail.join(' · '));
