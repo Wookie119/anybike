@@ -51,11 +51,16 @@ if(guideResult.status==="fulfilled"&&guideResult.value.ok){
 let catalogue={models:[]};
 if(catalogueResult.status==="fulfilled"&&catalogueResult.value.ok){try{const value=await catalogueResult.value.json();if(Array.isArray(value.models))catalogue=value}catch(error){console.warn("Model catalogue fallback",error)}}
 const clean=cleanResult.status==="fulfilled"?cleanResult.value:null;
-const legacy=catalogue.models.find(x=>x.make?.toLowerCase()===make.toLowerCase()&&x.model?.toLowerCase()===model.toLowerCase());
+// A single malformed catalogue record must not blank the entire model page.
+const legacy=catalogue.models.find(x=>x&&typeof x.make==="string"&&typeof x.model==="string"&&
+ x.make.trim().toLowerCase()===make.toLowerCase()&&x.model.trim().toLowerCase()===model.toLowerCase());
 // Clean identity wins when available; the existing catalogue remains
 // a fallback for pages absent from the public projection or during outages.
 const row=clean||legacy;
-const guide=Object.values(guides.models).find(g=>g.make.toLowerCase()===make.toLowerCase()&&(g.model.toLowerCase()===model.toLowerCase()||(make.toLowerCase()==="honda"&&model.toLowerCase()==="africa twin crf1100l"&&g.model==="Africa Twin")))||null;
+const guide=Object.values(guides.models).find(g=>g&&typeof g.make==="string"&&typeof g.model==="string"&&
+ g.make.trim().toLowerCase()===make.toLowerCase()&&
+ (g.model.trim().toLowerCase()===model.toLowerCase()||
+  (make.toLowerCase()==="honda"&&model.toLowerCase()==="africa twin crf1100l"&&g.model==="Africa Twin")))||null;
 if(!row&&!guide){
  el("heading").textContent=make+" "+model;
  el("summary").textContent="We could not find a verified guide for this exact motorcycle yet. You can still ask AnyBike to check UK sourcing possibilities.";
