@@ -80,6 +80,22 @@ assert(page.includes("const prohibited=!consent||registered"),
 assert(page.includes('id="pageSize"><option value="12" selected>12'),
  'The open directory must show a manageable number of cards per page');
 
+
+assert(page.includes('class="dealer-card-filters"'),
+ 'Everyday directory needs a visible ready/invited/permission quick filter');
+assert(page.includes("cardQuickFilter==='ready'&&r.approved_for_invitation"),
+ 'Ready-to-invite filter must require existing invitation permission');
+assert(page.includes("cardQuickFilter==='invited'&&contactRecruitmentStatus(r)==='invited'"),
+ 'Previous invitations must remain discoverable without re-sending');
+assert(page.includes("$('simpleContactQuery').addEventListener('input'"),
+ 'Directory search should update results as the admin types');
+assert(page.includes("cardQuickFilter='all';$('simpleContactQuery').value=''"),
+ 'Show all should reset the daily filters');
+assert(page.includes('id="contactCards" class="dealer-cards"'),
+ 'Open card view should be available');
+assert(page.includes('id="directoryTable" hidden'),
+ 'Dense table must start hidden');
+
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
