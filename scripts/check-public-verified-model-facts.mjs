@@ -21,6 +21,25 @@ const clean=exactVerifiedModelFacts([
 ],'Suzuki','RM250');
 assert.equal(clean.length,1);
 assert.equal(clean[0].display[0].label,'Engine capacity (cc)');
+const measured=exactVerifiedModelFacts([
+ sample({fact_id:141,make:'BMW',model:'R 1300 GS',category:'engine',
+  label:'Engine displacement',value:{amount:1300,unit:'cc'}}),
+ sample({fact_id:142,make:'BMW',model:'R 1300 GS',category:'performance',
+  label:'Maximum power',value:{amount:145,unit:'hp',rpm:7750}}),
+ sample({fact_id:143,make:'BMW',model:'R 1300 GS',category:'dimensions',
+  label:'Road-ready weight',value:{amount:237,unit:'kg',qualifier:'manufacturer quoted'}})
+],'BMW','R 1300 GS');
+assert.deepEqual(measured[0].display,[{label:'Documented value',value:'1,300 cc'}],
+ 'Do not show disconnected amount and unit labels on BMW specifications');
+assert.deepEqual(measured[1].display,[
+ {label:'Documented value',value:'145 hp'},{label:'Rpm',value:'7750'}],
+ 'Performance cards must keep the documented source units and engine speed');
+assert(measured[2].display.some(x=>x.value==='237 kg'));
+assert.deepEqual(exactVerifiedModelFacts([sample({
+ fact_id:144,value:{amount:5,unit:'<img onerror=alert(1)>',model_year:1976}
+})],'Suzuki','RM250')[0].display.map(x=>x.label),['Amount','Unit','Model year'],
+ 'Invalid units must never be treated as approved measurement markup');
+
 const documentedColour=exactVerifiedModelFacts([sample({
  fact_id:52,category:'factory_colours',label:'Factory colour: Blackstorm metallic',
  value:{name:'Blackstorm metallic',source:'https://example.org/press',source_url:'https://example.org/press',model_year:2024}
