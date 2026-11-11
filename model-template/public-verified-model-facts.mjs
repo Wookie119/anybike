@@ -26,6 +26,15 @@ const factLabels={
  model_year:'Model year',production_year:'Production year',
  power_hp:'Power (hp)',engine_type:'Engine configuration'
 };
+// These administrative keys can occur inside otherwise sourced JSON. They are
+// not factual model specifications and must never leak into public research.
+const internalValueKeys=new Set([
+ 'source','source_url','source_name','url','photo_url','image_url',
+ 'editorial_status','publication_status','verification_status',
+ 'approval_status','review_status','reviewer','reviewer_notes',
+ 'internal_notes','private_notes','draft','draft_notes','unverified',
+ 'created_at','updated_at','approved_at','published_at','audit_id'
+]);
 const pretty=x=>factLabels[x]||x.replace(/_/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
 const scalar=x=>typeof x==='string'&&x.trim()?x.trim():typeof x==='number'&&Number.isFinite(x)?String(x):null;
 const displayValue=value=>{
@@ -47,7 +56,7 @@ export function exactVerifiedModelFacts(rows,make,model){
       safeText(row.model).toLowerCase()!==safeText(model).toLowerCase()||
       !Object.hasOwn(sections,row.category)||!safeText(row.label)||
       !validUrl(row.source_url)||!Number.isSafeInteger(Number(row.fact_id))||
-      Number(row.fact_id)<=0||seen.has(row.fact_id))continue;
+      Number(row.fact_id)<=0||seen.has(Number(row.fact_id)))continue;
   // Render only simple sourced fact fields; never inject arbitrary HTML or
   // publication metadata, and never present another model's figures.
   let facts=[];
@@ -55,13 +64,13 @@ export function exactVerifiedModelFacts(rows,make,model){
   else if(row.value&&typeof row.value==='object'&&!Array.isArray(row.value)){
    facts=Object.entries(row.value).filter(([key,value])=>
     /^[a-z][a-z0-9_]{0,50}$/i.test(key)&&
-    !['source','source_url','source_name','url','photo_url','image_url'].includes(key.toLowerCase())&&
+    !internalValueKeys.has(key.toLowerCase())&&
     displayValue(value)!==null&&
     String(displayValue(value)).length<=500).slice(0,12)
     .map(([key,value])=>({label:pretty(key),value:displayValue(value)}));
   }
   if(!facts.length)continue;
-  seen.add(row.fact_id);
+  seen.add(Number(row.fact_id));
   out.push({...row,display:facts});
  }
  return out.slice(0,60);
