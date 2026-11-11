@@ -45,6 +45,17 @@ const internalValueKeys=new Set([
 ]);
 const pretty=x=>factLabels[x]||x.replace(/_/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
 const scalar=x=>typeof x==='string'&&x.trim()?x.trim():typeof x==='number'&&Number.isFinite(x)?String(x):null;
+// Source-approved measurements keep the number and stated unit together.
+// Do not guess units from the model name or category, and never render HTML.
+const documentedMeasurement=value=>{
+ if(!value||typeof value!=='object'||Array.isArray(value))return null;
+ const unit=safeText(value.unit);
+ const amount=value.amount;
+ if(!/^[a-zA-Z0-9%°/ .-]{1,24}$/.test(unit)||
+    (typeof amount!=='number'&&typeof amount!=='string')||
+    !String(amount).trim()||!Number.isFinite(Number(amount)))return null;
+ return Number(amount).toLocaleString('en-GB',{maximumFractionDigits:3})+' '+unit;
+};
 const displayValue=value=>{
  const single=scalar(value);
  if(single!==null)return single;
@@ -70,12 +81,15 @@ export function exactVerifiedModelFacts(rows,make,model){
   let facts=[];
   if(scalar(row.value)!==null)facts=[{label:'Record',value:scalar(row.value)}];
   else if(row.value&&typeof row.value==='object'&&!Array.isArray(row.value)){
-   facts=Object.entries(row.value).filter(([key,value])=>
+   const measurement=documentedMeasurement(row.value);
+   if(measurement)facts.push({label:'Documented value',value:measurement});
+   facts.push(...Object.entries(row.value).filter(([key,value])=>
     /^[a-z][a-z0-9_]{0,50}$/i.test(key)&&
     !internalValueKeys.has(key.toLowerCase())&&
+    !(measurement&&(key==='amount'||key==='unit'))&&
     displayValue(value)!==null&&
-    String(displayValue(value)).length<=500).slice(0,12)
-    .map(([key,value])=>({label:pretty(key),value:displayValue(value)}));
+    String(displayValue(value)).length<=500).slice(0,measurement?11:12)
+    .map(([key,value])=>({label:pretty(key),value:displayValue(value)})));
   }
   if(!facts.length)continue;
   seen.add(Number(row.fact_id));
