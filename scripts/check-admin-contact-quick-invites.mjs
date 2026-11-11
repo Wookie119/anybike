@@ -177,6 +177,23 @@ assert(page.includes("if(approved.length){$('bulkReviewSelected').click();return
  'Once individually approved, selected contacts can progress to individual email drafts');
 assert(page.includes("edit(r.id,{inCard:true})"),
  'Contact permission review uses the existing individual editor');
+
+// Everyday selection and review must be visible without an accordion.
+assert(page.includes('id="bulkReviewContacts" disabled>Review selected contacts'),
+ 'Selection review button belongs in the always-visible card toolbar');
+assert(page.includes('id="bulkReviewResults" hidden'),
+ 'Prepared individual drafts expand directly inside the visible selection toolbar');
+assert(page.includes('Advanced invitation history and draft tools'),
+ 'The collapsed panel is clearly labelled for advanced history, not routine reviewing');
+assert(page.includes("position:sticky;top:8px;z-index:15"),
+ 'Selection controls stay accessible when scrolling through contact cards');
+assert(page.includes('class="contact-pager"'),
+ 'Compact contact pagination replaces oversized navigation');
+assert(page.includes("$('pages').textContent=(page+1)+' / '+totalPages"),
+ 'Pagination should show a concise page counter');
+assert(page.includes("$('prev').disabled=page===0")&&page.includes("$('next').disabled=page>=totalPages-1"),
+ 'Pagination must disable unavailable directions');
+
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
