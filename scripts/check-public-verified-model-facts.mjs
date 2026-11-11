@@ -26,7 +26,7 @@ const documentedColour=exactVerifiedModelFacts([sample({
  value:{name:'Blackstorm metallic',source:'https://example.org/press',source_url:'https://example.org/press',model_year:2024}
 })],'Suzuki','RM250');
 assert.equal(documentedColour.length,1);
-assert.deepEqual(documentedColour[0].display.map(x=>x.label),['Name','Model Year'],
+assert.deepEqual(documentedColour[0].display.map(x=>x.label),['Name','Model year'],
  'Factory citation URLs belong only in source links, not technical values');
 const competition=exactVerifiedModelFacts([sample({
  fact_id:53,category:'competition',label:'Race result',value:'Documented rider achievement'
