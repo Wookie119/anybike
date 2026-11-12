@@ -45,6 +45,8 @@ for(const slug of ['burt-munro-worlds-fastest-indian','indian-scout-chief-and-sp
  assert(story.includes('rel="canonical" href="'+url+'"'),'Indian story missing canonical: '+slug);
  assert(story.includes('/indian-motorcycles.html'),'Indian story must link back to manufacturer: '+slug);
  assert(story.includes('<header id="publicHeader"></header>'),'Indian story missing shared AnyBike header: '+slug);
+ assert(story.includes('/indian-motorcycles.html#historical-catalogue'),'Indian story must link to original model research: '+slug);
+ assert(story.includes('/indian-motorcycles.html#models'),'Indian story must link to modern model guides: '+slug);
 }
 
 const historicIndian=JSON.parse(readFileSync(new URL('../data/indian-heritage-research.json',import.meta.url),'utf8'));
@@ -76,3 +78,5 @@ for(const event of historicIndian.timeline){
  const slug=event.source.match(/^\/global\/([a-z0-9-]+)\.html$/)?.[1];
  assert(slug&&allowedIndianStories.has(slug),'Timeline source must point to an approved Indian story');
 }
+
+console.log('PASS: Indian historical identity, cross-link and timeline publication safeguards');
