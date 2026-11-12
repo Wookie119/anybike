@@ -260,6 +260,19 @@ assert.equal(mountVerifiedModelFacts(coloursBody,[sample({
 assert.equal(coloursBody.children.length,1,
  'Approved factory colours heading must absorb verified facts without another full-width panel');
 assert.equal(existingColoursCard.dataset.anybikeResearchCategory,'factory_colours');
+const misleadingParent=fakeElement('section');
+misleadingParent.append(fakeElement('div'));
+misleadingParent.querySelector=selector=>selector==='h2'?{textContent:'Factory colours'}:null;
+const misleadingBody={...body,children:[misleadingParent],firstChild:misleadingParent,
+ querySelector(){return null},
+ querySelectorAll(selector){return selector==='section.card'?[misleadingParent]:[]}
+};
+assert.equal(mountVerifiedModelFacts(misleadingBody,[sample({
+ fact_id:8705,category:'factory_colours',value:{factory_colour:'Blue'}
+})],'Suzuki','RM250'),1);
+assert.equal(misleadingBody.children.length,2,
+ 'A nested factory-colours heading must not cause insertion into an unrelated parent card');
+assert.equal(misleadingParent.dataset.anybikeResearchCategory,undefined);
 const existingSpecsCard=fakeElement('section');
 existingSpecsCard.querySelector=selector=>selector==='h2'?{textContent:'Technical specifications'}:null;
 const specsBody={...body,children:[existingSpecsCard],firstChild:existingSpecsCard,
