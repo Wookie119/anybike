@@ -414,6 +414,14 @@ assert.equal(mountVerifiedModelFacts(incrementalBody,[
  sample({fact_id:8792,category:'engine',value:{power:'36 PS'}})
 ],'Suzuki','RM250'),0,
  'An unchanged verified fact set must not redraw the same research category');
+assert.equal(mountVerifiedModelFacts(incrementalBody,[
+ sample({fact_id:8791,category:'engine',value:{engine_cc:249}}),
+ sample({fact_id:8792,category:'engine',value:{power:'36 PS'}})
+],'Suzuki','RM250'),2,
+ 'An audited correction under the same fact ID must refresh the visible specifications');
+assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='engine').length,1,
+ 'An amended fact must replace the previous research group rather than duplicate it');
+
 
 const badDocumentBody={...body,children:[],firstChild:null};
 mountVerifiedModelFacts(badDocumentBody,[sample({
