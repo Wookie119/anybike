@@ -18,8 +18,9 @@ assert.equal(locs.filter(x=>x.includes('/motorcycle-model-guide.html?')).length,
 const identities=locs.filter(x=>x.includes('/motorcycle-model-guide.html?')).map(x=>{const decoded=x.replace(/&amp;/g,'&');const make=decoded.match(/[?&]make=([^&]+)/)?.[1]||'';const model=decoded.match(/[?&]model=([^&]+)/)?.[1]||'';return decodeURIComponent(make).trim().toLowerCase()+'|'+decodeURIComponent(model).trim().toLowerCase()});
 assert.equal(new Set(identities).size,identities.length,'Model identity duplicates must not re-enter the sitemap');
 assert(!locs.some(x=>{const u=new URL(x.replace(/&amp;/g,'&'));return u.pathname==='/motorcycle-brand.html'&&u.searchParams.get('make')?.toLowerCase()==='indian'}),'Indian alias must not be indexed');
-assert.equal(locs.filter(x=>x.includes('/motorcycle-brand.html?')).length,new Set(approved.map(x=>x.make.toLowerCase()).filter(x=>!['indian','bmw','harley-davidson'].includes(x))).size,'Sitemap must exclude redirected manufacturer aliases');
+assert.equal(locs.filter(x=>x.includes('/motorcycle-brand.html?')).length,new Set(approved.map(x=>x.make.toLowerCase()).filter(x=>!['indian','indian motorcycle','bmw','harley-davidson'].includes(x))).size,'Sitemap must exclude redirected manufacturer aliases');
 assert(locs.includes('https://www.anybike.co.uk/bmw-motorcycles.html'),'BMW manufacturer sitemap entry missing');
 assert(locs.includes('https://www.anybike.co.uk/harley-davidson-motorcycles.html'),'Harley manufacturer sitemap entry missing');
+assert(locs.includes('https://www.anybike.co.uk/indian-motorcycles.html'),'Indian historical manufacturer sitemap entry missing');
 assert.equal(locs.filter(x=>x.includes('/markets/')).length,217,'Sitemap must retain all country pages');
 console.log('PASS: model, manufacturer and country discoverability safeguards');
