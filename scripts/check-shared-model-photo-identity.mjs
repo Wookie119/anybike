@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const hero=readFileSync(new URL('../model-template/public-approved-model-hero.mjs',import.meta.url),'utf8');
+const gallery=readFileSync(new URL('../model-template/public-approved-model-gallery.mjs',import.meta.url),'utf8');
+const guide=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
+for(const key of ['data.make.trim().toLowerCase()===make.trim().toLowerCase()','data.model.trim().toLowerCase()===model.trim().toLowerCase()'])assert(hero.includes(key),'Exact hero identity comparison missing: '+key);
+for(const key of ['safeHttps(data.image_url)','safeHttps(data.source_page_url)','safeHttps(data.licence_url)'])assert(hero.includes(key),'Hero licensing validation missing: '+key);
+assert(gallery.includes('clean(r.make).toLowerCase()!==clean(make).toLowerCase()'),'Gallery make isolation missing');
+assert(gallery.includes('clean(r.model).toLowerCase()!==clean(model).toLowerCase()'),'Gallery model isolation missing');
+assert(guide.includes('public-approved-model-hero.mjs?v=20261112-exact-case5'),'Shared hero cache update missing');
+console.log('PASS: model hero and gallery preserve exact identities with case-insensitive names');
