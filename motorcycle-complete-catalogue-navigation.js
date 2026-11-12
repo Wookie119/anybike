@@ -172,7 +172,7 @@ async function mount(){
  const heading=main.querySelector('h1')?.textContent?.trim()||'';
  const headingModel=heading.toLowerCase().startsWith(make.toLowerCase()+' ')
   ?heading.slice(make.length).trim():'';
- const currentName=params.get('model')||routes.find(x=>x.url===path)?.model||
+ const currentName=params.get('model')?.trim()||routes.find(x=>x.url===path)?.model||
   models.find(name=>normalize(name)===normalize(headingModel))||'';
  void correctRelated();
  const entries=models;
