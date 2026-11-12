@@ -105,6 +105,22 @@ export async function applyApprovedBmwPageShell(){
  if(!main||!hero||!body||!location.pathname.startsWith('/bmw-'))return false;
  // R 1300 GS keeps its dedicated approved 13-section layout unchanged.
  if(main.querySelector('#ukR1300ModelGallery'))return false;
+ // The approved R 1300 GS stock-first layout also applies to every
+ // dedicated BMW guide. Moving an existing stock panel does not grant access,
+ // unhide listings, replace their authenticated feed or change sale links.
+ // A hidden/no-results gallery stays hidden until its original loader
+ // receives and validates the exact-model stock response.
+ const dedicatedStock=main.querySelector(':scope > #internationalModelStock');
+ if(dedicatedStock){
+  const positionStock=()=>{
+   const currentHero=main.querySelector(':scope > .hero');
+   if(currentHero&&currentHero.nextElementSibling!==dedicatedStock)
+    currentHero.after(dedicatedStock);
+  };
+  positionStock();
+  if(document.readyState==='loading')
+   document.addEventListener('DOMContentLoaded',positionStock,{once:true});
+ }
  main.classList.add('anybike-approved-bmw-live-shell');
  const display=main.querySelector('#heading')?.textContent?.trim()||main.querySelector('h1')?.textContent?.trim()||'';
  const model=display.replace(/^BMW\s+/i,'');
