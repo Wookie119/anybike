@@ -94,6 +94,15 @@ export async function installApprovedModelGallery({body,make,model,client,imageF
   if(pendingGalleryRequests.get(body)!==request)return 0;
   if(error||!Array.isArray(data))return 0;
   const records=approvedExactModelGallery(data,make,model);
+  // A successful empty public projection is an approval withdrawal, unlike
+  // a network error or an image-host outage. Remove previously published
+  // photography only when the public database confirms no approved records.
+  if(!records.length){
+   const published=body.querySelector?.('[data-anybike-model-research-gallery]');
+   if(published?.dataset?.anybikeGalleryIdentity===requestedIdentity)
+    published.remove?.();
+   return 0;
+  }
   const image=createImageLoader(imageFactory);
   const checks=await Promise.all(records.map(async r=>(await image(r.image_url))?r:null));
   if(pendingGalleryRequests.get(body)!==request)return 0;
