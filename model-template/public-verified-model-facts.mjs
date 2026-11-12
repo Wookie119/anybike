@@ -176,14 +176,17 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  // similar-sounding headings may describe a different year, market or subject.
  const existingResearchCard=category=>{
   if(!sections[category]||typeof body.querySelectorAll!=='function')return null;
-  const matches=[...body.querySelectorAll('section.card')].filter(card=>
-   !card.dataset?.anybikeVerifiedModelFacts&&
-   !card.dataset?.anybikeResearchCategory&&
+  const matches=[...body.querySelectorAll('section.card')].filter(card=>{
+   if(card.dataset?.anybikeVerifiedModelFacts)return false;
    // Only direct approved section headings count. A nested article heading
    // must never redirect research into an unrelated parent card.
-   approvedResearchSectionHeading(category,[...card.children].find(child=>child.tagName?.toLowerCase()==='h2')?.textContent||
-    (!card.children?.length?card.querySelector?.('h2')?.textContent:''))
-  );
+   const heading=[...card.children].find(child=>child.tagName?.toLowerCase()==='h2')?.textContent||
+    (!card.children?.length?card.querySelector?.('h2')?.textContent:'');
+   if(!approvedResearchSectionHeading(category,heading))return false;
+   // A card can contain verified research from multiple approved categories,
+   // but never the same category twice.
+   return ![...card.children].some(child=>child.dataset?.anybikeResearchCategory===category);
+  });
   return matches.length===1?matches[0]:null;
  };
  let panelGroups=0;
