@@ -211,13 +211,15 @@ assert.equal(exactVerifiedModelFacts([sample({make:' Suzuki ',model:' RM250 '})]
 function fakeElement(tag){
  return {
   tag,children:[],dataset:{},style:{},textContent:'',href:'',target:'',rel:'',
-  append(...xs){this.children.push(...xs)},
+  append(...xs){for(const child of xs){this.children.push(child);if(child&&typeof child==='object')child.parentNode=this}}, 
+  remove(){if(this.parentNode){const i=this.parentNode.children.indexOf(this);if(i>=0)this.parentNode.children.splice(i,1);this.parentNode=null}},
   insertBefore(child,before){
    const previous=this.children.indexOf(child);
    if(previous>=0)this.children.splice(previous,1);
    const index=this.children.indexOf(before);
    if(index<0)this.children.push(child);
    else this.children.splice(index,0,child);
+   if(child&&typeof child==='object')child.parentNode=this;
   },
   querySelector(){return null}
  };
