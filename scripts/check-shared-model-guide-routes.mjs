@@ -176,6 +176,16 @@ assert(verifiedFactsScript.includes('const placeholderAdded=records.some('),'Ver
 assert(verifiedFactsScript.includes('watcher.disconnect();'),'Verified model facts observer must disconnect');
 assert(!verifiedFactsScript.includes('new MutationObserver(()=>removeGenericPlaceholder())'),'Unbounded research observer reintroduced');
 assert(universalGuide.includes('/model-template/public-verified-model-facts.mjs?v=20261112-research1'),'New approved research renderer must refresh browser cache');
+
+// Additional dated factory research must stay versioned with its audit, not
+// hardcoded into manufacturer-specific HTML pages.
+const nextFactoryMigration=fs.readFileSync('supabase/migrations/20261112152000_factory_model_research_yamaha_suzuki_kawasaki.sql','utf8');
+assert(nextFactoryMigration.includes('motorcycle_catalog_fact_verification_audit'),'Next batch of manufacturer research requires a source audit');
+for(const url of ['global.yamaha-motor.com/news/2019/1010/tms.html','globalsuzuki.com/globalnews/2016/1004.html','global.kawasaki.com/en/corp/newsroom/'])
+ assert(nextFactoryMigration.includes(url),'Additional documented factory source missing: '+url);
+assert(nextFactoryMigration.includes('where not exists(select 1 from public.motorcycle_catalog_fact_verification_audit'),'Migrated research audit must remain idempotent');
+console.log('PASS: second model research migration preserves dated sources and audit history.');
+
 console.log('PASS: four manufacturer factory research sources, audit and bounded page observer preserved.');
 
 console.log('PASS: generic manufacturer/model photography uses approved exact-model RPC with image-load guard.');
