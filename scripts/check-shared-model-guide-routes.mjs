@@ -163,6 +163,21 @@ assert(!aliasMigration.includes("'Z900RS','Z900'"),'Never alias Kawasaki Z900RS 
 assert(!aliasMigration.includes("'TENERE 700 RALLY','Tenere 700'"),'Never alias Rally to standard Ténéré');
 console.log('PASS: approved identity aliases retain strict manufacturer, generation and trim photo guards.');
 
+
+// A verified manufacturer fact must carry an audit and exact model identity.
+// No permanent MutationObserver can rescan sourced research indefinitely.
+const verifiedFactsScript=fs.readFileSync('model-template/public-verified-model-facts.mjs','utf8');
+const factoryMigration=fs.readFileSync('supabase/migrations/20261112150000_japanese_factory_verified_model_research.sql','utf8');
+assert(factoryMigration.includes('motorcycle_catalog_fact_verification_audit'),'Source audit for factory research missing');
+assert(factoryMigration.includes("'Honda'")===false,'Factory records must reference audited canonical model IDs, not loose manufacturer matching');
+for(const source of ['global.honda/en/newsroom/news/2015/','global.yamaha-motor.com/news/2013/','globalsuzuki.com/globalnews/2015/','global.kawasaki.com/en/corp/newsroom/','kawasaki.eu/en/Motorcycles/'])
+ assert(factoryMigration.includes(source),'Factory source missing: '+source);
+assert(verifiedFactsScript.includes('const placeholderAdded=records.some('),'Verified model facts observer must filter late placeholders');
+assert(verifiedFactsScript.includes('watcher.disconnect();'),'Verified model facts observer must disconnect');
+assert(!verifiedFactsScript.includes('new MutationObserver(()=>removeGenericPlaceholder())'),'Unbounded research observer reintroduced');
+assert(universalGuide.includes('/model-template/public-verified-model-facts.mjs?v=20261112-research1'),'New approved research renderer must refresh browser cache');
+console.log('PASS: four manufacturer factory research sources, audit and bounded page observer preserved.');
+
 console.log('PASS: generic manufacturer/model photography uses approved exact-model RPC with image-load guard.');
 
 console.log('PASS: existing detailed-model routes, fallback sourcing and both model-specific customer journeys are intact.');
