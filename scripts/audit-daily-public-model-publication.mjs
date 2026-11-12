@@ -98,7 +98,9 @@ export function toMarkdown(report){
   '|---|---|---:|---:|---|'];
  for(const row of report.rows){
   const clean=x=>String(x??'').replace(/\|/g,'\\|').replace(/[\r\n]/g,' ');
-  lines.push('| '+clean(row.make)+' | '+clean(row.model)+' | '+
+  const url='https://www.anybike.co.uk/motorcycle-model-guide.html?make='+
+   encodeURIComponent(row.make)+'&model='+encodeURIComponent(row.model);
+  lines.push('| '+clean(row.make)+' | ['+clean(row.model)+']('+url+') | '+
    (row.facts??'—')+' | '+(row.gallery??'—')+' | '+
    clean(row.error||'Checked')+' |');
  }
