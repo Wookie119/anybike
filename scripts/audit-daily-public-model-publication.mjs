@@ -57,7 +57,11 @@ export function selectDailyModels(models,date=new Date(),size=140){
  }
  const sorted=[...unique.values()].sort((a,b)=>identity(a.make,a.model).localeCompare(identity(b.make,b.model)));
  const day=Math.floor(Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),date.getUTCDate())/86400000);
- const offset=(day*size)%Math.max(1,sorted.length);
+ // A weekly fixed anchor gives complete coverage within each Monday–Sunday
+ // cycle even if the clean catalogue grows or changes between audit runs.
+ const weekStart=day-((date.getUTCDay()+6)%7);
+ const dayInWeek=day-weekStart;
+ const offset=(dayInWeek*size)%Math.max(1,sorted.length);
  const selected=new Map(core.map(([make,model])=>[identity(make,model),{make,model}]));
  for(let i=0;i<Math.min(size,sorted.length);i++){
   const m=sorted[(offset+i)%sorted.length];
