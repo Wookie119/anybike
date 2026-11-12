@@ -227,6 +227,16 @@ const publicBrandPage=fs.readFileSync('motorcycle-brand.html','utf8');
 assert(publicBrandPage.includes('/motorcycle-model-guide.html?make='),'Manufacturer public cards must link into the shared guide');
 assert(universalGuide.includes('id="body"'),'Shared model guide must retain research insertion point');
 assert(universalGuide.includes('/model-template/public-verified-model-facts.mjs'),'Shared guide must load verified factory facts');
+
+// Ducati Icon 2023 must be separate from earlier Icon and other Scrambler
+// derivatives; only the existing documented public model is enriched.
+const scramblerFactory=fs.readFileSync('supabase/migrations/20261112180000_ducati_scrambler_icon_factory_research.sql','utf8');
+assert(scramblerFactory.includes('Ducati Scrambler Icon'),'Icon source research missing');
+assert(scramblerFactory.includes('2023'),'Scrambler Icon research must be dated');
+assert(scramblerFactory.includes('motorcycle_catalog_fact_verification_audit'),'Scrambler Icon source audit missing');
+assert(scramblerFactory.includes('www.ducati.com/gb/en/news/next-gen-freedom-the-new-generation-of-ducati-scrambler'),'Primary Ducati factory source required');
+console.log('PASS: Ducati Scrambler Icon factory research is documented and version-scoped.');
+
 console.log('PASS: Triumph/Ducati factory research remains source-audited and linked to universal public model pages.');
 
 console.log('PASS: Triumph and Ducati dated source-linked research shares the approved universal model system.');
