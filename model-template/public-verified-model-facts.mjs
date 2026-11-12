@@ -61,7 +61,8 @@ const displayValue=value=>{
  if(single!==null)return single;
  // Verified factory style/edition lists are usable research; never treat
  // nested editorial drafts, objects, or an unsourced image array as text.
- if(Array.isArray(value)&&value.length>0&&value.length<=12&&
+ // Preserve long but bounded sets of approved factory colours/editions.
+ if(Array.isArray(value)&&value.length>0&&value.length<=60&&
     value.every(x=>typeof x==='string'&&x.trim()&&x.trim().length<=90)){
   return value.map(x=>x.trim()).join(' · ');
  }
@@ -88,14 +89,13 @@ export function exactVerifiedModelFacts(rows,make,model){
     !internalValueKeys.has(key.toLowerCase())&&
     !((measurement||Object.hasOwn(row.value,'unit'))&&(key==='amount'||key==='unit'))&&
     displayValue(value)!==null&&
-    String(displayValue(value)).length<=500).slice(0,measurement?11:12)
-    .map(([key,value])=>({label:pretty(key),value:displayValue(value)})));
+    String(displayValue(value)).length<=500).map(([key,value])=>({label:pretty(key),value:displayValue(value)})));
   }
   if(!facts.length)continue;
   seen.add(Number(row.fact_id));
   out.push({...row,display:facts});
  }
- return out.slice(0,60);
+ return out;
 }
 const node=(doc,tag,value)=>{const el=doc.createElement(tag);el.textContent=String(value??'');return el;};
 export function mountVerifiedModelFacts(body,rows,make,model){
