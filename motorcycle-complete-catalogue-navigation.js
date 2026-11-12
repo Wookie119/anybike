@@ -31,10 +31,9 @@ function section(title,note,entries,current,urlFor){
 }
 async function mount(){
  const main=document.querySelector('main');if(!main||document.querySelector('[data-complete-catalogue-navigation]'))return;
- let catalogue;
- try{const res=await fetch('/data/motorcycle-catalogue-master.json',{cache:'default'});if(!res.ok)throw Error('Catalogue unavailable');catalogue=await res.json();}catch(e){console.warn('Complete catalogue navigation unavailable',e);return}
+ let catalogue={models:[]};
+ try{const res=await fetch('/data/motorcycle-catalogue-master.json',{cache:'default'});if(!res.ok)throw Error('Catalogue unavailable');catalogue=await res.json();}catch(e){console.warn('Public catalogue fallback unavailable; trying canonical Supabase directory',e)}
  const rows=Array.isArray(catalogue.models)?catalogue.models.filter(x=>x&&typeof x.make==='string'&&typeof x.model==='string'&&x.make.trim()&&x.model.trim()):[];
- if(!rows.length)return;
  const makes=[...new Map(rows.map(x=>[normalize(x.make),x.make])).values()].sort((a,b)=>a.localeCompare(b,'en'));
 
  const publicModels=rows.filter(x=>normalize(x.make)===normalize(make));
@@ -85,6 +84,7 @@ async function mount(){
    }
   }
   const other=makes.filter(m=>normalize(m)!==normalize(make));
+  if(!other.length)return;
   const manufacturers=section('Explore all motorcycle manufacturers','Browse every manufacturer in the AnyBike public catalogue.',other,'',makeUrl);
   manufacturers.dataset.completeCatalogueNavigation='1';main.append(manufacturers);
   return;
