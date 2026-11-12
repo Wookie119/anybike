@@ -172,6 +172,15 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   ...[...existingPanel?.children||[]].filter(group=>group.dataset?.anybikeResearchCategory)
  ].filter((group,index,all)=>all.indexOf(group)===index&&group.dataset?.anybikeResearchCategory);
  const allFacts=exactVerifiedModelFacts(rows,make,model);
+ // A previously published category can be withdrawn from the audited public
+ // projection. Remove it on the next successful refresh rather than leaving
+ // revoked or superseded research visible indefinitely.
+ const approvedCategories=new Set(allFacts.map(fact=>fact.category));
+ for(const group of existingGroups){
+  if(group.dataset.anybikeResearchFactIds&&
+     !approvedCategories.has(group.dataset.anybikeResearchCategory))
+   group.remove?.();
+ }
  // A category may gain additional audited factory records after its first
  // publication. Compare the complete set of fact IDs, not only its category.
  const fingerprint=category=>allFacts.filter(fact=>fact.category===category)
