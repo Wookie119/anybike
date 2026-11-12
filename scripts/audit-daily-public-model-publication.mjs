@@ -75,7 +75,10 @@ export async function runDailyAudit({fetcher=fetch,date=new Date(),models=catalo
   checkedModels:rows.length,errors:rows.filter(x=>x.error).length,
   withFacts:rows.filter(x=>x.facts>0).length,
   withGallery:rows.filter(x=>x.gallery>0).length,
-  factCount:rows.reduce((n,x)=>n+(x.facts||0),0),rows};
+  factCount:rows.reduce((n,x)=>n+(x.facts||0),0),
+  missingResearch:rows.filter(x=>!x.error&&x.facts===0).length,
+  researchedWithoutGallery:rows.filter(x=>!x.error&&x.facts>0&&x.gallery===0).length,
+  rows};
 }
 export function toMarkdown(report){
  const lines=['# AnyBike daily public research publication check','',
@@ -88,6 +91,8 @@ export function toMarkdown(report){
   '| Models with verified public facts | '+report.withFacts+' |',
   '| Models with approved public gallery entries | '+report.withGallery+' |',
   '| Verified facts returned in sample | '+report.factCount+' |',
+  '| Sampled models awaiting verified research | '+report.missingResearch+' |',
+  '| Researched models awaiting approved gallery | '+report.researchedWithoutGallery+' |',
   '| Errors / identity / photo guard failures | '+report.errors+' |','',
   '## Models checked','','| Manufacturer | Exact model | Facts | Gallery | Status |',
   '|---|---|---:|---:|---|'];
@@ -97,6 +102,15 @@ export function toMarkdown(report){
    (row.facts??'—')+' | '+(row.gallery??'—')+' | '+
    clean(row.error||'Checked')+' |');
  }
+ const researchQueue=report.rows.filter(x=>!x.error&&x.facts===0);
+ const photoQueue=report.rows.filter(x=>!x.error&&x.facts>0&&x.gallery===0)
+  .sort((a,b)=>b.facts-a.facts||identity(a.make,a.model).localeCompare(identity(b.make,b.model)));
+ lines.push('','## Research and licensed photography queues','',
+  'These are **review candidates only**. A missing public fact or image does not authorise publishing unsourced content.','',
+  '### Models awaiting verified research');
+ for(const row of researchQueue)lines.push('- '+row.make+' '+row.model);
+ lines.push('','### Researched models awaiting approved gallery');
+ for(const row of photoQueue)lines.push('- '+row.make+' '+row.model+' ('+row.facts+' verified facts)');
  return lines.join('\n')+'\n';
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
