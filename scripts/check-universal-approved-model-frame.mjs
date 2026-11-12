@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const css=readFileSync(new URL('../model-template/approved-r1300gs-model-design.css',import.meta.url),'utf8');
+const guide=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
+const shared=readFileSync(new URL('../public-header.js',import.meta.url),'utf8');
+assert(css.includes('body:has(#generationPanel) main{background:#252525;border:2px solid #ed1c24'),'Approved model frame missing');
+assert(css.includes('main>.end-action[data-anybike-model-stock]'),'Exact-model stock style missing');
+assert(guide.includes('approved-r1300gs-model-design.css?v=20261112-universal-frame2'),'Shared model stylesheet version missing');
+assert(shared.includes('if(hero)hero.after(section);'),'Stock must follow model hero');
+assert(shared.includes('const dedicatedStock='),'Dedicated BMW stock must not be duplicated');
+assert(shared.includes('x.catalogue_identity_status!==\'verified\''),'Unverified model stock must be excluded');
+console.log('PASS: shared model frame, stock ordering and verified exact-model stock isolation');
