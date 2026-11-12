@@ -34,7 +34,11 @@ assert.equal(report.errors,0);
 assert.equal(report.checkedModels,12);
 assert.equal(report.withFacts,12);
 assert.equal(report.withGallery,0);
+assert.equal(report.missingResearch,0);
+assert.equal(report.researchedWithoutGallery,12);
 assert(toMarkdown(report).includes('not** a full catalogue'));
+assert(toMarkdown(report).includes('Researched models awaiting approved gallery'));
+assert(toMarkdown(report).includes('BMW R 1300 GS'));
 const bad=await runDailyAudit({
  fetcher:async()=>({ok:false,status:503}),
  models:[],date:new Date('2026-11-12T12:00:00Z')
