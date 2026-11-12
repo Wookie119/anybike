@@ -46,3 +46,11 @@ order by m.model,g.start_year nulls last,g.id;
 ```
 
 **Do not bulk-approve** the 92 pending records or infer end dates from successor introductions. They require per-generation source checks.
+
+## Cross-manufacturer rollout audit — 12 November 2026
+
+The 92 existing generation rows cover **BMW only** (71 of BMW's 103 source model records). Other manufacturers currently have no generation rows in this specific table. Do not infer they lack history elsewhere in AnyBike research or editorial data.
+
+Suggested next research sequence: BMW's remaining 32 source model identities; Harley-Davidson's 82; Honda's 85; Yamaha's 89; then Ducati, Kawasaki, Suzuki, Triumph and other brands. This is a source-research priority order, not permission to bulk-create empty generation records or copy BMW data to another make.
+
+Use `scripts/sql/motorcycle-generation-coverage-audit.sql` for repeatable backlog and verification-status checks. The approved 20-section model design remains unchanged for every manufacturer.
