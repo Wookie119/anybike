@@ -314,6 +314,8 @@ assert.equal(mixedBody.children.length,2,
  'Mixed model research must retain one approved card and one neutral fallback panel');
 assert.equal(mixedEngineCard.children.filter(x=>x.dataset?.anybikeResearchCategory==='engine').length,1);
 assert.equal(mixedBody.children[0].dataset.anybikeVerifiedModelFacts,'1');
+assert.equal(mixedBody.children[0].children.filter(x=>x.dataset?.anybikeResearchCategory==='history').length,1,
+ 'Fallback panel must contain only the unmatched history category');
 assert.equal(mountVerifiedModelFacts(mixedBody,[sample({fact_id:8752,category:'engine'})],'Suzuki','RM250'),0,
  'A repeated mixed research installation must not duplicate existing source-linked facts');
 
@@ -517,6 +519,10 @@ assert(harleyResearchSource.includes("public_anybike_manufacturer_model_routes_v
 assert(harleyResearchSource.includes("main.insertBefore(slot,before)"),
  'Harley research must retain its approved position before related links and credits');
 const bmwReconcileSource=readFileSync(new URL('../model-template/bmw-db-research-sections.mjs',import.meta.url),'utf8');
+assert(bmwReconcileSource.includes("if(!card.dataset.anybikeResearchCategory)card.dataset.anybikeResearchCategory=category"),
+ 'BMW reconciliation must not overwrite the identity of an existing integrated category');
+assert(bmwReconcileSource.includes("existing.dataset?.anybikeResearchCategory===category"),
+ 'BMW reconciliation must deduplicate verified research by exact category');
 assert(bmwReconcileSource.includes('preserveVerifiedGroups(primary)')&&
  bmwReconcileSource.includes('preserveVerifiedGroups(duplicate)'),
  'BMW late database reconciliation must not delete already-integrated verified factory research');
