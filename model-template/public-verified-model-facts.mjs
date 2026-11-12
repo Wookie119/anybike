@@ -19,6 +19,17 @@ const sections={
  factory_documents:'Factory documents and brochures',
  used_buying:'Used buying and ownership guidance'
 };
+// Approved legacy heading aliases. This is an explicit, deliberately small
+// compatibility map, not fuzzy matching or a second page template.
+const approvedSectionHeadings={
+ factory_colours:['Factory colours'],
+ specification:['Technical specifications']
+};
+export function approvedResearchSectionHeading(category,heading){
+ const value=safeText(heading).toLowerCase();
+ return Boolean(value&&[sections[category],...(approvedSectionHeadings[category]||[])]
+  .some(label=>label?.toLowerCase()===value));
+}
 // Fixed category order keeps every exact-model guide consistent even when
 // factory facts arrive in a different year/order from Supabase.
 const researchOrder=[
@@ -164,12 +175,11 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  // its heading exactly matches the registered category label. No fuzzy matching:
  // similar-sounding headings may describe a different year, market or subject.
  const existingResearchCard=category=>{
-  const expected=sections[category];
-  if(!expected||typeof body.querySelectorAll!=='function')return null;
+  if(!sections[category]||typeof body.querySelectorAll!=='function')return null;
   const matches=[...body.querySelectorAll('section.card')].filter(card=>
    !card.dataset?.anybikeVerifiedModelFacts&&
    !card.dataset?.anybikeResearchCategory&&
-   safeText(card.querySelector?.('h2')?.textContent).toLowerCase()===expected.toLowerCase()
+   approvedResearchSectionHeading(category,card.querySelector?.('h2')?.textContent)
   );
   return matches.length===1?matches[0]:null;
  };
