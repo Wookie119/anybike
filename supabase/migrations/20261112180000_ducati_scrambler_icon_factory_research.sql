@@ -1,0 +1,19 @@
+-- Ducati Scrambler Icon 2023 verified official model launch and colours.
+-- Separate model-year scope, not earlier Icon or other Scrambler variants.
+with documented(catalog_model_id,category,label,value,start_year,end_year,market,source_name,source_url,verification_basis,scope_note,source_version) as (values
+(409,'market_launch','Ducati Scrambler Icon — second-generation unveiled November 2022','{"power":"73 hp","engine":"Air-cooled desmodromic two-valve L-twin","model_year":"2023","dealer_arrival":"March 2023","new_electronics":"Ride-by-wire and riding modes","announcement_date":"7 November 2022"}'::jsonb,2023,NULL,'Ducati international 2023 model','Ducati — Next-Gen Freedom Scrambler range, 7 November 2022','https://www.ducati.com/gb/en/news/next-gen-freedom-the-new-generation-of-ducati-scrambler','manufacturer_primary_source_exact_model_checked_2026_11_12','Second-generation 2023 Icon launch, not first Scrambler Icon introduction; Nightshift and Full Throttle are different variants.','Ducati — Next-Gen Freedom Scrambler range, 7 November 2022'),
+(409,'factory_colours','Ducati Scrambler Icon — 2023 configurable factory colour covers','{"design":"Replaceable tank side covers and matching colour components","model_year":"2023","customisation":"Six additional accessory colour kits for nine total combinations","standard_colours":["62 Yellow","Thrilling Black","Ducati Red"]}'::jsonb,2023,NULL,'Ducati international 2023 Icon','Ducati — Next-Gen Freedom Scrambler range, 7 November 2022','https://www.ducati.com/gb/en/news/next-gen-freedom-the-new-generation-of-ducati-scrambler','manufacturer_primary_source_exact_model_checked_2026_11_12','2023 Icon-only colour scheme; not factory colours of Nightshift, Full Throttle or earlier Scrambler generations.','Ducati — Next-Gen Freedom Scrambler range, 7 November 2022')
+)
+insert into public.motorcycle_catalog_facts(catalog_model_id,category,label,value,start_year,end_year,market,source_name,source_url,verification_status)
+select d.catalog_model_id,d.category,d.label,d.value,d.start_year,d.end_year,d.market,d.source_name,d.source_url,'verified' from documented d
+where exists(select 1 from public.motorcycle_catalog_dropdown_clean m where m.model_id=d.catalog_model_id)
+and not exists(select 1 from public.motorcycle_catalog_facts f where f.catalog_model_id=d.catalog_model_id and f.label=d.label and f.source_url=d.source_url);
+
+with documented(catalog_model_id,label,source_url,verification_basis,scope_note,source_version) as (values
+(409,'Ducati Scrambler Icon — second-generation unveiled November 2022','https://www.ducati.com/gb/en/news/next-gen-freedom-the-new-generation-of-ducati-scrambler','manufacturer_primary_source_exact_model_checked_2026_11_12','Second-generation 2023 Icon launch, not first Scrambler Icon introduction; Nightshift and Full Throttle are different variants.','Ducati — Next-Gen Freedom Scrambler range, 7 November 2022'),
+(409,'Ducati Scrambler Icon — 2023 configurable factory colour covers','https://www.ducati.com/gb/en/news/next-gen-freedom-the-new-generation-of-ducati-scrambler','manufacturer_primary_source_exact_model_checked_2026_11_12','2023 Icon-only colour scheme; not factory colours of Nightshift, Full Throttle or earlier Scrambler generations.','Ducati — Next-Gen Freedom Scrambler range, 7 November 2022')
+)
+insert into public.motorcycle_catalog_fact_verification_audit(fact_id,checked_at,verification_basis,source_url,scope_note,source_version)
+select f.id,now(),d.verification_basis,d.source_url,d.scope_note,d.source_version
+from documented d join public.motorcycle_catalog_facts f on f.catalog_model_id=d.catalog_model_id and f.label=d.label and f.source_url=d.source_url
+where not exists(select 1 from public.motorcycle_catalog_fact_verification_audit a where a.fact_id=f.id);
