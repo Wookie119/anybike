@@ -190,8 +190,9 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  // revoked or superseded research visible indefinitely.
  const approvedCategories=new Set(allFacts.map(fact=>fact.category));
  for(const group of existingGroups){
-  if(group.dataset.anybikeResearchFactIds&&
-     !approvedCategories.has(group.dataset.anybikeResearchCategory))
+  if(!approvedCategories.has(group.dataset.anybikeResearchCategory)&&
+     (group.dataset.anybikeResearchFactIds||
+      group.parentNode===existingPanel))
    group.remove?.();
  }
  // A successful empty or reduced public projection must not leave an empty
