@@ -17,7 +17,7 @@ assert(guide.includes('internationalHeading'),'Existing international enquiry ro
 const dedicatedRoutes=JSON.parse(readFileSync('data/approved-dedicated-model-routes.json','utf8')).models;
 assert(dedicatedRoutes.length>=45,'All approved dedicated routes must remain in the catalogue');
 for(const {url} of dedicatedRoutes){
- const path=url.replace(/^\\//,'');
+ const path=url.startsWith('/')?url.slice(1):url;
  if(path==='bmw-r1300gs.html')continue;
  const html=readFileSync(path,'utf8');
  assert(html.includes('/model-template/approved-r1300gs-model-design.css?v=20261112-master1'),
