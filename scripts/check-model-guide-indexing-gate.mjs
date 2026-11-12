@@ -64,3 +64,15 @@ assert(Array.isArray(historicIndian.timeline)&&historicIndian.timeline.length>=7
 assert(historicIndian.timeline.every(x=>/^\d{4}$/.test(String(x.year))&&x.source.startsWith('/global/')),'Indian timeline events require valid dates and source-linked Global articles');
 assert(indianPage.includes('id="indianMilestones"')&&indianPage.includes('research.timeline'),'Indian history timeline must render from the structured research source');
 assert(indianPage.includes('href="#heritage-milestones"'),'Indian history timeline must be reachable from page navigation');
+
+const approvedIndian=approved.filter(x=>x.make==='Indian Motorcycle');
+assert(approvedIndian.length>=10,'Modern Indian catalogue identities unexpectedly missing');
+assert(approvedIndian.some(x=>x.model==='Scout')&&approvedIndian.some(x=>x.model==='Chief'),'Modern Scout and Chief must remain in approved catalogue');
+assert(!historicIndian.models.some(x=>approvedIndian.some(y=>y.model===x.name&&x.identity===y.model)),'Historic Indian identity must not reuse modern stock identity');
+assert(indianPage.includes('A modern Scout or Chief is not the same motorcycle'),'Indian page must explain modern and original model distinction');
+assert(indianPage.includes('Catalogue category:'),'Modern Indian catalogue cards must show their approved classification');
+const allowedIndianStories=new Set(['burt-munro-worlds-fastest-indian','indian-scout-chief-and-springfield-history','victory-polaris-indian-motorcycle-revival']);
+for(const event of historicIndian.timeline){
+ const slug=event.source.match(/^\\/global\\/([a-z0-9-]+)\\.html$/)?.[1];
+ assert(slug&&allowedIndianStories.has(slug),'Timeline source must point to an approved Indian story');
+}
