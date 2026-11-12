@@ -166,10 +166,10 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  // categories should be eligible for publication without creating a second
  // full-width panel; the existing panel remains the one approved destination.
  const existingPanel=body.querySelector?.('[data-anybike-verified-model-facts]')||null;
- const alreadyIntegrated=new Set(
-  [...body.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]]
-   .map(group=>group.dataset?.anybikeResearchCategory).filter(Boolean)
- );
+ const alreadyIntegrated=new Set([
+  ...[...body.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]],
+  ...[...existingPanel?.querySelectorAll?.('[data-anybike-research-category]')||[]]
+ ].map(group=>group.dataset?.anybikeResearchCategory).filter(Boolean));
  const facts=exactVerifiedModelFacts(rows,make,model)
   .filter(fact=>!alreadyIntegrated.has(fact.category));
  if(!facts.length)return 0;
