@@ -46,3 +46,25 @@ order by (coalesce(f.verified_facts,0)>0 and coalesce(s.staged_sections,0)>0) de
 select count(*) as published_sections,
  count(distinct entity_id) filter(where entity_type='model') as published_models
 from public.motorcycle_universal_published_sections_v1;
+
+-- 5. Evidence integrity: all four counts should be zero.
+select
+ count(*) filter(where f.source_url is null or f.source_url !~ '^https://[^[:space:]]+$') as invalid_source_urls,
+ count(*) filter(where f.value is null or f.value='null'::jsonb or f.value='{}'::jsonb) as empty_values,
+ count(*) filter(where f.start_year is not null and f.end_year is not null and f.start_year>f.end_year) as reversed_year_ranges,
+ count(*) filter(where not exists (
+  select 1 from public.motorcycle_catalog_fact_verification_audit a
+  where a.fact_id=f.id and a.source_url=f.source_url
+    and nullif(btrim(a.verification_basis),'') is not null
+    and a.checked_at is not null and a.checked_at<=now()
+ )) as verified_without_matching_audit
+from public.motorcycle_catalog_facts f
+where f.verification_status='verified';
+
+-- 6. Factory-source evidence coverage by category, without confusing it
+-- with section-level editorial approval.
+select f.category,count(*) as verified_facts,
+ count(distinct f.catalog_model_id) as covered_models
+from public.motorcycle_catalog_facts f
+where f.verification_status='verified'
+group by f.category order by verified_facts desc,f.category;
