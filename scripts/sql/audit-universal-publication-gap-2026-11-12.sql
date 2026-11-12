@@ -68,3 +68,28 @@ select f.category,count(*) as verified_facts,
 from public.motorcycle_catalog_facts f
 where f.verification_status='verified'
 group by f.category order by verified_facts desc,f.category;
+
+-- 7. Prioritise real research depth: models with verified evidence but fewer
+-- than four distinct research categories. This is a worklist, not publication.
+with evidence as (
+ select m.id,m.manufacturer,m.model,count(f.id) as verified_facts,
+        count(distinct f.category) as verified_categories,
+        count(distinct s.section_number) as staged_sections
+ from public.motorcycle_catalog_models m
+ join public.motorcycle_catalog_facts f on f.catalog_model_id=m.id
+   and f.verification_status='verified'
+ left join public.motorcycle_universal_page_sections_v1 s
+   on s.entity_type='model' and s.model_id=m.id
+ group by m.id,m.manufacturer,m.model
+)
+select id,manufacturer,model,verified_facts,verified_categories,staged_sections
+from evidence where verified_categories<4
+order by verified_facts desc,verified_categories,id limit 100;
+
+-- 8. Identify duplicated research labels for an exact model; duplicated
+-- facts should be reviewed, not silently deleted.
+select catalog_model_id,label,count(*) as duplicate_count
+from public.motorcycle_catalog_facts
+where verification_status='verified'
+group by catalog_model_id,label having count(*)>1
+order by duplicate_count desc,catalog_model_id,label;
