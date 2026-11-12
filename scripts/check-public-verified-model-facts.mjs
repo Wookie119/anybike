@@ -385,6 +385,9 @@ assert.equal(incrementalBody.children.length,1,
  'Additional verified categories must reuse the existing research panel');
 assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='history').length,1);
 assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='engine').length,1);
+assert.deepEqual(existingResearchPanel.children.map(x=>x.dataset?.anybikeResearchCategory),
+ ['engine','history'],
+ 'Incremental research must follow canonical order, not the date its facts arrived');
 assert.equal(mountVerifiedModelFacts(incrementalBody,[
  sample({fact_id:8791,category:'engine',value:{engine_cc:246}})
 ],'Suzuki','RM250'),0);
