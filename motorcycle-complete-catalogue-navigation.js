@@ -38,6 +38,21 @@ async function mount(){
  const makes=[...new Map(rows.map(x=>[normalize(x.make),x.make])).values()].sort((a,b)=>a.localeCompare(b,'en'));
 
  const publicModels=rows.filter(x=>normalize(x.make)===normalize(make));
+ // Use the same canonical, name-reviewed Supabase directory as manufacturer
+ // model cards. The static public catalogue is an offline fallback only.
+ let databaseModels=[];
+ try{
+  const response=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_manufacturer_catalogue_names_v1',{
+   method:'POST',
+   headers:{'apikey':'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK','Content-Type':'application/json'},
+   body:JSON.stringify({p_make:make})
+  });
+  if(response.ok){
+   const data=await response.json();
+   if(Array.isArray(data))databaseModels=data.filter(x=>
+    x&&normalize(x.make)===normalize(make)&&typeof x.model==='string'&&x.model.trim()&&x.model.length<=120);
+  }
+ }catch(error){console.warn('Canonical manufacturer model names unavailable; using reviewed public catalogue',error)}
  let routes=[];
  if((make==='BMW'||make==='Harley-Davidson')&&window.supabase?.createClient){
    try{
@@ -49,7 +64,7 @@ async function mount(){
  const byModel=new Map(routes.map(x=>[normalize(x.model),x.url]));
  // The public catalogue is the reviewed directory. Existing verified BMW
  // and Harley guide routes may also appear even before a catalogue refresh.
- const models=[...new Map([...publicModels.map(x=>x.model),...routes.map(x=>x.model)]
+ const models=[...new Map([...(databaseModels.length?databaseModels:publicModels).map(x=>x.model),...routes.map(x=>x.model)]
   .filter(Boolean).map(name=>[normalize(name),name])).values()]
   .sort((a,b)=>a.localeCompare(b,'en',{numeric:true}));
  if(!models.length)return;
