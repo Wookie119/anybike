@@ -255,6 +255,15 @@ const verifiedGalleryRpc=fs.readFileSync('supabase/migrations/20261112210000_pub
 assert(universalGuide.includes('/model-template/public-approved-model-gallery.mjs?v=20261112-gallery3'),'The universal model page must load approved gallery photographs');
 assert(verifiedGallery.includes("location.pathname==='/motorcycle-model-guide.html'"),'Gallery must not modify dedicated BMW/Harley designs');
 assert(verifiedGallery.includes("im.onerror=()=>finish(false)"),'Broken photos must not create visible galleries');
+assert(verifiedGallery.includes('pendingGalleryRequests.get(body)!==request'),
+ 'Delayed gallery requests must never overwrite a newer model route');
+assert(verifiedGallery.includes('if(!records.length){'),
+ 'A successful withdrawal of photo approvals must remove the old gallery');
+assert(verifiedGallery.includes('published.remove?.()'),
+ 'Withdrawn approved photographs must be removed from the public model page');
+assert(verifiedGallery.includes('background:#fff;color:#171717'),
+ 'Approved photo gallery must follow the light research design, not introduce black panels');
+
 for(const guard of ["p.approval_status='approved'","p.subject_category='whole_motorcycle'","p.licence_url ~ '^https://","p.source_page_url ~ '^https://","p.manufacturer=r.manufacturer and p.model=r.model"])
  assert(verifiedGalleryRpc.includes(guard),'Exact model licensed photo gallery guard missing: '+guard);
 assert(verifiedGalleryRpc.includes('model_variant_gallery'),'Gallery photos must be explicitly approved for variant-gallery use');
