@@ -3076,7 +3076,7 @@ async function anybikeShowPublicSignedInIdentity(){
     path!=='/bmw-motorcycles.html'&&path!=='/bmw-r1300gs.html'){
   const facts=document.createElement('script');
   facts.type='module';
-  facts.src='/model-template/public-verified-model-facts.mjs?v=20261112-contrast-fix2';
+  facts.src='/model-template/public-verified-model-facts.mjs?v=20261112-anybike-charcoal3';
   document.head.append(facts);
  }
 })();
