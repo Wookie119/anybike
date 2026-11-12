@@ -40,6 +40,27 @@ assert.deepEqual(exactVerifiedModelFacts([sample({
 })],'Suzuki','RM250')[0].display.map(x=>x.label),['Model year'],
  'Invalid unit payloads must not appear as public specifications');
 
+
+// Research grows over time: a model with more than sixty verified entries
+// must not silently lose later history/production/colour information.
+const manyYearRecords=Array.from({length:75},(_,i)=>sample({
+ fact_id:5000+i,start_year:1950+i,label:'Verified production reference '+(1950+i)
+}));
+assert.equal(exactVerifiedModelFacts(manyYearRecords,'Suzuki','RM250').length,75,
+ 'The universal renderer must retain all 75 approved exact-model research entries');
+const detailedFactoryRecord=exactVerifiedModelFacts([sample({
+ fact_id:5999,category:'factory_colours',
+ value:Object.fromEntries(Array.from({length:17},(_,i)=>['factory_colour_'+(i+1),'Documented colour '+(i+1)]))
+})],'Suzuki','RM250');
+assert.equal(detailedFactoryRecord[0].display.length,17,
+ 'A sourced record with seventeen fields must not silently drop five values');
+const editions=exactVerifiedModelFacts([sample({
+ fact_id:6000,category:'model_year',
+ value:{editions:Array.from({length:16},(_,i)=>'Edition '+(i+1))}
+})],'Suzuki','RM250');
+assert.equal(editions[0].display[0].value.split(' · ').length,16,
+ 'Source-verified factory edition/colour lists beyond twelve must have a display location');
+
 const documentedColour=exactVerifiedModelFacts([sample({
  fact_id:52,category:'factory_colours',label:'Factory colour: Blackstorm metallic',
  value:{name:'Blackstorm metallic',source:'https://example.org/press',source_url:'https://example.org/press',model_year:2024}
