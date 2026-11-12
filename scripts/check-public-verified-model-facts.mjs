@@ -595,6 +595,7 @@ const gallerySource=readFileSync(new URL('../model-template/public-approved-mode
 assert(!gallerySource.includes('background:#171717'),
  'Approved research galleries must not create a separate black panel');
 const switchingGalleryBody={...body,children:[],firstChild:null,
+ append(child){this.children.push(child);child.parentNode=this;this.firstChild=this.children[0];},
  querySelector(selector){
   return selector==='[data-anybike-model-research-gallery]'?
    this.children.find(x=>x.dataset?.anybikeModelResearchGallery==='1')||null:null;
@@ -626,6 +627,7 @@ assert.equal(switchingGalleryBody.children.length,1,
 
 
 const delayedGalleryBody={...body,children:[],firstChild:null,
+ append(child){this.children.push(child);child.parentNode=this;this.firstChild=this.children[0];},
  querySelector(selector){
   return selector==='[data-anybike-model-research-gallery]'?
    this.children.find(x=>x.dataset?.anybikeModelResearchGallery==='1')||null:null;
