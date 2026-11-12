@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts,verifiedFactoryDate,orderedVerifiedFactoryFacts,verifiedEngineeringVariants} from '../model-template/public-verified-model-facts.mjs';
 import {approvedExactModelGallery,mountApprovedModelGallery,installApprovedModelGallery} from '../model-template/public-approved-model-gallery.mjs';
-import {exactApprovedHarleyRoute} from '../model-template/public-harley-verified-research.mjs';
+import {exactApprovedHarleyRoute,installApprovedHarleyResearch} from '../model-template/public-harley-verified-research.mjs';
 const approvedHarleyRoutes=[
  {make:'Harley-Davidson',model:'Fat Boy',url:'/harley-davidson-fat-boy.html'},
  {make:'Harley-Davidson',model:'Road Glide',url:'/harley-davidson-road-glide.html'}
@@ -271,6 +271,54 @@ assert.equal(await installApprovedModelGallery({
  client:{rpc:async()=>({data:[photo()],error:null})},
  imageFactory:()=>({set src(_url){this.onerror?.()}})
 }),0,'Failed image load must not create an empty research gallery');
+
+// Real integration shape: a dedicated Harley guide keeps its original
+// content and receives the same sourced-facts section at the correct route.
+const legacyContent=fakeElement('section');
+const existingMain={
+ children:[legacyContent],
+ querySelector(){return null},
+ insertBefore(item,before){
+  const index=before?this.children.indexOf(before):-1;
+  if(index<0)this.children.push(item);else this.children.splice(index,0,item);
+  item.parentNode=this;
+ }
+};
+legacyContent.parentNode=existingMain;
+const harleyPage={
+ querySelector(selector){return selector==='main'?existingMain:null},
+ createElement:fakeElement
+};
+const harleyFactoryFact=sample({
+ fact_id:7801,make:'Harley-Davidson',model:'Fat Boy',category:'history',
+ label:'1990 factory origin',value:{original_engine:'Evolution V-twin'},
+ source_url:'https://www.harley-davidson.com/us/en/motorcycles/2025/fat-boy-gray-ghost.html'
+});
+const harleyCalls=[];
+const harleyCount=await installApprovedHarleyResearch({
+ doc:harleyPage,pathname:'/harley-davidson-fat-boy.html',
+ client:{async rpc(name,args){
+  harleyCalls.push({name,args});
+  if(name==='public_anybike_manufacturer_model_routes_v1')
+   return {data:approvedHarleyRoutes,error:null};
+  if(name==='public_anybike_verified_model_facts_v1')
+   return {data:[harleyFactoryFact],error:null};
+  throw Error('Unexpected Harley RPC '+name);
+ }}
+});
+assert.equal(harleyCount,1,'Published Fat Boy factory facts must mount on dedicated Harley guide');
+assert.equal(existingMain.children[0],legacyContent,'Existing Harley guide content must not be removed or reordered');
+assert.equal(existingMain.children.length,2,'Only one new optional factory-research slot should mount');
+assert.equal(existingMain.children[1].dataset.anybikeHarleyResearchSlot,'1');
+assert.equal(existingMain.children[1].children[0].dataset.anybikeVerifiedModelFacts,'1');
+assert.equal(harleyCalls[1].args.p_model,'Fat Boy','Never guess model identity from filename');
+const blankHarleyMain={...existingMain,children:[legacyContent]};
+const blankHarleyPage={...harleyPage,querySelector:sel=>sel==='main'?blankHarleyMain:null};
+assert.equal(await installApprovedHarleyResearch({
+ doc:blankHarleyPage,pathname:'/harley-davidson-unknown.html',
+ client:{rpc:async()=>({data:approvedHarleyRoutes,error:null})}
+}),0,'Unregistered Harley pages must not inherit any source research');
+assert.equal(blankHarleyMain.children.length,1);
 
 assert.equal(mountVerifiedModelFacts(body,[sample()],'Suzuki','RM250'),1);
 assert.equal(body.children.length,1);
