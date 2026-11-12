@@ -933,6 +933,23 @@ assert(renderSource.includes("value.style.cssText='color:#171717"),'Verified val
 assert(renderSource.includes("source.style.cssText='display:inline-block;color:#ff4850"),'Factory source links must contrast against the dark research panel');
 assert(renderSource.includes("groupHeading.style.cssText='color:#fff"),'Research headings must remain readable on charcoal');
 
+// The same renderer is shared by all manufacturer guides. Keep its browser
+// cache version synchronized and preserve readable source references on both
+// dark standalone panels and white cards integrated into legacy sections.
+const publicHeaderSource=readFileSync(new URL('../public-header.js',import.meta.url),'utf8');
+const guideVersion=html.match(/\\/model-template\\/public-verified-model-facts\\.mjs\\?v=([a-zA-Z0-9-]+)/)?.[1];
+const headerVersion=publicHeaderSource.match(/\\/model-template\\/public-verified-model-facts\\.mjs\\?v=([a-zA-Z0-9-]+)/)?.[1];
+assert(guideVersion&&headerVersion&&guideVersion===headerVersion,
+ 'Universal and BMW model pages must request the same research renderer version');
+assert(renderSource.includes("references.style.cssText='margin:12px 0 0;color:#ddd"),
+ 'Standalone source labels must contrast against charcoal');
+assert(renderSource.includes("references.style.color='#444'"),
+ 'Integrated source labels must contrast against white research cards');
+assert(renderSource.includes("link.style.color='#b5121b'"),
+ 'Integrated factory source links must remain readable on white cards');
+assert(renderSource.includes("group.style.cssText+=';background:#fff;color:#171717"),
+ 'Integrated fact cards must retain their approved light specification surface');
+
 // Database publication and browser rendering must agree about every approved
 // research destination. A new category must have a working display section
 // before an editor can mark a new fact as verified.
