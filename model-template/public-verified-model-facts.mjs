@@ -22,8 +22,9 @@ const sections={
 // Approved legacy heading aliases. This is an explicit, deliberately small
 // compatibility map, not fuzzy matching or a second page template.
 const approvedSectionHeadings={
- factory_colours:['Factory colours'],
- specification:['Technical specifications']
+ factory_colours:['Factory colours','Factory colours and special editions'],
+ specification:['Technical specifications'],
+ used_buying:['What to check on a used R 1250 GS']
 };
 export function approvedResearchSectionHeading(category,heading){
  const value=safeText(heading).toLowerCase();
