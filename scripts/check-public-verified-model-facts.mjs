@@ -521,8 +521,9 @@ assert(harleyResearchSource.includes("main.insertBefore(slot,before)"),
 const bmwReconcileSource=readFileSync(new URL('../model-template/bmw-db-research-sections.mjs',import.meta.url),'utf8');
 assert(bmwReconcileSource.includes("if(!card.dataset.anybikeResearchCategory)card.dataset.anybikeResearchCategory=category"),
  'BMW reconciliation must not overwrite the identity of an existing integrated category');
-assert(bmwReconcileSource.includes("existing.dataset?.anybikeResearchCategory===category"),
- 'BMW reconciliation must deduplicate verified research by exact category');
+assert(bmwReconcileSource.includes('preservedCategories.has(category)')&&
+ bmwReconcileSource.includes('preservedCategories.add(category)'),
+ 'BMW reconciliation must deduplicate verified research across multiple replaced cards');
 assert(bmwReconcileSource.includes('preserveVerifiedGroups(primary)')&&
  bmwReconcileSource.includes('preserveVerifiedGroups(duplicate)'),
  'BMW late database reconciliation must not delete already-integrated verified factory research');
