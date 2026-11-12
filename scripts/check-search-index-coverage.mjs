@@ -36,6 +36,12 @@ for(const url of urls){
 }
 const identity=models.map(x=>{const u=new URL(x);return u.searchParams.get('make').trim().toLowerCase()+'|'+u.searchParams.get('model').trim().toLowerCase()});
 assert.equal(identity.length,new Set(identity).size,'Duplicate model identities');
+const indexed=JSON.parse(read('data/motorcycle-index-identities.json'));
+assert.equal(indexed.models.length,979,'Public identity fallback must include every published Supabase model');
+const indexedIdentity=indexed.models.map(x=>String(x.make).trim().toLowerCase()+'|'+String(x.model).trim().toLowerCase());
+assert.equal(new Set(indexedIdentity).size,indexedIdentity.length,'Public identity fallback must not contain duplicate models');
+assert.deepEqual([...new Set(identity)].sort(),[...new Set(indexedIdentity)].sort(),'Sitemap and public model fallback must have identical model identities');
+assert(read('motorcycle-model-guide.html').includes('const row=clean||indexed||legacy;'),'Renderer must use the public index identity fallback');
 assert(read('motorcycle-model-guide.html').includes('content="index,follow" id="modelRobots"'),'Model renderer noindex');
 assert(read('motorcycle-brand.html').includes('content="index,follow"'),'Brand renderer noindex');
 assert(read('motorcycle-brand.html').includes('if(!knownBrand){'), 'Unknown manufacturer URLs must be noindex');
