@@ -171,9 +171,18 @@ export function applyBmwDatabaseSections(body,content){
   }finally{updating=false;}
  };
  reconcile();
+ // The original guide inserts its research cards in one synchronous batch.
+ // Reconcile that late batch once, rather than leaving a permanent observer
+ // that competes with other Supabase-backed sections and can lock the UI.
+ let finished=false;
  const observer=new MutationObserver(records=>{
-  if(records.some(r=>r.addedNodes.length))reconcile();
+  if(finished||!records.some(r=>[...r.addedNodes].some(n=>n.nodeType===1&&n.matches?.('section.card'))))return;
+  finished=true;
+  observer.disconnect();
+  reconcile();
  });
  observer.observe(body,{childList:true});
- return ()=>observer.disconnect();
+ // Also retire the observer if the legacy feed never adds more cards.
+ const timeout=setTimeout(()=>{finished=true;observer.disconnect();},4000);
+ return ()=>{finished=true;clearTimeout(timeout);observer.disconnect();};
 }
