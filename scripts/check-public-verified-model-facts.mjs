@@ -717,7 +717,9 @@ assert(bmwReconcileSource.includes('preserveVerifiedGroups(primary)')&&
 assert(bmwReconcileSource.includes("card.dataset.anybikeResearchIntegrated='1'"),
  'BMW replacement cards must preserve the shared research duplicate-prevention marker');
 const renderSource=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
-assert(!renderSource.includes('background:#242424')&&!renderSource.includes('background:#171717'),\n 'Universal verified research must not introduce a separate black research panel');\nassert(renderSource.includes('background:#fafafa;color:#171717;border:1px solid #dedede'),
+assert(!renderSource.includes('background:#242424')&&!renderSource.includes('background:#171717'),
+ 'Universal verified research must not introduce a separate black research panel');
+assert(renderSource.includes('background:#fafafa;color:#171717;border:1px solid #dedede'),
  'Shared model specification cards must have legible foreground and background');
 assert(renderSource.includes('minmax(min(100%,420px),1fr)'),
  'Factory research columns must be wide enough for legible specifications');
