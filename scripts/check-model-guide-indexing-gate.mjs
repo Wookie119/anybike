@@ -80,3 +80,8 @@ for(const event of historicIndian.timeline){
 }
 
 console.log('PASS: Indian historical identity, cross-link and timeline publication safeguards');
+
+assert(!indianPage.includes('id="legends"'),'Indian manufacturer must not duplicate the structured historical model cards');
+assert(!indianPage.includes('<article class="era"><strong>1901</strong>'),'Indian manufacturer must not duplicate the source-linked history timeline');
+assert(indianPage.includes('<noscript>'),'Indian heritage and model research must have non-JavaScript fallback links');
+assert(indianPage.includes('/motorcycle-brand.html?make=Indian%20Motorcycle'),'Indian manufacturer must preserve fallback modern model navigation');
