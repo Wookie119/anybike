@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts} from '../model-template/public-verified-model-facts.mjs';
+import {approvedExactModelGallery,mountApprovedModelGallery,installApprovedModelGallery} from '../model-template/public-approved-model-gallery.mjs';
 const sample=(overrides={})=>({
  fact_id:49,make:'Suzuki',model:'RM250',category:'model_year',
  label:'RM250 1976 archive specifications',
@@ -165,6 +166,50 @@ mountVerifiedModelFacts(badDocumentBody,[sample({
 })],'Suzuki','RM250');
 const badArticle=badDocumentBody.children[0].children.filter(x=>x.tag==='div')[0].children.find(x=>x.tag==='div').children[0];
 assert(!badArticle.children.some(x=>x.tag==='a'),'Unsafe document links must not render');
+
+const photo=(overrides={})=>({
+ make:'BMW',model:'R 1300 GS',canonical_model:'R 1300 GS',
+ title:'2025 factory edition',image_url:'https://commons.wikimedia.org/wiki/Special:FilePath/Example.jpg',
+ source_page_url:'https://commons.wikimedia.org/wiki/File:Example.jpg',
+ licence_url:'https://creativecommons.org/licenses/by-sa/4.0/',
+ licence:'CC BY-SA 4.0',attribution:'Licensed photographer · CC BY-SA 4.0',
+ subject_category:'whole_motorcycle',model_year_start:2025,model_year_end:2025,...overrides
+});
+assert.equal(approvedExactModelGallery([photo()],'BMW','R 1300 GS').length,1);
+assert.equal(approvedExactModelGallery([photo({model:'R 1250 GS'})],'BMW','R 1300 GS').length,0,
+ 'Never display R 1250 GS photos on R 1300 GS pages');
+assert.equal(approvedExactModelGallery([photo({licence:''})],'BMW','R 1300 GS').length,0,
+ 'Reject images without documented rights');
+assert.equal(approvedExactModelGallery([photo({image_url:'javascript:alert(1)'})],'BMW','R 1300 GS').length,0,
+ 'Never display unsafe photo URL');
+assert.equal(approvedExactModelGallery([photo(),photo()],'BMW','R 1300 GS').length,1,
+ 'Never duplicate the same photograph in the gallery');
+const photoBody={ownerDocument:doc,children:[],querySelector(){return null},append(x){this.children.push(x)}};
+assert.equal(mountApprovedModelGallery(photoBody,[photo()],'BMW','R 1300 GS'),1);
+const photoPanel=photoBody.children[0];
+assert.equal(photoPanel.dataset.anybikeModelResearchGallery,'1');
+const photoFigure=photoPanel.children.find(x=>x.tag==='div').children[0];
+assert(photoFigure.children.some(x=>x.tag==='img'&&x.alt.includes('R 1300 GS')),
+ 'Exact-model photo must have relevant accessible alt text');
+assert(photoFigure.children.find(x=>x.tag==='figcaption').children.some(x=>x.tag==='a'&&x.href.includes('wikimedia.org/wiki/File:')),
+ 'Every approved photograph must link to its credited source');
+const unloaded={ownerDocument:doc,children:[],querySelector(){return null},append(x){this.children.push(x)}};
+const countPhotos=await installApprovedModelGallery({
+ body:unloaded,make:'BMW',model:'R 1300 GS',
+ client:{rpc:async(name,args)=>{
+  assert.equal(name,'public_anybike_verified_model_gallery_v1');
+  assert.deepEqual(args,{p_make:'BMW',p_model:'R 1300 GS'});
+  return {data:[photo(),photo({model:'R 1250 GS'})],error:null};
+ }},
+ imageFactory:()=>({set src(_url){this.onload?.()}})
+});
+assert.equal(countPhotos,1,'Only actually loaded, matching, licensed photographs should mount');
+assert.equal(unloaded.children.length,1);
+assert.equal(await installApprovedModelGallery({
+ body:{...unloaded,children:[]},make:'BMW',model:'R 1300 GS',
+ client:{rpc:async()=>({data:[photo()],error:null})},
+ imageFactory:()=>({set src(_url){this.onerror?.()}})
+}),0,'Failed image load must not create an empty research gallery');
 
 assert.equal(mountVerifiedModelFacts(body,[sample()],'Suzuki','RM250'),1);
 assert.equal(body.children.length,1);
