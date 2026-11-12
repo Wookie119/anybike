@@ -199,7 +199,10 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  const remainingPanelGroups=()=>[...existingPanel?.children||[]]
   .filter(child=>child.dataset?.anybikeResearchCategory);
  if(existingPanel&&!remainingPanelGroups().length&&
-    !allFacts.length)existingPanel.remove?.();
+    !allFacts.length){
+  existingPanel.remove?.();
+  existingPanel=null;
+ }
  // A category may gain additional audited factory records after its first
  // publication. Compare the complete set of fact IDs, not only its category.
  const fingerprint=category=>allFacts.filter(fact=>fact.category===category)
