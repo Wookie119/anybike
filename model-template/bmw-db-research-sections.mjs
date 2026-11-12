@@ -157,12 +157,16 @@ export function applyBmwDatabaseSections(body,content){
      // Preserve already-mounted, source-verified research when the BMW
      // projection replaces a legacy card. Otherwise an asynchronous loader
      // can silently discard factory facts inserted by the shared renderer.
+     const preservedCategories=new Set(
+      [...card.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]]
+       .map(group=>group.dataset?.anybikeResearchCategory).filter(Boolean)
+     );
      const preserveVerifiedGroups=from=>{
       for(const group of [...from.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]]){
        const category=group.dataset?.anybikeResearchCategory;
-       if(!category||[...card.querySelectorAll?.('[data-anybike-research-category]')||[]]
-        .some(existing=>existing.dataset?.anybikeResearchCategory===category))continue;
+       if(!category||preservedCategories.has(category))continue;
        card.append(group);
+       preservedCategories.add(category);
        card.dataset.anybikeResearchIntegrated='1';
        // The child groups are authoritative when several categories share
        // one approved card; do not overwrite a different category marker.
