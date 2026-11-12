@@ -918,8 +918,10 @@ assert(bmwReconcileSource.includes('preserveVerifiedGroups(primary)')&&
 assert(bmwReconcileSource.includes("card.dataset.anybikeResearchIntegrated='1'"),
  'BMW replacement cards must preserve the shared research duplicate-prevention marker');
 const renderSource=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
-assert(!renderSource.includes('background:#242424')&&!renderSource.includes('background:#171717'),
- 'Universal verified research must not introduce a separate black research panel');
+assert(renderSource.includes('background:#242424;color:#fff'),
+ 'Shared verified research outer panel must have readable white text on charcoal');
+assert(renderSource.includes("intro.style.cssText='font-size:16px;line-height:1.65;color:inherit'"),
+ 'Previously mounted model-year text must inherit its host card contrast');
 assert(renderSource.includes('background:#fafafa;color:#171717;border:1px solid #dedede'),
  'Shared model specification cards must have legible foreground and background');
 assert(renderSource.includes('minmax(min(100%,420px),1fr)'),
@@ -928,8 +930,8 @@ assert(renderSource.includes('minmax(0,1fr);gap:9px 14px'),
  'Long technical values must wrap instead of forming cramped columns');
 assert(renderSource.includes("term.style.cssText='color:#444"),'Technical labels must remain readable');
 assert(renderSource.includes("value.style.cssText='color:#171717"),'Verified values must remain readable');
-assert(renderSource.includes("source.style.cssText='display:inline-block;color:#171717"),'Factory source links must have legible colour');
-assert(renderSource.includes("groupHeading.style.cssText='color:#171717"),'Research headings must remain readable');
+assert(renderSource.includes("source.style.cssText='display:inline-block;color:#ff4850"),'Factory source links must contrast against the dark research panel');
+assert(renderSource.includes("groupHeading.style.cssText='color:#fff"),'Research headings must remain readable on charcoal');
 
 // Database publication and browser rendering must agree about every approved
 // research destination. A new category must have a working display section
