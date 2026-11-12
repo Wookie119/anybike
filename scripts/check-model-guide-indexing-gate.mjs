@@ -11,4 +11,9 @@ assert(brand.includes('motorcycle-brand.html?make="+encodeURIComponent(make)'),'
 assert(sitemap.includes('motorcycle-model-guide.html?make='),'Sitemap must include models');
 assert(sitemap.includes('motorcycle-brand.html?make='),'Sitemap must include manufacturers');
 assert(sitemap.includes('/markets/japan.html'),'Sitemap must retain international markets');
+const locs=[...sitemap.matchAll(/<loc>(.*?)<\\/loc>/g)].map(m=>m[1]);
+assert.equal(locs.length,new Set(locs).size,'Sitemap must not repeat URLs');
+assert(locs.filter(x=>x.includes('/motorcycle-model-guide.html?')).length>=979,'Sitemap must cover current Supabase model count');
+assert(locs.filter(x=>x.includes('/motorcycle-brand.html?')).length>=50,'Sitemap must cover current manufacturer count');
+assert.equal(locs.filter(x=>x.includes('/markets/')).length,217,'Sitemap must retain all country pages');
 console.log('PASS: model, manufacturer and country discoverability safeguards');
