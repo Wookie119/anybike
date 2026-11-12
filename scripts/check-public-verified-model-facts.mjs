@@ -443,8 +443,8 @@ assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearch
 
 assert.equal(mountVerifiedModelFacts(incrementalBody,[
  sample({fact_id:8790,category:'history',value:{production_year:1976}})
-],'Suzuki','RM250'),0,
- 'Withdrawing an approved category must not generate a new panel');
+],'Suzuki','RM250'),1,
+ 'Returning an approved history category after its withdrawal must republish it into the existing panel');
 assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='engine').length,0,
  'Withdrawn public facts must no longer remain visible after a successful refresh');
 assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='history').length,1,
