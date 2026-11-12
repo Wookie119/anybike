@@ -276,6 +276,29 @@ assert.equal(mountVerifiedModelFacts(misleadingBody,[sample({
 assert.equal(misleadingBody.children.length,2,
  'A nested factory-colours heading must not cause insertion into an unrelated parent card');
 assert.equal(misleadingParent.dataset.anybikeResearchCategory,undefined);
+// A BMW database replacement may wrap an already-integrated research group.
+// The same category must not be inserted again even when it is nested.
+const nestedExistingCard=fakeElement('section');
+nestedExistingCard.querySelector=selector=>selector==='h2'?{textContent:'Factory colours'}:null;
+const nestedVerifiedGroup=fakeElement('div');
+nestedVerifiedGroup.dataset.anybikeResearchCategory='factory_colours';
+nestedVerifiedGroup.dataset.anybikeResearchIntegrated='1';
+const nestedWrapper=fakeElement('div');
+nestedWrapper.append(nestedVerifiedGroup);
+nestedExistingCard.append(nestedWrapper);
+nestedExistingCard.querySelectorAll=selector=>
+ selector==='[data-anybike-research-integrated="1"]'?[nestedVerifiedGroup]:[];
+const nestedBody={...body,children:[nestedExistingCard],firstChild:nestedExistingCard,
+ querySelector(){return null},
+ querySelectorAll(selector){return selector==='section.card'?[nestedExistingCard]:[]}
+};
+assert.equal(mountVerifiedModelFacts(nestedBody,[sample({
+ fact_id:8706,category:'factory_colours',value:{factory_colour:'Red'}
+})],'Suzuki','RM250'),1);
+assert.equal(nestedExistingCard.children.length,1,
+ 'Nested verified category already present must not be appended twice');
+assert.equal(nestedBody.children.length,2,
+ 'Already-integrated category must remain outside the unrelated fallback when no empty approved slot exists');
 const existingSpecsCard=fakeElement('section');
 existingSpecsCard.querySelector=selector=>selector==='h2'?{textContent:'Technical specifications'}:null;
 const specsBody={...body,children:[existingSpecsCard],firstChild:existingSpecsCard,
