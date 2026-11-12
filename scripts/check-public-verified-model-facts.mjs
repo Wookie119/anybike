@@ -21,8 +21,6 @@ assert.equal(documentedScalarField('ground_clearance_mm',240),'240 mm');
 assert.equal(documentedScalarField('front_suspension_travel_mm',230),'230 mm');
 assert.equal(documentedScalarField('production_start_year',2017),'2017');
 
-assert(!sourceCode.includes("engine_cc:'Engine capacity (cc)'"),'Engine capacity label must not repeat units');
-assert(!sourceCode.includes("torque_nm:'Torque (Nm)'"),'Torque label must not repeat units');
 assert.equal(documentedScalarField('seat_height_mm',810),'810 mm');
 assert.equal(documentedScalarField('curb_mass_kg',205),'205 kg');
 assert.equal(documentedScalarField('fuel_consumption_km_per_l',23.8),'23.8 km/l');
@@ -791,8 +789,10 @@ assert(body.children[0].children.some(x=>x.tag==='p'&&
  String(x.textContent).includes('1976')&&String(x.textContent).includes('not a claim of continuous production')),
  'Factory chronology must identify sourced reference years without inventing continuous production');
 const sourceCode=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
-assert(sourceCode.includes("engine_cc:'Engine capacity (cc)'"),
- 'Engine displacement should use meaningful English units in every shared model card');
+assert(sourceCode.includes("engine_cc:'Engine capacity'"),
+ 'Engine displacement should use meaningful English labels in every shared model card');
+assert(!sourceCode.includes("engine_cc:'Engine capacity (cc)'"),'Engine capacity label must not repeat units');
+assert(!sourceCode.includes("torque_nm:'Torque (Nm)'"),'Torque label must not repeat units');
 assert(sourceCode.includes("technical_changes:'Engineering changes'"),
  'Verified engineering changes must have a readable public label');
 assert.equal(mountVerifiedModelFacts(body,[sample()],'Suzuki','RM250'),0);
