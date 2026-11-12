@@ -11,7 +11,9 @@ const models=urls.filter(x=>x.includes('/motorcycle-model-guide.html?'));
 const brands=urls.filter(x=>x.includes('/motorcycle-brand.html?'));
 const markets=urls.filter(x=>x.includes('/markets/'));
 assert.equal(models.length,979,'Model sitemap must match reconciled Supabase snapshot');
-assert.equal(brands.length,50,'Manufacturer sitemap must match reconciled catalogue');
+assert.equal(brands.length,48,'Generic manufacturer URLs must exclude BMW and Harley redirects');
+assert(urls.includes('https://www.anybike.co.uk/bmw-motorcycles.html'),'BMW dedicated manufacturer route missing');
+assert(urls.includes('https://www.anybike.co.uk/harley-davidson-motorcycles.html'),'Harley-Davidson dedicated manufacturer route missing');
 assert.equal(markets.length,217,'International markets sitemap incomplete');
 for(const url of urls){
  const u=new URL(url);
@@ -36,4 +38,4 @@ const identity=models.map(x=>{const u=new URL(x);return u.searchParams.get('make
 assert.equal(identity.length,new Set(identity).size,'Duplicate model identities');
 assert(read('motorcycle-model-guide.html').includes('content="index,follow" id="modelRobots"'),'Model renderer noindex');
 assert(read('motorcycle-brand.html').includes('content="index,follow"'),'Brand renderer noindex');
-console.log('PASS: '+models.length+' models, '+brands.length+' brands, '+markets.length+' international market pages, unique identities and canonical checks');
+console.log('PASS: '+models.length+' models, '+(brands.length+2)+' manufacturers including BMW/Harley, '+markets.length+' international market pages, unique identities and canonical checks');
