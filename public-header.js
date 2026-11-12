@@ -3068,7 +3068,7 @@ async function anybikeShowPublicSignedInIdentity(){
  const dedicated=(path.startsWith('/bmw-')||path.startsWith('/harley-davidson-'))&&path.endsWith('.html');
  if(path==='/motorcycle-brand.html'||path==='/bmw-motorcycles.html'||path==='/harley-davidson-motorcycles.html'||path==='/motorcycle-model-guide.html'||dedicated){
   const script=document.createElement('script');
-  script.src='/motorcycle-complete-catalogue-navigation.js?v=20261112-freeze-fix1';
+  script.src='/motorcycle-complete-catalogue-navigation.js?v=20261112-all-manufacturer-model-pills2';
   script.defer=true;document.head.append(script);
  }
  // Source-verified facts only; universal editorial drafts remain private.
