@@ -45,7 +45,19 @@ const factLabels={
  technical_changes:'Engineering changes',torque_nm:'Torque (Nm)',
  engine_capacity_cc:'Engine capacity (cc)',fuel_capacity_litres:'Fuel capacity (litres)',
  model_year:'Model year',production_year:'Production year',
- power_hp:'Power (hp)',engine_type:'Engine configuration'
+ power_hp:'Power (hp)',engine_type:'Engine configuration',
+ announcement_date:'Factory announcement date',sales_start:'Sales introduction',
+ planned_global_sales:'Planned sales introduction',
+ initial_markets:'Initial markets',front_fork:'Front suspension',
+ seat_height_mm:'Seat height',wheelbase_mm:'Wheelbase',
+ curb_mass_kg:'Kerb weight',kerb_weight_kg:'Kerb weight',
+ dry_weight_kg:'Dry weight',fuel_tank_l:'Fuel tank',
+ fuel_capacity_l:'Fuel capacity',fuel_consumption_km_per_l:'Fuel consumption',
+ co2_g_per_km:'CO₂ emissions',front_tyre:'Front tyre',
+ rear_tyre:'Rear tyre',quickshifter:'Quickshifter',
+ traction_control:'Traction control',drive_modes:'Riding modes',
+ factory_colours:'Factory colour options',standard_colours:'Standard colours',
+ launch_year:'Launch year',reference_year:'Reference year'
 };
 // These administrative keys can occur inside otherwise sourced JSON. They are
 // not factual model specifications and must never leak into public research.
