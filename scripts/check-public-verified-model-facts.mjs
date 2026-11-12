@@ -12,6 +12,15 @@ assert(!verifiedRendererSource.includes('Figures are not interchangeable between
  'Internal source-record disclaimers must not return to public pages');
 
 assert.equal(documentedScalarField('engine_cc',776),'776 cc');
+assert.equal(documentedScalarField('displacement_cc',689),'689 cc');
+assert.equal(documentedScalarField('power_ps',115),'115 PS');
+assert.equal(documentedScalarField('top_speed_kmh',210),'210 km/h');
+assert.equal(documentedScalarField('front_wheel_inches',21),'21 in');
+assert.equal(documentedScalarField('rear_wheel_inches',18),'18 in');
+assert.equal(documentedScalarField('ground_clearance_mm',240),'240 mm');
+assert.equal(documentedScalarField('front_suspension_travel_mm',230),'230 mm');
+assert.equal(documentedScalarField('production_start_year',2017),'2017');
+
 assert(!sourceCode.includes("engine_cc:'Engine capacity (cc)'"),'Engine capacity label must not repeat units');
 assert(!sourceCode.includes("torque_nm:'Torque (Nm)'"),'Torque label must not repeat units');
 assert.equal(documentedScalarField('seat_height_mm',810),'810 mm');
