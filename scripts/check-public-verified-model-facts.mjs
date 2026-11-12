@@ -937,8 +937,8 @@ assert(renderSource.includes("groupHeading.style.cssText='color:#fff"),'Research
 // cache version synchronized and preserve readable source references on both
 // dark standalone panels and white cards integrated into legacy sections.
 const publicHeaderSource=readFileSync(new URL('../public-header.js',import.meta.url),'utf8');
-const guideVersion=html.match(/\\/model-template\\/public-verified-model-facts\\.mjs\\?v=([a-zA-Z0-9-]+)/)?.[1];
-const headerVersion=publicHeaderSource.match(/\\/model-template\\/public-verified-model-facts\\.mjs\\?v=([a-zA-Z0-9-]+)/)?.[1];
+const guideVersion=html.match(/\/model-template\/public-verified-model-facts\.mjs\?v=([a-zA-Z0-9-]+)/)?.[1];
+const headerVersion=publicHeaderSource.match(/\/model-template\/public-verified-model-facts\.mjs\?v=([a-zA-Z0-9-]+)/)?.[1];
 assert(guideVersion&&headerVersion&&guideVersion===headerVersion,
  'Universal and BMW model pages must request the same research renderer version');
 assert(renderSource.includes("references.style.cssText='margin:12px 0 0;color:#ddd"),
