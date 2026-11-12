@@ -881,8 +881,9 @@ const disconnectedOlder=installVerifiedModelFacts({
  client:{rpc:()=>new Promise(resolve=>{resolveDisconnectedOlder=resolve;})}
 });
 assert.equal(await installVerifiedModelFacts({
- body:disconnectedBody,make:'Yamaha',model:'YZ250',client:null
-}),0,'Missing public database client must not publish unverified research');
+ body:disconnectedBody,make:'Yamaha',model:'YZ250',
+ client:{rpc:async()=>({data:null,error:new Error('Public database unavailable')})}
+}),0,'Unavailable public database must not publish unverified research');
 resolveDisconnectedOlder({data:[sample({fact_id:8822})],error:null});
 assert.equal(await disconnectedOlder,0,
  'A previous model RPC must be invalidated even if the new model cannot reach Supabase');
