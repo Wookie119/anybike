@@ -3,6 +3,14 @@ import {readFileSync} from 'node:fs';
 import {approvedResearchSectionHeading,exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts,verifiedFactoryDate,orderedVerifiedFactoryFacts,verifiedEngineeringVariants} from '../model-template/public-verified-model-facts.mjs';
 import {approvedExactModelGallery,mountApprovedModelGallery,installApprovedModelGallery} from '../model-template/public-approved-model-gallery.mjs';
 import {exactApprovedHarleyRoute,installApprovedHarleyResearch} from '../model-template/public-harley-verified-research.mjs';
+// Customer-facing wording is shared across all exact-model research panels.
+// Do not regress to internal source-record terminology or white-panel styling.
+const verifiedRendererSource=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
+assert(verifiedRendererSource.includes('Specifications and equipment may vary by model year and market. AnyBike uses documented manufacturer information wherever available.'),
+ 'The shared model research caveat must remain customer-friendly');
+assert(!verifiedRendererSource.includes('Figures are not interchangeable between generations'),
+ 'Internal source-record disclaimers must not return to public pages');
+
 assert(approvedResearchSectionHeading('factory_colours','Factory colours'));
 assert(approvedResearchSectionHeading('factory_colours','Factory colours and special editions'),
  'Existing approved BMW factory colour sections should accept source-verified colour records');
