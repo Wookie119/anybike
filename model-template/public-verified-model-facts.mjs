@@ -100,6 +100,27 @@ export function exactVerifiedModelFacts(rows,make,model){
  }
  return out;
 }
+// Factory records are chronology, not generic unsorted specification rows.
+// A manufacturer may document only YYYY or YYYY-MM; display that precision
+// exactly rather than inventing a day or assuming a retail launch date.
+const factoryCategories=new Set(['manufacturing_evidence','manufacturing','production']);
+export function verifiedFactoryDate(fact){
+ if(!fact||!factoryCategories.has(fact.category))return '';
+ const dated=safeText(fact.value?.date||fact.value?.milestone_date);
+ if(/^(18[8-9]\d|19\d\d|20\d\d|2100)(?:-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?)?$/.test(dated))return dated;
+ const year=Number(fact.start_year);
+ return Number.isInteger(year)&&year>=1885&&year<=2100?String(year):'';
+}
+export function orderedVerifiedFactoryFacts(items){
+ if(!Array.isArray(items))return [];
+ return [...items].sort((a,b)=>{
+  const left=verifiedFactoryDate(a),right=verifiedFactoryDate(b);
+  if(left&&right)return left.localeCompare(right)||(Number(a.fact_id)-Number(b.fact_id));
+  if(left)return -1;
+  if(right)return 1;
+  return Number(a.fact_id)-Number(b.fact_id);
+ });
+}
 const node=(doc,tag,value)=>{const el=doc.createElement(tag);el.textContent=String(value??'');return el;};
 export function mountVerifiedModelFacts(body,rows,make,model){
  if(!body||body.querySelector?.('[data-anybike-verified-model-facts]'))return 0;
@@ -133,8 +154,9 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  caveat.style.cssText='color:#e8e8e8;line-height:1.65';
  panel.append(caveat);
  for(const category of researchOrder){
-  const items=grouped.get(category);
-  if(!items?.length)continue;
+  const originalItems=grouped.get(category);
+  if(!originalItems?.length)continue;
+  const items=factoryCategories.has(category)?orderedVerifiedFactoryFacts(originalItems):originalItems;
   const group=doc.createElement('div');
   group.style.cssText='padding:14px 0;border-top:1px solid #444';
   const groupHeading=node(doc,'h3',sections[category]);
@@ -145,6 +167,13 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   for(const fact of items){
    const article=doc.createElement('article');
    article.style.cssText='background:#242424;color:#fff;border:1px solid #666;border-radius:8px;padding:18px;min-width:0;overflow-wrap:anywhere';
+   const productionDate=verifiedFactoryDate(fact);
+   if(productionDate){
+    article.style.borderLeft='3px solid #ed1c24';
+    const dated=node(doc,'p','Factory record: '+productionDate);
+    dated.style.cssText='font-size:14px;font-weight:700;color:#fff;margin:0 0 8px';
+    article.append(dated);
+   }
    const factHeading=node(doc,'h4',fact.label);
    factHeading.style.cssText='color:#fff;line-height:1.4;margin:0 0 10px;overflow-wrap:anywhere';
    article.append(factHeading);
