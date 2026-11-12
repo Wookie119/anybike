@@ -254,7 +254,7 @@ const verifiedGallery=fs.readFileSync('model-template/public-approved-model-gall
 const verifiedGalleryRpc=fs.readFileSync('supabase/migrations/20261112210000_public_exact_model_research_gallery.sql','utf8');
 assert(universalGuide.includes('/model-template/public-approved-model-gallery.mjs?v=20261112-gallery2'),'The universal model page must load approved gallery photographs');
 assert(verifiedGallery.includes("location.pathname==='/motorcycle-model-guide.html'"),'Gallery must not modify dedicated BMW/Harley designs');
-assert(verifiedGallery.includes("im.onerror=()=>resolve(false)"),'Broken photos must not create visible galleries');
+assert(verifiedGallery.includes("im.onerror=()=>finish(false)"),'Broken photos must not create visible galleries');
 for(const guard of ["p.approval_status='approved'","p.subject_category='whole_motorcycle'","p.licence_url ~ '^https://","p.source_page_url ~ '^https://","p.manufacturer=r.manufacturer and p.model=r.model"])
  assert(verifiedGalleryRpc.includes(guard),'Exact model licensed photo gallery guard missing: '+guard);
 assert(verifiedGalleryRpc.includes('model_variant_gallery'),'Gallery photos must be explicitly approved for variant-gallery use');
