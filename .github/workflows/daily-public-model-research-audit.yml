@@ -1,0 +1,33 @@
+name: Daily public model research publication audit
+on:
+  schedule:
+    - cron: '15 7 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/audit-daily-public-model-publication.mjs'
+      - 'scripts/audit-daily-public-model-publication.test.mjs'
+      - '.github/workflows/daily-public-model-research-audit.yml'
+permissions:
+  contents: read
+jobs:
+  public-publication:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check audit calculations and exact-model guards
+        run: node scripts/audit-daily-public-model-publication.test.mjs
+      - name: Check rotating public Supabase facts and approved galleries
+        run: node scripts/audit-daily-public-model-publication.mjs
+      - name: Preserve audit output for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-public-model-research-audit
+          path: artifacts/daily-public-research-audit.*
+          if-no-files-found: warn
+          retention-days: 30
