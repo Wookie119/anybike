@@ -221,7 +221,17 @@ function appendVerifiedFacts(doc,parent,facts){
     ['Front tyre','front_tyre',''],['Rear tyre','rear_tyre',''],
     ['CO₂ emissions','co2_g_per_km','g/km'],
     ['Fuel consumption','fuel_consumption_km_per_l','km/L'],
-    ['Factory colours','factory_colours','']
+    ['Factory colours','factory_colours',''],
+    ['Engine configuration','engine_type',''],['Fuel capacity','fuel_capacity_litres','L'],
+    ['Kerb mass','kerb_mass_kg','kg'],['Wheelbase','wheelbase','mm'],
+    ['Fuel consumption','fuel_consumption',''],['Emissions','co2_emissions',''],
+    ['Production planned','planned_production',''],['Unveiling date','unveiling_date',''],
+    ['European dealer arrival','european_dealer_arrival',''],
+    ['Technical changes','technical_changes',''],['Development theme','development_theme',''],
+    ['Front wheel','front_wheel',''],['Rear wheel','rear_wheel',''],
+    ['Frame','frame',''],['Seat height','seat_height',''],
+    ['Power','power',''],['Torque','torque',''],['Weight','weight',''],
+    ['Gearbox','gearbox',''],['Category','category','']
    ];
    for(const [label,key,unit] of fields){
     const value=data[key];
