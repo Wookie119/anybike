@@ -432,6 +432,12 @@ assert(html.includes('/shared-model-catalogue.js?v=20261111safe1'),
  'Generic model pages must load the validated shared catalogue script');
 
 
+const bmwReconcileSource=readFileSync(new URL('../model-template/bmw-db-research-sections.mjs',import.meta.url),'utf8');
+assert(bmwReconcileSource.includes('preserveVerifiedGroups(primary)')&&
+ bmwReconcileSource.includes('preserveVerifiedGroups(duplicate)'),
+ 'BMW late database reconciliation must not delete already-integrated verified factory research');
+assert(bmwReconcileSource.includes("card.dataset.anybikeResearchIntegrated='1'"),
+ 'BMW replacement cards must preserve the shared research duplicate-prevention marker');
 const renderSource=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
 assert(!renderSource.includes('background:#242424')&&!renderSource.includes('background:#171717'),\n 'Universal verified research must not introduce a separate black research panel');\nassert(renderSource.includes('background:#fafafa;color:#171717;border:1px solid #dedede'),
  'Shared model specification cards must have legible foreground and background');
