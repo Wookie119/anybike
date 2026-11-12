@@ -430,13 +430,19 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  }
  return facts.length;
 }
+// Route changes can complete RPC requests out of order. Only the latest
+// requested motorcycle may publish into a reused page body.
+const pendingVerifiedResearch=new WeakMap();
 export async function installVerifiedModelFacts({body,make,model,client}={}){
  if(!body||!safeText(make)||!safeText(model))return 0;
  const db=client||globalThis.supabase?.createClient?.(ENDPOINT,PUBLIC_KEY);
  if(!db)return 0;
+ const request=Symbol('verified-model-research');
+ pendingVerifiedResearch.set(body,request);
  try{
   const {data,error}=await db.rpc('public_anybike_verified_model_facts_v1',
    {p_make:make,p_model:model});
+  if(pendingVerifiedResearch.get(body)!==request)return 0;
   if(error||!Array.isArray(data))return 0;
   return mountVerifiedModelFacts(body,data,make,model);
  }catch(error){
