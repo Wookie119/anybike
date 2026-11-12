@@ -7,7 +7,7 @@ const isBrand=path==='/motorcycle-brand.html'||path==='/bmw-motorcycles.html'||p
 const isGuide=path==='/motorcycle-model-guide.html'||/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(path)&&!isBrand;
 if(!isBrand&&!isGuide)return;
 const params=new URLSearchParams(location.search);
-const make=path==='/bmw-motorcycles.html'||path.startsWith('/bmw-')?'BMW':path==='/harley-davidson-motorcycles.html'||path.startsWith('/harley-davidson-')?'Harley-Davidson':params.get('make');
+const make=path==='/bmw-motorcycles.html'||path.startsWith('/bmw-')?'BMW':path==='/harley-davidson-motorcycles.html'||path.startsWith('/harley-davidson-')?'Harley-Davidson':params.get('make')?.trim();
 if(!make)return;
 const normalize=x=>String(x||'').toLocaleLowerCase('en').replace(/[^a-z0-9]/g,'');
 const makeUrl=m=>m==='BMW'?'/bmw-motorcycles.html':m==='Harley-Davidson'?'/harley-davidson-motorcycles.html':'/motorcycle-brand.html?make='+encodeURIComponent(m);
