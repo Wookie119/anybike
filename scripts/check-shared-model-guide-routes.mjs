@@ -184,6 +184,22 @@ assert(nextFactoryMigration.includes('motorcycle_catalog_fact_verification_audit
 for(const url of ['global.yamaha-motor.com/news/2019/1010/tms.html','globalsuzuki.com/globalnews/2016/1004.html','global.kawasaki.com/en/corp/newsroom/'])
  assert(nextFactoryMigration.includes(url),'Additional documented factory source missing: '+url);
 assert(nextFactoryMigration.includes('where not exists(select 1 from public.motorcycle_catalog_fact_verification_audit'),'Migrated research audit must remain idempotent');
+
+// Next Honda/Yamaha/Suzuki/Kawasaki factory batch must remain exact-model
+// sourced and auditable through the existing public model facts renderer.
+const latestJapaneseResearch=fs.readFileSync('supabase/migrations/20261112161000_verified_japanese_model_research_batch4.sql','utf8');
+for(const source of [
+ 'global.honda/en/newsroom/news/2012/2121113eng.html',
+ 'global.honda/en/newsroom/news/2018/2181106eng.html',
+ 'global.yamaha-motor.com/business/mc/lineup/xsr/xsr155.html',
+ 'globalsuzuki.com/globalnews/2016/1004.html',
+ 'globalsuzuki.com/motorcycle/smgs/digital-archive/',
+ 'global.kawasaki.com/en/corp/newsroom/news/detail/'
+])assert(latestJapaneseResearch.includes(source),'Manufacturer primary source missing: '+source);
+assert(latestJapaneseResearch.includes('motorcycle_catalog_fact_verification_audit'),'Factory source audit must be restored in migrations');
+assert(latestJapaneseResearch.includes("f.catalog_model_id=d.catalog_model_id and f.label=d.label and f.source_url=d.source_url"),'Fact/audit identity must be exact model/label/source');
+console.log('PASS: ten exact Japanese model guides have source-audited factory research migration.');
+
 console.log('PASS: second model research migration preserves dated sources and audit history.');
 
 console.log('PASS: four manufacturer factory research sources, audit and bounded page observer preserved.');
