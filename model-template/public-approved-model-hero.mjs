@@ -10,7 +10,9 @@ const safeHttps=value=>{
  try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password;}catch{return false;}
 };
 export function approvedHeroCandidate(data,make,model){
- return !!data&&data.make===make&&data.model===model&&
+ return !!data&&typeof data.make==='string'&&typeof data.model==='string'&&
+  data.make.trim().toLowerCase()===make.trim().toLowerCase()&&
+  data.model.trim().toLowerCase()===model.trim().toLowerCase()&&
   safeHttps(data.image_url)&&safeHttps(data.source_page_url)&&safeHttps(data.licence_url)&&
   typeof data.attribution==='string'&&!!data.attribution.trim()&&
   typeof data.licence==='string'&&!!data.licence.trim();
