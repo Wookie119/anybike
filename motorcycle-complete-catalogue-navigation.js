@@ -80,14 +80,18 @@ async function mount(){
   }catch(error){console.warn('Dedicated model route lookup unavailable',error)}
  }
  // Offline-safe reviewed route map: never guess dedicated BMW/Harley URLs.
- if((make==='BMW'||make==='Harley-Davidson')&&!routes.length){
+ if(make==='BMW'||make==='Harley-Davidson'){
   try{
    const response=await fetch('/data/approved-dedicated-model-routes.json',{cache:'default'});
    if(response.ok){
     const data=await response.json();
-    if(Array.isArray(data.models))routes=data.models.filter(x=>x&&normalize(x.make)===normalize(make)&&
-     typeof x.model==='string'&&typeof x.url==='string'&&
-     /^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(x.url));
+    if(Array.isArray(data.models)){
+     const reviewed=data.models.filter(x=>x&&normalize(x.make)===normalize(make)&&
+      typeof x.model==='string'&&typeof x.url==='string'&&
+      /^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(x.url));
+     const liveKeys=new Set(routes.map(x=>normalize(x.model)));
+     routes.push(...reviewed.filter(x=>!liveKeys.has(normalize(x.model))));
+    }
    }
   }catch(error){console.warn('Verified dedicated model route fallback unavailable',error)}
  }
