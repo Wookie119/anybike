@@ -20,7 +20,8 @@ test('manufacturer and model navigation share a single market-route parser and p
  assert.ok(shared.includes("client.rpc('public_anybike_country_navigation_v1')")||
            shared.includes("db.rpc('public_anybike_country_navigation_v1')"));
  assert.ok(shared.includes("new MutationObserver("),'Legacy model loader cannot permanently discard country navigation');
- assert.ok(shared.includes("if(!el.isConnected&&body.isConnected"),'Re-attach only when the existing section disappears');
+ assert.ok(shared.includes("if(!el.isConnected)"),'Re-attach only when the existing section disappears');
+ assert.ok(shared.includes("observer.disconnect();\n    if(!body.querySelector("),'Country market observer must stop before it restores navigation');
  const groups=groupDatabaseCountryRoutes([
   {region:'Europe',label:'France',url:'/markets/france.html'},
   {region:'Europe',label:'France duplicate',url:'/markets/france.html'},
