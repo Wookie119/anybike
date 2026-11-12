@@ -423,6 +423,14 @@ assert.equal(mountVerifiedModelFacts(incrementalBody,[
 assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='engine').length,1,
  'An amended fact must replace the previous research group rather than duplicate it');
 assert.equal(mountVerifiedModelFacts(incrementalBody,[
+ sample({fact_id:8791,category:'engine',value:{engine_cc:249},market:'UK'}),
+ sample({fact_id:8792,category:'engine',value:{power:'36 PS'}})
+],'Suzuki','RM250'),2,
+ 'A verified market-context correction must update already rendered research');
+assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='engine').length,1,
+ 'A market-context correction must not duplicate an existing research category');
+
+assert.equal(mountVerifiedModelFacts(incrementalBody,[
  sample({fact_id:8790,category:'history',value:{production_year:1976}})
 ],'Suzuki','RM250'),0,
  'Withdrawing an approved category must not generate a new panel');
