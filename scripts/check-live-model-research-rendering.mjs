@@ -67,6 +67,8 @@ const cases=[
  {make:'Honda',model:'CB650R'},
  {make:'Honda',model:'CBR650R'},
  {make:'Yamaha',model:'MT-09'},
+ {make:'Yamaha',model:'MT-07 Y-AMT'},
+ {make:'Triumph',model:'SPEED TWIN 1200'},
  {make:'Yamaha',model:'XSR900'},
  {make:'Honda',model:'XL750 TRANSALP'},
  {make:'Triumph',model:'TIGER 900'},
