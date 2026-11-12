@@ -71,6 +71,28 @@ const displayValue=value=>{
  }
  return null;
 };
+// A small number of approved factory engineering records compare named
+// derivatives in a nested object (e.g. R 12 vs R 12 nineT). Expose only the
+// recognised numeric engine measurements; never render arbitrary nested JSON.
+const variantMeasurements={
+ power_hp:'hp',power_kw:'kW',torque_nm:'Nm',engine_cc:'cc',engine_capacity_cc:'cc'
+};
+export function verifiedEngineeringVariants(value){
+ if(!value||typeof value!=='object'||Array.isArray(value))return [];
+ const out=[];
+ for(const [name,details] of Object.entries(value)){
+  if(!/^[a-zA-Z0-9][a-zA-Z0-9 -]{0,79}$/.test(name)||
+     !details||typeof details!=='object'||Array.isArray(details))continue;
+  const metrics=Object.entries(details)
+   .filter(([key,v])=>Object.hasOwn(variantMeasurements,key)&&typeof v==='number'&&
+    Number.isFinite(v)&&v>=0)
+   .map(([key,v])=>pretty(key)+' '+v.toLocaleString('en-GB')+' '+variantMeasurements[key]);
+  // A credible side-by-side factory comparison contains at least two
+  // documented measurements; never display private or unreviewed fields.
+  if(metrics.length>=2)out.push({label:name,value:metrics.join(' · ')});
+ }
+ return out.length>=2?out:[];
+}
 export function exactVerifiedModelFacts(rows,make,model){
  if(!Array.isArray(rows)||!safeText(make)||!safeText(model))return [];
  const seen=new Set(),out=[];
@@ -87,6 +109,7 @@ export function exactVerifiedModelFacts(rows,make,model){
   else if(row.value&&typeof row.value==='object'&&!Array.isArray(row.value)){
    const measurement=documentedMeasurement(row.value);
    if(measurement)facts.push({label:'Documented value',value:measurement});
+   if(row.category==='engineering')facts.push(...verifiedEngineeringVariants(row.value));
    facts.push(...Object.entries(row.value).filter(([key,value])=>
     /^[a-z][a-z0-9_]{0,50}$/i.test(key)&&
     !internalValueKeys.has(key.toLowerCase())&&
