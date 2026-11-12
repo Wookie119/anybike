@@ -212,7 +212,13 @@ function fakeElement(tag){
  return {
   tag,children:[],dataset:{},style:{},textContent:'',href:'',target:'',rel:'',
   append(...xs){this.children.push(...xs)},
-  insertBefore(child){this.children.unshift(child)},
+  insertBefore(child,before){
+   const previous=this.children.indexOf(child);
+   if(previous>=0)this.children.splice(previous,1);
+   const index=this.children.indexOf(before);
+   if(index<0)this.children.push(child);
+   else this.children.splice(index,0,child);
+  },
   querySelector(){return null}
  };
 }
