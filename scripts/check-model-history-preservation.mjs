@@ -41,6 +41,7 @@ const design=readFileSync(resolve(root,'model-template/approved-r1300gs-model-de
 for(const id of ['generationPanel','generationControls','generationDetail','generationCompareRows']){
  assert(renderer.includes('id="'+id+'"'),'Approved shared model generation component missing: '+id);
 }
+assert(renderer.includes('an unknown end date does not mean production continues'),'Generation warning about unknown end dates must remain visible');
 assert(renderer.includes('const generations=guide.production?.generations||[];'),'Existing sourced generation research must remain available');
 assert(renderer.includes('g.image.permission_status==="approved"'),'Unapproved generation photographs must not be shown');
 assert(renderer.includes('if(Number.isInteger(production.first_model_year)&&!Number.isInteger(production.production_end_year)'),'Unknown production end year must not imply ongoing production');
