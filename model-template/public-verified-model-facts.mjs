@@ -178,8 +178,8 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  const foreignPanelGroups=new Set(
   existingPanel?.dataset.anybikeResearchIdentity&&
   existingPanel.dataset.anybikeResearchIdentity!==identity
-   ? [...existingPanel.querySelectorAll?.('[data-anybike-research-category]')||[],
-      ...existingPanel.children||[]]
+   ? [...(existingPanel.querySelectorAll?.('[data-anybike-research-category]')||[]),
+      ...(existingPanel.children||[])]
    : []
  );
  for(const group of existingGroups){
