@@ -216,6 +216,8 @@ assert.equal(mountVerifiedModelFacts(documentBody,[sample({
  }
 })],'Ducati','Monster 937'),1);
 const documentGroups=documentBody.children[0].children.filter(x=>x.tag==='div');
+assert.equal(documentGroups[0].dataset.anybikeResearchCategory,'factory_documents',
+ 'Each verified research group must expose its approved database category for template integration');
 const documentArticle=documentGroups[0].children.find(x=>x.tag==='div')?.children[0];
 assert(documentArticle?.children.some(x=>x.tag==='a'&&x.href==='https://www.ducati.com/gb/en/service-maintenance/owner-manuals'),
  'Factory archive document links should actually display in the shared public page');
