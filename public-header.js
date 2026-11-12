@@ -3071,4 +3071,12 @@ async function anybikeShowPublicSignedInIdentity(){
   script.src='/motorcycle-complete-catalogue-navigation.js?v=20261112b';
   script.defer=true;document.head.append(script);
  }
+ // Source-verified facts only; universal editorial drafts remain private.
+ if(path.startsWith('/bmw-')&&path.endsWith('.html')&&
+    path!=='/bmw-motorcycles.html'&&path!=='/bmw-r1300gs.html'){
+  const facts=document.createElement('script');
+  facts.type='module';
+  facts.src='/model-template/public-verified-model-facts.mjs?v=20261112-bmw-source-facts';
+  document.head.append(facts);
+ }
 })();
