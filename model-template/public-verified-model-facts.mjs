@@ -321,8 +321,16 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  // ahead of generic fallback and discovery cards, without replacing either.
  if(panelGroups){
   if(existingPanel){
-   for(const child of [...panel.children].filter(child=>child.dataset?.anybikeResearchCategory))
-    existingPanel.append(child);
+   for(const child of [...panel.children].filter(child=>child.dataset?.anybikeResearchCategory)){
+    // New categories must follow the same canonical section order as a fresh
+    // model page, even when their research is approved days or weeks later.
+    const childOrder=researchOrder.indexOf(child.dataset.anybikeResearchCategory);
+    const next=[...existingPanel.children].find(other=>
+     other.dataset?.anybikeResearchCategory&&
+     researchOrder.indexOf(other.dataset.anybikeResearchCategory)>childOrder);
+    if(next)existingPanel.insertBefore(child,next);
+    else existingPanel.append(child);
+   }
   }else body.insertBefore(panel,body.firstChild);
  }
  // Once sourced research is visible, the old unsourced "About this model"
