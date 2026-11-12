@@ -12,10 +12,11 @@ const brands=urls.filter(x=>x.includes('/motorcycle-brand.html?'));
 const markets=urls.filter(x=>x.includes('/markets/'));
 const published=JSON.parse(read('data/motorcycle-index-identities.json')).models;
 assert.equal(models.length,published.length,'Model sitemap must match approved public snapshot');
-const publishedGenericMakes=new Set(published.map(x=>x.make.toLowerCase()).filter(x=>x!=='bmw'&&x!=='harley-davidson'&&x!=='indian'));
+const publishedGenericMakes=new Set(published.map(x=>x.make.toLowerCase()).filter(x=>!['bmw','harley-davidson','indian','indian motorcycle'].includes(x)));
 assert.equal(brands.length,publishedGenericMakes.size,'Generic manufacturer sitemap count must follow approved public snapshot');
 assert(urls.includes('https://www.anybike.co.uk/bmw-motorcycles.html'),'BMW dedicated manufacturer route missing');
 assert(urls.includes('https://www.anybike.co.uk/harley-davidson-motorcycles.html'),'Harley-Davidson dedicated manufacturer route missing');
+assert(urls.includes('https://www.anybike.co.uk/indian-motorcycles.html'),'Indian dedicated historical manufacturer route missing');
 assert.equal(markets.length,217,'International markets sitemap incomplete');
 for(const url of urls){
  const u=new URL(url);
@@ -46,7 +47,7 @@ assert.deepEqual([...new Set(identity)].sort(),[...new Set(indexedIdentity)].sor
 const publishedMakes=new Set(indexed.models.map(x=>String(x.make).trim().toLowerCase()));
 const genericMakes=new Set(brands.map(x=>new URL(x).searchParams.get('make').trim().toLowerCase()));
 for(const make of publishedMakes){
- if(make==='bmw'||make==='harley-davidson')continue;
+ if(['bmw','harley-davidson','indian motorcycle'].includes(make))continue;
  assert(genericMakes.has(make),'Manufacturer missing from sitemap: '+make);
 }
 assert(!genericMakes.has('bmw')&&!genericMakes.has('harley-davidson'),'Dedicated brands must not use generic sitemap URLs');
