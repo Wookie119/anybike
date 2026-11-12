@@ -399,6 +399,22 @@ assert.deepEqual(existingResearchPanel.children.map(x=>x.dataset?.anybikeResearc
 assert.equal(mountVerifiedModelFacts(incrementalBody,[
  sample({fact_id:8791,category:'engine',value:{engine_cc:246}})
 ],'Suzuki','RM250'),0);
+assert.equal(mountVerifiedModelFacts(incrementalBody,[
+ sample({fact_id:8791,category:'engine',value:{engine_cc:246}}),
+ sample({fact_id:8792,category:'engine',value:{power:'36 PS'}})
+],'Suzuki','RM250'),2,
+ 'A new audited fact within an existing category must refresh the category');
+assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='engine').length,1,
+ 'Refreshing a category must replace its earlier group, not duplicate it');
+assert.equal(existingResearchPanel.children.find(x=>x.dataset?.anybikeResearchCategory==='engine')
+ ?.dataset.anybikeResearchFactIds,'8791,8792',
+ 'Updated research group must record both verified fact identities');
+assert.equal(mountVerifiedModelFacts(incrementalBody,[
+ sample({fact_id:8791,category:'engine',value:{engine_cc:246}}),
+ sample({fact_id:8792,category:'engine',value:{power:'36 PS'}})
+],'Suzuki','RM250'),0,
+ 'An unchanged verified fact set must not redraw the same research category');
+
 const badDocumentBody={...body,children:[],firstChild:null};
 mountVerifiedModelFacts(badDocumentBody,[sample({
  fact_id:6703,category:'factory_documents',value:{
