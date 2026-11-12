@@ -29,6 +29,8 @@ for(const phrase of [
  'rest/v1/rpc/public_anybike_manufacturer_model_routes_v1',
  "const heading=main.querySelector('h1')?.textContent?.trim()||'';",
  'const current=currentName;',
+ 'let mounting=false;',
+ 'if(!main||mounting||document.querySelector',
  "if(document.querySelector('main')){void mount();return;}",
  "observer.observe(document.documentElement,{childList:true,subtree:true});",
  'Public catalogue fallback unavailable; trying canonical Supabase directory',
