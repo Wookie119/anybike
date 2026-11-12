@@ -175,7 +175,7 @@ for(const source of ['global.honda/en/newsroom/news/2015/','global.yamaha-motor.
 assert(verifiedFactsScript.includes('const placeholderAdded=records.some('),'Verified model facts observer must filter late placeholders');
 assert(verifiedFactsScript.includes('watcher.disconnect();'),'Verified model facts observer must disconnect');
 assert(!verifiedFactsScript.includes('new MutationObserver(()=>removeGenericPlaceholder())'),'Unbounded research observer reintroduced');
-assert(universalGuide.includes('/model-template/public-verified-model-facts.mjs?v=20261112-research3'),'New approved research renderer must refresh browser cache');
+assert(universalGuide.includes('/model-template/public-verified-model-facts.mjs?v=20261112-research4'),'New approved research renderer must refresh browser cache');
 
 // Additional dated factory research must stay versioned with its audit, not
 // hardcoded into manufacturer-specific HTML pages.
@@ -252,7 +252,7 @@ console.log('PASS: four manufacturer factory research sources, audit and bounded
 // and does not touch dedicated BMW R1300 GS / Harley model templates.
 const verifiedGallery=fs.readFileSync('model-template/public-approved-model-gallery.mjs','utf8');
 const verifiedGalleryRpc=fs.readFileSync('supabase/migrations/20261112210000_public_exact_model_research_gallery.sql','utf8');
-assert(universalGuide.includes('/model-template/public-approved-model-gallery.mjs?v=20261112-gallery1'),'The universal model page must load approved gallery photographs');
+assert(universalGuide.includes('/model-template/public-approved-model-gallery.mjs?v=20261112-gallery2'),'The universal model page must load approved gallery photographs');
 assert(verifiedGallery.includes("location.pathname==='/motorcycle-model-guide.html'"),'Gallery must not modify dedicated BMW/Harley designs');
 assert(verifiedGallery.includes("im.onerror=()=>resolve(false)"),'Broken photos must not create visible galleries');
 for(const guard of ["p.approval_status='approved'","p.subject_category='whole_motorcycle'","p.licence_url ~ '^https://","p.source_page_url ~ '^https://","p.manufacturer=r.manufacturer and p.model=r.model"])
