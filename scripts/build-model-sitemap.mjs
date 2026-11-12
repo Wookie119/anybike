@@ -8,7 +8,7 @@ const sitemapPath=resolve(root,'sitemap.xml');
 const catalogue=JSON.parse(readFileSync(resolve(root,'data/motorcycle-index-identities.json'),'utf8'));
 const original=readFileSync(sitemapPath,'utf8');
 const encode=s=>encodeURIComponent(String(s).trim());
-const escapeXml=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+const escapeXml=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const identities=new Map();
 for(const item of catalogue.models){
  const make=String(item.make||'').trim(),model=String(item.model||'').trim();
