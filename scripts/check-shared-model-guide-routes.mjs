@@ -126,4 +126,16 @@ const standard=fs.readFileSync('harley-davidson-softail-standard.html','utf8');
 assert(standard.includes('AI-generated illustration'),'Softail Standard unverified artwork must remain explicitly labelled');
 console.log('PASS: existing Harley supplied photographs are inside their heroes without duplicate figures.');
 
+
+// Universal catalogue model guides use the central approved, exact-model
+// photo bank without allowing related model or trim photographs.
+const universalHero=fs.readFileSync('model-template/public-approved-model-hero.mjs','utf8');
+const universalGuide=fs.readFileSync('motorcycle-model-guide.html','utf8');
+assert(universalGuide.includes('/model-template/public-approved-model-hero.mjs?v=20261112-japan1'),'Universal model guide must load exact-model hero renderer');
+assert(universalHero.includes("public_anybike_model_hero_v1"),'Approved Supabase photo RPC missing');
+assert(universalHero.includes('data.make===make&&data.model===model'),'Exact model identity guard missing');
+assert(universalHero.includes('img.onload=()=>')&&universalHero.includes('img.onerror=next'),'Broken external image must not replace readable hero');
+assert(!universalHero.includes('new MutationObserver('),'Photo renderer must not introduce another DOM observer loop');
+console.log('PASS: generic manufacturer/model photography uses approved exact-model RPC with image-load guard.');
+
 console.log('PASS: existing detailed-model routes, fallback sourcing and both model-specific customer journeys are intact.');
