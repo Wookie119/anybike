@@ -20,15 +20,28 @@ export async function installApprovedSharedModelHero({root=document.querySelecto
  const hero=root?.querySelector('section.hero');
  if(!make||!model||!hero||hero.querySelector('[data-anybike-approved-model-hero],.licensed-photo,.recovered-hero-photo'))return false;
  // Keep the current model title, research, sourcing actions and stock in place.
- const provider=window.supabase;
+ const provider=typeof window!=='undefined'?window.supabase:null;
  const client=provider?.createClient?.(PROJECT,PUBLIC_KEY);
- if(!client)return false;
- let data;
- try{
-  const result=await client.rpc('public_anybike_model_hero_v1',{p_make:make,p_model:model});
-  if(result.error)return false;
-  data=result.data;
- }catch{return false;}
+ const args={p_make:make,p_model:model};
+ let data=null;
+ if(client){
+  try{
+   const result=await client.rpc('public_anybike_model_hero_v1',args);
+   if(!result.error)data=result.data;
+  }catch(error){console.warn('Optional model hero client unavailable',error);}
+ }
+ // The same approved, read-only public RPC remains available when the CDN
+ // client is missing or its transport fails. Never query raw photo tables.
+ if(!data){
+  try{
+   const response=await fetch(PROJECT+'/rest/v1/rpc/public_anybike_model_hero_v1',{
+    method:'POST',headers:{apikey:PUBLIC_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify(args)
+   });
+   if(!response.ok)return false;
+   data=await response.json();
+  }catch{return false;}
+ }
  if(!approvedHeroCandidate(data,make,model)||hero.querySelector('[data-anybike-approved-model-hero]'))return false;
  const figure=document.createElement('figure');
  figure.dataset.anybikeApprovedModelHero='1';
