@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts,verifiedFactoryDate,orderedVerifiedFactoryFacts} from '../model-template/public-verified-model-facts.mjs';
+import {exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts,verifiedFactoryDate,orderedVerifiedFactoryFacts,verifiedEngineeringVariants} from '../model-template/public-verified-model-facts.mjs';
 import {approvedExactModelGallery,mountApprovedModelGallery,installApprovedModelGallery} from '../model-template/public-approved-model-gallery.mjs';
 const sample=(overrides={})=>({
  fact_id:49,make:'Suzuki',model:'RM250',category:'model_year',
@@ -103,6 +103,30 @@ assert.equal(verifiedFactoryDate(factoryRows[3]),'',
 assert.equal(verifiedFactoryDate(sample({fact_id:7005,category:'market_launch',start_year:2020})), '',
  'Press launch dates must not be mislabeled as factory production dates');
 assert.equal(verifiedFactoryDate(factoryRows[0]),'2021-03-04');
+
+// Real BMW R 12 / R 12 nineT factory comparison (fact 77) used to be
+// silently dropped because both power/torque variants are nested objects.
+const modelVariants={reference_year:2023,
+ 'R 12':{power_hp:95,power_kw:70,torque_nm:110},
+ 'R 12 nineT':{power_hp:109,power_kw:80,torque_nm:115}
+};
+assert.deepEqual(verifiedEngineeringVariants(modelVariants),[
+ {label:'R 12',value:'Power Hp 95 hp · Power Kw 70 kW · Torque Nm 110 Nm'},
+ {label:'R 12 nineT',value:'Power Hp 109 hp · Power Kw 80 kW · Torque Nm 115 Nm'}
+], 'Approved BMW factory engineering comparison must show both derivatives and verified measurements');
+const sourceCompared=exactVerifiedModelFacts([sample({
+ fact_id:77,make:'BMW',model:'R 12',category:'engineering',
+ label:'R 12 versus R 12 nineT original launch outputs',
+ value:modelVariants
+})],'BMW','R 12');
+assert.equal(sourceCompared.length,1);
+assert.equal(sourceCompared[0].display.length,3,
+ 'Both separate power and torque comparison lines must reach one existing Engineering card');
+assert.deepEqual(verifiedEngineeringVariants({
+ private:{power_hp:120},
+ 'Not a real variant':{power_hp:'draft',torque_nm:100},
+ 'Unreviewed <script>':{power_hp:140,power_kw:102}
+}),[],'Incomplete, unverified or unsafe nested structures must never display');
 
 const documentedColour=exactVerifiedModelFacts([sample({
  fact_id:52,category:'factory_colours',label:'Factory colour: Blackstorm metallic',
