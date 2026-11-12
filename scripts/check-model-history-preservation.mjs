@@ -7,6 +7,7 @@ const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const catalogue=JSON.parse(readFileSync(resolve(root,'data/motorcycle-index-identities.json'),'utf8'));
 const rows=catalogue.models;
 const key=x=>String(x.make).trim().toLowerCase()+'|'+String(x.model).trim().toLowerCase();
+if(!Array.isArray(rows)||rows.length===0)throw Error('Approved model snapshot is empty');
 const seen=new Map();
 for(const row of rows){
  if(!row.make||!row.model)throw Error('Empty manufacturer or model identity');
