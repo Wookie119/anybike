@@ -73,6 +73,6 @@ assert(indianPage.includes('A modern Scout or Chief is not the same motorcycle')
 assert(indianPage.includes('Catalogue category:'),'Modern Indian catalogue cards must show their approved classification');
 const allowedIndianStories=new Set(['burt-munro-worlds-fastest-indian','indian-scout-chief-and-springfield-history','victory-polaris-indian-motorcycle-revival']);
 for(const event of historicIndian.timeline){
- const slug=event.source.match(/^\\/global\\/([a-z0-9-]+)\\.html$/)?.[1];
+ const slug=event.source.match(/^\/global\/([a-z0-9-]+)\.html$/)?.[1];
  assert(slug&&allowedIndianStories.has(slug),'Timeline source must point to an approved Indian story');
 }
