@@ -645,6 +645,26 @@ const denied=await installVerifiedModelFacts({
  client:{rpc:async()=>({data:[],error:{message:'not available'}})}
 });
 assert.equal(denied,0,'Never hide or alter the approved page when public facts unavailable');
+const delayedBody={...body,children:[],firstChild:null};
+let resolveOlder,resolveNewer;
+const older=installVerifiedModelFacts({
+ body:delayedBody,make:'Suzuki',model:'RM250',
+ client:{rpc:()=>new Promise(resolve=>{resolveOlder=resolve;})}
+});
+const newer=installVerifiedModelFacts({
+ body:delayedBody,make:'Yamaha',model:'YZ250',
+ client:{rpc:()=>new Promise(resolve=>{resolveNewer=resolve;})}
+});
+resolveNewer({data:[sample({fact_id:8820,make:'Yamaha',model:'YZ250'})],error:null});
+assert.equal(await newer,1,'The latest model research request must publish');
+resolveOlder({data:[sample({fact_id:8821,make:'Suzuki',model:'RM250'})],error:null});
+assert.equal(await older,0,'An older completed RPC must not overwrite the newer model');
+assert.equal(delayedBody.children.filter(x=>x.dataset?.anybikeVerifiedModelFacts==='1').length,1,
+ 'Out-of-order RPC responses must never create duplicate model research panels');
+assert.equal(delayedBody.children.find(x=>x.dataset?.anybikeVerifiedModelFacts==='1')
+ ?.dataset.anybikeResearchIdentity,JSON.stringify(['yamaha','yz250']),
+ 'Only the most recently requested motorcycle may be rendered');
+
 const html=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
 assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261112-integrated7'));
 assert(html.indexOf('id="body"')>html.indexOf('id="generationPanel"'));
