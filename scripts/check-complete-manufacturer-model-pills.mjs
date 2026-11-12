@@ -25,6 +25,7 @@ for(const [make,min] of [['bmw',25],['harleydavidson',18],['honda',60],['yamaha'
 for(const phrase of [
  'if(isBrand){',
  'public_anybike_manufacturer_catalogue_names_v1',
+ 'public_anybike_manufacturer_names_v1',
  'Public catalogue fallback unavailable; trying canonical Supabase directory',
  'databaseModels.length?databaseModels:publicModels','const models=[...new Map([...(databaseModels.length?databaseModels:publicModels).map(x=>x.model),...routes.map(x=>x.model)]',
  "rows.filter(x=>normalize(x.make)===normalize(make)",
