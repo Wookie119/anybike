@@ -111,8 +111,8 @@ const modelVariants={reference_year:2023,
  'R 12 nineT':{power_hp:109,power_kw:80,torque_nm:115}
 };
 assert.deepEqual(verifiedEngineeringVariants(modelVariants),[
- {label:'R 12',value:'Power Hp 95 hp · Power Kw 70 kW · Torque Nm 110 Nm'},
- {label:'R 12 nineT',value:'Power Hp 109 hp · Power Kw 80 kW · Torque Nm 115 Nm'}
+ {label:'R 12',value:'Power 95 hp · Power 70 kW · Torque 110 Nm'},
+ {label:'R 12 nineT',value:'Power 109 hp · Power 80 kW · Torque 115 Nm'}
 ], 'Approved BMW factory engineering comparison must show both derivatives and verified measurements');
 const sourceCompared=exactVerifiedModelFacts([sample({
  fact_id:77,make:'BMW',model:'R 12',category:'engineering',
