@@ -589,6 +589,52 @@ assert.equal(await installApprovedModelGallery({
  imageFactory:()=>({set src(_url){this.onerror?.()}})
 }),0,'Failed image load must not create an empty research gallery');
 
+// A gallery belongs to one exact motorcycle, and the approved white
+// research design must not introduce black photo panels.
+const gallerySource=readFileSync(new URL('../model-template/public-approved-model-gallery.mjs',import.meta.url),'utf8');
+assert(!gallerySource.includes('background:#171717'),
+ 'Approved research galleries must not create a separate black panel');
+const switchingGalleryBody={...body,children:[],firstChild:null,
+ querySelector(selector){
+  return selector==='[data-anybike-model-research-gallery]'?
+   this.children.find(x=>x.dataset?.anybikeModelResearchGallery==='1')||null:null;
+ }
+};
+assert.equal(mountApprovedModelGallery(switchingGalleryBody,[photo()],'BMW','R 1300 GS'),1);
+assert.equal(mountApprovedModelGallery(switchingGalleryBody,[
+ photo({model:'R 1250 GS'})
+],'BMW','R 1250 GS'),1);
+assert.equal(switchingGalleryBody.children.filter(x=>x.dataset?.anybikeModelResearchGallery==='1').length,1,
+ 'Switching models must replace the previous approved gallery rather than duplicate it');
+assert.equal(switchingGalleryBody.children[0].dataset.anybikeGalleryIdentity,
+ JSON.stringify(['bmw','r 1250 gs']));
+
+const delayedGalleryBody={...body,children:[],firstChild:null,
+ querySelector(selector){
+  return selector==='[data-anybike-model-research-gallery]'?
+   this.children.find(x=>x.dataset?.anybikeModelResearchGallery==='1')||null:null;
+ }
+};
+let resolveGalleryOld,resolveGalleryNew;
+const oldGallery=installApprovedModelGallery({
+ body:delayedGalleryBody,make:'BMW',model:'R 1300 GS',
+ client:{rpc:()=>new Promise(resolve=>{resolveGalleryOld=resolve;})},
+ imageFactory:()=>({set src(_url){this.onload?.()}})
+});
+const newGallery=installApprovedModelGallery({
+ body:delayedGalleryBody,make:'BMW',model:'R 1250 GS',
+ client:{rpc:()=>new Promise(resolve=>{resolveGalleryNew=resolve;})},
+ imageFactory:()=>({set src(_url){this.onload?.()}})
+});
+resolveGalleryNew({data:[photo({model:'R 1250 GS'})],error:null});
+assert.equal(await newGallery,1);
+resolveGalleryOld({data:[photo()],error:null});
+assert.equal(await oldGallery,0,
+ 'Slow image-gallery RPC responses must not publish photographs from a previous model');
+assert.equal(delayedGalleryBody.children[0]?.dataset.anybikeGalleryIdentity,
+ JSON.stringify(['bmw','r 1250 gs']),
+ 'The gallery must show only the latest exact motorcycle');
+
 // Real integration shape: a dedicated Harley guide keeps its original
 // content and receives the same sourced-facts section at the correct route.
 const legacyContent=fakeElement('section');
