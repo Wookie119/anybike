@@ -626,6 +626,12 @@ assert.equal(switchingGalleryBody.children.length,1,
  'Failed image loads must not blank the previously approved gallery');
 
 
+assert.equal(await installApprovedModelGallery({
+ body:switchingGalleryBody,make:'Yamaha',model:'YZ250',
+ client:{rpc:async()=>({data:null,error:{message:'offline'}})}
+}),0);
+assert.equal(switchingGalleryBody.children.filter(x=>x.dataset?.anybikeModelResearchGallery==='1').length,0,
+ 'Failed model navigation must not display photographs of the previous motorcycle');
 const delayedGalleryBody={...body,children:[],firstChild:null,
  append(child){this.children.push(child);child.parentNode=this;this.firstChild=this.children[0];},
  querySelector(selector){
@@ -766,6 +772,24 @@ const denied=await installVerifiedModelFacts({
  client:{rpc:async()=>({data:[],error:{message:'not available'}})}
 });
 assert.equal(denied,0,'Never hide or alter the approved page when public facts unavailable');
+const offlineSwitchBody={...body,children:[],firstChild:null,
+ append(child){this.children.push(child);child.parentNode=this;this.firstChild=this.children[0];},
+ querySelector(selector){
+  return selector==='[data-anybike-verified-model-facts]'?
+   this.children.find(x=>x.dataset?.anybikeVerifiedModelFacts==='1')||null:null;
+ },
+ querySelectorAll(){return []}
+};
+assert.equal(await installVerifiedModelFacts({
+ body:offlineSwitchBody,make:'Suzuki',model:'RM250',
+ client:{rpc:async()=>({data:[sample({fact_id:8824})],error:null})}
+}),1);
+assert.equal(await installVerifiedModelFacts({
+ body:offlineSwitchBody,make:'Yamaha',model:'YZ250',
+ client:{rpc:async()=>({data:null,error:{message:'offline'}})}
+}),0);
+assert.equal(offlineSwitchBody.children.filter(x=>x.dataset?.anybikeVerifiedModelFacts==='1').length,0,
+ 'Failed navigation to another motorcycle must not display the previous model research');
 const delayedBody={...body,children:[],firstChild:null};
 let resolveOlder,resolveNewer;
 const older=installVerifiedModelFacts({
