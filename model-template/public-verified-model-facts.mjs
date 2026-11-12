@@ -467,6 +467,17 @@ export async function installVerifiedModelFacts({body,make,model,client}={}){
  if(!body||!safeText(make)||!safeText(model))return 0;
  const request=Symbol('verified-model-research');
  pendingVerifiedResearch.set(body,request);
+ // Do not show another motorcycle's factory records while the new model
+ // request is loading, offline, or rejected. Same-model RPC errors preserve
+ // the most recent successful verified display.
+ const requestedIdentity=JSON.stringify([safeText(make).toLowerCase(),safeText(model).toLowerCase()]);
+ const oldPanel=body.querySelector?.('[data-anybike-verified-model-facts]');
+ if(oldPanel?.dataset?.anybikeResearchIdentity&&
+    oldPanel.dataset.anybikeResearchIdentity!==requestedIdentity)oldPanel.remove?.();
+ for(const group of body.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]){
+  if(group.dataset?.anybikeResearchIdentity&&
+     group.dataset.anybikeResearchIdentity!==requestedIdentity)group.remove?.();
+ }
  const db=client||globalThis.supabase?.createClient?.(ENDPOINT,PUBLIC_KEY);
  if(!db)return 0;
  try{
