@@ -1,0 +1,31 @@
+-- Factory-verified, year- and market-scoped Yamaha model research. Idempotent.
+-- Primary source pages were checked against the exact figures and descriptions.
+with documented(catalog_model_id,category,label,value,start_year,market,source_name,source_url) as (values
+(273,'engine','MT-07 2014 Japan factory engine and output','{"engine_cc":689,"power_kw":54,"power_ps":73,"power_rpm":9000,"torque_nm":68,"torque_rpm":6500,"crankshaft":"270-degree crankshaft","model_year":2014}'::jsonb,2014,'Japan','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/jp/news/2014/0707/mt-07.html'),
+(273,'dimensions','MT-07 2014 Japan factory dimensions and weights','{"length_mm":2085,"width_mm":745,"height_mm":1090,"seat_height_mm":805,"wheelbase_mm":1400,"ground_clearance_mm":140,"kerb_weight_kg":179,"model_year":2014}'::jsonb,2014,'Japan non-ABS MT-07','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/jp/news/2014/0707/mt-07.html'),
+(273,'wheels','MT-07 2014 Japan factory tyre sizes','{"front_tyre":"120/70ZR17M/C 58W tubeless","rear_tyre":"180/55ZR17M/C 73W tubeless","model_year":2014}'::jsonb,2014,'Japan','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/jp/news/2014/0707/mt-07.html'),
+(273,'brakes','MT-07 2014 Japan factory brake configuration','{"front_brakes":"Hydraulic twin disc","rear_brakes":"Hydraulic single disc","model_year":2014}'::jsonb,2014,'Japan','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/jp/news/2014/0707/mt-07.html'),
+(273,'chassis','MT-07 2014 Japan diamond frame and suspension','{"frame":"Diamond","front_suspension":"Telescopic","rear_suspension":"Linked swingarm","model_year":2014}'::jsonb,2014,'Japan','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/jp/news/2014/0707/mt-07.html'),
+(273,'transmission','MT-07 2014 Japan factory six-speed and clutch','{"gearbox":"Constant-mesh six-speed","clutch":"Wet multi-plate","model_year":2014}'::jsonb,2014,'Japan','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/jp/news/2014/0707/mt-07.html'),
+(273,'specification','MT-07 2014 Japan factory fuel capacity and WMTC consumption','{"fuel_tank_l":13,"fuel_consumption_km_per_l":24.1,"consumption_basis":"WMTC Class 3-2, one rider","model_year":2014}'::jsonb,2014,'Japan','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/jp/news/2014/0707/mt-07.html'),
+(273,'factory_colours','MT-07 2014 original Japan factory colours','{"factory_colours":["Matte Gray Metallic 3","Bluish White Cocktail 1","Vivid Red Cocktail 1"],"model_year":2014}'::jsonb,2014,'Japan','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/jp/news/2014/0707/mt-07.html'),
+(273,'design','MT-07 2014 original factory double-deck styling','{"design_concept":"Cool Urban Sports","bodywork":"Double-deck structure","model_year":2014}'::jsonb,2014,'Japan','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/jp/news/2014/0707/mt-07.html'),
+(273,'engineering','MT-07 2014 factory low-speed engine development','{"crankshaft":"270-degree crankshaft","engine_development":"Crossplane Concept design","cylinder_technology":"Direct-plated cylinders","model_year":2014}'::jsonb,2014,'Japan','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/jp/news/2014/0707/mt-07.html'),
+(290,'market_launch','Ténéré 700 2019 Tokyo Motor Show Japan debut','{"event":"46th Tokyo Motor Show","display_status":"Japan premiere, reference vehicle","reference_market":"European market specification","announcement_date":"2019-10-10"}'::jsonb,2019,'European specification displayed in Japan','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/news/2019/1010/tms.html'),
+(290,'engine','Ténéré 700 2019 European reference engine','{"engine_cc":689,"engine_type":"Liquid-cooled inline twin","crankshaft":"270-degree crankshaft","reference_year":2019}'::jsonb,2019,'Europe reference','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/news/2019/1010/tms.html'),
+(290,'chassis','Ténéré 700 2019 European reference chassis','{"chassis":"Lightweight adventure-touring chassis","rider_posture":"Freedom of riding posture","development_focus":"Durability and serviceability","reference_year":2019}'::jsonb,2019,'Europe reference','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/news/2019/1010/tms.html'),
+(290,'touring','Ténéré 700 2019 luggage and riding versatility','{"luggage":"Designed for carrying luggage","riding_uses":["Off-road","Adventure riding","Touring"],"reference_year":2019}'::jsonb,2019,'Europe reference','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/news/2019/1010/tms.html'),
+(290,'history','Ténéré 700 2019 factory XT660Z comparison','{"comparison_model":"XT660Z Ténéré","weight_comparison":"Approximately 10 kg lighter than XT660Z predecessor","reference_year":2019}'::jsonb,2019,'Europe reference','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/news/2019/1010/tms.html'),
+(273,'factory_documents','MT-07 2013 Tokyo Motor Show factory preview','{"event":"43rd Tokyo Motor Show","display_status":"Reference/export-specification motorcycle","announcement_date":"2013-11-08"}'::jsonb,2013,'Export-spec reference','Yamaha Motor Co., Ltd.','https://global.yamaha-motor.com/news/2013/1108/tms.html')
+), added as (
+ insert into public.motorcycle_catalog_facts(catalog_model_id,category,label,value,start_year,market,source_name,source_url,verification_status)
+ select d.catalog_model_id,d.category,d.label,d.value,d.start_year,d.market,d.source_name,d.source_url,'verified'
+ from documented d join public.motorcycle_catalog_models m on m.id=d.catalog_model_id and m.manufacturer='Yamaha'
+ where (d.catalog_model_id=273 and m.model='MT-07') or (d.catalog_model_id=290 and m.model='Tenere 700')
+ and not exists(select 1 from public.motorcycle_catalog_facts f where f.catalog_model_id=d.catalog_model_id and f.label=d.label)
+ returning id,source_url
+)
+insert into public.motorcycle_catalog_fact_verification_audit(fact_id,checked_at,verification_basis,source_url,scope_note,source_version)
+select id,now(),'manufacturer_primary_source_individual_model_checked_2026_11_12',source_url,
+'Exact Yamaha factory model, historical reference year and specified market; not applicable to every subsequent model year.',
+'Yamaha factory original release (2013, 2014 or 2019)' from added;
