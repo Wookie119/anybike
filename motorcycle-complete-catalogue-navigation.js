@@ -134,7 +134,7 @@ async function mount(){
    headings.forEach(h=>{
     const panel=h.closest('section');
     if(!panel||panel.dataset.anybikeCuratedRelated==='1')return;
-    if(!chosen.length){panel.remove();return;}
+    // Never delete an approved BMW/Harley editorial section because the\n    // optional related-model metadata is absent or temporarily unavailable.\n    if(!chosen.length)return;
     panel.dataset.anybikeCuratedRelated='1';
     h.textContent='Related '+make+' model family';
     const old=panel.querySelector('ul.facts,nav');
