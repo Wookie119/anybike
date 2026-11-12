@@ -77,6 +77,13 @@ assert(!completeNav.includes('.slice(0,8)')&&!completeNav.includes('links.length
 assert(completeNav.includes("existing.replaceChildren"),'Approved R 1300 GS pill area is not reused');
 assert(completeNav.includes("public_anybike_manufacturer_model_routes_v1"),'Verified dedicated model routes must be preferred');
 assert(!completeNav.includes("international-public-stock"),'Catalogue navigation must not read protected stock');
+assert(completeNav.includes('async function correctRelated()'), 'Shared related model curation missing');
+assert(completeNav.includes('Math.abs(currentYear-year)<=22'), 'Related models must respect documented production eras');
+assert(completeNav.includes("if(!chosen.length){panel.remove();return;}"), 'Unrelated historical model suggestions must be removed');
+assert(completeNav.includes('Explore related .* models'), 'Legacy broad-category related panels must be intercepted');
+const r32Guide=fs.readFileSync('bmw-r32.html','utf8');
+assert(r32Guide.includes('Explore related BMW models'), 'Legacy R32 related section not detected by shared cleanup');
+console.log('PASS: genuine family/era curation suppresses misleading R32 related model suggestions.');
 console.log('PASS: Complete public manufacturer and same-brand model pill navigation is mounted without stock permission changes.');
 
 console.log('PASS: existing detailed-model routes, fallback sourcing and both model-specific customer journeys are intact.');
