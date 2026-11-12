@@ -85,7 +85,7 @@ assert(completeNav.includes('const relatedAdded=records.some('),'Related-model o
 assert(completeNav.includes('if(!relatedAdded||scheduled)return;'),'Unrelated dealer stock/country DOM updates must not trigger related scans');
 assert(completeNav.includes('requestAnimationFrame(()=>{scheduled=false;render();});'),'Related-model reconciliation must yield to browser rendering');
 assert(!completeNav.includes('queueMicrotask(()=>{scheduled=false;render();});'),'Unbounded microtask render loops can freeze model pages');
-assert(publicLoader.includes('/motorcycle-complete-catalogue-navigation.js?v=20261112-verified-route-merge11'),'Shared navigation browser cache must refresh');
+assert(publicLoader.includes('/motorcycle-complete-catalogue-navigation.js?v=20261112-canonical-brand-links12'),'Shared navigation browser cache must refresh');
 const r32Guide=fs.readFileSync('bmw-r32.html','utf8');
 assert(r32Guide.includes('Explore related BMW models'), 'Legacy R32 related section not detected by shared cleanup');
 console.log('PASS: genuine family/era curation suppresses misleading R32 related model suggestions.');
