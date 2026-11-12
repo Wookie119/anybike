@@ -216,7 +216,10 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  const fingerprint=category=>allFacts.filter(fact=>fact.category===category)
   .map(fact=>JSON.stringify([
    String(fact.fact_id),fact.label,fact.start_year,fact.end_year,
-   fact.market,fact.source_name,fact.source_url,fact.display
+   fact.market,fact.source_name,fact.source_url,fact.display,
+   fact.category==='factory_documents'?
+    [safeText(fact.value?.document_url),safeText(fact.value?.document_title)]:null,
+   factoryCategories.has(fact.category)?verifiedFactoryDate(fact):null
   ])).sort().join('|');
  const refreshGroups=new Map();
  for(const group of existingGroups){
