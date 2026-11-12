@@ -45,13 +45,25 @@ try{
     const foreign=groups.filter(x=>x.dataset.anybikeResearchIdentity!==
      JSON.stringify([new URLSearchParams(location.search).get('make')?.trim().toLowerCase(),
       new URLSearchParams(location.search).get('model')?.trim().toLowerCase()]));
+    const unsafeSources=[...document.querySelectorAll(
+      '[data-anybike-research-category] a[target="_blank"]')]
+     .filter(a=>a.rel.split(/\s+/).indexOf('noopener')<0||
+      a.rel.split(/\s+/).indexOf('noreferrer')<0||
+      !a.href.startsWith('https://'));
+    const viewport=document.documentElement.clientWidth;
+    const overflowingResearch=groups.filter(g=>
+     g.getBoundingClientRect().right>viewport+3||
+     g.getBoundingClientRect().left< -3);
     return {groups:groups.length,foreign:foreign.length,
      renderedFacts:groups.reduce((n,g)=>n+g.querySelectorAll('article').length,0),
      categories:[...new Set(groups.map(x=>x.dataset.anybikeResearchCategory))].sort(),
+     unsafeSources:unsafeSources.length,overflowingResearch:overflowingResearch.length,
      title:document.title};
    });
    if(!result.groups)throw new Error('No sourced model research rendered');
    if(result.foreign)throw new Error('Research from another motorcycle rendered');
+   if(result.unsafeSources)throw new Error('Research source links are insecure or unlabelled');
+   if(result.overflowingResearch)throw new Error('Research panels overflow the visible viewport');
    const expectedCategories=[...new Set(approved.map(x=>x.category))].sort();
    if(JSON.stringify(result.categories)!==JSON.stringify(expectedCategories))
     throw new Error('Rendered research categories differ from approved Supabase categories: '+
