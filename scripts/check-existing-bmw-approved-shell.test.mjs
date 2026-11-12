@@ -81,6 +81,15 @@ test('dedicated BMW stock keeps authenticated ownership but displays above resea
  const css=fs.readFileSync('public-header.css','utf8');
  assert.ok(css.includes('#body [data-anybike-db-section="country_markets"]'),'Market layout is compact on model pages');
 });
+test('BMW model page research and market observers cannot form permanent DOM loops',()=>{
+ const research=fs.readFileSync('model-template/bmw-db-research-sections.mjs','utf8');
+ const country=fs.readFileSync('model-template/public-country-market-navigation.mjs','utf8');
+ const shell=fs.readFileSync('model-template/approved-bmw-page-shell.mjs','utf8');
+ assert.ok(research.includes('if(finished||!records.some('),'Only actual late legacy research cards trigger a second pass');
+ assert.ok(research.includes('observer.disconnect();\n  reconcile();'),'Research observer must disconnect before it modifies DOM');
+ assert.ok(country.includes('observer.disconnect();\n    if(!body.querySelector('),'Market card observer disconnects before reattachment');
+ assert.ok(shell.includes('bmw-db-research-sections.mjs?v=20261112-freeze-guard2'),'Current BMW shell loads fixed research module');
+});
 test('BMW hero displays the photograph only after the exact approved file loads',()=>{
  const shell=fs.readFileSync('model-template/approved-bmw-page-shell.mjs','utf8');
  assert.ok(shell.includes("img.onload=()=>"),'Hero photograph needs a successful load signal');
