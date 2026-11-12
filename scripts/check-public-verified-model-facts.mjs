@@ -2,6 +2,21 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts,verifiedFactoryDate,orderedVerifiedFactoryFacts,verifiedEngineeringVariants} from '../model-template/public-verified-model-facts.mjs';
 import {approvedExactModelGallery,mountApprovedModelGallery,installApprovedModelGallery} from '../model-template/public-approved-model-gallery.mjs';
+import {exactApprovedHarleyRoute} from '../model-template/public-harley-verified-research.mjs';
+const approvedHarleyRoutes=[
+ {make:'Harley-Davidson',model:'Fat Boy',url:'/harley-davidson-fat-boy.html'},
+ {make:'Harley-Davidson',model:'Road Glide',url:'/harley-davidson-road-glide.html'}
+];
+assert.equal(exactApprovedHarleyRoute(approvedHarleyRoutes,'/harley-davidson-fat-boy.html')?.model,'Fat Boy',
+ 'Published Harley page must resolve only its approved exact model');
+assert.equal(exactApprovedHarleyRoute(approvedHarleyRoutes,'/harley-davidson-road-glide.html')?.model,'Road Glide');
+assert.equal(exactApprovedHarleyRoute(approvedHarleyRoutes,'/harley-davidson-nightster.html'),null,
+ 'Do not derive or invent missing model routes from URL filenames');
+assert.equal(exactApprovedHarleyRoute([...approvedHarleyRoutes,approvedHarleyRoutes[0]],'/harley-davidson-fat-boy.html'),null,
+ 'Duplicated model-route mappings must not accidentally publish research');
+assert.equal(exactApprovedHarleyRoute([{make:'BMW',model:'Fat Boy',url:'/harley-davidson-fat-boy.html'}],'/harley-davidson-fat-boy.html'),null,
+ 'Harley research must never accept a foreign manufacturer identity');
+
 const sample=(overrides={})=>({
  fact_id:49,make:'Suzuki',model:'RM250',category:'model_year',
  label:'RM250 1976 archive specifications',
