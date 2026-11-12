@@ -334,4 +334,41 @@ console.log('PASS: universal model gallery loads only licensed exact-model photo
 
 console.log('PASS: generic manufacturer/model photography uses approved exact-model RPC with image-load guard.');
 
+
+// Every approved Harley-Davidson dedicated model route must load the same
+// source-audited research system. Existing Harley layout content stays intact.
+const harleyRoutes=[
+ 'breakout','cvo-pan-america','electra-glide','fat-boy','heritage-classic',
+ 'iron-883','low-rider-s','nightster','pan-america-1250-st',
+ 'pan-america-1250','road-glide','road-king','softail-standard',
+ 'sportster-s','street-bob','street-glide','ultra-limited','v-rod'
+];
+for(const route of harleyRoutes){
+ const page=fs.readFileSync('harley-davidson-'+route+'.html','utf8');
+ assert(page.includes('<main>'),'Harley guide main layout missing: '+route);
+ assert(page.includes('/model-template/public-harley-verified-research.mjs?v=20261112-harleyresearch1'),
+  'Source-audited shared model research not connected to approved Harley guide: '+route);
+ assert(page.includes('public-model-discovery.js'),'Existing Harley discovery navigation must remain: '+route);
+}
+const harleyModule=fs.readFileSync('model-template/public-harley-verified-research.mjs','utf8');
+for(const guard of [
+ "public_anybike_manufacturer_model_routes_v1",
+ "public_anybike_verified_model_facts_v1",
+ "installVerifiedModelFacts",
+ "matches.length===1",
+ "main.insertBefore(slot,before)",
+ "if(rendered<=0){slot.remove();return 0;}",
+ "if(!route)return 0",
+ "page.querySelector?.('[data-anybike-harley-research-slot]')"
+])assert(harleyModule.includes(guard),'Dedicated Harley source-research safeguard missing: '+guard);
+const harleyMigration=fs.readFileSync('supabase/migrations/20261112234000_harley_factory_verified_model_research.sql','utf8');
+assert(harleyMigration.includes('motorcycle_catalog_fact_verification_audit'),
+ 'All published Harley factory records require a matched audit trail');
+for(const source of [
+ '2025/fat-boy.html','2025/breakout.html','2025/heritage-classic.html',
+ '2025/sportster-s.html','nightster.html','street-glide.html',
+ 'harley-davidson-sportster-history.html','motorcycles/icons.html'
+])assert(harleyMigration.includes(source),'Official Harley factory research URL missing: '+source);
+console.log('PASS: all 18 dedicated Harley guides can show independently audited shared factory research.');
+
 console.log('PASS: existing detailed-model routes, fallback sourcing and both model-specific customer journeys are intact.');
