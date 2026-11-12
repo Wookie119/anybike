@@ -268,6 +268,20 @@ for(const key of ['gallery-honda-cb500x-2019-lancia-dude','gallery-honda-cb500x-
 assert(seededModelGallery.includes("array['model_variant_gallery']"),'Research image assets must never replace model heroes');
 assert(seededModelGallery.includes('vehicle model year is unconfirmed'),'Photograph date may not imply motorcycle model year');
 assert(seededModelGallery.includes('on conflict(asset_key) do nothing'),'Approved photo import must be replay-safe');
+
+// Original Ducati production milestones must appear as dated sourced factory
+// chronology, and unsupported image loads must never block a researched page.
+const productionEvidenceSql=fs.readFileSync('supabase/migrations/20261112222000_ducati_model_production_evidence.sql','utf8');
+for(const date of ['2020-10-06','2021-03-04','2017-11-15'])
+ assert(productionEvidenceSql.includes(date),'Dated Ducati manufacturing event missing: '+date);
+assert(productionEvidenceSql.includes('motorcycle_catalog_fact_verification_audit'),'New factory chronology must retain manufacturer source audits');
+const chronologicalRenderer=fs.readFileSync('model-template/public-verified-model-facts.mjs','utf8');
+assert(chronologicalRenderer.includes('export function orderedVerifiedFactoryFacts('),'Model research must sort manufacturing evidence into readable chronology');
+assert(chronologicalRenderer.includes("article.append(dated);"),'Factory chronology must display documented dates');
+assert(verifiedGallery.includes('setTimeout(()=>finish(false),8000)'),'Unreachable external image must not stall whole photo gallery indefinitely');
+assert(verifiedGallery.includes('clearTimeout(timeout)'),'Successful external photographs must not retain timers');
+console.log('PASS: production chronology and bounded model-year gallery loading preserved.');
+
 console.log('PASS: approved Honda/Kawasaki research-gallery photos retain exact identity and year evidence.');
 
 console.log('PASS: universal model gallery loads only licensed exact-model photographs, without altering protected pages.');
