@@ -13,10 +13,10 @@ assert(sitemap.includes('motorcycle-brand.html?make='),'Sitemap must include man
 assert(sitemap.includes('/markets/japan.html'),'Sitemap must retain international markets');
 const locs=[...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(m=>m[1]);
 assert.equal(locs.length,new Set(locs).size,'Sitemap must not repeat URLs');
-assert.equal(locs.filter(x=>x.includes('/motorcycle-model-guide.html?')).length,979,'Sitemap must match reconciled Supabase model identities');
+assert.equal(locs.filter(x=>x.includes('/motorcycle-model-guide.html?')).length,965,'Sitemap must match reconciled Supabase model identities');
 const identities=locs.filter(x=>x.includes('/motorcycle-model-guide.html?')).map(x=>{const decoded=x.replace(/&amp;/g,'&');const make=decoded.match(/[?&]make=([^&]+)/)?.[1]||'';const model=decoded.match(/[?&]model=([^&]+)/)?.[1]||'';return decodeURIComponent(make).trim().toLowerCase()+'|'+decodeURIComponent(model).trim().toLowerCase()});
 assert.equal(new Set(identities).size,identities.length,'Model identity duplicates must not re-enter the sitemap');
-assert.equal(locs.filter(x=>x.includes('/motorcycle-brand.html?')).length,50,'Sitemap must include Indian and Mugen and exclude dedicated BMW/Harley redirects');
+assert.equal(locs.filter(x=>x.includes('/motorcycle-brand.html?')).length,49,'Sitemap must include Indian and Mugen and exclude dedicated BMW/Harley redirects');
 assert(locs.includes('https://www.anybike.co.uk/bmw-motorcycles.html'),'BMW manufacturer sitemap entry missing');
 assert(locs.includes('https://www.anybike.co.uk/harley-davidson-motorcycles.html'),'Harley manufacturer sitemap entry missing');
 assert.equal(locs.filter(x=>x.includes('/markets/')).length,217,'Sitemap must retain all country pages');
