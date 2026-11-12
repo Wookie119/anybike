@@ -12,6 +12,7 @@ assert.equal(dedicatedRoutes.filter(x=>x.make==='BMW').length,27,'BMW dedicated 
 assert.equal(dedicatedRoutes.filter(x=>x.make==='Harley-Davidson').length,18,'Harley dedicated fallback route count');
 for(const route of dedicatedRoutes){assert(/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(route.url),'Dedicated route must be a safe local guide');assert(readFileSync('.'+route.url,'utf8').includes('<main'),'Dedicated route must exist and contain a model page');}
 assert(script.includes('/data/approved-dedicated-model-routes.json'),'Canonical navigation must use verified dedicated offline fallback');
+assert(script.includes('routes.push(...reviewed.filter(x=>!liveKeys.has(normalize(x.model))))'),'Partial Supabase route results must be supplemented by reviewed dedicated links');
 const models=catalogue.models.filter(x=>x&&x.make?.trim()&&x.model?.trim());
 const key=x=>x.toLowerCase().replace(/[^a-z0-9]/g,'');
 const manufacturers=new Map();
