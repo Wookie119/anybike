@@ -188,6 +188,16 @@ export function mountVerifiedModelFacts(body,rows,make,model){
    group.dataset.anybikeResearchFactIds&&group.dataset.anybikeResearchFactIds!==fingerprint(fact.category));
  });
  if(!facts.length)return 0;
+ // Replace a stale category group atomically from the newly verified RPC
+ // snapshot. Never append a second copy of the same section.
+ const refreshedCategories=new Set(facts.map(fact=>fact.category));
+ for(const category of refreshedCategories){
+  for(const group of refreshGroups.get(category)||[]){
+   if(group.dataset.anybikeResearchFactIds&&
+      group.dataset.anybikeResearchFactIds!==fingerprint(category))
+    group.remove?.();
+  }
+ }
  const doc=body.ownerDocument||document;
  const grouped=new Map();
  for(const fact of facts){
