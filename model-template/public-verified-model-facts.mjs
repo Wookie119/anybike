@@ -196,9 +196,24 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   }
  };
  removeGenericPlaceholder();
+ // The legacy guide can insert its generic placeholder after this sourced
+ // panel. Observe only late, direct placeholder cards for a short period.
+ // Never rescan the entire page after unrelated stock/research DOM updates.
  if(typeof MutationObserver!=='undefined'){
-  const watcher=new MutationObserver(()=>removeGenericPlaceholder());
+  let finished=false;
+  const watcher=new MutationObserver(records=>{
+   if(finished)return;
+   const placeholderAdded=records.some(record=>[...record.addedNodes].some(element=>
+    element.nodeType===1&&element.matches?.('section.card')&&
+    element.querySelector('h2')?.textContent?.trim()==='About this model'
+   ));
+   if(!placeholderAdded)return;
+   finished=true;
+   watcher.disconnect();
+   removeGenericPlaceholder();
+  });
   watcher.observe(body,{childList:true});
+  setTimeout(()=>{finished=true;watcher.disconnect();},4000);
  }
  return facts.length;
 }
