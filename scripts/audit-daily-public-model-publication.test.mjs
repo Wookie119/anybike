@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {identity,selectDailyModels,validatePublicRows,fetchProjection,runDailyAudit,toMarkdown}
+import {identity,selectDailyModels,validatePublicRows,fetchProjection,fetchCleanCatalogue,runDailyAudit,toMarkdown}
  from './audit-daily-public-model-publication.mjs';
 
 assert.equal(identity(' BMW ','R 1300 GS'),identity('bmw','r 1300 gs'));
@@ -16,6 +16,20 @@ assert.throws(()=>validatePublicRows([{make:'BMW',model:'R 1300 GS',
  image_url:'http://unsafe',licence_url:'https://example.com/licence',
  licence:'CC BY-SA',attribution:'Author'}],'BMW','R 1300 GS','gallery'),
  /unlicensed or unsafe/);
+const cleanRequests=[];
+const cleanModels=await fetchCleanCatalogue(async(url,options)=>{
+ cleanRequests.push({url,options});
+ const input=JSON.parse(options.body);
+ return {ok:true,json:async()=>url.includes('manufacturer_names_v1')?
+  ['BMW','Honda']: [{make:input.p_make,model:input.p_make==='BMW'?'R 1300 GS':'Africa Twin'}]};
+});
+assert.equal(cleanModels.length,2,'The live catalogue must cover all clean manufacturers');
+assert(cleanModels.some(x=>x.make==='Honda'&&x.model==='Africa Twin'));
+assert.equal(cleanRequests.length,3,'Every clean manufacturer needs its model catalogue');
+await assert.rejects(()=>fetchCleanCatalogue(async(url,options)=>({
+ ok:true,json:async()=>url.includes('manufacturer_names_v1')?
+ ['BMW']:[{make:'Honda',model:'Wrong manufacturer'}]
+})),/identity mismatch/);
 const requests=[];
 const fetcher=async (url,options)=>{
  requests.push({url,options});
