@@ -61,7 +61,8 @@ export function modelReleaseReadiness({
      !Number.isFinite(publicTime)||publicTime>Date.now())
    issues.push('section_publication_date_unverified');
   if(section.content===null||section.content===undefined||
-     (typeof section.content==='object'&&Object.keys(section.content).length===0))
+     typeof section.content!=='object'||Array.isArray(section.content)||
+     Object.keys(section.content).length===0)
    unreviewedData++;
   if(section.content&&typeof section.content==='object'&&!Array.isArray(section.content)){
    const nested=section.content;
