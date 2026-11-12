@@ -75,7 +75,11 @@ const displayValue=value=>{
 // derivatives in a nested object (e.g. R 12 vs R 12 nineT). Expose only the
 // recognised numeric engine measurements; never render arbitrary nested JSON.
 const variantMeasurements={
- power_hp:'hp',power_kw:'kW',torque_nm:'Nm',engine_cc:'cc',engine_capacity_cc:'cc'
+ power_hp:{label:'Power',unit:'hp'},
+ power_kw:{label:'Power',unit:'kW'},
+ torque_nm:{label:'Torque',unit:'Nm'},
+ engine_cc:{label:'Engine capacity',unit:'cc'},
+ engine_capacity_cc:{label:'Engine capacity',unit:'cc'}
 };
 export function verifiedEngineeringVariants(value){
  if(!value||typeof value!=='object'||Array.isArray(value))return [];
@@ -86,7 +90,7 @@ export function verifiedEngineeringVariants(value){
   const metrics=Object.entries(details)
    .filter(([key,v])=>Object.hasOwn(variantMeasurements,key)&&typeof v==='number'&&
     Number.isFinite(v)&&v>=0)
-   .map(([key,v])=>pretty(key)+' '+v.toLocaleString('en-GB')+' '+variantMeasurements[key]);
+   .map(([key,v])=>variantMeasurements[key].label+' '+v.toLocaleString('en-GB')+' '+variantMeasurements[key].unit);
   // A credible side-by-side factory comparison contains at least two
   // documented measurements; never display private or unreviewed fields.
   if(metrics.length>=2)out.push({label:name,value:metrics.join(' · ')});
