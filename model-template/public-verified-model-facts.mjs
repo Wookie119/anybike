@@ -57,7 +57,13 @@ const factLabels={
  rear_tyre:'Rear tyre',quickshifter:'Quickshifter',
  traction_control:'Traction control',drive_modes:'Riding modes',
  factory_colours:'Factory colour options',standard_colours:'Standard colours',
- launch_year:'Launch year',reference_year:'Reference year'
+ launch_year:'Launch year',reference_year:'Reference year',
+ displacement_cc:'Engine displacement',power_ps:'Power',top_speed_kmh:'Top speed',
+ front_wheel_inches:'Front wheel diameter',rear_wheel_inches:'Rear wheel diameter',
+ ground_clearance_mm:'Ground clearance',front_suspension_travel_mm:'Front suspension travel',
+ rear_suspension_travel_mm:'Rear suspension travel',
+ power_rpm:'Peak power engine speed',torque_rpm:'Peak torque engine speed',
+ production_start_year:'Production started',production_end_year:'Production ended'
 };
 // These administrative keys can occur inside otherwise sourced JSON. They are
 // not factual model specifications and must never leak into public research.
@@ -77,7 +83,12 @@ const explicitUnitKeys={
  torque_nm:'Nm',seat_height_mm:'mm',wheelbase_mm:'mm',
  curb_mass_kg:'kg',kerb_weight_kg:'kg',dry_weight_kg:'kg',
  fuel_tank_l:'litres',fuel_capacity_l:'litres',fuel_capacity_litres:'litres',
- battery_kwh:'kWh',co2_g_per_km:'g/km',fuel_consumption_km_per_l:'km/l'
+ battery_kwh:'kWh',co2_g_per_km:'g/km',fuel_consumption_km_per_l:'km/l',
+ displacement_cc:'cc',power_ps:'PS',top_speed_kmh:'km/h',
+ front_wheel_inches:'in',rear_wheel_inches:'in',
+ ground_clearance_mm:'mm',suspension_travel_mm:'mm',
+ front_suspension_travel_mm:'mm',rear_suspension_travel_mm:'mm',
+ bore_mm:'mm',stroke_mm:'mm',compression_ratio:null
 };
 export function documentedScalarField(key,value){
  const raw=displayValue(value);
