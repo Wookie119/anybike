@@ -136,6 +136,16 @@ assert(universalHero.includes("public_anybike_model_hero_v1"),'Approved Supabase
 assert(universalHero.includes('data.make===make&&data.model===model'),'Exact model identity guard missing');
 assert(universalHero.includes('img.onload=()=>')&&universalHero.includes('img.onerror=next'),'Broken external image must not replace readable hero');
 assert(!universalHero.includes('new MutationObserver('),'Photo renderer must not introduce another DOM observer loop');
+
+// Migration-backed public hero lookup must be exact and rights-gated.
+const heroMigration=fs.readFileSync('supabase/migrations/20261112123000_public_exact_model_licensed_hero.sql','utf8');
+assert(heroMigration.includes('public.public_anybike_model_hero_v1'),'Shared photo RPC must be versioned');
+assert(heroMigration.includes('p.manufacturer = r.manufacturer')&&heroMigration.includes('p.model = r.model'),'Never select an approximate model photo');
+assert(heroMigration.includes("p.approval_status = 'approved'"),'Unapproved image access must stay blocked');
+assert(heroMigration.includes("p.subject_category = 'whole_motorcycle'"),'Hero must show actual motorcycle');
+assert(heroMigration.includes("'model_hero' = any(p.usage_contexts)"),'Use must be explicitly approved for model hero');
+assert(heroMigration.includes('grant execute on function public.public_anybike_model_hero_v1(text,text)'),'Public read-only RPC must remain exposed');
+
 console.log('PASS: generic manufacturer/model photography uses approved exact-model RPC with image-load guard.');
 
 console.log('PASS: existing detailed-model routes, fallback sourcing and both model-specific customer journeys are intact.');
