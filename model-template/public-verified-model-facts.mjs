@@ -249,7 +249,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  }else if(existingPanel&&referenceYearText){
   const intro=node(body.ownerDocument||document,'p',referenceYearText);
   intro.dataset.anybikeResearchYearsIntro='1';
-  intro.style.cssText='font-size:16px;line-height:1.65;color:#ddd';
+  intro.style.cssText='font-size:16px;line-height:1.65;color:inherit';
   existingPanel.insertBefore(intro,existingPanel.children?.[1]||null);
  }
  const facts=allFacts.filter(fact=>{
