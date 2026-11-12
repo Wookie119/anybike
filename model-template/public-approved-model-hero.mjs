@@ -72,18 +72,34 @@ export async function installApprovedSharedModelHero({root=document.querySelecto
   if(!candidates.includes(fallback))candidates.push(fallback);
  }
  return await new Promise(resolve=>{
-  let index=0;
+  let index=0,finished=false;
+  let timer=null;
+  const finish=value=>{
+   if(finished)return;
+   finished=true;
+   if(timer!==null)clearTimeout(timer);
+   img.onload=null;img.onerror=null;
+   resolve(value);
+  };
   const next=()=>{
-   if(index>=candidates.length){resolve(false);return;}
-   img.src=candidates[index++];
+   if(finished)return;
+   if(timer!==null)clearTimeout(timer);
+   if(index>=candidates.length){finish(false);return;}
+   // A stalled third-party image must not leave the publication task pending.
+   timer=setTimeout(next,8000);
+   try{img.src=candidates[index++];}catch{next();}
   };
   img.onload=()=>{
+   if(finished)return;
    if(!img.naturalWidth||!img.naturalHeight){next();return;}
-   if(!hero.isConnected){resolve(false);return;}
+   if(!hero.isConnected){finish(false);return;}
+   if(hero.querySelector('[data-anybike-approved-model-hero],.licensed-photo,.recovered-hero-photo')){
+    finish(false);return;
+   }
    figure.append(img,caption);
    const actions=hero.querySelector('.actions');
    if(actions)actions.before(figure);else hero.append(figure);
-   resolve(true);
+   finish(true);
   };
   img.onerror=next;
   next();
