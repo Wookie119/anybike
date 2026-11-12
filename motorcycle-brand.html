@@ -493,6 +493,11 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
    const match=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
    const matching=data.models.filter(x=>match(x.make)===match(make)&&x.model);
    if(!matching.length)throw Error("No matching catalogue models");
+   // The clean database directory is authoritative: do not retain curated
+   // names that are absent from the approved canonical public model list.
+   const approved=new Set(matching.map(x=>match(x.model)));
+   for(const [category,list] of Object.entries(groups))
+    groups[category]=list.filter(name=>approved.has(match(name)));
    const known=new Set(Object.values(groups).flat().map(match));
    const summary=document.getElementById("manufacturer-data-summary");
    if(summary){
