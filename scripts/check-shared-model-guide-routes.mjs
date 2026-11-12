@@ -259,6 +259,17 @@ for(const guard of ["p.approval_status='approved'","p.subject_category='whole_mo
  assert(verifiedGalleryRpc.includes(guard),'Exact model licensed photo gallery guard missing: '+guard);
 assert(verifiedGalleryRpc.includes('model_variant_gallery'),'Gallery photos must be explicitly approved for variant-gallery use');
 assert(!verifiedGalleryRpc.includes("'model_hero'=any(p.usage_contexts)"),'Gallery must not duplicate the main hero image');
+
+// The first published galleries must have year/model-safe attribution and
+// must never treat photo-taking dates as the motorcycle's model year.
+const seededModelGallery=fs.readFileSync('supabase/migrations/20261112211500_approved_honda_kawasaki_model_gallery_photos.sql','utf8');
+for(const key of ['gallery-honda-cb500x-2019-lancia-dude','gallery-honda-cb500x-2021-chanokchon','gallery-kawasaki-ninja650-kidfly182-2024'])
+ assert(seededModelGallery.includes(key),'Approved and documented gallery asset missing: '+key);
+assert(seededModelGallery.includes("array['model_variant_gallery']"),'Research image assets must never replace model heroes');
+assert(seededModelGallery.includes('vehicle model year is unconfirmed'),'Photograph date may not imply motorcycle model year');
+assert(seededModelGallery.includes('on conflict(asset_key) do nothing'),'Approved photo import must be replay-safe');
+console.log('PASS: approved Honda/Kawasaki research-gallery photos retain exact identity and year evidence.');
+
 console.log('PASS: universal model gallery loads only licensed exact-model photographs, without altering protected pages.');
 
 console.log('PASS: generic manufacturer/model photography uses approved exact-model RPC with image-load guard.');
