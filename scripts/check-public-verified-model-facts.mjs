@@ -362,6 +362,32 @@ assert.equal(mixedBody.children[0].children.filter(x=>x.dataset?.anybikeResearch
 assert.equal(mountVerifiedModelFacts(mixedBody,[sample({fact_id:8752,category:'engine'})],'Suzuki','RM250'),0,
  'A repeated mixed research installation must not duplicate existing source-linked facts');
 
+// New research can arrive after a fallback panel has been rendered. Keep
+// exactly one panel and never repeat an already-published category.
+const existingResearchPanel=fakeElement('section');
+existingResearchPanel.dataset.anybikeVerifiedModelFacts='1';
+const existingHistoryGroup=fakeElement('div');
+existingHistoryGroup.dataset.anybikeResearchCategory='history';
+existingResearchPanel.append(existingHistoryGroup);
+existingResearchPanel.querySelectorAll=selector=>
+ selector==='[data-anybike-research-category]'?[...existingResearchPanel.children]:[];
+const incrementalBody={...body,children:[existingResearchPanel],firstChild:existingResearchPanel,
+ querySelector(selector){
+  return selector==='[data-anybike-verified-model-facts]'?existingResearchPanel:null;
+ },
+ querySelectorAll(){return []}
+};
+assert.equal(mountVerifiedModelFacts(incrementalBody,[
+ sample({fact_id:8790,category:'history',value:{production_year:1976}}),
+ sample({fact_id:8791,category:'engine',value:{engine_cc:246}})
+],'Suzuki','RM250'),1);
+assert.equal(incrementalBody.children.length,1,
+ 'Additional verified categories must reuse the existing research panel');
+assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='history').length,1);
+assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='engine').length,1);
+assert.equal(mountVerifiedModelFacts(incrementalBody,[
+ sample({fact_id:8791,category:'engine',value:{engine_cc:246}})
+],'Suzuki','RM250'),0);
 const badDocumentBody={...body,children:[],firstChild:null};
 mountVerifiedModelFacts(badDocumentBody,[sample({
  fact_id:6703,category:'factory_documents',value:{
