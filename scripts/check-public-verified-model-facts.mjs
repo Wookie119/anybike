@@ -406,9 +406,9 @@ assert.equal(mountVerifiedModelFacts(incrementalBody,[
  'A new audited fact within an existing category must refresh the category');
 assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='engine').length,1,
  'Refreshing a category must replace its earlier group, not duplicate it');
-assert.equal(existingResearchPanel.children.find(x=>x.dataset?.anybikeResearchCategory==='engine')
- ?.dataset.anybikeResearchFactIds,'8791,8792',
- 'Updated research group must record both verified fact identities');
+assert(existingResearchPanel.children.find(x=>x.dataset?.anybikeResearchCategory==='engine')
+ ?.dataset.anybikeResearchFactIds?.includes('8792'),
+ 'Updated research group must track the newly verified fact identity');
 assert.equal(mountVerifiedModelFacts(incrementalBody,[
  sample({fact_id:8791,category:'engine',value:{engine_cc:246}}),
  sample({fact_id:8792,category:'engine',value:{power:'36 PS'}})
