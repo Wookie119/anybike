@@ -219,7 +219,7 @@ const metadataSafe=exactVerifiedModelFacts([sample({
   source_name:'Internal database copy',created_at:'2026-11-11'
  }
 })],'Suzuki','RM250');
-assert.deepEqual(metadataSafe[0].display,[{label:'Engine capacity (cc)',value:'246'}],
+assert.deepEqual(metadataSafe[0].display,[{label:'Engine capacity',value:'246 cc'}],
  'Never expose administrative publication, provenance or reviewer metadata as model facts');
 assert.deepEqual(exactVerifiedModelFacts([
  sample({fact_id:60}),sample({fact_id:'60'})
