@@ -280,6 +280,21 @@ assert(chronologicalRenderer.includes('export function orderedVerifiedFactoryFac
 assert(chronologicalRenderer.includes("article.append(dated);"),'Factory chronology must display documented dates');
 assert(verifiedGallery.includes('setTimeout(()=>finish(false),8000)'),'Unreachable external image must not stall whole photo gallery indefinitely');
 assert(verifiedGallery.includes('clearTimeout(timeout)'),'Successful external photographs must not retain timers');
+
+// Verified source records can be withheld by existing catalogue identity
+// reviews; a held fact is NOT a missing template section and must not
+// accidentally be published by a generic page route.
+const publicationHolds=fs.readFileSync('supabase/migrations/20261112230000_internal_model_research_publication_holds.sql','utf8');
+for(const expected of [
+ "n.review_status='pending_review'",
+ "'pending_catalogue_identity_review'",
+ 'motorcycle_catalog_dropdown_clean',
+ 'source_audited',
+ 'research_section_supported',
+ 'revoke all on public.anybike_model_research_publication_holds_v1 from anon,authenticated'
+])assert(publicationHolds.includes(expected),'Internal publication hold safeguard missing: '+expected);
+console.log('PASS: unpublished identity reviews remain separate from rendering gaps and private from public clients.');
+
 console.log('PASS: production chronology and bounded model-year gallery loading preserved.');
 
 
