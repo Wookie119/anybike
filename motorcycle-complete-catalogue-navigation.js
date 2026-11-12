@@ -22,7 +22,9 @@ function section(title,note,entries,current,urlFor){
  const sec=document.createElement('section');sec.className='anybike-complete-directory';
  const h=document.createElement('h2');h.textContent=title;
  const intro=document.createElement('p');intro.textContent=note;
- const count=document.createElement('p');count.className='dir-count';count.textContent=entries.length+' manufacturer'+(title.includes('manufacturers')?'s':' model')+(entries.length===1?'':'s')+' in this directory';
+ const count=document.createElement('p');count.className='dir-count';
+ const kind=title.includes('manufacturers')?'manufacturer':'model';
+ count.textContent=entries.length+' '+kind+(entries.length===1?'':'s')+' in this directory';
  const nav=document.createElement('nav');nav.setAttribute('aria-label',title);
  entries.forEach(name=>pill(nav,name,urlFor(name),normalize(name)===normalize(current)));
  sec.append(h,intro,count,nav);return sec;
@@ -35,8 +37,7 @@ async function mount(){
  if(!rows.length)return;
  const makes=[...new Map(rows.map(x=>[normalize(x.make),x.make])).values()].sort((a,b)=>a.localeCompare(b,'en'));
 
- const models=[...new Map(rows.filter(x=>normalize(x.make)===normalize(make)).map(x=>[normalize(x.model),x.model])).values()].sort((a,b)=>a.localeCompare(b,'en',{numeric:true}));
- if(!models.length)return;
+ const publicModels=rows.filter(x=>normalize(x.make)===normalize(make));
  let routes=[];
  if((make==='BMW'||make==='Harley-Davidson')&&window.supabase?.createClient){
    try{
@@ -46,12 +47,16 @@ async function mount(){
    }catch(error){console.warn('Dedicated model route lookup unavailable',error)}
  }
  const byModel=new Map(routes.map(x=>[normalize(x.model),x.url]));
+ // The public catalogue is the reviewed directory. Existing verified BMW
+ // and Harley guide routes may also appear even before a catalogue refresh.
+ const models=[...new Map([...publicModels.map(x=>x.model),...routes.map(x=>x.model)]
+  .filter(Boolean).map(name=>[normalize(name),name])).values()]
+  .sort((a,b)=>a.localeCompare(b,'en',{numeric:true}));
+ if(!models.length)return;
  // Every manufacturer page must show the same complete, clickable model-pill
  // directory as the approved R 1300 GS guide. Use exact manufacturer matching,
  // never unrelated makes or a small curated subset.
  if(isBrand){
-  const models=[...new Map(rows.filter(x=>normalize(x.make)===normalize(make)).map(x=>[normalize(x.model),x.model])).values()]
-   .sort((a,b)=>a.localeCompare(b,'en',{numeric:true}));
   if(models.length){
    const nav=section('All '+make+' motorcycle models','Choose any '+make+' model to open its individual AnyBike model guide.',models,'',name=>byModel.get(normalize(name))||genericUrl(make,name));
    nav.dataset.completeCatalogueNavigation='1';
