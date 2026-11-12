@@ -8,6 +8,16 @@ const a=selectDailyModels(catalogue,new Date('2026-11-12T00:00:00Z'),30);
 const b=selectDailyModels(catalogue,new Date('2026-11-13T00:00:00Z'),30);
 assert(a.length>=30&&b.length>=30);
 assert.notDeepEqual(a,b,'The daily audit must rotate through the local catalogue');
+// The seven-day window must inspect every canonical model at least once.
+const fullCatalogue=Array.from({length:965},(_,i)=>({make:'Test',model:'Model '+i}));
+const weekly=new Set();
+for(let day=0;day<7;day++){
+ const date=new Date(Date.UTC(2026,10,12+day));
+ for(const row of selectDailyModels(fullCatalogue,date))
+  weekly.add(identity(row.make,row.model));
+}
+assert.equal(fullCatalogue.filter(x=>weekly.has(identity(x.make,x.model))).length,965,
+ 'Every clean catalogue model must be sampled within seven consecutive days');
 assert(a.some(x=>x.make==='BMW'&&x.model==='R 1300 GS'),
  'The approved flagship model must be checked every day');
 assert.throws(()=>validatePublicRows([{make:'BMW',model:'R 1250 GS'}],'BMW','R 1300 GS','facts'),
