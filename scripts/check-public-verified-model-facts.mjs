@@ -554,6 +554,16 @@ const photo=(overrides={})=>({
  subject_category:'whole_motorcycle',model_year_start:2025,model_year_end:2025,...overrides
 });
 assert.equal(approvedExactModelGallery([photo()],'BMW','R 1300 GS').length,1);
+assert.equal(approvedExactModelGallery([photo({make:'bmw',model:'r 1300 gs'})],
+ 'BMW','R 1300 GS').length,1,
+ 'Manufacturer and model case differences must not hide the same exact approved motorcycle');
+const datedGallery=approvedExactModelGallery([
+ photo({image_url:'https://example.com/later.jpg',model_year_start:2025}),
+ photo({image_url:'https://example.com/earlier.jpg',model_year_start:2022})
+],'BMW','R 1300 GS');
+assert.deepEqual(datedGallery.map(x=>x.model_year_start),[2022,2025],
+ 'Licensed historical photographs must display in documented chronological order');
+
 assert.equal(approvedExactModelGallery([photo({model:'R 1250 GS'})],'BMW','R 1300 GS').length,0,
  'Never display R 1250 GS photos on R 1300 GS pages');
 assert.equal(approvedExactModelGallery([photo({licence:''})],'BMW','R 1300 GS').length,0,
