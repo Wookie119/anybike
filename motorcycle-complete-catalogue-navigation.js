@@ -87,7 +87,7 @@ async function mount(){
     const data=await response.json();
     if(Array.isArray(data.models))routes=data.models.filter(x=>x&&normalize(x.make)===normalize(make)&&
      typeof x.model==='string'&&typeof x.url==='string'&&
-     /^\\/(?:bmw|harley-davidson)-[a-z0-9-]+\\.html$/.test(x.url));
+     /^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(x.url));
    }
   }catch(error){console.warn('Verified dedicated model route fallback unavailable',error)}
  }
