@@ -69,3 +69,33 @@ LEFT JOIN public.anybike_model_research_publication_holds_v1 h
  ON h.fact_id=f.id
 GROUP BY f.verification_status
 ORDER BY f.verification_status;
+
+-- 7. Existing manufacturer/document URLs waiting for editorial extraction.
+-- These source URLs already exist in the database; they are NOT verified facts.
+-- Prioritise motorcycles that currently have no public research.
+SELECT c.make,c.model,c.verified_research_facts,
+       COUNT(DISTINCT s.source_url) AS candidate_sources,
+       ARRAY_AGG(DISTINCT s.source_url ORDER BY s.source_url) AS review_urls,
+       'https://www.anybike.co.uk/motorcycle-model-guide.html?make=' ||
+         replace(c.make,' ','%20') || '&model=' ||
+         replace(c.model,' ','%20') AS public_review_page
+FROM public.motorcycle_catalog_editorial_source_index s
+JOIN public.anybike_public_model_research_coverage_v1 c
+ ON c.model_id=s.model_id
+WHERE s.verification_status='pending_review'
+  AND s.source_url ~* '^https://'
+GROUP BY c.make,c.model,c.verified_research_facts
+ORDER BY CASE WHEN c.verified_research_facts=0 THEN 0 ELSE 1 END,
+         candidate_sources DESC,c.make,c.model
+LIMIT 120;
+
+-- 8. Count how much of the existing source-index backlog could be researched
+-- without inventing new source URLs. No auto-verification or auto-publication.
+SELECT COUNT(*) AS pending_source_links,
+       COUNT(DISTINCT s.model_id) AS models_with_source_candidates,
+       COUNT(DISTINCT s.model_id) FILTER
+         (WHERE c.verified_research_facts=0) AS unresearched_models_with_sources
+FROM public.motorcycle_catalog_editorial_source_index s
+JOIN public.anybike_public_model_research_coverage_v1 c
+ ON c.model_id=s.model_id
+WHERE s.verification_status='pending_review';
