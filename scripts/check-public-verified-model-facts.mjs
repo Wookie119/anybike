@@ -61,6 +61,47 @@ const editions=exactVerifiedModelFacts([sample({
 assert.equal(editions[0].display[0].value.split(' · ').length,16,
  'Source-verified factory edition/colour lists beyond twelve must have a display location');
 
+const factoryDocuments=exactVerifiedModelFacts([sample({
+ fact_id:6700,make:'Ducati',model:'Monster 937',category:'factory_documents',
+ label:'Official Ducati Monster manual',value:{
+  document_title:'Choose owner manual for correct year',
+  document_url:'https://www.ducati.com/gb/en/service-maintenance/owner-manuals',
+  document_type:'Official manufacturer selector'
+ }
+})],'Ducati','Monster 937');
+assert.equal(factoryDocuments.length,1,'Documented manufacturer archives need a place on model pages');
+assert(!factoryDocuments[0].display.some(x=>x.label==='Document Url'),
+ 'Only safe clickable manufacturer document links should expose document URLs');
+const documentedOwnership=exactVerifiedModelFacts([sample({
+ fact_id:6701,category:'used_buying',
+ label:'Official maintenance evidence',value:{checks:[
+  'Check service dates','Match model year','Check factory campaigns'
+ ]}
+})],'Suzuki','RM250');
+assert.equal(documentedOwnership[0].display[0].value.split(' · ').length,3,
+ 'Sourced used buying and ownership research needs a readable checklist');
+const documentBody={...body,children:[],firstChild:null};
+assert.equal(mountVerifiedModelFacts(documentBody,[sample({
+ fact_id:6702,make:'Ducati',model:'Monster 937',category:'factory_documents',
+ label:'Official owner handbook',value:{
+  document_title:'Choose exact factory manual',
+  document_url:'https://www.ducati.com/gb/en/service-maintenance/owner-manuals',
+  document_type:'Official archive'
+ }
+})],'Ducati','Monster 937'),1);
+const documentGroups=documentBody.children[0].children.filter(x=>x.tag==='div');
+const documentArticle=documentGroups[0].children.find(x=>x.tag==='div')?.children[0];
+assert(documentArticle?.children.some(x=>x.tag==='a'&&x.href==='https://www.ducati.com/gb/en/service-maintenance/owner-manuals'),
+ 'Factory archive document links should actually display in the shared public page');
+const badDocumentBody={...body,children:[],firstChild:null};
+mountVerifiedModelFacts(badDocumentBody,[sample({
+ fact_id:6703,category:'factory_documents',value:{
+  document_type:'Official archive',document_url:'javascript:alert(1)'
+ }
+})],'Suzuki','RM250');
+const badArticle=badDocumentBody.children[0].children.filter(x=>x.tag==='div')[0].children.find(x=>x.tag==='div').children[0];
+assert(!badArticle.children.some(x=>x.tag==='a'),'Unsafe document links must not render');
+
 const documentedColour=exactVerifiedModelFacts([sample({
  fact_id:52,category:'factory_colours',label:'Factory colour: Blackstorm metallic',
  value:{name:'Blackstorm metallic',source:'https://example.org/press',source_url:'https://example.org/press',model_year:2024}
@@ -211,9 +252,11 @@ assert(renderSource.includes("groupHeading.style.cssText='color:#fff"),'Research
 // before an editor can mark a new fact as verified.
 const contractSql=readFileSync(new URL('../supabase/migrations/20261112190000_guard_verified_research_section_destinations.sql',import.meta.url),'utf8');
 const projectionSql=readFileSync(new URL('../supabase/migrations/20261112191500_use_section_registry_in_public_model_facts.sql',import.meta.url),'utf8');
-const approvedSections=[...contractSql.matchAll(/^\('([a-z_]+)','([^']+)',(\d+)\),?$/gm)]
-  .map(([,category,label,order])=>({category,label,order:Number(order)}));
-assert.equal(approvedSections.length,20,'Keep all twenty approved research-section destinations');
+const newSectionsSql=readFileSync(new URL('../supabase/migrations/20261112194500_model_factory_documents_and_ownership_sections.sql',import.meta.url),'utf8');
+const approvedSections=[...contractSql.matchAll(/^\('([a-z_]+)','([^']+)',(\d+)\),?$/gm),
+ ...newSectionsSql.matchAll(/^\('([a-z_]+)','([^']+)',(\d+)\),?$/gm)]
+ .map(([,category,label,order])=>({category,label,order:Number(order)}));
+assert.equal(approvedSections.length,22,'Preserve the 20 existing research categories plus document and ownership subsections');
 const rendererSource=sourceCode.slice(sourceCode.indexOf('const sections={'),sourceCode.indexOf('};',sourceCode.indexOf('const sections={'))+2);
 const rendererSections=[...rendererSource.matchAll(/\b([a-z_]+):'([^']+)'/g)]
   .map(([,category,label])=>({category,label}));
@@ -232,6 +275,6 @@ assert(projectionSql.includes('join public.anybike_model_research_section_regist
  'Public Supabase projection must read the very same approved section registry');
 assert(projectionSql.includes('motorcycle_catalog_fact_verification_audit'),
  'Unverified or unaudited research must stay private');
-console.log('PASS: twenty approved model research destinations agree between Supabase and the one universal renderer.');
+console.log('PASS: approved model research destinations agree between Supabase and the one universal renderer.');
 
 console.log('PASS: shared exact-model verified records, no foreign/draft records, safe source URLs, reused renderer and missing-data fallback');
