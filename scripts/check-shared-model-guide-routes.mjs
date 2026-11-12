@@ -198,6 +198,21 @@ for(const source of [
 ])assert(latestJapaneseResearch.includes(source),'Manufacturer primary source missing: '+source);
 assert(latestJapaneseResearch.includes('motorcycle_catalog_fact_verification_audit'),'Factory source audit must be restored in migrations');
 assert(latestJapaneseResearch.includes("f.catalog_model_id=d.catalog_model_id and f.label=d.label and f.source_url=d.source_url"),'Fact/audit identity must be exact model/label/source');
+
+// Triumph and Ducati use the same verified research renderer as other makes.
+// Model-year and trim-specific specs are not silently shared.
+const triumphDucatiResearch=fs.readFileSync('supabase/migrations/20261112170000_triumph_ducati_verified_factory_model_research.sql','utf8');
+for(const source of [
+ 'triumphmotorcycles.com/for-the-ride/news/motorcycles/street-triple-765-2022-11-03',
+ 'triumphmotorcycles.co.uk/for-the-ride/news/motorcycles/tiger-900-q-and-a-2024-05-28',
+ 'triumphmotorcycles.co.uk/motorcycles/adventure/tiger-900/tiger-900-rally-pro-2024',
+ 'mediahouse.ducati.com/light-compact-accessible-and-fun',
+ 'ducati.com/ww/en/news/v4-granturismo-'
+])assert(triumphDucatiResearch.includes(source),'Verified Triumph/Ducati source missing: '+source);
+assert(triumphDucatiResearch.includes('motorcycle_catalog_fact_verification_audit'),'Triumph/Ducati research must retain source verification audit');
+assert(triumphDucatiResearch.includes('f.catalog_model_id=d.catalog_model_id and f.label=d.label and f.source_url=d.source_url'),'Only exact model + label + source may restore audit records');
+console.log('PASS: Triumph and Ducati dated source-linked research shares the approved universal model system.');
+
 console.log('PASS: ten exact Japanese model guides have source-audited factory research migration.');
 
 console.log('PASS: second model research migration preserves dated sources and audit history.');
