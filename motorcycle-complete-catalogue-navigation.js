@@ -119,8 +119,7 @@ async function mount(){
   try{const response=await fetch('/data/motorcycle-model-guides.json');
    if(response.ok){const json=await response.json();guides=Object.values(json.models||{});}}catch(_){}
   const yearMap=new Map(guides.filter(x=>x&&normalize(x.make)===normalize(make)).map(x=>[normalize(x.model),x.production?.first_model_year]));
-  const existingModel=routes.find(x=>x.url===path)?.model;
-  const current=params.get('model')||existingModel;
+  const current=currentName;
   const currentYear=yearMap.get(normalize(current));
   const currentFamily=family(current);
   const chosen=models.filter(other=>{
