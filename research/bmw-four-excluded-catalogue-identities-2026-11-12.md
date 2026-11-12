@@ -18,3 +18,6 @@ Inspect the cleaned dropdown view's underlying definition and intentional exclus
 
 ## CI
 The previous 68-case live exact-model browser smoke run succeeded. The subsequent 70-case run and latest deployment were separately checked and should be reported by final GitHub Actions conclusions.
+
+## Follow-up: definitive filter identified
+Inspected `pg_get_viewdef('public.motorcycle_catalog_dropdown_clean')` and four individual rows. **All four models are present in `motorcycle_catalog_dropdown_options` and none is an alias, but each has a `motorcycle_catalog_name_reviews` record with `review_status='pending_review'`.** The clean view deliberately excludes pending-review names. This is an **intentional editorial approval gate**, not a broken SQL join or missing manufacturer data. Do not change those review statuses automatically or bypass the gate; approved editorial resolution of the model naming review is required before publishing their five existing audited facts.
