@@ -81,6 +81,12 @@ export async function installApprovedModelGallery({body,make,model,client,imageF
  if(!body||!clean(make)||!clean(model))return 0;
  const request=Symbol('approved-exact-model-gallery');
  pendingGalleryRequests.set(body,request);
+ // A route switch must never leave the previous motorcycle's photography
+ // visible if the new model's RPC or external image host is unavailable.
+ const requestedIdentity=JSON.stringify([clean(make).toLowerCase(),clean(model).toLowerCase()]);
+ const previous=body.querySelector?.('[data-anybike-model-research-gallery]');
+ if(previous&&previous.dataset?.anybikeGalleryIdentity!==requestedIdentity)
+  previous.remove?.();
  const db=client||globalThis.supabase?.createClient?.(API,KEY);
  if(!db)return 0;
  try{
