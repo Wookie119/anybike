@@ -160,10 +160,13 @@ export function applyBmwDatabaseSections(body,content){
      const preserveVerifiedGroups=from=>{
       for(const group of [...from.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]]){
        const category=group.dataset?.anybikeResearchCategory;
-       if(!category||card.querySelector?.('[data-anybike-research-category="'+category+'"]'))continue;
+       if(!category||[...card.querySelectorAll?.('[data-anybike-research-category]')||[]]
+        .some(existing=>existing.dataset?.anybikeResearchCategory===category))continue;
        card.append(group);
        card.dataset.anybikeResearchIntegrated='1';
-       card.dataset.anybikeResearchCategory=category;
+       // The child groups are authoritative when several categories share
+       // one approved card; do not overwrite a different category marker.
+       if(!card.dataset.anybikeResearchCategory)card.dataset.anybikeResearchCategory=category;
       }
      };
      if(primary!==card){
