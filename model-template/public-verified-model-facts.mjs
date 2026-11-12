@@ -168,7 +168,8 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  const existingPanel=body.querySelector?.('[data-anybike-verified-model-facts]')||null;
  const alreadyIntegrated=new Set([
   ...[...body.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]],
-  ...[...existingPanel?.querySelectorAll?.('[data-anybike-research-category]')||[]]
+  ...[...existingPanel?.querySelectorAll?.('[data-anybike-research-category]')||[]],
+  ...[...existingPanel?.children||[]].filter(group=>group.dataset?.anybikeResearchCategory)
  ].map(group=>group.dataset?.anybikeResearchCategory).filter(Boolean));
  const facts=exactVerifiedModelFacts(rows,make,model)
   .filter(fact=>!alreadyIntegrated.has(fact.category));
