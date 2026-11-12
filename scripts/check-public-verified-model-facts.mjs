@@ -323,6 +323,17 @@ assert.equal(existingSpecsCard.dataset.anybikeResearchCategory,'specification');
 
 assert.equal(mountVerifiedModelFacts(integratedBody,[sample({fact_id:8702,category:'engine'})],'Suzuki','RM250'),0,
  'Repeated model research installation must not duplicate facts within an approved card');
+// When research coverage expands, an already-integrated category must not
+// block a newly verified category from receiving its own display destination.
+assert.equal(mountVerifiedModelFacts(integratedBody,[
+ sample({fact_id:8702,category:'engine'}),
+ sample({fact_id:8707,category:'history',value:{production_year:1976}})
+],'Suzuki','RM250'),1);
+assert.equal(integratedBody.children.length,2,
+ 'New verified research categories must display even after an earlier category was integrated');
+assert.equal(existingEngineCard.children.filter(x=>x.dataset?.anybikeResearchCategory==='engine').length,1,
+ 'Incremental research must not duplicate previously integrated engine facts');
+
 
 // Mixed coverage: an approved section absorbs its exact category while the
 // remaining verified category appears once in the neutral research panel.
