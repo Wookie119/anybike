@@ -244,7 +244,8 @@ function fakeElement(tag){
    else this.children.splice(index,0,child);
    if(child&&typeof child==='object')child.parentNode=this;
   },
-  querySelector(){return null}
+  querySelector(){return null},
+  querySelectorAll(selector){return selector==='a'?this.children.filter(child=>child?.tag==='a'):[]}
  };
 }
 const doc={createElement:fakeElement};
