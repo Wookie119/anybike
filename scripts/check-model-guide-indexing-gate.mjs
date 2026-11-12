@@ -59,3 +59,8 @@ assert(historicIndian.models.every(x=>x.review_gate?.photography==='rights_appro
 assert.equal(historicIndian.publication_rules.technical_specifications,'blocked_until_model_year_and_primary_source_verified','Unverified historic specifications must remain blocked');
 assert(indianPage.includes('historicContainer.replaceChildren()'),'Historic research should render once without duplicate placeholder cards');
 assert(!indianPage.includes('<h3>Indian Scout · original era</h3>'),'Do not duplicate static and database-driven historical Scout cards');
+
+assert(Array.isArray(historicIndian.timeline)&&historicIndian.timeline.length>=7,'Indian heritage timeline must include key eras');
+assert(historicIndian.timeline.every(x=>/^\d{4}$/.test(String(x.year))&&x.source.startsWith('/global/')),'Indian timeline events require valid dates and source-linked Global articles');
+assert(indianPage.includes('id="indianMilestones"')&&indianPage.includes('research.timeline'),'Indian history timeline must render from the structured research source');
+assert(indianPage.includes('href="#heritage-milestones"'),'Indian history timeline must be reachable from page navigation');
