@@ -34,7 +34,19 @@ async function mount(){
  let catalogue={models:[]};
  try{const res=await fetch('/data/motorcycle-catalogue-master.json',{cache:'default'});if(!res.ok)throw Error('Catalogue unavailable');catalogue=await res.json();}catch(e){console.warn('Public catalogue fallback unavailable; trying canonical Supabase directory',e)}
  const rows=Array.isArray(catalogue.models)?catalogue.models.filter(x=>x&&typeof x.make==='string'&&typeof x.model==='string'&&x.make.trim()&&x.model.trim()):[];
- const makes=[...new Map(rows.map(x=>[normalize(x.make),x.make])).values()].sort((a,b)=>a.localeCompare(b,'en'));
+ let makes=[...new Map(rows.map(x=>[normalize(x.make),x.make])).values()].sort((a,b)=>a.localeCompare(b,'en'));
+ // Manufacturer directory follows the same clean Supabase names as model
+ // pills, so newly approved makes appear without a static JSON deployment.
+ try{
+  const response=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_manufacturer_names_v1',{
+   method:'POST',headers:{'apikey':'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK','Content-Type':'application/json'},body:'{}'
+  });
+  if(response.ok){
+   const data=await response.json();
+   if(Array.isArray(data)&&data.length&&data.every(x=>typeof x==='string'&&x.trim()&&x.length<=80))
+    makes=[...new Map(data.map(x=>[normalize(x),x])).values()].sort((a,b)=>a.localeCompare(b,'en'));
+  }
+ }catch(error){console.warn('Canonical manufacturer directory unavailable; using reviewed public catalogue',error)}
 
  const publicModels=rows.filter(x=>normalize(x.make)===normalize(make));
  // Use the same canonical, name-reviewed Supabase directory as manufacturer
