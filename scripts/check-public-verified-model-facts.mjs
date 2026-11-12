@@ -360,7 +360,12 @@ const mixedBody={...body,children:[mixedEngineCard],firstChild:mixedEngineCard,
    return mixedEngineCard.dataset.anybikeResearchIntegrated==='1'?mixedEngineCard:null;
   return null;
  },
- querySelectorAll(selector){return selector==='section.card'?[mixedEngineCard]:[]}
+ querySelectorAll(selector){
+  if(selector==='section.card')return [mixedEngineCard];
+  if(selector==='[data-anybike-research-integrated="1"]')
+   return mixedEngineCard.children.filter(x=>x.dataset?.anybikeResearchIntegrated==='1');
+  return [];
+ }
 };
 assert.equal(mountVerifiedModelFacts(mixedBody,[
  sample({fact_id:8750,category:'engine',value:{engine_cc:246}}),
