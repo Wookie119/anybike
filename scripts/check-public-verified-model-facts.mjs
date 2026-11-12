@@ -184,4 +184,33 @@ assert(renderSource.includes("term.style.cssText='color:#e1e1e1"),'Technical lab
 assert(renderSource.includes("value.style.cssText='color:#fff"),'Verified values must remain readable');
 assert(renderSource.includes("source.style.cssText='display:inline-block;color:#fff"),'Factory source links must have legible colour');
 assert(renderSource.includes("groupHeading.style.cssText='color:#fff"),'Research headings must remain readable');
+
+// Database publication and browser rendering must agree about every approved
+// research destination. A new category must have a working display section
+// before an editor can mark a new fact as verified.
+const contractSql=readFileSync(new URL('../supabase/migrations/20261112190000_guard_verified_research_section_destinations.sql',import.meta.url),'utf8');
+const projectionSql=readFileSync(new URL('../supabase/migrations/20261112191500_use_section_registry_in_public_model_facts.sql',import.meta.url),'utf8');
+const approvedSections=[...contractSql.matchAll(/^\('([a-z_]+)','([^']+)',(\d+)\),?$/gm)]
+  .map(([,category,label,order])=>({category,label,order:Number(order)}));
+assert.equal(approvedSections.length,20,'Keep all twenty approved research-section destinations');
+const rendererSource=sourceCode.slice(sourceCode.indexOf('const sections={'),sourceCode.indexOf('};',sourceCode.indexOf('const sections={'))+2);
+const rendererSections=[...rendererSource.matchAll(/\b([a-z_]+):'([^']+)'/g)]
+  .map(([,category,label])=>({category,label}));
+assert.deepEqual(
+ approvedSections.map(({category,label})=>({category,label})).sort((a,b)=>a.category.localeCompare(b.category)),
+ rendererSections.sort((a,b)=>a.category.localeCompare(b.category)),
+ 'Every verified database research category must have the exact public renderer heading'
+);
+const orderSource=sourceCode.slice(sourceCode.indexOf('const researchOrder=['),sourceCode.indexOf('];',sourceCode.indexOf('const researchOrder=['))+2);
+const clientOrder=[...orderSource.matchAll(/'([a-z_]+)'/g)].map(x=>x[1]);
+assert.deepEqual(approvedSections.map(x=>x.category),clientOrder,
+ 'The approved publication section order must equal the universal page order');
+assert(contractSql.includes('anybike_verified_fact_requires_render_section')&&contractSql.includes("new.verification_status='verified'"),
+ 'Unsupported verified facts must be rejected before publication');
+assert(projectionSql.includes('join public.anybike_model_research_section_registry section on section.category=f.category'),
+ 'Public Supabase projection must read the very same approved section registry');
+assert(projectionSql.includes('motorcycle_catalog_fact_verification_audit'),
+ 'Unverified or unaudited research must stay private');
+console.log('PASS: twenty approved model research destinations agree between Supabase and the one universal renderer.');
+
 console.log('PASS: shared exact-model verified records, no foreign/draft records, safe source URLs, reused renderer and missing-data fallback');
