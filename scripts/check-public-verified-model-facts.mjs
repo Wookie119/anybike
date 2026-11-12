@@ -421,6 +421,15 @@ assert.equal(mountVerifiedModelFacts(incrementalBody,[
  'An audited correction under the same fact ID must refresh the visible specifications');
 assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='engine').length,1,
  'An amended fact must replace the previous research group rather than duplicate it');
+assert.equal(mountVerifiedModelFacts(incrementalBody,[
+ sample({fact_id:8790,category:'history',value:{production_year:1976}})
+],'Suzuki','RM250'),0,
+ 'Withdrawing an approved category must not generate a new panel');
+assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='engine').length,0,
+ 'Withdrawn public facts must no longer remain visible after a successful refresh');
+assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='history').length,1,
+ 'Withdrawing one category must preserve unrelated approved research');
+
 
 
 const badDocumentBody={...body,children:[],firstChild:null};
