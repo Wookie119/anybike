@@ -97,12 +97,29 @@ export async function installApprovedModelGallery({body,make,model,client,imageF
  const previous=body.querySelector?.('[data-anybike-model-research-gallery]');
  if(previous&&previous.dataset?.anybikeGalleryIdentity!==requestedIdentity)
   previous.remove?.();
- const db=client||globalThis.supabase?.createClient?.(API,KEY);
- if(!db)return 0;
+ let db=null;
+ try{db=client||globalThis.supabase?.createClient?.(API,KEY)||null;}
+ catch(error){console.warn('Optional approved gallery client unavailable',error);}
  try{
-  const {data,error}=await db.rpc('public_anybike_verified_model_gallery_v1',{p_make:make,p_model:model});
+  let data=null;
+  if(db){
+   try{
+    const result=await db.rpc('public_anybike_verified_model_gallery_v1',{p_make:make,p_model:model});
+    if(!result.error&&Array.isArray(result.data))data=result.data;
+   }catch(error){console.warn('Approved gallery client request unavailable',error);}
+  }
+  // The public, approved RPC is also reachable without the external SDK.
+  // Do not query raw photo records or show unpublished photographs.
+  if(!data){
+   const response=await fetch(API+'/rest/v1/rpc/public_anybike_verified_model_gallery_v1',{
+    method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_make:make,p_model:model})
+   });
+   if(!response.ok)return 0;
+   data=await response.json();
+  }
   if(pendingGalleryRequests.get(body)!==request)return 0;
-  if(error||!Array.isArray(data))return 0;
+  if(!Array.isArray(data))return 0;
   const records=approvedExactModelGallery(data,make,model);
   // A successful empty public projection is an approval withdrawal, unlike
   // a network error or an image-host outage. Remove previously published
