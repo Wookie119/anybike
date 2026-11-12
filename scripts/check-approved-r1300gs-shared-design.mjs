@@ -14,4 +14,10 @@ for(const token of ['--red:#ed1c24','background:#000','background:var(--panel)',
  assert(shared.includes(token),'Approved design token missing: '+token);
 }
 assert(guide.includes('internationalHeading'),'Existing international enquiry route must remain available');
+for(const path of ['bmw-r1250gs.html','bmw-s1000rr.html','harley-davidson-fat-boy.html']){
+ const html=readFileSync(path,'utf8');
+ assert(html.includes('/model-template/approved-r1300gs-model-design.css?v=20261112-master1'),
+  'Dedicated model page must load approved R 1300 GS master design: '+path);
+ assert(html.includes('<main'),'Dedicated model page content must remain: '+path);
+}
 console.log('PASS: generic model guide uses the exact approved R 1300 GS master design stylesheet');
