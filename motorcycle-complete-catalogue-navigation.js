@@ -97,10 +97,21 @@ async function mount(){
    });
   }
   render();
+  // Legacy guide loaders can add the related-model panel after the first
+  // render. Observe only newly inserted RELATED headings; unrelated stock
+  // cards, image loads, country links and header widgets must not re-run
+  // expensive full-page heading scans or starve the browser's event loop.
+  const isRelatedHeading=h=>/^(Explore related .* models|Model family and related motorcycles)$/i.test(h.textContent.trim());
   let scheduled=false;
-  const observer=new MutationObserver(()=>{
-   if(scheduled)return;scheduled=true;
-   queueMicrotask(()=>{scheduled=false;render();});
+  const observer=new MutationObserver(records=>{
+   const relatedAdded=records.some(record=>[...record.addedNodes].some(node=>{
+    if(node.nodeType!==1)return false;
+    if(node.matches?.('h2,h3')&&isRelatedHeading(node))return true;
+    return [...(node.querySelectorAll?.('h2,h3')||[])].some(isRelatedHeading);
+   }));
+   if(!relatedAdded||scheduled)return;
+   scheduled=true;
+   requestAnimationFrame(()=>{scheduled=false;render();});
   });
   observer.observe(main,{childList:true,subtree:true});
  }
