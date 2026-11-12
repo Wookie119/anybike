@@ -26,6 +26,7 @@ const cases=[
  {make:'BMW',model:'C 400 GT'},
  {make:'Honda',model:'CB500X',expectGallery:true},
  {make:'Kawasaki',model:'Ninja 650',expectGallery:true},
+ {make:'Kawasaki',model:'Eliminator 500'},
  {make:'Honda',model:'CB500X',expectGallery:true,mobile:true},
  {make:'Triumph',model:'STREET TRIPLE 765 RS',expectGallery:true},
  {make:'Triumph',model:'TIGER 900 GT PRO',expectGallery:true},
