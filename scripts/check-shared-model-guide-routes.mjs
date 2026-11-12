@@ -7,6 +7,7 @@ const guide=fs.readFileSync('motorcycle-model-guide.html','utf8');
 const data=JSON.parse(fs.readFileSync('data/motorcycle-model-guides.json','utf8'));
 const modelRecords=Object.values(data.models);
 assert(guide.includes('brandKey==="harleydavidson"?"/harley-davidson-motorcycles.html"'),'Generic Harley model pages must link to approved Harley manufacturer page');
+assert(guide.includes('/rest/v1/rpc/public_anybike_manufacturer_catalogue_names_v1'),'Generic model identity must survive third-party Supabase JS CDN failure');
 assert(guide.includes('brandKey==="bmw"?"/bmw-motorcycles.html"'),'Generic BMW model pages must link to approved BMW manufacturer page');
 assert(guide.includes('requestedBrand==="harleydavidson"?"/harley-davidson-motorcycles.html"'),'Unknown Harley model pages must retain approved manufacturer backlink');
 for(const [make,model] of [['Honda','Africa Twin'],['Ducati','Panigale V4']]){
