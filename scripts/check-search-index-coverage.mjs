@@ -11,7 +11,7 @@ const models=urls.filter(x=>x.includes('/motorcycle-model-guide.html?'));
 const brands=urls.filter(x=>x.includes('/motorcycle-brand.html?'));
 const markets=urls.filter(x=>x.includes('/markets/'));
 assert.equal(models.length,979,'Model sitemap must match reconciled Supabase snapshot');
-assert.equal(brands.length,48,'Generic manufacturer URLs must exclude BMW and Harley redirects');
+assert.equal(brands.length,50,'Generic manufacturer URLs must include Indian and Mugen but exclude BMW/Harley redirects');
 assert(urls.includes('https://www.anybike.co.uk/bmw-motorcycles.html'),'BMW dedicated manufacturer route missing');
 assert(urls.includes('https://www.anybike.co.uk/harley-davidson-motorcycles.html'),'Harley-Davidson dedicated manufacturer route missing');
 assert.equal(markets.length,217,'International markets sitemap incomplete');
