@@ -6,6 +6,8 @@ const brand=fs.readFileSync('motorcycle-brand.html','utf8');
 const guide=fs.readFileSync('motorcycle-model-guide.html','utf8');
 const data=JSON.parse(fs.readFileSync('data/motorcycle-model-guides.json','utf8'));
 const modelRecords=Object.values(data.models);
+assert(guide.includes('brandKey==="harleydavidson"?"/harley-davidson-motorcycles.html"'),'Generic Harley model pages must link to approved Harley manufacturer page');
+assert(guide.includes('brandKey==="bmw"?"/bmw-motorcycles.html"'),'Generic BMW model pages must link to approved BMW manufacturer page');
 for(const [make,model] of [['Honda','Africa Twin'],['Ducati','Panigale V4']]){
  assert(modelRecords.some(g=>g.make===make&&g.model===model),make+' '+model+' guide data missing');
 }
