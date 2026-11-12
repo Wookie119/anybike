@@ -29,8 +29,10 @@ function section(title,note,entries,current,urlFor){
  entries.forEach(name=>pill(nav,name,urlFor(name),normalize(name)===normalize(current)));
  sec.append(h,intro,count,nav);return sec;
 }
+let mounting=false;
 async function mount(){
- const main=document.querySelector('main');if(!main||document.querySelector('[data-complete-catalogue-navigation]'))return;
+ const main=document.querySelector('main');if(!main||mounting||document.querySelector('[data-complete-catalogue-navigation]'))return;
+ mounting=true;
  let catalogue={models:[]};
  try{const res=await fetch('/data/motorcycle-catalogue-master.json',{cache:'default'});if(!res.ok)throw Error('Catalogue unavailable');catalogue=await res.json();}catch(e){console.warn('Public catalogue fallback unavailable; trying canonical Supabase directory',e)}
  const rows=Array.isArray(catalogue.models)?catalogue.models.filter(x=>x&&typeof x.make==='string'&&typeof x.model==='string'&&x.make.trim()&&x.model.trim()):[];
