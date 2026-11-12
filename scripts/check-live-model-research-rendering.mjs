@@ -9,6 +9,7 @@ const origin=process.env.ANYBIKE_PUBLIC_ORIGIN||'https://www.anybike.co.uk';
 const cases=[
  {make:'Suzuki',model:'RM250'},
  {make:'Suzuki',model:'GSX-8S'},
+ {make:'Suzuki',model:'GSX-8R'},
  {make:'Suzuki',model:'V-Strom 800DE'},
  {make:'Suzuki',model:'V-Strom 800'},
  {make:'Yamaha',model:'YZ250'},
