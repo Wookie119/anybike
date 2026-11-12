@@ -13,6 +13,41 @@ const core=[
  ['Ducati','Panigale V4'],['Harley-Davidson','Fat Boy'],
  ['Kawasaki','Ninja ZX-10R']
 ];
+// Audit the canonical clean public catalogue, not only the older checked-in
+// snapshot. A failed catalogue lookup is reported, never silently described
+// as complete coverage of the live database.
+export async function fetchCleanCatalogue(fetcher=fetch){
+ const response=await fetcher(endpoint+'public_anybike_manufacturer_names_v1',{
+  method:'POST',headers:{apikey:publicKey,'Content-Type':'application/json'},
+  body:'{}'
+ });
+ if(!response.ok)throw Error('Public manufacturer catalogue HTTP '+response.status);
+ const makes=await response.json();
+ if(!Array.isArray(makes))throw Error('Public manufacturer catalogue is not an array');
+ const models=[];let next=0;
+ const workers=Array.from({length:6},async()=>{
+  while(next<makes.length){
+   const entry=makes[next++];
+   const make=typeof entry==='string'?entry:entry?.make;
+   if(typeof make!=='string'||!make.trim())throw Error('Invalid public manufacturer identity');
+   const r=await fetcher(endpoint+'public_anybike_manufacturer_catalogue_names_v1',{
+    method:'POST',headers:{apikey:publicKey,'Content-Type':'application/json'},
+    body:JSON.stringify({p_make:make})
+   });
+   if(!r.ok)throw Error('Public model catalogue HTTP '+r.status+' for '+make);
+   const rows=await r.json();
+   if(!Array.isArray(rows))throw Error('Public model catalogue is not an array for '+make);
+   for(const row of rows){
+    if(typeof row?.make!=='string'||typeof row?.model!=='string'||
+       row.make.trim().toLowerCase()!==make.trim().toLowerCase())
+     throw Error('Public model catalogue identity mismatch for '+make);
+    models.push({make:row.make,model:row.model});
+   }
+  }
+ });
+ await Promise.all(workers);
+ return [...new Map(models.map(x=>[identity(x.make,x.model),x])).values()];
+}
 export const identity=(make,model)=>JSON.stringify([String(make).trim().toLowerCase(),String(model).trim().toLowerCase()]);
 export function selectDailyModels(models,date=new Date(),size=30){
  const unique=new Map();
@@ -85,6 +120,8 @@ export function toMarkdown(report){
   'Date (UTC): '+report.date,'',
   'This is a rotating sample of the public Supabase endpoints, **not** a full catalogue or live-browser rendering audit.',
   'No source research or photography is approved by this check.','',
+  'Catalogue source: '+(report.catalogueSource||'provided test catalogue'),
+  ...(report.catalogueError?['WARNING: clean catalogue unavailable: '+report.catalogueError]:[]),'',
   '| Measure | Result |','|---|---:|',
   '| Local catalogue entries | '+report.catalogueModels+' |',
   '| Exact-model RPC pairs checked | '+report.checkedModels+' |',
@@ -116,7 +153,12 @@ export function toMarkdown(report){
  return lines.join('\n')+'\n';
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const report=await runDailyAudit();
+ let models=catalogue,catalogueError=null;
+ try{models=await fetchCleanCatalogue();}
+ catch(error){catalogueError=String(error.message||error);}
+ const report=await runDailyAudit({models});
+ report.catalogueSource=catalogueError?'checked-in fallback':'clean public Supabase RPC';
+ report.catalogueError=catalogueError;
  const dir=resolve(root,'artifacts');mkdirSync(dir,{recursive:true});
  writeFileSync(resolve(dir,'daily-public-research-audit.json'),JSON.stringify(report,null,2)+'\n');
  const md=toMarkdown(report);
@@ -126,5 +168,5 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   checked:report.checkedModels,withFacts:report.withFacts,
   withGallery:report.withGallery,errors:report.errors
  }));
- if(report.errors)process.exitCode=1;
+ if(report.errors||catalogueError)process.exitCode=1;
 }
