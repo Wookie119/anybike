@@ -59,3 +59,20 @@ post-publication audit. Chromium live-page regression tests were expanded
 to cover these models. After publication, the database reports
 **107 researched public models** and **310 public verified facts**
 out of 965 catalogue models.
+
+## Follow-on Suzuki GSX-8R publication
+
+A further **five audited facts** were added for Suzuki **GSX-8R**
+(catalogue model ID **640**), covering the 2024 engine, fairing and
+Showa fork, launch equipment, EICMA announcement and factory launch
+colours. The exact-model public research browser regression includes
+GSX-8R. Manufacturer evidence:
+
+- https://www.globalsuzuki.com/globalnews/2023/1107.html
+- https://www.globalsuzuki.com/motorcycle/smgs/products/360viewer/2024gsx-8r/
+
+**Do not conflate GSX-8R with GSX-8S:** the 2024 GSX-8R has a
+full fairing, separate handlebars and 205kg curb mass, whereas
+the original GSX-8S is a naked streetfighter with 202kg curb mass.
+The source gives January 2024 as planned global sales, not
+a verified first production date.
