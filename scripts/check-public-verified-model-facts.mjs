@@ -1,8 +1,18 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts,verifiedFactoryDate,orderedVerifiedFactoryFacts,verifiedEngineeringVariants} from '../model-template/public-verified-model-facts.mjs';
+import {approvedResearchSectionHeading,exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts,verifiedFactoryDate,orderedVerifiedFactoryFacts,verifiedEngineeringVariants} from '../model-template/public-verified-model-facts.mjs';
 import {approvedExactModelGallery,mountApprovedModelGallery,installApprovedModelGallery} from '../model-template/public-approved-model-gallery.mjs';
 import {exactApprovedHarleyRoute,installApprovedHarleyResearch} from '../model-template/public-harley-verified-research.mjs';
+assert(approvedResearchSectionHeading('factory_colours','Factory colours'));
+assert(approvedResearchSectionHeading('factory_colours','Factory colours and finishes'));
+assert(approvedResearchSectionHeading('specification','Technical specifications'));
+assert(approvedResearchSectionHeading('specification','Documented specifications'));
+assert(!approvedResearchSectionHeading('engine','Technical specifications'),
+ 'Engine records must never be merged into the generic specification section');
+assert(!approvedResearchSectionHeading('factory_colours','Factory, ownership and heritage'),
+ 'Similar wording must not merge research into an unrelated legacy card');
+assert(!approvedResearchSectionHeading('specification','Available Stock'),
+ 'Research cannot be injected into live-stock sections');
 const approvedHarleyRoutes=[
  {make:'Harley-Davidson',model:'Fat Boy',url:'/harley-davidson-fat-boy.html'},
  {make:'Harley-Davidson',model:'Road Glide',url:'/harley-davidson-road-glide.html'}
