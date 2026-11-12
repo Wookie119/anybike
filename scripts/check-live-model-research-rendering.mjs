@@ -23,6 +23,14 @@ try{
    const response=await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:35000});
    if(!response?.ok())throw new Error('HTTP '+response?.status());
    await page.locator('[data-anybike-research-category]').first().waitFor({state:'attached',timeout:25000});
+   const publicResponse=await page.request.post(
+    'https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_verified_model_facts_v1',
+    {headers:{apikey:'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK'},
+     data:{p_make:item.make,p_model:item.model}});
+   if(!publicResponse.ok())throw new Error('Public research RPC HTTP '+publicResponse.status());
+   const approved=await publicResponse.json();
+   if(!Array.isArray(approved)||!approved.length)
+    throw new Error('No approved public facts for expected smoke-test motorcycle');
    const result=await page.evaluate(()=>{
     const groups=[...document.querySelectorAll('[data-anybike-research-category]')]
      .filter(x=>x.dataset.anybikeResearchFactIds);
@@ -30,11 +38,19 @@ try{
      JSON.stringify([new URLSearchParams(location.search).get('make')?.trim().toLowerCase(),
       new URLSearchParams(location.search).get('model')?.trim().toLowerCase()]));
     return {groups:groups.length,foreign:foreign.length,
-     categories:[...new Set(groups.map(x=>x.dataset.anybikeResearchCategory))],
+     renderedFacts:groups.reduce((n,g)=>n+g.querySelectorAll('article').length,0),
+     categories:[...new Set(groups.map(x=>x.dataset.anybikeResearchCategory))].sort(),
      title:document.title};
    });
    if(!result.groups)throw new Error('No sourced model research rendered');
    if(result.foreign)throw new Error('Research from another motorcycle rendered');
+   const expectedCategories=[...new Set(approved.map(x=>x.category))].sort();
+   if(JSON.stringify(result.categories)!==JSON.stringify(expectedCategories))
+    throw new Error('Rendered research categories differ from approved Supabase categories: '+
+     JSON.stringify({expectedCategories,actual:result.categories}));
+   if(result.renderedFacts!==approved.length)
+    throw new Error('Rendered article count differs from approved public facts: '+
+     result.renderedFacts+' versus '+approved.length);
    console.log('PASS live model research:',item.make,item.model,JSON.stringify(result));
   }catch(error){
    failures++;
