@@ -287,7 +287,15 @@ const existingMain={
 legacyContent.parentNode=existingMain;
 const harleyPage={
  querySelector(selector){return selector==='main'?existingMain:null},
- createElement:fakeElement
+ createElement(tag){
+  const item=fakeElement(tag);
+  item.ownerDocument=this;
+  item.remove=()=>{
+   const parent=item.parentNode;
+   if(parent?.children)parent.children=parent.children.filter(x=>x!==item);
+  };
+  return item;
+ }
 };
 const harleyFactoryFact=sample({
  fact_id:7801,make:'Harley-Davidson',model:'Fat Boy',category:'history',
