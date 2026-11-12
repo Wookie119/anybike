@@ -632,6 +632,28 @@ assert.equal(await installApprovedModelGallery({
 }),0);
 assert.equal(switchingGalleryBody.children.filter(x=>x.dataset?.anybikeModelResearchGallery==='1').length,0,
  'Failed model navigation must not display photographs of the previous motorcycle');
+// Distinguish approval withdrawal from transient image host and RPC failures.
+const withdrawnGalleryBody={...body,children:[],firstChild:null,
+ append(child){this.children.push(child);child.parentNode=this;this.firstChild=this.children[0];},
+ querySelector(selector){
+  return selector==='[data-anybike-model-research-gallery]'?
+   this.children.find(x=>x.dataset?.anybikeModelResearchGallery==='1')||null:null;
+ }
+};
+assert.equal(mountApprovedModelGallery(withdrawnGalleryBody,[photo()],'BMW','R 1300 GS'),1);
+assert.equal(await installApprovedModelGallery({
+ body:withdrawnGalleryBody,make:'BMW',model:'R 1300 GS',
+ client:{rpc:async()=>({data:null,error:{message:'temporary RPC failure'}})}
+}),0);
+assert.equal(withdrawnGalleryBody.children.length,1,
+ 'A temporary gallery RPC failure must preserve previously approved photographs');
+assert.equal(await installApprovedModelGallery({
+ body:withdrawnGalleryBody,make:'BMW',model:'R 1300 GS',
+ client:{rpc:async()=>({data:[],error:null})}
+}),0);
+assert.equal(withdrawnGalleryBody.children.length,0,
+ 'A successful empty public photo projection must withdraw previously approved gallery');
+
 const delayedGalleryBody={...body,children:[],firstChild:null,
  append(child){this.children.push(child);child.parentNode=this;this.firstChild=this.children[0];},
  querySelector(selector){
