@@ -37,6 +37,12 @@ try{
    const response=await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:35000});
    if(!response?.ok())throw new Error('HTTP '+response?.status());
    await page.locator('[data-anybike-research-category]').first().waitFor({state:'attached',timeout:25000});
+   // The research RPC and page SEO hydration are independent asynchronous
+   // tasks. Wait for both before asserting the final public page identity.
+   await page.waitForFunction(({make,model})=>
+    document.title.toLowerCase().includes(make.toLowerCase())&&
+    document.title.toLowerCase().includes(model.toLowerCase()),
+    {make:item.make,model:item.model},{timeout:15000});
    const publicResponse=await page.request.post(
     'https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_verified_model_facts_v1',
     {headers:{apikey:'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK'},
