@@ -28,6 +28,11 @@ const cases=[
  {make:'Ducati',model:'Monster 937'},
  {make:'Ducati',model:'PANIGALE V4'},
  {make:'Honda',model:'Dream CB750 Four'},
+ {make:'Honda',model:'CB750 Hornet'},
+ {make:'Honda',model:'XL750 TRANSALP'},
+ {make:'Triumph',model:'TIGER 900'},
+ {make:'Triumph',model:'TIGER 900 GT PRO',expectGallery:true},
+ {make:'Triumph',model:'TIGER 900 RALLY PRO'},
  {make:'Triumph',model:'Bonneville T120'},
  {make:'Mugen',model:'Shinden Go'},
  {make:'Harley-Davidson',model:'Fat Boy'}
