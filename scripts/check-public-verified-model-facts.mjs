@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {approvedResearchSectionHeading,exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts,verifiedFactoryDate,orderedVerifiedFactoryFacts,verifiedEngineeringVariants} from '../model-template/public-verified-model-facts.mjs';
+import {approvedResearchSectionHeading,exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts,verifiedFactoryDate,orderedVerifiedFactoryFacts,verifiedEngineeringVariants,documentedScalarField} from '../model-template/public-verified-model-facts.mjs';
 import {approvedExactModelGallery,mountApprovedModelGallery,installApprovedModelGallery} from '../model-template/public-approved-model-gallery.mjs';
 import {exactApprovedHarleyRoute,installApprovedHarleyResearch} from '../model-template/public-harley-verified-research.mjs';
 // Customer-facing wording is shared across all exact-model research panels.
@@ -11,6 +11,12 @@ assert(verifiedRendererSource.includes('Specifications and equipment may vary by
 assert(!verifiedRendererSource.includes('Figures are not interchangeable between generations'),
  'Internal source-record disclaimers must not return to public pages');
 
+assert.equal(documentedScalarField('engine_cc',776),'776 cc');
+assert.equal(documentedScalarField('seat_height_mm',810),'810 mm');
+assert.equal(documentedScalarField('curb_mass_kg',205),'205 kg');
+assert.equal(documentedScalarField('fuel_consumption_km_per_l',23.8),'23.8 km/l');
+assert.equal(documentedScalarField('model_year',2024),'2024');
+assert.equal(documentedScalarField('unknown_field',7),'7');
 assert(approvedResearchSectionHeading('factory_colours','Factory colours'));
 assert(approvedResearchSectionHeading('factory_colours','Factory colours and special editions'),
  'Existing approved BMW factory colour sections should accept source-verified colour records');
