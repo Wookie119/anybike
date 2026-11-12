@@ -65,12 +65,17 @@ async function mount(){
   }
  }catch(error){console.warn('Canonical manufacturer model names unavailable; using reviewed public catalogue',error)}
  let routes=[];
- if((make==='BMW'||make==='Harley-Davidson')&&window.supabase?.createClient){
-   try{
-    const client=window.supabase.createClient('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
-    const result=await client.rpc('public_anybike_manufacturer_model_routes_v1',{p_make:make});
-    if(!result.error&&Array.isArray(result.data))routes=result.data.filter(x=>x&&x.make===make&&typeof x.model==='string'&&typeof x.url==='string'&&/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(x.url));
-   }catch(error){console.warn('Dedicated model route lookup unavailable',error)}
+ if(make==='BMW'||make==='Harley-Davidson'){
+  try{
+   const response=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_manufacturer_model_routes_v1',{
+    method:'POST',headers:{'apikey':'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK','Content-Type':'application/json'},
+    body:JSON.stringify({p_make:make})
+   });
+   if(response.ok){
+    const data=await response.json();
+    if(Array.isArray(data))routes=data.filter(x=>x&&normalize(x.make)===normalize(make)&&typeof x.model==='string'&&typeof x.url==='string'&&/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(x.url));
+   }
+  }catch(error){console.warn('Dedicated model route lookup unavailable',error)}
  }
  const byModel=new Map(routes.map(x=>[normalize(x.model),x.url]));
  // The public catalogue is the reviewed directory. Existing verified BMW
