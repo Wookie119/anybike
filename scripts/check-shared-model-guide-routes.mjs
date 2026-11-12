@@ -153,6 +153,8 @@ const aliasMigration=fs.readFileSync('supabase/migrations/20261112134500_verifie
 assert(aliasMigration.includes('public.anybike_model_identity_aliases'),'Explicit verified alias register missing');
 assert(aliasMigration.includes("('Honda','Africa Twin CRF1000L','CRF1000L AFRICA TWIN'"),'Honda word-order alias missing');
 assert(aliasMigration.includes("('Yamaha','Ténéré 700','Tenere 700'"),'Yamaha accent-only alias missing');
+assert(aliasMigration.includes("('Kawasaki','Z900 RS','Z900RS'"),'Z900RS space-only alias missing');
+assert(aliasMigration.includes("('Yamaha','XT660Z Ténéré','XT660Z Tenere'"),'XT660Z accent-only alias missing');
 assert(aliasMigration.includes('p.manufacturer=r.manufacturer and p.model=r.model'),'Resolved hero lookup must be exact');
 assert(aliasMigration.includes("p.approval_status='approved'"),'Only approved images may be returned');
 assert(aliasMigration.includes("p.subject_category='whole_motorcycle'"),'Actual motorcycle photo gate missing');
