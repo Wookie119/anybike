@@ -134,6 +134,16 @@ const scheduledNested=modelReleaseReadiness({model,manufacturerRegistryName:'BMW
  editorialSignoffReference:'HYPOTHETICAL-APPROVAL'});
 assert(scheduledNested.issueCodes.includes('nested_or_empty_content_unreviewed'),
  'Future nested research cannot pass readiness');
+for(const invalidContent of ['', 'Unreviewed prose', [], ['unreviewed'], 42, false]){
+ const result=modelReleaseReadiness({
+  model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
+  sections:[modelSection(1,invalidContent)],approvedPhotographs:[photo],
+  stockContractVerified:true,visualParityVerified:true,
+  editorialSignoffReference:'QA-ONLY'
+ });
+ assert(result.issueCodes.includes('nested_or_empty_content_unreviewed'),
+  'Unstructured or empty research must not pass release readiness');
+}
 const finance=modelReleaseReadiness({model:{
  id:88,manufacturer:'BMW',model:'CE 02 7.9% APR Representative'
 },manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved'});
