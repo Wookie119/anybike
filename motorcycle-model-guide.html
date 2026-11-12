@@ -45,10 +45,11 @@ const loadCleanIdentity=async()=>{
   return exact.length===1?exact[0]:null;
  }catch(error){console.warn("Clean model identity unavailable; using existing guide",error);return null;}
 };
-const [catalogueResult,guideResult,cleanResult]=await Promise.allSettled([
+const [catalogueResult,guideResult,cleanResult,indexResult]=await Promise.allSettled([
  fetch("/data/motorcycle-catalogue-master.json",{cache:"no-cache"}),
  fetch("/data/motorcycle-model-guides.json",{cache:"no-cache"}),
- loadCleanIdentity()
+ loadCleanIdentity(),
+ fetch("/data/motorcycle-index-identities.json",{cache:"no-cache"})
 ]);
 // The optional deep-research guide file must never take down an otherwise
 // valid exact-model catalogue page or block a customer's sourcing enquiry.
@@ -62,13 +63,16 @@ if(guideResult.status==="fulfilled"&&guideResult.value.ok){
 }
 let catalogue={models:[]};
 if(catalogueResult.status==="fulfilled"&&catalogueResult.value.ok){try{const value=await catalogueResult.value.json();if(Array.isArray(value.models))catalogue=value}catch(error){console.warn("Model catalogue fallback",error)}}
+let indexedModels=[];
+if(indexResult.status==="fulfilled"&&indexResult.value.ok){try{const value=await indexResult.value.json();if(Array.isArray(value.models))indexedModels=value.models}catch(error){console.warn("Indexed model identity fallback",error)}}
+const indexed=indexedModels.find(x=>x&&typeof x.make==="string"&&typeof x.model==="string"&&x.make.trim().toLowerCase()===make.toLowerCase()&&x.model.trim().toLowerCase()===model.toLowerCase());
 const clean=cleanResult.status==="fulfilled"?cleanResult.value:null;
 // A single malformed catalogue record must not blank the entire model page.
 const legacy=catalogue.models.find(x=>x&&typeof x.make==="string"&&typeof x.model==="string"&&
  x.make.trim().toLowerCase()===make.toLowerCase()&&x.model.trim().toLowerCase()===model.toLowerCase());
 // Clean identity wins when available; the existing catalogue remains
 // a fallback for pages absent from the public projection or during outages.
-const row=clean||legacy;
+const row=clean||indexed||legacy;
 const guide=Object.values(guides.models).find(g=>g&&typeof g.make==="string"&&typeof g.model==="string"&&
  g.make.trim().toLowerCase()===make.toLowerCase()&&
  (g.model.trim().toLowerCase()===model.toLowerCase()||
