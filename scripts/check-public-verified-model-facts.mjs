@@ -240,7 +240,12 @@ const existingEngineCard=fakeElement('section');
 existingEngineCard.querySelector=selector=>selector==='h2'?{textContent:'Engine and powertrain'}:null;
 const integratedBody={...body,children:[existingEngineCard],firstChild:existingEngineCard,
  querySelector(selector){return selector==='[data-anybike-research-integrated="1"]'&&existingEngineCard.dataset.anybikeResearchIntegrated==='1'?existingEngineCard:null},
- querySelectorAll(selector){return selector==='section.card'?[existingEngineCard]:[]}
+ querySelectorAll(selector){
+  if(selector==='section.card')return [existingEngineCard];
+  if(selector==='[data-anybike-research-integrated="1"]'&&existingEngineCard.dataset.anybikeResearchIntegrated==='1')
+   return existingEngineCard.children.filter(x=>x.dataset?.anybikeResearchIntegrated==='1');
+  return [];
+ }
 };
 assert.equal(mountVerifiedModelFacts(integratedBody,[sample({
  fact_id:8701,category:'engine',value:{engine_cc:246}
