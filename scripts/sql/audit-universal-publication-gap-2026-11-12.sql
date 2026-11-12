@@ -72,7 +72,7 @@ group by f.category order by verified_facts desc,f.category;
 -- 7. Prioritise real research depth: models with verified evidence but fewer
 -- than four distinct research categories. This is a worklist, not publication.
 with evidence as (
- select m.id,m.manufacturer,m.model,count(f.id) as verified_facts,
+ select m.id,m.manufacturer,m.model,count(distinct f.id) as verified_facts,
         count(distinct f.category) as verified_categories,
         count(distinct s.section_number) as staged_sections
  from public.motorcycle_catalog_models m
