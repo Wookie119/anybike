@@ -227,8 +227,10 @@ if(typeof document!=='undefined'&&typeof location!=='undefined'){
    await installVerifiedModelFacts({body,make:(p.get('make')||'').trim(),model:(p.get('model')||'').trim()});
    return;
   }
-  if(!/^\\/bmw-[a-z0-9-]+\\.html$/.test(location.pathname)||
-     location.pathname==='/bmw-motorcycles.html'||location.pathname==='/bmw-r1300gs.html')return;
+  if(!location.pathname.startsWith('/bmw-')||
+     !location.pathname.endsWith('.html')||
+     location.pathname==='/bmw-motorcycles.html'||
+     location.pathname==='/bmw-r1300gs.html')return;
   const db=globalThis.supabase?.createClient?.(ENDPOINT,PUBLIC_KEY);
   if(!db)return;
   try{
