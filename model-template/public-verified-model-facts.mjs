@@ -23,8 +23,7 @@ const sections={
 // compatibility map, not fuzzy matching or a second page template.
 const approvedSectionHeadings={
  factory_colours:['Factory colours','Factory colours and special editions'],
- specification:['Technical specifications'],
- used_buying:['What to check on a used R 1250 GS']
+ specification:['Technical specifications']
 };
 export function approvedResearchSectionHeading(category,heading){
  const value=safeText(heading).toLowerCase();
