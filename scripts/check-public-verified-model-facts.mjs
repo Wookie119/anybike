@@ -434,6 +434,13 @@ assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearch
  'An empty verified public projection must withdraw the last published research category');
 assert.equal(incrementalBody.children.includes(existingResearchPanel),false,
  'An empty verified projection must not leave a misleading empty research panel');
+assert.equal(mountVerifiedModelFacts(incrementalBody,[
+ sample({fact_id:8800,category:'brakes',value:{front_brake:'Disc'}})
+],'Suzuki','RM250'),1,
+ 'A new approved research category must render after a previous complete withdrawal');
+assert.equal(incrementalBody.children.filter(x=>x.dataset?.anybikeVerifiedModelFacts==='1').length,1,
+ 'A new approved research cycle must create only one fresh panel');
+
 
 
 
