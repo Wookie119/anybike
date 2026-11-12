@@ -381,7 +381,8 @@ existingResearchPanel.querySelectorAll=selector=>
  selector==='[data-anybike-research-category]'?[...existingResearchPanel.children]:[];
 const incrementalBody={...body,children:[existingResearchPanel],firstChild:existingResearchPanel,
  querySelector(selector){
-  return selector==='[data-anybike-verified-model-facts]'?existingResearchPanel:null;
+  return selector==='[data-anybike-verified-model-facts]'?
+   this.children.find(x=>x.dataset?.anybikeVerifiedModelFacts==='1')||null:null;
  },
  querySelectorAll(){return []}
 };
