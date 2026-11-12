@@ -673,7 +673,7 @@ assert.equal(delayedBody.children.find(x=>x.dataset?.anybikeVerifiedModelFacts==
  'Only the most recently requested motorcycle may be rendered');
 
 const html=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
-assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261112-integrated7'));
+assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261112-researchrefresh8'));
 assert(html.indexOf('id="body"')>html.indexOf('id="generationPanel"'));
 assert(html.includes('catalogue.models.find(x=>x&&typeof x.make==="string"&&typeof x.model==="string"'),
  'Malformed catalogue entries must not crash public model guides');
