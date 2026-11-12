@@ -211,6 +211,24 @@ for(const source of [
 ])assert(triumphDucatiResearch.includes(source),'Verified Triumph/Ducati source missing: '+source);
 assert(triumphDucatiResearch.includes('motorcycle_catalog_fact_verification_audit'),'Triumph/Ducati research must retain source verification audit');
 assert(triumphDucatiResearch.includes('f.catalog_model_id=d.catalog_model_id and f.label=d.label and f.source_url=d.source_url'),'Only exact model + label + source may restore audit records');
+
+// Triumph/Ducati factory additions must remain publicly reachable through
+// the existing generic guide, without introducing parallel model templates.
+const moreTriumphDucatiResearch=fs.readFileSync('supabase/migrations/20261112175000_more_verified_triumph_ducati_model_facts.sql','utf8');
+for(const source of [
+ 'triumphmotorcycles.com/our-story/bonneville',
+ 'triumphmotorcycles.com/motorcycles/prior-model-years/t120-2021-my',
+ 'triumphmotorcycles.com/motorcycles/prior-model-years/speed-triple-1200-rs-2022',
+ 'mediahouse.ducati.com/350-000-times-monster',
+ 'mediahouse.ducati.com/la-nouvelle-panigale-v4-2020'
+])assert(moreTriumphDucatiResearch.includes(source),'Triumph/Ducati verified manufacturer source missing: '+source);
+assert(moreTriumphDucatiResearch.includes('motorcycle_catalog_fact_verification_audit'),'Manufacturer sources must carry audit verification');
+const publicBrandPage=fs.readFileSync('motorcycle-brand.html','utf8');
+assert(publicBrandPage.includes('/motorcycle-model-guide.html?make='),'Manufacturer public cards must link into the shared guide');
+assert(universalGuide.includes('id="body"'),'Shared model guide must retain research insertion point');
+assert(universalGuide.includes('/model-template/public-verified-model-facts.mjs'),'Shared guide must load verified factory facts');
+console.log('PASS: Triumph/Ducati factory research remains source-audited and linked to universal public model pages.');
+
 console.log('PASS: Triumph and Ducati dated source-linked research shares the approved universal model system.');
 
 console.log('PASS: ten exact Japanese model guides have source-audited factory research migration.');
