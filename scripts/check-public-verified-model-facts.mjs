@@ -248,6 +248,31 @@ assert.equal(existingEngineCard.dataset.anybikeResearchCategory,'engine');
 assert.equal(existingEngineCard.dataset.anybikeResearchIntegrated,'1',
  'Integrated-only pages must retain a marker that prevents a second mount');
 assert.equal(existingEngineCard.children[0].dataset.anybikeResearchIntegrated,'1');
+const existingColoursCard=fakeElement('section');
+existingColoursCard.querySelector=selector=>selector==='h2'?{textContent:'Factory colours'}:null;
+const coloursBody={...body,children:[existingColoursCard],firstChild:existingColoursCard,
+ querySelector(){return null},
+ querySelectorAll(selector){return selector==='section.card'?[existingColoursCard]:[]}
+};
+assert.equal(mountVerifiedModelFacts(coloursBody,[sample({
+ fact_id:8703,category:'factory_colours',value:{factory_colour:'Yellow'}
+})],'Suzuki','RM250'),1);
+assert.equal(coloursBody.children.length,1,
+ 'Approved factory colours heading must absorb verified facts without another full-width panel');
+assert.equal(existingColoursCard.dataset.anybikeResearchCategory,'factory_colours');
+const existingSpecsCard=fakeElement('section');
+existingSpecsCard.querySelector=selector=>selector==='h2'?{textContent:'Technical specifications'}:null;
+const specsBody={...body,children:[existingSpecsCard],firstChild:existingSpecsCard,
+ querySelector(){return null},
+ querySelectorAll(selector){return selector==='section.card'?[existingSpecsCard]:[]}
+};
+assert.equal(mountVerifiedModelFacts(specsBody,[sample({
+ fact_id:8704,category:'specification',value:{engine_cc:246}
+})],'Suzuki','RM250'),1);
+assert.equal(specsBody.children.length,1,
+ 'Approved technical specifications heading must absorb verified facts without another full-width panel');
+assert.equal(existingSpecsCard.dataset.anybikeResearchCategory,'specification');
+
 assert.equal(mountVerifiedModelFacts(integratedBody,[sample({fact_id:8702,category:'engine'})],'Suzuki','RM250'),0,
  'Repeated model research installation must not duplicate facts within an approved card');
 
