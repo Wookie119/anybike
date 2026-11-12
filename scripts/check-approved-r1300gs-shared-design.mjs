@@ -13,5 +13,5 @@ for(const token of ['--red:#ed1c24','background:#000','background:var(--panel)',
  '.generation-panel','.factory-colour-card','.grid']){
  assert(shared.includes(token),'Approved design token missing: '+token);
 }
-assert(guide.includes('internationalStock')||guide.includes('international-stock'),'International stock section must remain on shared model guides');
+assert(guide.includes('internationalHeading'),'Existing international enquiry route must remain available');
 console.log('PASS: generic model guide uses the exact approved R 1300 GS master design stylesheet');
