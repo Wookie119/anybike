@@ -47,3 +47,7 @@ assert(renderer.includes('g.image.permission_status==="approved"'),'Unapproved g
 assert(renderer.includes('if(Number.isInteger(production.first_model_year)&&!Number.isInteger(production.production_end_year)'),'Unknown production end year must not imply ongoing production');
 assert(design.includes('body:has(#generationPanel) main'),'R 1300 GS shared design frame must remain in use');
 console.log('PASS: generation comparison, photo approval and shared design safeguards preserved');
+
+assert(renderer.includes('if(indexedModels.length>0&&!indexed&&!clean)'),'Unapproved legacy identities must not become indexable merely because an old catalogue record exists');
+assert(renderer.includes('The motorcycle record is preserved; specifications are not published until verified.'),'Pending identity pages must explain preservation without inventing specifications');
+assert(renderer.includes('el("sourceBottom").href=request;'),'Pending model enquiries must retain the exact model in the request link');
