@@ -14,7 +14,11 @@ for(const token of ['--red:#ed1c24','background:#000','background:var(--panel)',
  assert(shared.includes(token),'Approved design token missing: '+token);
 }
 assert(guide.includes('internationalHeading'),'Existing international enquiry route must remain available');
-for(const path of ['bmw-r1250gs.html','bmw-s1000rr.html','harley-davidson-fat-boy.html']){
+const dedicatedRoutes=JSON.parse(readFileSync('data/approved-dedicated-model-routes.json','utf8')).models;
+assert(dedicatedRoutes.length>=45,'All approved dedicated routes must remain in the catalogue');
+for(const {url} of dedicatedRoutes){
+ const path=url.replace(/^\\//,'');
+ if(path==='bmw-r1300gs.html')continue;
  const html=readFileSync(path,'utf8');
  assert(html.includes('/model-template/approved-r1300gs-model-design.css?v=20261112-master1'),
   'Dedicated model page must load approved R 1300 GS master design: '+path);
