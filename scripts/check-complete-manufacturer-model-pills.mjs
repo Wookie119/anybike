@@ -23,7 +23,9 @@ for(const [make,min] of [['bmw',25],['harleydavidson',18],['honda',60],['yamaha'
  assert((manufacturers.get(make)?.size||0)>=min,make+' model directory incomplete');
 }
 for(const phrase of [
- 'if(isBrand){','const models=[...new Map([...publicModels.map(x=>x.model),...routes.map(x=>x.model)]',
+ 'if(isBrand){',
+ 'public_anybike_manufacturer_catalogue_names_v1',
+ 'databaseModels.length?databaseModels:publicModels','const models=[...new Map([...(databaseModels.length?databaseModels:publicModels).map(x=>x.model),...routes.map(x=>x.model)]',
  "rows.filter(x=>normalize(x.make)===normalize(make)",
  'const byModel=new Map(routes.map(x=>[normalize(x.model),x.url]))',
  "name=>byModel.get(normalize(name))||genericUrl(make,name)",
