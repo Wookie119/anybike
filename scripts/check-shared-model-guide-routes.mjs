@@ -19,6 +19,9 @@ for(const id of ['ownerHeading','sellBottom','internationalHeading','sourceBotto
  assert(guide.includes('id="'+id+'"'),'Missing model guide action #'+id);
 }
 assert(guide.includes('UK owners: Sell My '),'Dynamic UK seller heading missing');
+assert(guide.includes('typeof guide.years==="string"?guide.years:""'),'Missing model years must never render undefined');
+assert(!guide.includes('esc(x.variant||"")+" — "+esc(x.name)+(x.variant?'),'Factory colour variant must not be duplicated');
+assert(guide.includes('typeof x.model==="string"&&x.model!==actualModel'),'Malformed related-model records must be ignored');
 assert(!/<nav\b[^>]*class="[^"]*\bcrumb\b/i.test(guide),'Breadcrumb returned');
 const ids=[...guide.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]);
 assert.equal(ids.length,new Set(ids).size,'Duplicate model guide HTML IDs');
