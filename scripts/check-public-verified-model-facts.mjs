@@ -72,7 +72,7 @@ const clean=exactVerifiedModelFacts([
  sample({fact_id:50,model:'RM125'})
 ],'Suzuki','RM250');
 assert.equal(clean.length,1);
-assert.equal(clean[0].display[0].label,'Engine capacity (cc)');
+assert.equal(clean[0].display[0].label,'Engine capacity');
 const measured=exactVerifiedModelFacts([
  sample({fact_id:141,make:'BMW',model:'R 1300 GS',category:'engine',
   label:'Engine displacement',value:{amount:1300,unit:'cc'}}),
