@@ -166,13 +166,27 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  // categories should be eligible for publication without creating a second
  // full-width panel; the existing panel remains the one approved destination.
  const existingPanel=body.querySelector?.('[data-anybike-verified-model-facts]')||null;
- const alreadyIntegrated=new Set([
+ const existingGroups=[
   ...[...body.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]],
   ...[...existingPanel?.querySelectorAll?.('[data-anybike-research-category]')||[]],
   ...[...existingPanel?.children||[]].filter(group=>group.dataset?.anybikeResearchCategory)
- ].map(group=>group.dataset?.anybikeResearchCategory).filter(Boolean));
- const facts=exactVerifiedModelFacts(rows,make,model)
-  .filter(fact=>!alreadyIntegrated.has(fact.category));
+ ].filter((group,index,all)=>all.indexOf(group)===index&&group.dataset?.anybikeResearchCategory);
+ const allFacts=exactVerifiedModelFacts(rows,make,model);
+ // A category may gain additional audited factory records after its first
+ // publication. Compare the complete set of fact IDs, not only its category.
+ const fingerprint=category=>allFacts.filter(fact=>fact.category===category)
+  .map(fact=>String(fact.fact_id)).sort().join(',');
+ const refreshGroups=new Map();
+ for(const group of existingGroups){
+  const category=group.dataset.anybikeResearchCategory;
+  if(!refreshGroups.has(category))refreshGroups.set(category,[]);
+  refreshGroups.get(category).push(group);
+ }
+ const facts=allFacts.filter(fact=>{
+  const existing=refreshGroups.get(fact.category);
+  return !existing?.length||existing.some(group=>
+   group.dataset.anybikeResearchFactIds&&group.dataset.anybikeResearchFactIds!==fingerprint(fact.category));
+ });
  if(!facts.length)return 0;
  const doc=body.ownerDocument||document;
  const grouped=new Map();
@@ -232,6 +246,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   const items=factoryCategories.has(category)?orderedVerifiedFactoryFacts(originalItems):originalItems;
   const group=doc.createElement('div');
   group.dataset.anybikeResearchCategory=category;
+  group.dataset.anybikeResearchFactIds=fingerprint(category);
   group.style.cssText='padding:14px 0;border-top:1px solid #dedede';
   const groupHeading=node(doc,'h3',sections[category]);
   groupHeading.style.cssText='color:#171717;line-height:1.35';
