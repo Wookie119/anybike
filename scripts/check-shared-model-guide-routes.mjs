@@ -135,7 +135,7 @@ console.log('PASS: existing Harley supplied photographs are inside their heroes 
 // photo bank without allowing related model or trim photographs.
 const universalHero=fs.readFileSync('model-template/public-approved-model-hero.mjs','utf8');
 const universalGuide=fs.readFileSync('motorcycle-model-guide.html','utf8');
-assert(universalGuide.includes('/model-template/public-approved-model-hero.mjs?v=20261112-hero-rest3'),'Universal model guide must load exact-model hero renderer');
+assert(universalGuide.includes('/model-template/public-approved-model-hero.mjs?v=20261112-hero-timeout4'),'Universal model guide must load exact-model hero renderer');
 assert(universalHero.includes("public_anybike_model_hero_v1"),'Approved Supabase photo RPC missing');
 assert(universalHero.includes('data.make===make&&data.model===model'),'Exact model identity guard missing');
 assert(universalHero.includes('img.onload=()=>')&&universalHero.includes('img.onerror=next'),'Broken external image must not replace readable hero');
