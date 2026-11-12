@@ -206,8 +206,11 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  for(const category of refreshedCategories){
   for(const group of refreshGroups.get(category)||[]){
    if(group.dataset.anybikeResearchFactIds&&
-      group.dataset.anybikeResearchFactIds!==fingerprint(category))
+      group.dataset.anybikeResearchFactIds!==fingerprint(category)){
     group.remove?.();
+    // The parent section remains approved; only the outdated sourced
+    // evidence group is replaced. Do not remove stock, enquiry or headings.
+   }
   }
  }
  const doc=body.ownerDocument||document;
@@ -227,7 +230,8 @@ export function mountVerifiedModelFacts(body,rows,make,model){
    // without a direct research group (legacy loader reconciliation). Do not
    // treat that marker as proof the verified facts are present.
    const integrated=[...card.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]];
-   if(integrated.some(group=>group.dataset?.anybikeResearchCategory===category))return false;
+   if(integrated.some(group=>group.dataset?.anybikeResearchCategory===category&&
+      group.isConnected!==false))return false;
    // Only direct approved section headings count. A nested article heading
    // must never redirect research into an unrelated parent card.
    const heading=[...card.children].find(child=>child.tagName?.toLowerCase()==='h2')?.textContent||
