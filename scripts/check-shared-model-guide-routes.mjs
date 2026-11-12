@@ -91,4 +91,25 @@ assert(r32Guide.includes('Explore related BMW models'), 'Legacy R32 related sect
 console.log('PASS: genuine family/era curation suppresses misleading R32 related model suggestions.');
 console.log('PASS: Complete public manufacturer and same-brand model pill navigation is mounted without stock permission changes.');
 
+
+// Reused Harley photographs must keep an exact-model attribution and licence.
+// V-Rod and Pan America 1250 must feature an actual motorcycle near the hero.
+const creditedHarley=['breakout','fat-boy','electra-glide','iron-883','road-king','street-bob','heritage-classic','nightster','road-glide','street-glide','ultra-limited'];
+for(const slug of creditedHarley){
+ const page=fs.readFileSync('harley-davidson-'+slug+'.html','utf8');
+ const hero=page.match(/<section class="hero"[\\s\\S]*?<\\/section>/)?.[0]||'';
+ assert(hero.includes('<img '),'Harley '+slug+' exact-model hero missing');
+ assert(hero.includes('<figcaption>')||hero.includes('<figcaption '),'Harley '+slug+' hero photographer acknowledgement missing');
+ assert(hero.includes('creativecommons.org/licenses/'),'Harley '+slug+' hero licence link missing');
+ assert(hero.includes('commons.wikimedia.org/wiki/File:'),'Harley '+slug+' photographer source link missing');
+}
+const panHero=fs.readFileSync('harley-davidson-pan-america-1250.html','utf8').match(/<section class="hero"[\\s\\S]*?<\\/section>/)?.[0]||'';
+assert(panHero.includes('2023 Pan America 1250 Special'),'Pan America hero must identify the Special derivative exactly');
+assert(panHero.includes('<img ')&&!panHero.includes('not an actual motorcycle photograph'),'Pan America must show a real photo, not decorative artwork');
+const vRodPage=fs.readFileSync('harley-davidson-v-rod.html','utf8');
+const vRodHero=vRodPage.match(/<section class="hero"[\\s\\S]*?<\\/section>/)?.[0]||'';
+assert(vRodHero.includes('<img ')&&vRodHero.includes('Addvisor'),'V-Rod must have an exact-family licensed hero');
+assert.equal((vRodPage.match(/class="model-archive-photo"/g)||[]).length,1,'V-Rod must not duplicate its museum archive image below the hero');
+console.log('PASS: 13 Harley exact-model licensed hero photographs retain attribution; no new artwork/duplicate V-Rod archive.');
+
 console.log('PASS: existing detailed-model routes, fallback sourcing and both model-specific customer journeys are intact.');
