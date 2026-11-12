@@ -97,3 +97,10 @@ assert(!indianPage.includes('id="legends"'),'Indian manufacturer must not duplic
 assert(!indianPage.includes('<article class="era"><strong>1901</strong>'),'Indian manufacturer must not duplicate the source-linked history timeline');
 assert(indianPage.includes('<noscript>'),'Indian heritage and model research must have non-JavaScript fallback links');
 assert(indianPage.includes('/motorcycle-brand.html?make=Indian%20Motorcycle'),'Indian manufacturer must preserve fallback modern model navigation');
+
+const rollout=JSON.parse(readFileSync(new URL('../data/model-rollout-coverage-2026-11-12.json',import.meta.url),'utf8'));
+assert.equal(rollout.approved_model_count,approved.length,'Rollout coverage report must match current approved model count');
+const counts=new Map();
+for(const x of approved)counts.set(x.make,(counts.get(x.make)||0)+1);
+assert.equal(rollout.manufacturer_count,counts.size,'Rollout report manufacturer count must match approved identities');
+assert.deepEqual(rollout.models_by_manufacturer.map(x=>[x.manufacturer,x.approved_models]).sort((a,b)=>a[0].localeCompare(b[0])),[...counts.entries()].sort((a,b)=>a[0].localeCompare(b[0])),'Rollout coverage per manufacturer must match approved catalogue');
