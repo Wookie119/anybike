@@ -491,6 +491,15 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
        }
      }
    }catch(error){console.warn("Canonical manufacturer model cards unavailable; using reviewed catalogue",error)}
+   // The published 979-model identity snapshot covers catalogue identities
+   // missing from the optional public RPC and the older master JSON file.
+   try{
+     const response=await fetch("/data/motorcycle-index-identities.json",{cache:"no-cache"});
+     if(response.ok){
+       const data=await response.json();
+       if(Array.isArray(data.models)&&data.models.some(x=>String(x.make||"").toLowerCase()===make.toLowerCase()))return data;
+     }
+   }catch(error){console.warn("Published manufacturer index fallback unavailable",error)}
    const response=await fetch("/data/motorcycle-catalogue-master.json",{cache:"no-cache"});
    if(!response.ok)throw Error("Catalogue unavailable");
    return response.json();
