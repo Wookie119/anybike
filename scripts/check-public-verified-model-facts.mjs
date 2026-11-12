@@ -677,6 +677,37 @@ assert.equal(delayedBody.children.find(x=>x.dataset?.anybikeVerifiedModelFacts==
  ?.dataset.anybikeResearchIdentity,JSON.stringify(['yamaha','yz250']),
  'Only the most recently requested motorcycle may be rendered');
 
+// A newer route that cannot reach the database must still invalidate an older
+// in-flight response. Do not leak another motorcycle's verified research.
+const disconnectedBody={...body,children:[],firstChild:null};
+let resolveDisconnectedOlder;
+const disconnectedOlder=installVerifiedModelFacts({
+ body:disconnectedBody,make:'Suzuki',model:'RM250',
+ client:{rpc:()=>new Promise(resolve=>{resolveDisconnectedOlder=resolve;})}
+});
+assert.equal(await installVerifiedModelFacts({
+ body:disconnectedBody,make:'Yamaha',model:'YZ250',client:null
+}),0,'Missing public database client must not publish unverified research');
+resolveDisconnectedOlder({data:[sample({fact_id:8822})],error:null});
+assert.equal(await disconnectedOlder,0,
+ 'A previous model RPC must be invalidated even if the new model cannot reach Supabase');
+assert.equal(disconnectedBody.children.length,0,
+ 'Unavailable database must not cause old model research to appear');
+
+// An RPC failure for the same model must preserve its last successfully
+// verified display, not replace it with a misleading empty panel.
+const preservedBody={...body,children:[],firstChild:null};
+assert.equal(await installVerifiedModelFacts({
+ body:preservedBody,make:'Suzuki',model:'RM250',
+ client:{rpc:async()=>({data:[sample({fact_id:8823})],error:null})}
+}),1);
+assert.equal(await installVerifiedModelFacts({
+ body:preservedBody,make:'Suzuki',model:'RM250',
+ client:{rpc:async()=>({data:null,error:{message:'network unavailable'}})}
+}),0);
+assert.equal(preservedBody.children.filter(x=>x.dataset?.anybikeVerifiedModelFacts==='1').length,1,
+ 'Temporary RPC failure must not erase the last verified research display');
+
 const html=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
 assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261112-researchrefresh8'));
 assert(html.indexOf('id="body"')>html.indexOf('id="generationPanel"'));
