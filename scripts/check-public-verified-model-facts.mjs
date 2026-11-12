@@ -290,15 +290,19 @@ nestedExistingCard.querySelectorAll=selector=>
  selector==='[data-anybike-research-integrated="1"]'?[nestedVerifiedGroup]:[];
 const nestedBody={...body,children:[nestedExistingCard],firstChild:nestedExistingCard,
  querySelector(){return null},
- querySelectorAll(selector){return selector==='section.card'?[nestedExistingCard]:[]}
+ querySelectorAll(selector){
+  if(selector==='section.card')return [nestedExistingCard];
+  if(selector==='[data-anybike-research-integrated="1"]')return [nestedVerifiedGroup];
+  return [];
+ }
 };
 assert.equal(mountVerifiedModelFacts(nestedBody,[sample({
  fact_id:8706,category:'factory_colours',value:{factory_colour:'Red'}
-})],'Suzuki','RM250'),1);
+})],'Suzuki','RM250'),0);
 assert.equal(nestedExistingCard.children.length,1,
  'Nested verified category already present must not be appended twice');
-assert.equal(nestedBody.children.length,2,
- 'Already-integrated category must remain outside the unrelated fallback when no empty approved slot exists');
+assert.equal(nestedBody.children.length,1,
+ 'Already-integrated category must not generate an unrelated fallback panel');
 const existingSpecsCard=fakeElement('section');
 existingSpecsCard.querySelector=selector=>selector==='h2'?{textContent:'Technical specifications'}:null;
 const specsBody={...body,children:[existingSpecsCard],firstChild:existingSpecsCard,
