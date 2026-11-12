@@ -14,7 +14,13 @@ const cases=[
  {make:'Kawasaki',model:'Ninja 650',expectGallery:true},
  {make:'Honda',model:'CB500X',expectGallery:true,mobile:true},
  {make:'Triumph',model:'STREET TRIPLE 765 RS',expectGallery:true},
- {make:'Triumph',model:'TIGER 900 GT PRO',expectGallery:true}
+ {make:'Triumph',model:'TIGER 900 GT PRO',expectGallery:true},
+ {make:'Ducati',model:'Monster 937'},
+ {make:'Ducati',model:'PANIGALE V4'},
+ {make:'Honda',model:'Dream CB750 Four'},
+ {make:'Triumph',model:'Bonneville T120'},
+ {make:'Mugen',model:'Shinden Go'},
+ {make:'Harley-Davidson',model:'Fat Boy'}
 ];
 const browser=await chromium.launch({headless:true});
 let failures=0;
