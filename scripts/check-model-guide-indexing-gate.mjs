@@ -31,3 +31,14 @@ assert(directory.includes('data-name="indian motorcycle" href="/indian-motorcycl
 assert(brand.includes('location.replace("/indian-motorcycles.html")'),'Old Indian manufacturer query routes must redirect to the history page');
 assert.equal(locs.filter(x=>x.includes('/markets/')).length,217,'Sitemap must retain all country pages');
 console.log('PASS: model, manufacturer and country discoverability safeguards');
+
+const globalPage=readFileSync(new URL('../anybike-global.html',import.meta.url),'utf8');
+for(const slug of ['burt-munro-worlds-fastest-indian','indian-scout-chief-and-springfield-history','victory-polaris-indian-motorcycle-revival']){
+ const url='https://www.anybike.co.uk/global/'+slug+'.html';
+ assert(locs.includes(url),'Indian story missing from sitemap: '+slug);
+ assert(globalPage.includes('/global/'+slug+'.html'),'Indian story missing from AnyBike Global: '+slug);
+ assert(indianPage.includes('/global/'+slug+'.html'),'Indian story missing from manufacturer page: '+slug);
+ const story=readFileSync(new URL('../global/'+slug+'.html',import.meta.url),'utf8');
+ assert(story.includes('rel="canonical" href="'+url+'"'),'Indian story missing canonical: '+slug);
+ assert(story.includes('/indian-motorcycles.html'),'Indian story must link back to manufacturer: '+slug);
+}
