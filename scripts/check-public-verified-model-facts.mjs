@@ -608,6 +608,22 @@ assert.equal(switchingGalleryBody.children.filter(x=>x.dataset?.anybikeModelRese
  'Switching models must replace the previous approved gallery rather than duplicate it');
 assert.equal(switchingGalleryBody.children[0].dataset.anybikeGalleryIdentity,
  JSON.stringify(['bmw','r 1250 gs']));
+assert.equal(mountApprovedModelGallery(switchingGalleryBody,[
+ photo({model:'R 1250 GS'})
+],'BMW','R 1250 GS'),0,
+ 'Unchanged approved photographs must not redraw the same model gallery');
+assert.equal(mountApprovedModelGallery(switchingGalleryBody,[
+ photo({model:'R 1250 GS',title:'Newly verified factory edition'})
+],'BMW','R 1250 GS'),1,
+ 'Newly approved photo metadata must refresh an existing exact-model gallery');
+assert.equal(switchingGalleryBody.children.filter(x=>x.dataset?.anybikeModelResearchGallery==='1').length,1,
+ 'Gallery refresh must not duplicate photo panels');
+assert.equal(mountApprovedModelGallery(switchingGalleryBody,[],
+ 'BMW','R 1250 GS'),0,
+ 'Temporary empty image-load results must preserve previously approved photography');
+assert.equal(switchingGalleryBody.children.length,1,
+ 'Failed image loads must not blank the previously approved gallery');
+
 
 const delayedGalleryBody={...body,children:[],firstChild:null,
  querySelector(selector){
