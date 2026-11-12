@@ -42,8 +42,12 @@ export async function installApprovedHarleyResearch({doc,pathname,client,fetchFn
   const slot=page.createElement('div');
   slot.dataset.anybikeHarleyResearchSlot='1';
   slot.style.cssText='min-width:0;width:100%;margin:24px 0';
-  const before=main.querySelector?.('nav.end-action.harley-related-pill-nav')||
+  // Some approved guides wrap the related links/credits in layout sections.
+  // insertBefore requires a DIRECT child of main; ascend through the wrapper
+  // rather than dropping a valid factory research section on nested layouts.
+  let before=main.querySelector?.('nav.end-action.harley-related-pill-nav')||
    main.querySelector?.('details.image-attribution')||null;
+  while(before&&before.parentNode!==main)before=before.parentNode;
   main.insertBefore(slot,before);
   const rendered=await installVerifiedModelFacts({
    body:slot,make:'Harley-Davidson',model:route.model,
