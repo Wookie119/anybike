@@ -12,6 +12,8 @@ assert(!verifiedRendererSource.includes('Figures are not interchangeable between
  'Internal source-record disclaimers must not return to public pages');
 
 assert.equal(documentedScalarField('engine_cc',776),'776 cc');
+assert(!sourceCode.includes("engine_cc:'Engine capacity (cc)'"),'Engine capacity label must not repeat units');
+assert(!sourceCode.includes("torque_nm:'Torque (Nm)'"),'Torque label must not repeat units');
 assert.equal(documentedScalarField('seat_height_mm',810),'810 mm');
 assert.equal(documentedScalarField('curb_mass_kg',205),'205 kg');
 assert.equal(documentedScalarField('fuel_consumption_km_per_l',23.8),'23.8 km/l');
