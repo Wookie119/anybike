@@ -1,0 +1,11 @@
+-- Source-licensed, exact-variant research photos; gallery-only, not hero.
+-- Photo date is never treated as model-year evidence.
+with photos(asset_key,manufacturer,model,model_year_start,subject_category,title,image_url,source_page_url,photographer,licence,licence_url,attribution,review_notes) as(values
+('gallery-triumph-street765rs-2022-darktiger0512','Triumph','STREET TRIPLE 765 RS',2022,'whole_motorcycle','Triumph Street Triple 765 RS — documented 2022 motorcycle','https://commons.wikimedia.org/wiki/Special:FilePath/Triumph%20Street%20Triple%20765%20RS%20(2022).jpg?width=1280','https://commons.wikimedia.org/wiki/File:Triumph%20Street%20Triple%20765%20RS%20(2022).jpg','Darktiger0512','CC BY 4.0','https://creativecommons.org/licenses/by/4.0/','Darktiger0512 · CC BY 4.0','Exact RS variant, photograph taken 20 April 2026; uploader captions bike as model-year 2022; year refers to motorcycle, NOT photo date.'),
+('gallery-triumph-tiger900gtpro-cjp24-2022-photo','Triumph','TIGER 900 GT PRO',NULL,'whole_motorcycle','Triumph Tiger 900 GT Pro — photographed November 2022','https://commons.wikimedia.org/wiki/Special:FilePath/Triumph%20Tiger%20900%20GT%20Pro%20(1).jpg?width=1280','https://commons.wikimedia.org/wiki/File:Triumph%20Tiger%20900%20GT%20Pro%20(1).jpg','Cjp24','CC BY-SA 4.0','https://creativecommons.org/licenses/by-sa/4.0/','Cjp24 · CC BY-SA 4.0','Photograph dated 1 November 2022; licence and precise GT Pro derivative confirmed. Motorcycle model year is NOT confirmed: leave NULL.')
+)
+insert into public.anybike_editorial_photo_bank(asset_key,manufacturer,model,model_year_start,subject_category,title,image_url,source_page_url,photographer,licence,licence_url,attribution,approval_status,reviewed_at,review_notes,source_type,usage_contexts,feature_tags)
+select p.asset_key,p.manufacturer,p.model,p.model_year_start,p.subject_category,p.title,p.image_url,p.source_page_url,p.photographer,p.licence,p.licence_url,p.attribution,'approved',now(),p.review_notes,'external_reference',array['model_variant_gallery'],array['exact_model','documented_gallery']
+from photos p
+where exists(select 1 from public.motorcycle_catalog_models m where m.manufacturer=p.manufacturer and m.model=p.model)
+on conflict(asset_key) do nothing;
