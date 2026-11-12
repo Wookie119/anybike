@@ -293,6 +293,25 @@ for(const expected of [
  'research_section_supported',
  'revoke all on public.anybike_model_research_publication_holds_v1 from anon,authenticated'
 ])assert(publicationHolds.includes(expected),'Internal publication hold safeguard missing: '+expected);
+
+// Approved photography aliases must also give the corresponding sourced
+// research a public display destination, never across unlike derivatives.
+const aliasResearchSql=fs.readFileSync('supabase/migrations/20261112231500_manual_alias_verified_research_fallback.sql','utf8');
+for(const guard of [
+ 'from public.anybike_model_identity_aliases a',
+ 'join public.motorcycle_catalog_dropdown_clean canon',
+ 'a.alias_model=m.model',
+ 'canon.model=a.canonical_model',
+ 'from one_identity m',
+ 'from selected_identity m',
+ 'f.catalog_model_id=m.fact_model_id',
+ 'motorcycle_catalog_fact_verification_audit',
+ "'fact_id',id,'make',make,'model',model",
+ "d.model !~* '(apr|pcp|representative|finance|deposit|monthly payment)'"
+]) assert(aliasResearchSql.includes(guard),'Exact-model manual alias research safeguard missing: '+guard);
+assert(!aliasResearchSql.includes('ilike'),'Model identity alias must be exact, never fuzzy matching');
+console.log('PASS: hand-approved manufacturer aliases preserve exact-model sourced research and public identity.');
+
 console.log('PASS: unpublished identity reviews remain separate from rendering gaps and private from public clients.');
 
 console.log('PASS: production chronology and bounded model-year gallery loading preserved.');
