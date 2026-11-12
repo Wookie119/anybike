@@ -63,6 +63,14 @@ try{
      throw new Error('Photo gallery belongs to another motorcycle');
     result.approvedGalleryImages=images;
    }
+   // Keep a desktop visual record for the next design review. The automated
+   // assertions above remain the source of truth for published fact coverage.
+   await page.screenshot({
+    path:resolve('artifacts/live-model-smoke',
+     'passed-'+item.make.replace(/[^a-z0-9]/gi,'-')+'-'+
+     item.model.replace(/[^a-z0-9]/gi,'-')+'.png'),
+    fullPage:true
+   });
    console.log('PASS live model research:',item.make,item.model,JSON.stringify(result));
   }catch(error){
    failures++;
