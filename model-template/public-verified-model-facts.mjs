@@ -185,10 +185,13 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   if(!originalItems?.length)continue;
   const items=factoryCategories.has(category)?orderedVerifiedFactoryFacts(originalItems):originalItems;
   const group=doc.createElement('div');
+  group.dataset.anybikeResearchCategory=category;
   group.style.cssText='padding:14px 0;border-top:1px solid #dedede';
   const groupHeading=node(doc,'h3',sections[category]);
   groupHeading.style.cssText='color:#171717;line-height:1.35';
   group.append(groupHeading);
+  // Stable research destinations support future integration into the approved
+  // model sections without creating alternate layouts or changing facts.
   const grid=doc.createElement('div');
   grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px;align-items:stretch';
   for(const fact of items){
