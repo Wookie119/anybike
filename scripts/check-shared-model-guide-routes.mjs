@@ -146,6 +146,21 @@ assert(heroMigration.includes("p.subject_category = 'whole_motorcycle'"),'Hero m
 assert(heroMigration.includes("'model_hero' = any(p.usage_contexts)"),'Use must be explicitly approved for model hero');
 assert(heroMigration.includes('grant execute on function public.public_anybike_model_hero_v1(text,text)'),'Public read-only RPC must remain exposed');
 
+
+// Only verified identical catalogue names may share approved model photos.
+// The public RPC must still refuse nearby generations and factory variants.
+const aliasMigration=fs.readFileSync('supabase/migrations/20261112134500_verified_model_photo_identity_aliases.sql','utf8');
+assert(aliasMigration.includes('public.anybike_model_identity_aliases'),'Explicit verified alias register missing');
+assert(aliasMigration.includes("('Honda','Africa Twin CRF1000L','CRF1000L AFRICA TWIN'"),'Honda word-order alias missing');
+assert(aliasMigration.includes("('Yamaha','Ténéré 700','Tenere 700'"),'Yamaha accent-only alias missing');
+assert(aliasMigration.includes('p.manufacturer=r.manufacturer and p.model=r.model'),'Resolved hero lookup must be exact');
+assert(aliasMigration.includes("p.approval_status='approved'"),'Only approved images may be returned');
+assert(aliasMigration.includes("p.subject_category='whole_motorcycle'"),'Actual motorcycle photo gate missing');
+assert(aliasMigration.includes('p.original_model'),'Photo response must preserve requested identity for strict model-page validation');
+assert(!aliasMigration.includes("'Z900RS','Z900'"),'Never alias Kawasaki Z900RS to Z900');
+assert(!aliasMigration.includes("'TENERE 700 RALLY','Tenere 700'"),'Never alias Rally to standard Ténéré');
+console.log('PASS: approved identity aliases retain strict manufacturer, generation and trim photo guards.');
+
 console.log('PASS: generic manufacturer/model photography uses approved exact-model RPC with image-load guard.');
 
 console.log('PASS: existing detailed-model routes, fallback sourcing and both model-specific customer journeys are intact.');
