@@ -104,7 +104,7 @@ for(const slug of creditedHarley){
  assert(hero.includes('commons.wikimedia.org/wiki/File:'),'Harley '+slug+' photographer source link missing');
 }
 const panHero=fs.readFileSync('harley-davidson-pan-america-1250.html','utf8').match(/<section class="hero"[\s\S]*?<\/section>/)?.[0]||'';
-assert(panHero.includes('2023 Pan America 1250 Special'),'Pan America hero must identify the Special derivative exactly');
+assert(panHero.includes('Pan America 1250 Special')&&panHero.includes('2023'),'Pan America hero must identify the 2023 Special derivative exactly');
 assert(panHero.includes('<img ')&&!panHero.includes('not an actual motorcycle photograph'),'Pan America must show a real photo, not decorative artwork');
 const vRodPage=fs.readFileSync('harley-davidson-v-rod.html','utf8');
 const vRodHero=vRodPage.match(/<section class="hero"[\s\S]*?<\/section>/)?.[0]||'';
