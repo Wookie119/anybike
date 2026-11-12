@@ -10,6 +10,8 @@ const cases=[
  {make:'Suzuki',model:'RM250'},
  {make:'Yamaha',model:'YZ250'},
  {make:'BMW',model:'R 1250 GS'},
+ {make:'BMW',model:'F 700 GS'},
+ {make:'BMW',model:'F 800 GS'},
  {make:'Honda',model:'CB500X',expectGallery:true},
  {make:'Kawasaki',model:'Ninja 650',expectGallery:true},
  {make:'Honda',model:'CB500X',expectGallery:true,mobile:true},
