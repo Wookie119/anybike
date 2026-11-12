@@ -226,7 +226,7 @@ assert(documentArticle?.children.some(x=>x.tag==='a'&&x.href==='https://www.duca
 const existingEngineCard=fakeElement('section');
 existingEngineCard.querySelector=selector=>selector==='h2'?{textContent:'Engine and powertrain'}:null;
 const integratedBody={...body,children:[existingEngineCard],firstChild:existingEngineCard,
- querySelector(selector){return selector==='[data-anybike-verified-model-facts]'?null:null},
+ querySelector(selector){return selector==='[data-anybike-research-integrated="1"]'&&existingEngineCard.dataset.anybikeResearchIntegrated==='1'?existingEngineCard:null},
  querySelectorAll(selector){return selector==='section.card'?[existingEngineCard]:[]}
 };
 assert.equal(mountVerifiedModelFacts(integratedBody,[sample({
@@ -238,6 +238,8 @@ assert.equal(existingEngineCard.dataset.anybikeResearchCategory,'engine');
 assert.equal(existingEngineCard.dataset.anybikeResearchIntegrated,'1',
  'Integrated-only pages must retain a marker that prevents a second mount');
 assert.equal(existingEngineCard.children[0].dataset.anybikeResearchIntegrated,'1');
+assert.equal(mountVerifiedModelFacts(integratedBody,[sample({fact_id:8702,category:'engine'})],'Suzuki','RM250'),0,
+ 'Repeated model research installation must not duplicate facts within an approved card');
 
 const badDocumentBody={...body,children:[],firstChild:null};
 mountVerifiedModelFacts(badDocumentBody,[sample({
