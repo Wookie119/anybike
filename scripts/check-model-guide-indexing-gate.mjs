@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const guide=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
+assert(guide.includes('<meta name="robots" content="noindex,follow" id="modelRobots">'),'Safe default robots policy missing');
+assert(guide.includes('if(clean)el("modelRobots").content="index,follow"'),'Only verified public catalogue identities should be indexable');
+assert(!guide.includes('if(row)el("modelRobots").content="index,follow"'),'Unverified fallback records must not become indexable');
+assert(guide.includes('el("modelCanonical").href=modelUrl'),'Exact-model canonical missing');
+assert(guide.includes('const exact=data.filter('),'Clean catalogue identity match missing');
+assert(guide.includes('return exact.length===1?exact[0]:null;'),'Ambiguous catalogue identities must be rejected');
+console.log('PASS: only clean public catalogue identities enable model-guide indexing');
