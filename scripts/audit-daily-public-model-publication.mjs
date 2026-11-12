@@ -49,7 +49,7 @@ export async function fetchCleanCatalogue(fetcher=fetch){
  return [...new Map(models.map(x=>[identity(x.make,x.model),x])).values()];
 }
 export const identity=(make,model)=>JSON.stringify([String(make).trim().toLowerCase(),String(model).trim().toLowerCase()]);
-export function selectDailyModels(models,date=new Date(),size=30){
+export function selectDailyModels(models,date=new Date(),size=140){
  const unique=new Map();
  for(const m of models){
   if(!m?.make||!m?.model)continue;
@@ -104,7 +104,7 @@ export async function runDailyAudit({fetcher=fetch,date=new Date(),models=catalo
    rows.push(row);
   }
  }
- await Promise.all(Array.from({length:4},worker));
+ await Promise.all(Array.from({length:8},worker));
  rows.sort((a,b)=>identity(a.make,a.model).localeCompare(identity(b.make,b.model)));
  return {date:date.toISOString().slice(0,10),catalogueModels:models.length,
   checkedModels:rows.length,errors:rows.filter(x=>x.error).length,
@@ -118,7 +118,7 @@ export async function runDailyAudit({fetcher=fetch,date=new Date(),models=catalo
 export function toMarkdown(report){
  const lines=['# AnyBike daily public research publication check','',
   'Date (UTC): '+report.date,'',
-  'This is a rotating sample of the public Supabase endpoints, **not** a full catalogue or live-browser rendering audit.',
+  'This is a rotating daily sample designed to cover the clean catalogue within seven days, **not** a full catalogue or live-browser rendering audit.',
   'No source research or photography is approved by this check.','',
   'Catalogue source: '+(report.catalogueSource||'provided test catalogue'),
   ...(report.catalogueError?['WARNING: clean catalogue unavailable: '+report.catalogueError]:[]),'',
