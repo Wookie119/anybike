@@ -41,6 +41,13 @@ assert.equal(indexed.models.length,979,'Public identity fallback must include ev
 const indexedIdentity=indexed.models.map(x=>String(x.make).trim().toLowerCase()+'|'+String(x.model).trim().toLowerCase());
 assert.equal(new Set(indexedIdentity).size,indexedIdentity.length,'Public identity fallback must not contain duplicate models');
 assert.deepEqual([...new Set(identity)].sort(),[...new Set(indexedIdentity)].sort(),'Sitemap and public model fallback must have identical model identities');
+const publishedMakes=new Set(indexed.models.map(x=>String(x.make).trim().toLowerCase()));
+const genericMakes=new Set(brands.map(x=>new URL(x).searchParams.get('make').trim().toLowerCase()));
+for(const make of publishedMakes){
+ if(make==='bmw'||make==='harley-davidson')continue;
+ assert(genericMakes.has(make),'Manufacturer missing from sitemap: '+make);
+}
+assert(!genericMakes.has('bmw')&&!genericMakes.has('harley-davidson'),'Dedicated brands must not use generic sitemap URLs');
 assert(read('motorcycle-model-guide.html').includes('const row=clean||indexed||legacy;'),'Renderer must use the public index identity fallback');
 assert(read('motorcycle-model-guide.html').includes('content="index,follow" id="modelRobots"'),'Model renderer noindex');
 assert(read('motorcycle-brand.html').includes('content="index,follow"'),'Brand renderer noindex');
