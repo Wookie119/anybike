@@ -159,6 +159,20 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   if(!grouped.has(fact.category))grouped.set(fact.category,[]);
   grouped.get(fact.category).push(fact);
  }
+ // Attach a verified category to an existing approved research card only when
+ // its heading exactly matches the registered category label. No fuzzy matching:
+ // similar-sounding headings may describe a different year, market or subject.
+ const existingResearchCard=category=>{
+  const expected=sections[category];
+  if(!expected||typeof body.querySelectorAll!=='function')return null;
+  const matches=[...body.querySelectorAll('section.card')].filter(card=>
+   !card.dataset?.anybikeVerifiedModelFacts&&
+   !card.dataset?.anybikeResearchCategory&&
+   safeText(card.querySelector?.('h2')?.textContent).toLowerCase()===expected.toLowerCase()
+  );
+  return matches.length===1?matches[0]:null;
+ };
+ let panelGroups=0;
  const panel=doc.createElement('section');
  panel.className='card feature anybike-verified-model-research';
  panel.dataset.anybikeVerifiedModelFacts='1';
@@ -257,11 +271,22 @@ export function mountVerifiedModelFacts(body,rows,make,model){
    references.append(source);
   }
   group.append(references);
-  panel.append(group);
+  const existing=existingResearchCard(category);
+  if(existing){
+   // The source-linked group stays visually readable inside dark legacy cards.
+   group.style.cssText+=';background:#fff;color:#171717;padding:16px;border:1px solid #dedede;border-radius:8px';
+   groupHeading.style.display='none'; // The approved card already owns this heading.
+   group.dataset.anybikeResearchIntegrated='1';
+   existing.dataset.anybikeResearchCategory=category;
+   existing.append(group);
+  }else{
+   panel.append(group);
+   panelGroups++;
+  }
  }
  // Preserve stock and enquiry panels above #body; place factual research
  // ahead of generic fallback and discovery cards, without replacing either.
- body.insertBefore(panel,body.firstChild);
+ if(panelGroups)body.insertBefore(panel,body.firstChild);
  // Once sourced research is visible, the old unsourced "About this model"
  // placeholder is redundant. Keep all enquiry and buying action cards.
  const removeGenericPlaceholder=()=>{
