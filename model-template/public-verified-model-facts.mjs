@@ -58,6 +58,22 @@ const internalValueKeys=new Set([
  'document_url'
 ]);
 const pretty=x=>factLabels[x]||x.replace(/_/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
+// Unit suffixes are inferred ONLY from explicit field names in audited facts,
+// never from a model's generation, market or an unlabeled numeric value.
+const explicitUnitKeys={
+ engine_cc:'cc',engine_capacity_cc:'cc',power_hp:'hp',power_kw:'kW',
+ torque_nm:'Nm',seat_height_mm:'mm',wheelbase_mm:'mm',
+ curb_mass_kg:'kg',kerb_weight_kg:'kg',dry_weight_kg:'kg',
+ fuel_tank_l:'litres',fuel_capacity_l:'litres',fuel_capacity_litres:'litres',
+ battery_kwh:'kWh',co2_g_per_km:'g/km',fuel_consumption_km_per_l:'km/l'
+};
+export function documentedScalarField(key,value){
+ const raw=displayValue(value);
+ if(raw===null)return null;
+ const unit=explicitUnitKeys[key];
+ return unit&&typeof value==='number'&&Number.isFinite(value)?
+  value.toLocaleString('en-GB',{maximumFractionDigits:3})+' '+unit:raw;
+}
 const scalar=x=>typeof x==='string'&&x.trim()?x.trim():typeof x==='number'&&Number.isFinite(x)?String(x):null;
 // Source-approved measurements keep the number and stated unit together.
 // Do not guess units from the model name or category, and never render HTML.
@@ -129,8 +145,8 @@ export function exactVerifiedModelFacts(rows,make,model){
     /^[a-z][a-z0-9_]{0,50}$/i.test(key)&&
     !internalValueKeys.has(key.toLowerCase())&&
     !((measurement||Object.hasOwn(row.value,'unit'))&&(key==='amount'||key==='unit'))&&
-    displayValue(value)!==null&&
-    String(displayValue(value)).length<=500).map(([key,value])=>({label:pretty(key),value:displayValue(value)})));
+    documentedScalarField(key,value)!==null&&
+    String(documentedScalarField(key,value)).length<=500).map(([key,value])=>({label:pretty(key),value:documentedScalarField(key,value)})));
   }
   if(!facts.length)continue;
   seen.add(Number(row.fact_id));
