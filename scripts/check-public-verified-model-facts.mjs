@@ -429,6 +429,12 @@ assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearch
  'Withdrawn public facts must no longer remain visible after a successful refresh');
 assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory==='history').length,1,
  'Withdrawing one category must preserve unrelated approved research');
+assert.equal(mountVerifiedModelFacts(incrementalBody,[],'Suzuki','RM250'),0);
+assert.equal(existingResearchPanel.children.filter(x=>x.dataset?.anybikeResearchCategory).length,0,
+ 'An empty verified public projection must withdraw the last published research category');
+assert.equal(incrementalBody.children.includes(existingResearchPanel),false,
+ 'An empty verified projection must not leave a misleading empty research panel');
+
 
 
 
