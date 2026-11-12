@@ -50,17 +50,40 @@ async function applyBmwHero(hero,model){
   if(error||!data||normalise(data.model)!==normalise(model)||
    !safeSource(data.image_url)||!safeSource(data.source_page_url)||!safeSource(data.licence_url)||
    !text(data.attribution)||!text(data.licence))return;
+  // Verify the image fully loads before adding it to the page.
+  // A failed remote file must never show broken alt text, an empty image
+  // area, or a copyright credit for a photograph that isn't visible.
   const img=document.createElement('img');
-  img.src=data.image_url;img.alt='BMW '+model+' — approved model photograph';
+  img.alt='BMW '+model+' — approved model photograph';
   img.loading='eager';img.decoding='async';
   const caption=document.createElement('figcaption');
   const source=document.createElement('a');source.href=data.source_page_url;source.target='_blank';source.rel='noopener noreferrer';source.textContent=data.attribution;
   const licence=document.createElement('a');licence.href=data.licence_url;licence.target='_blank';licence.rel='noopener noreferrer';licence.textContent=data.licence;
   caption.append(source,' · ',licence);
-  // Do not remove the designed fallback before an image has actually loaded.
-  img.addEventListener('load',()=>{fallback.remove();media.classList.add('has-approved-photo');},{once:true});
-  img.addEventListener('error',()=>{img.remove();caption.remove();},{once:true});
-  media.append(img,caption);
+  const imageCandidates=[data.image_url];
+  // Commons has two supported file delivery routes. Retry the same exact
+  // approved photograph without a resized redirect if the first URL fails.
+  if(data.source_page_url.startsWith('https://commons.wikimedia.org/wiki/File:')){
+   const file=data.source_page_url.slice('https://commons.wikimedia.org/wiki/File:'.length);
+   const alternative='https://commons.wikimedia.org/wiki/Special:FilePath/'+file;
+   if(!imageCandidates.includes(alternative))imageCandidates.push(alternative);
+  }
+  let nextImage=0;
+  img.onload=()=>{
+   if(!img.naturalWidth||!img.naturalHeight){tryNext();return;}
+   media.append(img,caption);
+   fallback.remove();
+   media.classList.add('has-approved-photo');
+  };
+  const tryNext=()=>{
+   if(nextImage>=imageCandidates.length){
+    console.warn('Approved BMW hero could not load; retaining readable model identity',model);
+    return;
+   }
+   img.src=imageCandidates[nextImage++];
+  };
+  img.onerror=tryNext;
+  tryNext();
  }catch(error){console.warn('BMW hero photo unavailable; keeping branded model hero',error);}
 }
 const makeCard=(entry,{compact=false}={})=>{
