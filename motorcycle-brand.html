@@ -430,7 +430,7 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
    document.getElementById("historyText").textContent=histories[key];
    document.getElementById("manufacturerHistory").hidden=false;
  }
- const groups=key?guides[key]:{"All models":[]};
+ const groups=key&&guides[key]?Object.fromEntries(Object.entries(guides[key]).map(([category,names])=>[category,[...names]])):{"All models":[]};
  const modelFacts=new Map();
  // Give the catalogue panel a useful initial state even when the shared
  // JSON fetch is slow, blocked or temporarily unavailable. Never leave an
@@ -456,7 +456,7 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
      try{
        const {data,error}=await db.rpc("public_anybike_manufacturer_catalogue_names_v1",{p_make:make});
        if(!error&&Array.isArray(data)){
-         const models=data.filter(x=>x&&x.make===make&&
+         const models=data.filter(x=>x&&String(x.make||"").toLowerCase()===make.toLowerCase()&&
            typeof x.model==="string"&&x.model.trim()&&
            typeof x.category==="string"&&x.category.trim())
            .map(x=>({make:x.make,model:x.model,category:x.category}));
