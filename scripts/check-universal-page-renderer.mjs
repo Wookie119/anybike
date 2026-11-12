@@ -482,6 +482,31 @@ assert(factoryNodes.some(x=>x.href==='https://www.globalsuzuki.com/globalnews/20
  'Factory evidence lost Suzuki source URL');
 console.log('PASS: shared verified Suzuki/Honda factory fields, units, and draft guard');
 
+// Approved nested research keeps documentary links; unreviewed nested
+// source-only records and explicitly denied drafts remain blocked.
+const nestedSourceRoot=new FakeElement('main',documentFake);
+nestedSourceRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(nestedSourceRoot,{entity:gs,sections:[mk(gs,3,{
+ timeline:[
+  {editorial_status:'approved',description:'Approved factory chronology',
+   source_url:'https://example.org/approved-chronology'},
+  {editorial_status:'draft',description:'BLOCKED DRAFT CHRONOLOGY',
+   source_url:'https://example.org/draft-chronology'},
+  {description:'Source captured only',
+   source_url:'https://example.org/captured-only',
+   source_verification_status:'source_captured'}
+ ]
+})]});
+const nestedSourceNodes=collect(nestedSourceRoot);
+assert(nestedSourceNodes.some(x=>x.href==='https://example.org/approved-chronology'),
+ 'Approved nested factory source citation missing');
+assert(!nestedSourceNodes.some(x=>x.href==='https://example.org/draft-chronology'||
+ x.href==='https://example.org/captured-only'),
+ 'Unapproved nested source URL leaked');
+assert(!nestedSourceNodes.some(x=>(x.textContent||'').includes('BLOCKED DRAFT CHRONOLOGY')),
+ 'Draft nested chronology leaked');
+console.log('PASS: approved nested factory sources retain citations without draft leakage');
+
 console.log('PASS: source-verified facts retain numeric units and announcement dates');
 
 
