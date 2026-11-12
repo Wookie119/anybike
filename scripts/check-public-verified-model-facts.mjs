@@ -454,6 +454,31 @@ assert.equal(incrementalBody.children.filter(x=>x.dataset?.anybikeVerifiedModelF
 
 
 
+// A reused guide body must not retain verified facts from another model.
+const previousModelPanel=fakeElement('section');
+previousModelPanel.dataset.anybikeVerifiedModelFacts='1';
+previousModelPanel.dataset.anybikeResearchIdentity=JSON.stringify(['suzuki','rm250']);
+const previousModelGroup=fakeElement('div');
+previousModelGroup.dataset.anybikeResearchCategory='engine';
+previousModelGroup.dataset.anybikeResearchIdentity=JSON.stringify(['suzuki','rm250']);
+previousModelGroup.dataset.anybikeResearchFactIds='old';
+previousModelPanel.append(previousModelGroup);
+const reusedModelBody={...body,children:[previousModelPanel],firstChild:previousModelPanel,
+ querySelector(selector){
+  return selector==='[data-anybike-verified-model-facts]'?
+   this.children.find(x=>x.dataset?.anybikeVerifiedModelFacts==='1')||null:null;
+ },
+ querySelectorAll(selector){
+  return selector==='[data-anybike-research-integrated="1"]'?[previousModelGroup]:[];
+ }
+};
+assert.equal(mountVerifiedModelFacts(reusedModelBody,[
+ sample({fact_id:8810,make:'Yamaha',model:'YZ250',category:'engine',value:{engine_cc:249}})
+],'Yamaha','YZ250'),1);
+assert.equal(reusedModelBody.children.includes(previousModelPanel),false,
+ 'Research from the previous motorcycle must not remain after a model identity change');
+assert.equal(reusedModelBody.children.filter(x=>x.dataset?.anybikeVerifiedModelFacts==='1').length,1,
+ 'A model route transition must retain only one exact-model research panel');
 const badDocumentBody={...body,children:[],firstChild:null};
 mountVerifiedModelFacts(badDocumentBody,[sample({
  fact_id:6703,category:'factory_documents',value:{
