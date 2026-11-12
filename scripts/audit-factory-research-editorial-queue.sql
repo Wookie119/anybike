@@ -45,3 +45,27 @@ SELECT make,COUNT(*) AS public_models,
 FROM public.anybike_public_model_research_coverage_v1
 GROUP BY make
 ORDER BY COUNT(*) FILTER (WHERE verified_research_facts=0) DESC,make;
+
+-- 5. Spot potentially duplicated claims within the same exact model.
+-- These are review signals, not instructions to delete historical facts.
+SELECT c.make,c.model,f.category,f.label,
+       COUNT(*) AS matching_records,
+       ARRAY_AGG(f.id ORDER BY f.id) AS fact_ids
+FROM public.motorcycle_catalog_facts f
+JOIN public.anybike_public_model_research_coverage_v1 c
+ ON c.model_id=f.catalog_model_id
+GROUP BY c.make,c.model,f.category,f.label
+HAVING COUNT(*)>1
+ORDER BY matching_records DESC,c.make,c.model,f.category;
+
+-- 6. Public readiness: a fact marked verified is not necessarily
+-- publishable until source audit, category and identity checks pass.
+SELECT f.verification_status,
+       COUNT(*) AS stored_facts,
+       COUNT(*) FILTER (WHERE f.source_url IS NULL) AS without_primary_url,
+       COUNT(*) FILTER (WHERE h.fact_id IS NOT NULL) AS publication_holds
+FROM public.motorcycle_catalog_facts f
+LEFT JOIN public.anybike_model_research_publication_holds_v1 h
+ ON h.fact_id=f.id
+GROUP BY f.verification_status
+ORDER BY f.verification_status;
