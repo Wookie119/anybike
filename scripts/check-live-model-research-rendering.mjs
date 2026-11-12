@@ -9,7 +9,9 @@ const origin=process.env.ANYBIKE_PUBLIC_ORIGIN||'https://www.anybike.co.uk';
 const cases=[
  {make:'Suzuki',model:'RM250'},
  {make:'Yamaha',model:'YZ250'},
- {make:'BMW',model:'R 1250 GS'}
+ {make:'BMW',model:'R 1250 GS'},
+ {make:'Honda',model:'CB500X',expectGallery:true},
+ {make:'Kawasaki',model:'Ninja 650',expectGallery:true}
 ];
 const browser=await chromium.launch({headless:true});
 let failures=0;
@@ -51,6 +53,16 @@ try{
    if(result.renderedFacts!==approved.length)
     throw new Error('Rendered article count differs from approved public facts: '+
      result.renderedFacts+' versus '+approved.length);
+   if(item.expectGallery){
+    const gallery=page.locator('[data-anybike-model-research-gallery]');
+    await gallery.waitFor({state:'attached',timeout:25000});
+    const images=await gallery.locator('img').count();
+    if(!images)throw new Error('Approved photo gallery rendered without images');
+    const galleryIdentity=await gallery.getAttribute('data-anybike-gallery-identity');
+    if(galleryIdentity!==JSON.stringify([item.make.toLowerCase(),item.model.toLowerCase()]))
+     throw new Error('Photo gallery belongs to another motorcycle');
+    result.approvedGalleryImages=images;
+   }
    console.log('PASS live model research:',item.make,item.model,JSON.stringify(result));
   }catch(error){
    failures++;
