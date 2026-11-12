@@ -53,3 +53,9 @@ assert.deepEqual(historicIndian.models.map(x=>x.name).sort(),['Chief','Four','Sc
 assert(historicIndian.models.every(x=>x.technical_specs_status==='awaiting_year_specific_primary_sources'),'Do not publish unverified historic factory specifications');
 assert(indianPage.includes('/data/indian-heritage-research.json'),'Indian manufacturer must render source-controlled historical research');
 assert(indianPage.includes('historical_research_not_stock'),'Historical Indian renderer must reject stock-like research status');
+
+assert(historicIndian.models.every(x=>x.review_gate?.stock_identity==='not_approved'),'Historical Indian models must not become modern stock identities without review');
+assert(historicIndian.models.every(x=>x.review_gate?.photography==='rights_approval_required'),'Historic photography requires rights approval');
+assert.equal(historicIndian.publication_rules.technical_specifications,'blocked_until_model_year_and_primary_source_verified','Unverified historic specifications must remain blocked');
+assert(indianPage.includes('historicContainer.replaceChildren()'),'Historic research should render once without duplicate placeholder cards');
+assert(!indianPage.includes('<h3>Indian Scout · original era</h3>'),'Do not duplicate static and database-driven historical Scout cards');
