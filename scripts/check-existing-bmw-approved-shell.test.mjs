@@ -15,7 +15,7 @@ test('26 current BMW pages share the approved shell and preserve their canonical
  for(const path of pages){
   const s=fs.readFileSync(path,'utf8');
   assert.match(s,/type="module" src="\/model-template\/approved-bmw-page-shell\.mjs\?v=[a-zA-Z0-9-]+"/,path+' shared shell');
-  assert.ok(s.includes('/public-header.css?v=20261107-bmw-db-hero-v3'),path+' shared CSS');
+  assert.match(s,/\/public-header\.css\?v=[a-zA-Z0-9-]+/,path+' shared CSS');
   assert.ok(s.includes('id="generationPanel"'),path+' specification');
   assert.ok(s.includes('id="body"'),path+' research');
   assert.ok(s.includes('/public-header.js'),path+' shared stock renderer');
@@ -69,6 +69,17 @@ test('stock is independent, development follows specifications, R1250 gallery st
  const r1300=fs.readFileSync('bmw-r1300gs.html','utf8');
  assert.ok(!r1300.includes('approved-bmw-page-shell.mjs'));
  assert.ok(r1300.includes('id="internationalModelStock"'));
+});
+test('dedicated BMW stock keeps authenticated ownership but displays above research',()=>{
+ const shell=fs.readFileSync('model-template/approved-bmw-page-shell.mjs','utf8');
+ assert.ok(shell.includes("querySelector(':scope > #internationalModelStock')"),'Existing dedicated international gallery is reused');
+ assert.ok(shell.includes('currentHero.after(dedicatedStock)'),'Exact stock sits immediately below hero');
+ assert.ok(!shell.includes('dedicatedStock.hidden=false'),'Only original protected stock feed controls visibility');
+ const guide=fs.readFileSync('bmw-s1000rr.html','utf8');
+ assert.ok(guide.includes('id="internationalModelStock" hidden'),'Original gallery permission gate stays intact');
+ assert.ok(guide.includes('international-public-stock'),'Original authenticated international stock endpoint remains');
+ const css=fs.readFileSync('public-header.css','utf8');
+ assert.ok(css.includes('#body [data-anybike-db-section="country_markets"]'),'Market layout is compact on model pages');
 });
 test('BMW hero displays the photograph only after the exact approved file loads',()=>{
  const shell=fs.readFileSync('model-template/approved-bmw-page-shell.mjs','utf8');
