@@ -21,7 +21,9 @@ export async function installApprovedSharedModelHero({root=document.querySelecto
  if(!make||!model||!hero||hero.querySelector('[data-anybike-approved-model-hero],.licensed-photo,.recovered-hero-photo'))return false;
  // Keep the current model title, research, sourcing actions and stock in place.
  const provider=typeof window!=='undefined'?window.supabase:null;
- const client=provider?.createClient?.(PROJECT,PUBLIC_KEY);
+ let client=null;
+ try{client=provider?.createClient?.(PROJECT,PUBLIC_KEY)||null;}
+ catch(error){console.warn('Optional model hero client could not initialize',error);}
  const args={p_make:make,p_model:model};
  let data=null;
  if(client){
