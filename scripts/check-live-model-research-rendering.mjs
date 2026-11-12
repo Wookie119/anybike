@@ -21,6 +21,7 @@ const cases=[
  {make:'BMW',model:'R 1100 GS'},
  {make:'BMW',model:'R 1150 GS'},
  {make:'BMW',model:'R 1150 RT'},
+ {make:'BMW',model:'R 1200 C'},
  {make:'BMW',model:'F 700 GS'},
  {make:'BMW',model:'F 800 GS'},
  {make:'BMW',model:'F 800 GT'},
