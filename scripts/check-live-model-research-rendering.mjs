@@ -67,6 +67,9 @@ try{
      title:document.title};
    });
    if(!result.groups)throw new Error('No sourced model research rendered');
+   if(!result.title.toLowerCase().includes(item.make.toLowerCase())||
+      !result.title.toLowerCase().includes(item.model.toLowerCase()))
+    throw new Error('Public page title does not identify the exact motorcycle: '+result.title);
    if(result.foreign)throw new Error('Research from another motorcycle rendered');
    if(result.unsafeSources)throw new Error('Research source links are insecure or unlabelled');
    if(result.overflowingResearch)throw new Error('Research panels overflow the visible viewport');
