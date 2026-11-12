@@ -161,8 +161,7 @@ export function orderedVerifiedFactoryFacts(items){
 }
 const node=(doc,tag,value)=>{const el=doc.createElement(tag);el.textContent=String(value??'');return el;};
 export function mountVerifiedModelFacts(body,rows,make,model){
- if(!body||body.querySelector?.('[data-anybike-verified-model-facts]')||
-    body.querySelector?.('[data-anybike-research-integrated="1"]'))return 0;
+ if(!body||body.querySelector?.('[data-anybike-verified-model-facts]'))return 0;
  const alreadyIntegrated=new Set(
   [...body.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]]
    .map(group=>group.dataset?.anybikeResearchCategory).filter(Boolean)
