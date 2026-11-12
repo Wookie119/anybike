@@ -79,6 +79,18 @@ async function mount(){
    }
   }catch(error){console.warn('Dedicated model route lookup unavailable',error)}
  }
+ // Offline-safe reviewed route map: never guess dedicated BMW/Harley URLs.
+ if((make==='BMW'||make==='Harley-Davidson')&&!routes.length){
+  try{
+   const response=await fetch('/data/approved-dedicated-model-routes.json',{cache:'default'});
+   if(response.ok){
+    const data=await response.json();
+    if(Array.isArray(data.models))routes=data.models.filter(x=>x&&normalize(x.make)===normalize(make)&&
+     typeof x.model==='string'&&typeof x.url==='string'&&
+     /^\\/(?:bmw|harley-davidson)-[a-z0-9-]+\\.html$/.test(x.url));
+   }
+  }catch(error){console.warn('Verified dedicated model route fallback unavailable',error)}
+ }
  const byModel=new Map(routes.map(x=>[normalize(x.model),x.url]));
  // The public catalogue is the reviewed directory. Existing verified BMW
  // and Harley guide routes may also appear even before a catalogue refresh.
