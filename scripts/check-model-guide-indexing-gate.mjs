@@ -27,6 +27,7 @@ const directory=readFileSync(new URL('../motorcycle-manufacturers.html',import.m
 assert(indianPage.includes('rel="canonical" href="https://www.anybike.co.uk/indian-motorcycles.html"'),'Indian history page canonical must point to dedicated route');
 assert(indianPage.includes('Burt Munro')&&indianPage.includes('Victory and Polaris'),'Indian page must preserve Munro and Victory history');
 assert(indianPage.includes('/data/motorcycle-index-identities.json'),'Indian models must use the approved catalogue');
+assert(indianPage.includes('<header id="publicHeader"></header>'),'Indian manufacturer missing shared AnyBike header');
 assert(directory.includes('data-name="indian motorcycle" href="/indian-motorcycles.html"'),'All-manufacturer directory must link to Indian history');
 assert(brand.includes('location.replace("/indian-motorcycles.html")'),'Old Indian manufacturer query routes must redirect to the history page');
 assert.equal(locs.filter(x=>x.includes('/markets/')).length,217,'Sitemap must retain all country pages');
@@ -41,4 +42,5 @@ for(const slug of ['burt-munro-worlds-fastest-indian','indian-scout-chief-and-sp
  const story=readFileSync(new URL('../global/'+slug+'.html',import.meta.url),'utf8');
  assert(story.includes('rel="canonical" href="'+url+'"'),'Indian story missing canonical: '+slug);
  assert(story.includes('/indian-motorcycles.html'),'Indian story must link back to manufacturer: '+slug);
+ assert(story.includes('<header id="publicHeader"></header>'),'Indian story missing shared AnyBike header: '+slug);
 }
