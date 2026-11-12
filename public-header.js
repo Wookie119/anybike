@@ -3065,9 +3065,10 @@ async function anybikeShowPublicSignedInIdentity(){
 /* Complete manufacturer/model links, loaded only on catalogue pages. */
 (function(){
  const path=location.pathname;
- if(path==='/motorcycle-brand.html'||path==='/bmw-motorcycles.html'||path==='/harley-davidson-motorcycles.html'||path==='/motorcycle-model-guide.html'||/^\\/(?:bmw|harley-davidson)-[a-z0-9-]+\\.html$/.test(path)){
+ const dedicated=(path.startsWith('/bmw-')||path.startsWith('/harley-davidson-'))&&path.endsWith('.html');
+ if(path==='/motorcycle-brand.html'||path==='/bmw-motorcycles.html'||path==='/harley-davidson-motorcycles.html'||path==='/motorcycle-model-guide.html'||dedicated){
   const script=document.createElement('script');
-  script.src='/motorcycle-complete-catalogue-navigation.js?v=20261112a';
+  script.src='/motorcycle-complete-catalogue-navigation.js?v=20261112b';
   script.defer=true;document.head.append(script);
  }
 })();
