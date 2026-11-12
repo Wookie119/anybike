@@ -7,6 +7,11 @@ const script=readFileSync('motorcycle-complete-catalogue-navigation.js','utf8');
 const header=readFileSync('public-header.js','utf8');
 const brand=readFileSync('motorcycle-brand.html','utf8');
 const guide=readFileSync('motorcycle-model-guide.html','utf8');
+const dedicatedRoutes=JSON.parse(readFileSync('data/approved-dedicated-model-routes.json','utf8')).models;
+assert.equal(dedicatedRoutes.filter(x=>x.make==='BMW').length,27,'BMW dedicated fallback route count');
+assert.equal(dedicatedRoutes.filter(x=>x.make==='Harley-Davidson').length,18,'Harley dedicated fallback route count');
+for(const route of dedicatedRoutes){assert(/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(route.url),'Dedicated route must be a safe local guide');assert(readFileSync('.'+route.url,'utf8').includes('<main'),'Dedicated route must exist and contain a model page');}
+assert(script.includes('/data/approved-dedicated-model-routes.json'),'Canonical navigation must use verified dedicated offline fallback');
 const models=catalogue.models.filter(x=>x&&x.make?.trim()&&x.model?.trim());
 const key=x=>x.toLowerCase().replace(/[^a-z0-9]/g,'');
 const manufacturers=new Map();
