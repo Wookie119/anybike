@@ -22,5 +22,12 @@ assert.equal(locs.filter(x=>x.includes('/motorcycle-brand.html?')).length,new Se
 assert(locs.includes('https://www.anybike.co.uk/bmw-motorcycles.html'),'BMW manufacturer sitemap entry missing');
 assert(locs.includes('https://www.anybike.co.uk/harley-davidson-motorcycles.html'),'Harley manufacturer sitemap entry missing');
 assert(locs.includes('https://www.anybike.co.uk/indian-motorcycles.html'),'Indian historical manufacturer sitemap entry missing');
+const indianPage=readFileSync(new URL('../indian-motorcycles.html',import.meta.url),'utf8');
+const directory=readFileSync(new URL('../motorcycle-manufacturers.html',import.meta.url),'utf8');
+assert(indianPage.includes('rel="canonical" href="https://www.anybike.co.uk/indian-motorcycles.html"'),'Indian history page canonical must point to dedicated route');
+assert(indianPage.includes('Burt Munro')&&indianPage.includes('Victory and Polaris'),'Indian page must preserve Munro and Victory history');
+assert(indianPage.includes('/data/motorcycle-index-identities.json'),'Indian models must use the approved catalogue');
+assert(directory.includes('data-name="indian motorcycle" href="/indian-motorcycles.html"'),'All-manufacturer directory must link to Indian history');
+assert(brand.includes('location.replace("/indian-motorcycles.html")'),'Old Indian manufacturer query routes must redirect to the history page');
 assert.equal(locs.filter(x=>x.includes('/markets/')).length,217,'Sitemap must retain all country pages');
 console.log('PASS: model, manufacturer and country discoverability safeguards');
