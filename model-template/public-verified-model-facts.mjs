@@ -3,6 +3,22 @@
 // universal editorial publication or a source for motorcycle stock.
 const ENDPOINT='https://tuehtnezhdnkqbbhttgp.supabase.co';
 const PUBLIC_KEY='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
+// The public verified-facts RPC is readable without a Supabase JS bundle.
+// Keep research available if the third-party client CDN fails to load.
+const publicRpcClient={
+ async rpc(name,args){
+  if(!['public_anybike_verified_model_facts_v1','public_anybike_manufacturer_model_routes_v1'].includes(name))
+   return {data:null,error:new Error('Unapproved public RPC')};
+  try{
+   const response=await fetch(ENDPOINT+'/rest/v1/rpc/'+name,{
+    method:'POST',headers:{apikey:PUBLIC_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify(args||{})
+   });
+   if(!response.ok)return {data:null,error:new Error('Public research HTTP '+response.status)};
+   return {data:await response.json(),error:null};
+  }catch(error){return {data:null,error};}
+ }
+};
 const sections={
  model_year:'Documented model years and specifications',
  engineering:'Engineering and technical development',
@@ -520,8 +536,7 @@ export async function installVerifiedModelFacts({body,make,model,client}={}){
   if(group.dataset?.anybikeResearchIdentity&&
      group.dataset.anybikeResearchIdentity!==requestedIdentity)group.remove?.();
  }
- const db=client||globalThis.supabase?.createClient?.(ENDPOINT,PUBLIC_KEY);
- if(!db)return 0;
+ const db=client||globalThis.supabase?.createClient?.(ENDPOINT,PUBLIC_KEY)||publicRpcClient;
  try{
   const {data,error}=await db.rpc('public_anybike_verified_model_facts_v1',
    {p_make:make,p_model:model});
@@ -548,8 +563,7 @@ if(typeof document!=='undefined'&&typeof location!=='undefined'){
      !location.pathname.endsWith('.html')||
      location.pathname==='/bmw-motorcycles.html'||
      location.pathname==='/bmw-r1300gs.html')return;
-  const db=globalThis.supabase?.createClient?.(ENDPOINT,PUBLIC_KEY);
-  if(!db)return;
+  const db=globalThis.supabase?.createClient?.(ENDPOINT,PUBLIC_KEY)||publicRpcClient;
   try{
    const {data,error}=await db.rpc('public_anybike_manufacturer_model_routes_v1',{p_make:'BMW'});
    if(error||!Array.isArray(data))return;
