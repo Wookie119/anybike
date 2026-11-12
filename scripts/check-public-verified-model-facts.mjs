@@ -907,7 +907,7 @@ assert.equal(preservedBody.children.filter(x=>x.dataset?.anybikeVerifiedModelFac
  'Temporary RPC failure must not erase the last verified research display');
 
 const html=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
-assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261112-research-rest-retry10'));
+assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261112-research-rest-throw11'));
 assert(html.indexOf('id="body"')>html.indexOf('id="generationPanel"'));
 assert(html.includes('catalogue.models.find(x=>x&&typeof x.make==="string"&&typeof x.model==="string"'),
  'Malformed catalogue entries must not crash public model guides');
