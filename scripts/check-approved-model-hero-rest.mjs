@@ -5,7 +5,7 @@ const source=readFileSync(new URL('../model-template/public-approved-model-hero.
 const guide=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
 assert(source.includes("'/rest/v1/rpc/public_anybike_model_hero_v1'"),'Approved hero must use public RPC only');
 assert(source.includes('if(!data){'),'Failed optional client must fall back to REST');
-assert(guide.includes('public-approved-model-hero.mjs?v=20261112-hero-rest2'),'Shared guide must load current approved hero');
+assert(guide.includes('public-approved-model-hero.mjs?v=20261112-hero-rest3'),'Shared guide must load current approved hero');
 const safe={make:'BMW',model:'R 1250 GS',image_url:'https://example.org/approved.jpg',source_page_url:'https://example.org/source',licence_url:'https://example.org/licence',licence:'CC BY',attribution:'Author'};
 assert(approvedHeroCandidate(safe,'BMW','R 1250 GS'));
 assert(!approvedHeroCandidate({...safe,model:'R 1300 GS'},'BMW','R 1250 GS'));
