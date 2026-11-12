@@ -403,6 +403,9 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   if(existing){
    // The source-linked group stays visually readable inside dark legacy cards.
    group.style.cssText+=';background:#fff;color:#171717;padding:16px;border:1px solid #dedede;border-radius:8px';
+   // Integrated research sits on a white surface: override dark-panel metadata colours.
+   references.style.color='#444';
+   for(const link of references.querySelectorAll('a'))link.style.color='#b5121b';
    groupHeading.style.display='none'; // The approved card already owns this heading.
    group.dataset.anybikeResearchIntegrated='1';
    existing.dataset.anybikeResearchCategory=category;
