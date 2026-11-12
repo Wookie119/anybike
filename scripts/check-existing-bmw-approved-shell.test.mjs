@@ -54,7 +54,9 @@ test('stock is independent, development follows specifications, R1250 gallery st
  assert.ok(!research.includes('Reference year: '));
  assert.ok(research.includes('nav.className=\'anybike-db-model-links\''));
  assert.ok(research.includes('primary.replaceWith(card)'), 'Database facts must replace old cards at their original positions');
- assert.ok(research.includes('for(const duplicate of others.slice(1))duplicate.remove()'), 'Remove repeat sections only');
+ assert.ok(research.includes('for(const duplicate of others.slice(1)){')&&
+  research.includes('preserveVerifiedGroups(duplicate);')&&research.includes('duplicate.remove();'),
+  'Remove repeat sections only after preserving their verified research groups');
  assert.ok(!research.includes('for(const legacy of others)legacy.remove();'), 'Do not drop source section order');
  assert.ok(research.includes('if(last)last.after(card);else body.append(card)'), 'New cards stay in the research group');
 
