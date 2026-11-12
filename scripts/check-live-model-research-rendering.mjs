@@ -11,7 +11,9 @@ const cases=[
  {make:'Yamaha',model:'YZ250'},
  {make:'BMW',model:'R 1250 GS'},
  {make:'Honda',model:'CB500X',expectGallery:true},
- {make:'Kawasaki',model:'Ninja 650',expectGallery:true}
+ {make:'Kawasaki',model:'Ninja 650',expectGallery:true},
+ {make:'Triumph',model:'STREET TRIPLE 765 RS',expectGallery:true},
+ {make:'Triumph',model:'TIGER 900 GT PRO',expectGallery:true}
 ];
 const browser=await chromium.launch({headless:true});
 let failures=0;
@@ -58,6 +60,22 @@ try{
     await gallery.waitFor({state:'attached',timeout:25000});
     const images=await gallery.locator('img').count();
     if(!images)throw new Error('Approved photo gallery rendered without images');
+    const approvedGalleryResponse=await page.request.post(
+     'https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_verified_model_gallery_v1',
+     {headers:{apikey:'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK'},
+      data:{p_make:item.make,p_model:item.model}});
+    if(!approvedGalleryResponse.ok())throw new Error('Gallery RPC HTTP '+approvedGalleryResponse.status());
+    const approvedPhotos=await approvedGalleryResponse.json();
+    if(!Array.isArray(approvedPhotos)||images!==approvedPhotos.length)
+     throw new Error('Rendered photo count does not match approved gallery RPC: '+
+      images+' versus '+approvedPhotos?.length);
+    const imageChecks=await gallery.locator('img').evaluateAll(nodes=>nodes.map(img=>({
+     url:img.currentSrc||img.src,loaded:img.complete&&img.naturalWidth>0,
+     alt:img.alt
+    })));
+    if(imageChecks.some(x=>!x.loaded||!x.alt))
+     throw new Error('Gallery has unloaded or unlabelled approved photographs: '+
+      JSON.stringify(imageChecks));
     const galleryIdentity=await gallery.getAttribute('data-anybike-gallery-identity');
     if(galleryIdentity!==JSON.stringify([item.make.toLowerCase(),item.model.toLowerCase()]))
      throw new Error('Photo gallery belongs to another motorcycle');
