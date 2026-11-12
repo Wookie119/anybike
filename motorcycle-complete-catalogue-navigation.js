@@ -189,6 +189,17 @@ async function mount(){
  const buyerActions=main.querySelector('#ukSellerAction,#nextAction,section[aria-label="UK motorcycle selling"]');
  if(buyerActions)buyerActions.before(nav);else main.append(nav);
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>void mount(),{once:true});
-else void mount();
+// Some generic model guides create their <main> after DOMContentLoaded.
+// Wait only for that root; do not repeatedly scan unrelated page mutations.
+function start(){
+ if(document.querySelector('main')){void mount();return;}
+ const observer=new MutationObserver(()=>{
+  if(!document.querySelector('main'))return;
+  observer.disconnect();
+  void mount();
+ });
+ observer.observe(document.documentElement,{childList:true,subtree:true});
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
+else start();
 })();
