@@ -15,7 +15,9 @@ const sections={
  manufacturing:'Manufacturing',production:'Production records',
  market_launch:'Market introductions',history:'Motorcycle history',
  competition:'Competition history',motorsport:'Documented racing and motorsport',design:'Design and development',
- touring:'Touring equipment and specifications'
+ touring:'Touring equipment and specifications',
+ factory_documents:'Factory documents and brochures',
+ used_buying:'Used buying and ownership guidance'
 };
 // Fixed category order keeps every exact-model guide consistent even when
 // factory facts arrive in a different year/order from Supabase.
@@ -23,7 +25,7 @@ const researchOrder=[
  'model_year','market_launch','history','design','engineering','engine',
  'transmission','performance','specification','dimensions','chassis','wheels',
  'brakes','factory_colours','manufacturing_evidence','manufacturing','production',
- 'competition','motorsport','touring'
+ 'competition','motorsport','touring','factory_documents','used_buying'
 ];
 const safeText=x=>typeof x==='string'?x.trim():'';
 const validUrl=x=>typeof x==='string'&&/^https:\/\/[^\s/?#]+(?:[^\s]*)$/i.test(x);
@@ -41,7 +43,8 @@ const internalValueKeys=new Set([
  'editorial_status','publication_status','verification_status',
  'approval_status','review_status','reviewer','reviewer_notes',
  'internal_notes','private_notes','draft','draft_notes','unverified',
- 'created_at','updated_at','approved_at','published_at','audit_id'
+ 'created_at','updated_at','approved_at','published_at','audit_id',
+ 'document_url'
 ]);
 const pretty=x=>factLabels[x]||x.replace(/_/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
 const scalar=x=>typeof x==='string'&&x.trim()?x.trim():typeof x==='number'&&Number.isFinite(x)?String(x):null;
@@ -161,6 +164,20 @@ export function mountVerifiedModelFacts(body,rows,make,model){
     dl.append(term,value);
    }
    article.append(dl);
+   // Only fact records already approved, audited and assigned to factory
+   // documents may include a clickable official reference. Other arbitrary
+   // value keys never become navigable HTML or private download links.
+   if(fact.category==='factory_documents'&&fact.value&&
+      typeof fact.value==='object'&&!Array.isArray(fact.value)){
+    const documentUrl=safeText(fact.value.document_url);
+    const name=safeText(fact.value.document_title).slice(0,140)||'Open manufacturer document archive';
+    if(validUrl(documentUrl)&&/^https:\/\/[^\s]+$/i.test(documentUrl)){
+     const ref=node(doc,'a',name+' ↗');
+     ref.href=documentUrl;ref.target='_blank';ref.rel='noopener noreferrer';
+     ref.style.cssText='display:inline-block;margin-top:12px;color:#fff;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px;overflow-wrap:anywhere';
+     article.append(ref);
+    }
+   }
    grid.append(article);
   }
   group.append(grid);
