@@ -4,6 +4,8 @@ const verifiedSource=readFileSync('model-template/public-verified-model-facts.mj
 assert(verifiedSource.includes('const publicRpcClient='),'Verified model facts must have an independent public REST fallback');
 assert(verifiedSource.includes("'public_anybike_verified_model_facts_v1'"),'REST fallback must be restricted to the approved verified-facts RPC');
 assert(verifiedSource.includes('||publicRpcClient'),'Verified model facts must work without the external Supabase JS client');
+assert(verifiedSource.includes('catch(primaryError)'),'Thrown errors from the optional Supabase client must trigger the approved public fallback');
+assert(verifiedSource.includes('!client&&db!==publicRpcClient&&(error||!Array.isArray(data))'),'Explicit supplied clients must never be bypassed by the public fallback');
 import {approvedResearchSectionHeading,exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts,verifiedFactoryDate,orderedVerifiedFactoryFacts,verifiedEngineeringVariants,documentedScalarField} from '../model-template/public-verified-model-facts.mjs';
 import {approvedExactModelGallery,mountApprovedModelGallery,installApprovedModelGallery} from '../model-template/public-approved-model-gallery.mjs';
 import {exactApprovedHarleyRoute,installApprovedHarleyResearch} from '../model-template/public-harley-verified-research.mjs';
