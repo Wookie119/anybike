@@ -61,3 +61,31 @@ WHERE verified_research_facts > 0
   AND verified_research_facts <>
       jsonb_array_length(public.public_anybike_verified_model_facts_v1(make, model))
 ORDER BY make, model;
+
+-- Representative cross-manufacturer publication probes. These call the same
+-- exact-model public endpoints used by the browser and make missing audited
+-- content or licensed galleries visible without fabricating fallback records.
+-- A zero means "not yet approved/published", NOT "no such motorcycle exists".
+WITH probes(make, model) AS (
+ VALUES
+ ('BMW','R 1300 GS'),('BMW','R 1250 GS'),('BMW','F 900 GS'),
+ ('BMW','S 1000 RR'),('Suzuki','RM250'),('Yamaha','YZ250'),
+ ('Honda','Africa Twin'),('Ducati','Panigale V4'),
+ ('Harley-Davidson','Fat Boy'),('Kawasaki','Ninja ZX-10R')
+)
+SELECT make,model,
+       jsonb_array_length(public.public_anybike_verified_model_facts_v1(make,model))
+         AS audited_public_facts,
+       jsonb_array_length(public.public_anybike_verified_model_gallery_v1(make,model))
+         AS approved_gallery_photos
+FROM probes
+ORDER BY make,model;
+
+-- Find the highest-priority researched models awaiting usable photography.
+-- Hero metadata and gallery metadata are tracked separately: an approved
+-- hero is not evidence that a gallery can display a cleaned, licensed image.
+SELECT make,model,verified_research_facts,approved_hero_photos,approved_gallery_photos
+FROM public.anybike_public_model_research_coverage_v1
+WHERE verified_research_facts>0
+  AND approved_gallery_photos=0
+ORDER BY verified_research_facts DESC,make,model;
