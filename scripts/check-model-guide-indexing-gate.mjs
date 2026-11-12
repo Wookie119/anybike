@@ -46,3 +46,10 @@ for(const slug of ['burt-munro-worlds-fastest-indian','indian-scout-chief-and-sp
  assert(story.includes('/indian-motorcycles.html'),'Indian story must link back to manufacturer: '+slug);
  assert(story.includes('<header id="publicHeader"></header>'),'Indian story missing shared AnyBike header: '+slug);
 }
+
+const historicIndian=JSON.parse(readFileSync(new URL('../data/indian-heritage-research.json',import.meta.url),'utf8'));
+assert.equal(historicIndian.editorial_status,'historical_research_not_stock','Historic Indian research must not be presented as approved stock');
+assert.deepEqual(historicIndian.models.map(x=>x.name).sort(),['Chief','Four','Scout'],'Original Indian research families must remain distinct');
+assert(historicIndian.models.every(x=>x.technical_specs_status==='awaiting_year_specific_primary_sources'),'Do not publish unverified historic factory specifications');
+assert(indianPage.includes('/data/indian-heritage-research.json'),'Indian manufacturer must render source-controlled historical research');
+assert(indianPage.includes('historical_research_not_stock'),'Historical Indian renderer must reject stock-like research status');
