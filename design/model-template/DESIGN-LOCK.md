@@ -8,7 +8,7 @@ Status: DESIGN LOCKED; content/data validation and launch approval are separate.
 - Do not create alternative model-page designs or independently restyle manufacturer/model pages.
 - Future model pages must render from ONE shared database-driven template, with model-specific facts, images and relevant sections loaded from Supabase. Do not fork the markup/CSS for each make/model.
 - Design changes require explicit user approval. Content edits, verified photo updates and bug fixes must preserve this design.
-- Do not roll out to other model pages until the user approves the completed master template.
+- User has expressly approved applying the existing R 1300 GS master design to every manufacturer and model (12 November 2026). Roll out through the ONE shared database-driven renderer; this approval does not waive verification or permit redesign.
 
 ## Frozen visual language
 - Page background black; outer main sections charcoal grey with full corporate red border #ed1c24.
@@ -35,7 +35,7 @@ Status: DESIGN LOCKED; content/data validation and launch approval are separate.
 - For international visitors, display **published stock matching the exact model identity** above the research; offer it to guests and signed-in visitors equally. Permitted factory trim variants are allowed; distinct models (including GS Adventure) must never be substituted.
 - For UK visitors, preserve the same complete research page. The protected international stock endpoint continues to enforce the current geographical stock restrictions. A 403, timeout, zero stock or sign-in failure must never hide research or collapse the approved model-year gallery.
 - All live model pages must use the same renderer and shared CSS design tokens. Avoid country/account-conditionals in markup, parallel UK/international gallery copies, or static per-model template forks.
-- Until the shared template passes automated checks across model identities, viewport sizes, authentication states and stock responses, **do not replace approved live model pages or roll out additional models**.
+- Until the shared template passes automated checks across model identities, viewport sizes, authentication states and stock responses, **do not replace approved live model pages until the relevant automated checks pass**. The user has approved the site-wide rollout; release gates still apply to each deployment.
 - Separate publication permission from content completeness. A database model row does not by itself authorise public rendering or indexing.
 
 ## User-approved R 1300 GS section-order refinement — 7 November 2026
@@ -50,3 +50,10 @@ Status: DESIGN LOCKED; content/data validation and launch approval are separate.
 - This changes the placement, not the approved styling, stock matching, photograph licensing, underlying facts or section availability.
 - Stock is a separate panel immediately below the hero. The model specification and development/gallery must remain present for every visitor even when geographic stock restrictions, zero listings or feed failures prevent sale cards appearing.
 - The universal 13-section renderer must use the same sales-first order. Never create a separate UK, overseas, logged-in, dealer or private-user layout.
+
+## Universal rollout decision — 12 November 2026
+- Apply the approved BMW R 1300 GS visual composition to all manufacturer/model identities; do not ask for design approval again.
+- Preserve the immutable approved snapshot and existing model-specific verified editorial content, photo credits and canonical routes.
+- Migrate legacy generic model routes into the shared rendering system rather than proliferating new per-model templates.
+- For each batch, verify exact-model matching, all research sections, source-backed photographs, responsive design, and stock-failure isolation before promoting changes to live pages.
+- Report committed changes separately from verified live deployment; never manually upload to 123-reg.
