@@ -179,7 +179,10 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   const matches=[...body.querySelectorAll('section.card')].filter(card=>
    !card.dataset?.anybikeVerifiedModelFacts&&
    !card.dataset?.anybikeResearchCategory&&
-   approvedResearchSectionHeading(category,card.querySelector?.('h2')?.textContent)
+   // Only direct approved section headings count. A nested article heading
+   // must never redirect research into an unrelated parent card.
+   approvedResearchSectionHeading(category,[...card.children].find(child=>child.tagName?.toLowerCase()==='h2')?.textContent||
+    (!card.children?.length?card.querySelector?.('h2')?.textContent:''))
   );
   return matches.length===1?matches[0]:null;
  };
