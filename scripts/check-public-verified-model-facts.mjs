@@ -493,6 +493,23 @@ assert.equal(reusedModelBody.children.includes(previousModelPanel),false,
  'Research from the previous motorcycle must not remain after a model identity change');
 assert.equal(reusedModelBody.children.filter(x=>x.dataset?.anybikeVerifiedModelFacts==='1').length,1,
  'A model route transition must retain only one exact-model research panel');
+const documentRefreshBody={...body,children:[],firstChild:null,
+ querySelector(selector){
+  return selector==='[data-anybike-verified-model-facts]'?
+   this.children.find(x=>x.dataset?.anybikeVerifiedModelFacts==='1')||null:null;
+ }
+};
+const documentFact=url=>sample({fact_id:8891,category:'factory_documents',
+ value:{document_type:'Factory archive',document_url:url,document_title:'Factory archive'}});
+assert.equal(mountVerifiedModelFacts(documentRefreshBody,[
+ documentFact('https://example.com/first')
+],'Suzuki','RM250'),1);
+assert.equal(mountVerifiedModelFacts(documentRefreshBody,[
+ documentFact('https://example.com/updated')
+],'Suzuki','RM250'),1,
+ 'Correcting an approved factory document URL must refresh the public source link');
+assert.equal(documentRefreshBody.children.filter(x=>x.dataset?.anybikeVerifiedModelFacts==='1').length,1,
+ 'A corrected factory document link must reuse its existing research panel');
 const badDocumentBody={...body,children:[],firstChild:null};
 mountVerifiedModelFacts(badDocumentBody,[sample({
  fact_id:6703,category:'factory_documents',value:{
