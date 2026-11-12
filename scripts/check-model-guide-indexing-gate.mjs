@@ -28,6 +28,7 @@ assert(indianPage.includes('rel="canonical" href="https://www.anybike.co.uk/indi
 assert(indianPage.includes('Burt Munro')&&indianPage.includes('Victory and Polaris'),'Indian page must preserve Munro and Victory history');
 assert(indianPage.includes('/data/motorcycle-index-identities.json'),'Indian models must use the approved catalogue');
 assert(indianPage.includes('<header id="publicHeader"></header>'),'Indian manufacturer missing shared AnyBike header');
+for(const id of ['history','legends','munro','global-stories','models','research'])assert(indianPage.includes('href="#'+id+'"')&&indianPage.includes('id="'+id+'"'),'Indian section navigation broken: '+id);
 assert(directory.includes('data-name="indian motorcycle" href="/indian-motorcycles.html"'),'All-manufacturer directory must link to Indian history');
 assert(brand.includes('location.replace("/indian-motorcycles.html")'),'Old Indian manufacturer query routes must redirect to the history page');
 assert.equal(locs.filter(x=>x.includes('/markets/')).length,217,'Sitemap must retain all country pages');
