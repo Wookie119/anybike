@@ -51,16 +51,21 @@ export function addDatabaseCountryNavigation(body,items){
   el.append(details);
  }
  body.append(el);
- // The legacy model-guide loader can finish after the country RPC and replace
- // all research children. Reattach the SAME card rather than duplicating it.
+ // The legacy model-guide loader may replace the research card once.
+ // Reattach this SAME card once if necessary, then disconnect. A permanent
+ // re-append observer can clash with the database research reconciler and
+ // starve the browser event loop on long model pages.
  if(typeof MutationObserver!=='undefined'){
   const observer=new MutationObserver(()=>{
-   if(!el.isConnected&&body.isConnected&&
-      !body.querySelector('[data-anybike-db-section="country_markets"]')){
-    body.append(el);
+   if(!body.isConnected){observer.disconnect();return;}
+   if(!el.isConnected){
+    observer.disconnect();
+    if(!body.querySelector('[data-anybike-db-section="country_markets"]'))
+     body.append(el);
    }
   });
   observer.observe(body,{childList:true});
+  setTimeout(()=>observer.disconnect(),4000);
  }
  return true;
 }
