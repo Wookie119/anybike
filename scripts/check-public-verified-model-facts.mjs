@@ -80,27 +80,6 @@ const documentedOwnership=exactVerifiedModelFacts([sample({
 })],'Suzuki','RM250');
 assert.equal(documentedOwnership[0].display[0].value.split(' · ').length,3,
  'Sourced used buying and ownership research needs a readable checklist');
-const documentBody={...body,children:[],firstChild:null};
-assert.equal(mountVerifiedModelFacts(documentBody,[sample({
- fact_id:6702,make:'Ducati',model:'Monster 937',category:'factory_documents',
- label:'Official owner handbook',value:{
-  document_title:'Choose exact factory manual',
-  document_url:'https://www.ducati.com/gb/en/service-maintenance/owner-manuals',
-  document_type:'Official archive'
- }
-})],'Ducati','Monster 937'),1);
-const documentGroups=documentBody.children[0].children.filter(x=>x.tag==='div');
-const documentArticle=documentGroups[0].children.find(x=>x.tag==='div')?.children[0];
-assert(documentArticle?.children.some(x=>x.tag==='a'&&x.href==='https://www.ducati.com/gb/en/service-maintenance/owner-manuals'),
- 'Factory archive document links should actually display in the shared public page');
-const badDocumentBody={...body,children:[],firstChild:null};
-mountVerifiedModelFacts(badDocumentBody,[sample({
- fact_id:6703,category:'factory_documents',value:{
-  document_type:'Official archive',document_url:'javascript:alert(1)'
- }
-})],'Suzuki','RM250');
-const badArticle=badDocumentBody.children[0].children.filter(x=>x.tag==='div')[0].children.find(x=>x.tag==='div').children[0];
-assert(!badArticle.children.some(x=>x.tag==='a'),'Unsafe document links must not render');
 
 const documentedColour=exactVerifiedModelFacts([sample({
  fact_id:52,category:'factory_colours',label:'Factory colour: Blackstorm metallic',
@@ -165,6 +144,28 @@ function fakeElement(tag){
 const doc={createElement:fakeElement};
 const body={ownerDocument:doc,children:[],firstChild:null,querySelector(){return this.children.find(x=>x.dataset?.anybikeVerifiedModelFacts)||null},
  insertBefore(child){this.children.unshift(child);this.firstChild=this.children[0];}};
+const documentBody={...body,children:[],firstChild:null};
+assert.equal(mountVerifiedModelFacts(documentBody,[sample({
+ fact_id:6702,make:'Ducati',model:'Monster 937',category:'factory_documents',
+ label:'Official owner handbook',value:{
+  document_title:'Choose exact factory manual',
+  document_url:'https://www.ducati.com/gb/en/service-maintenance/owner-manuals',
+  document_type:'Official archive'
+ }
+})],'Ducati','Monster 937'),1);
+const documentGroups=documentBody.children[0].children.filter(x=>x.tag==='div');
+const documentArticle=documentGroups[0].children.find(x=>x.tag==='div')?.children[0];
+assert(documentArticle?.children.some(x=>x.tag==='a'&&x.href==='https://www.ducati.com/gb/en/service-maintenance/owner-manuals'),
+ 'Factory archive document links should actually display in the shared public page');
+const badDocumentBody={...body,children:[],firstChild:null};
+mountVerifiedModelFacts(badDocumentBody,[sample({
+ fact_id:6703,category:'factory_documents',value:{
+  document_type:'Official archive',document_url:'javascript:alert(1)'
+ }
+})],'Suzuki','RM250');
+const badArticle=badDocumentBody.children[0].children.filter(x=>x.tag==='div')[0].children.find(x=>x.tag==='div').children[0];
+assert(!badArticle.children.some(x=>x.tag==='a'),'Unsafe document links must not render');
+
 assert.equal(mountVerifiedModelFacts(body,[sample()],'Suzuki','RM250'),1);
 assert.equal(body.children.length,1);
 assert.equal(body.children[0].dataset.anybikeVerifiedModelFacts,'1');
