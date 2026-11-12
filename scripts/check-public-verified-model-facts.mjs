@@ -226,7 +226,12 @@ function fakeElement(tag){
 }
 const doc={createElement:fakeElement};
 const body={ownerDocument:doc,children:[],firstChild:null,querySelector(){return this.children.find(x=>x.dataset?.anybikeVerifiedModelFacts)||null},
- insertBefore(child){this.children.unshift(child);this.firstChild=this.children[0];}};
+ insertBefore(child){
+  const previous=this.children.indexOf(child);
+  if(previous>=0)this.children.splice(previous,1);
+  this.children.unshift(child);this.firstChild=this.children[0];
+  if(child&&typeof child==='object')child.parentNode=this;
+ }};
 const documentBody={...body,children:[],firstChild:null};
 assert.equal(mountVerifiedModelFacts(documentBody,[sample({
  fact_id:6702,make:'Ducati',model:'Monster 937',category:'factory_documents',
@@ -386,6 +391,7 @@ const incrementalBody={...body,children:[existingResearchPanel],firstChild:exist
  },
  querySelectorAll(){return []}
 };
+existingResearchPanel.parentNode=incrementalBody;
 assert.equal(mountVerifiedModelFacts(incrementalBody,[
  sample({fact_id:8790,category:'history',value:{production_year:1976}}),
  sample({fact_id:8791,category:'engine',value:{engine_cc:246}})
@@ -472,6 +478,7 @@ const reusedModelBody={...body,children:[previousModelPanel],firstChild:previous
   return selector==='[data-anybike-research-integrated="1"]'?[previousModelGroup]:[];
  }
 };
+previousModelPanel.parentNode=reusedModelBody;
 assert.equal(mountVerifiedModelFacts(reusedModelBody,[
  sample({fact_id:8810,make:'Yamaha',model:'YZ250',category:'engine',value:{engine_cc:249}})
 ],'Yamaha','YZ250'),1);
