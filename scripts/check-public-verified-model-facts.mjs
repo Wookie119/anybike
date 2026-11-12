@@ -4,6 +4,9 @@ import {approvedResearchSectionHeading,exactVerifiedModelFacts,mountVerifiedMode
 import {approvedExactModelGallery,mountApprovedModelGallery,installApprovedModelGallery} from '../model-template/public-approved-model-gallery.mjs';
 import {exactApprovedHarleyRoute,installApprovedHarleyResearch} from '../model-template/public-harley-verified-research.mjs';
 assert(approvedResearchSectionHeading('factory_colours','Factory colours'));
+assert(approvedResearchSectionHeading('factory_colours','Factory colours and special editions'),
+ 'Existing approved BMW factory colour sections should accept source-verified colour records');
+
 assert(approvedResearchSectionHeading('factory_colours','Factory colours and finishes'));
 assert(approvedResearchSectionHeading('specification','Technical specifications'));
 assert(approvedResearchSectionHeading('specification','Documented specifications'));
