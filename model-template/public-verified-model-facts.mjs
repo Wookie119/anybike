@@ -165,7 +165,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  // A fallback panel may already exist from an earlier load. New verified
  // categories should be eligible for publication without creating a second
  // full-width panel; the existing panel remains the one approved destination.
- const existingPanel=body.querySelector?.('[data-anybike-verified-model-facts]')||null;
+ let existingPanel=body.querySelector?.('[data-anybike-verified-model-facts]')||null;
  const existingGroups=[
   ...[...body.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]],
   ...[...existingPanel?.querySelectorAll?.('[data-anybike-research-category]')||[]],
@@ -180,7 +180,10 @@ export function mountVerifiedModelFacts(body,rows,make,model){
    group.remove?.();
  }
  if(existingPanel?.dataset.anybikeResearchIdentity&&
-    existingPanel.dataset.anybikeResearchIdentity!==identity)existingPanel.remove?.();
+    existingPanel.dataset.anybikeResearchIdentity!==identity){
+  existingPanel.remove?.();
+  existingPanel=null;
+ }
  const allFacts=exactVerifiedModelFacts(rows,make,model);
  // A previously published category can be withdrawn from the audited public
  // projection. Remove it on the next successful refresh rather than leaving
