@@ -21,7 +21,7 @@ with documented(catalog_model_id,category,label,value,start_year,market,source_n
  insert into public.motorcycle_catalog_facts(catalog_model_id,category,label,value,start_year,market,source_name,source_url,verification_status)
  select d.catalog_model_id,d.category,d.label,d.value,d.start_year,d.market,d.source_name,d.source_url,'verified'
  from documented d join public.motorcycle_catalog_models m on m.id=d.catalog_model_id and m.manufacturer='Yamaha'
- where (d.catalog_model_id=273 and m.model='MT-07') or (d.catalog_model_id=290 and m.model='Tenere 700')
+ where ((d.catalog_model_id=273 and m.model='MT-07') or (d.catalog_model_id=290 and m.model='Tenere 700'))
  and not exists(select 1 from public.motorcycle_catalog_facts f where f.catalog_model_id=d.catalog_model_id and f.label=d.label)
  returning id,source_url
 )
