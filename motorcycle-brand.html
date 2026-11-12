@@ -454,6 +454,19 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
  // Display clean canonical model names from Supabase as they are updated.
  // This is catalogue identity navigation, NOT publication of research facts.
  // On a denied/empty/unavailable feed, preserve the existing static directory.
+ const mergePublishedManufacturerModels=async liveModels=>{
+   try{
+     const response=await fetch("/data/motorcycle-index-identities.json",{cache:"no-cache"});
+     if(!response.ok)return {models:liveModels};
+     const data=await response.json();
+     const published=Array.isArray(data.models)?data.models.filter(x=>String(x.make||"").toLowerCase()===make.toLowerCase()):[];
+     const merged=new Map();
+     for(const item of [...published,...liveModels]){
+       if(item&&typeof item.model==="string"&&item.model.trim())merged.set(item.model.trim().toLowerCase(),item);
+     }
+     return {models:[...merged.values()]};
+   }catch(error){console.warn("Manufacturer identity merge fallback",error);return {models:liveModels}}
+ };
  const loadManufacturerCatalogue=async()=>{
    const db=typeof window!=="undefined"?window.supabase?.createClient?.(
      "https://tuehtnezhdnkqbbhttgp.supabase.co",
@@ -467,7 +480,7 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
            typeof x.model==="string"&&x.model.trim()&&
            typeof x.category==="string"&&x.category.trim())
            .map(x=>({make:x.make,model:x.model,category:x.category}));
-         if(models.length)return {models};
+         if(models.length)return await mergePublishedManufacturerModels(models);
        }
      }catch(error){
        console.warn("Public model catalogue unavailable; using existing directory",error);
@@ -487,7 +500,7 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
          const models=data.filter(x=>x&&String(x.make||"").toLowerCase()===make.toLowerCase()&&
            typeof x.model==="string"&&x.model.trim()&&
            typeof x.category==="string"&&x.category.trim());
-         if(models.length)return {models};
+         if(models.length)return await mergePublishedManufacturerModels(models);
        }
      }
    }catch(error){console.warn("Canonical manufacturer model cards unavailable; using reviewed catalogue",error)}
