@@ -54,7 +54,59 @@ async function mount(){
    }catch(error){console.warn('Dedicated model route lookup unavailable',error)}
  }
  const byModel=new Map(routes.map(x=>[normalize(x.model),x.url]));
+
+ // Curate genuine relatives only. A broad category (e.g. "Heritage") is
+ // never enough to link a 1923 R 32 with a modern GS or RT.
+ const family=n=>{
+  const words=String(n||'').toUpperCase().split(/[^A-Z0-9/]+/).filter(Boolean);
+  return words.find(x=>['GS','G/S','RT','RS','RR','XR','GT','GTL','ST'].includes(x))||null;
+ };
+ const base=n=>String(n||'').toUpperCase().replace(/ (ADVENTURE|TE|LE|SE|ASA|HIGHLINE|LOW)$/,'').trim();
+ async function correctRelated(){
+  let guides=[];
+  try{const response=await fetch('/data/motorcycle-model-guides.json');
+   if(response.ok){const json=await response.json();guides=Object.values(json.models||{});}}catch(_){}
+  const yearMap=new Map(guides.filter(x=>x&&normalize(x.make)===normalize(make)).map(x=>[normalize(x.model),x.production?.first_model_year]));
+  const existingModel=routes.find(x=>x.url===path)?.model;
+  const current=params.get('model')||existingModel;
+  const currentYear=yearMap.get(normalize(current));
+  const currentFamily=family(current);
+  const chosen=models.filter(other=>{
+   if(normalize(other)===normalize(current))return false;
+   if(base(other)===base(current))return true;
+   if(!currentFamily||family(other)!==currentFamily)return false;
+   const year=yearMap.get(normalize(other));
+   return Number.isInteger(currentYear)&&Number.isInteger(year)&&Math.abs(currentYear-year)<=22;
+  }).slice(0,12);
+  function render(){
+   const headings=Array.from(main.querySelectorAll('h2,h3')).filter(h=>/^(Explore related .* models|Model family and related motorcycles)$/i.test(h.textContent.trim()));
+   headings.forEach(h=>{
+    const panel=h.closest('section');
+    if(!panel||panel.dataset.anybikeCuratedRelated==='1')return;
+    if(!chosen.length){panel.remove();return;}
+    panel.dataset.anybikeCuratedRelated='1';
+    h.textContent='Related '+make+' model family';
+    const old=panel.querySelector('ul.facts,nav');
+    const nav=document.createElement('nav');
+    nav.setAttribute('aria-label','Related '+make+' model family');
+    nav.style.cssText='display:flex;flex-wrap:wrap;gap:9px';
+    chosen.forEach(name=>pill(nav,name,byModel.get(normalize(name))||genericUrl(make,name),false));
+    if(old)old.replaceWith(nav);else panel.append(nav);
+    const paragraph=panel.querySelector('p');
+    if(paragraph)paragraph.textContent='Documented family or comparable generation. Browse the complete '+make+' directory for all other models.';
+   });
+  }
+  render();
+  let scheduled=false;
+  const observer=new MutationObserver(()=>{
+   if(scheduled)return;scheduled=true;
+   queueMicrotask(()=>{scheduled=false;render();});
+  });
+  observer.observe(main,{childList:true,subtree:true});
+ }
+
  const currentName=params.get('model')||routes.find(x=>x.url===path)?.model||'';
+ void correctRelated();
  const entries=models.filter(x=>normalize(x)!==normalize(currentName));
  const nav=section('Explore other '+make+' models','Every named model in the AnyBike public catalogue. Choose a model to view its own guide, production history and sourcing information.',entries,'',m=>byModel.get(normalize(m))||genericUrl(make,m));
  nav.dataset.completeCatalogueNavigation='1';
