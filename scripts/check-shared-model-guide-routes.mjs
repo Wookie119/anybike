@@ -282,6 +282,18 @@ assert(verifiedGallery.includes('setTimeout(()=>finish(false),8000)'),'Unreachab
 assert(verifiedGallery.includes('clearTimeout(timeout)'),'Successful external photographs must not retain timers');
 console.log('PASS: production chronology and bounded model-year gallery loading preserved.');
 
+
+// Triumph model research photographs must match exact derivatives, with
+// licence evidence and no guessing the bike year from the photo date.
+const triumphResearchImages=fs.readFileSync('supabase/migrations/20261112224000_triumph_licensed_model_research_gallery.sql','utf8');
+for(const key of ['gallery-triumph-street765rs-2022-darktiger0512','gallery-triumph-tiger900gtpro-cjp24-2022-photo'])
+ assert(triumphResearchImages.includes(key),'Approved Triumph gallery entry missing: '+key);
+assert(triumphResearchImages.includes("model_hero")===false,'Extra Triumph reference images must not overwrite hero photographs');
+assert(triumphResearchImages.includes('Motorcycle model year is NOT confirmed: leave NULL.'),
+ 'Date a photo was taken must never be misrepresented as motorcycle year');
+assert(triumphResearchImages.includes("array['model_variant_gallery']"),'Research photo must be gallery-only');
+console.log('PASS: exact Triumph model-year references and original licensed photo metadata preserved.');
+
 console.log('PASS: approved Honda/Kawasaki research-gallery photos retain exact identity and year evidence.');
 
 console.log('PASS: universal model gallery loads only licensed exact-model photographs, without altering protected pages.');
