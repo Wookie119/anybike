@@ -171,6 +171,16 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   ...[...existingPanel?.querySelectorAll?.('[data-anybike-research-category]')||[]],
   ...[...existingPanel?.children||[]].filter(group=>group.dataset?.anybikeResearchCategory)
  ].filter((group,index,all)=>all.indexOf(group)===index&&group.dataset?.anybikeResearchCategory);
+ // Research groups from a previous motorcycle must never survive a route
+ // transition that reuses the same body. The approved model identity is
+ // recorded on each group and panel when it is first published.
+ const identity=JSON.stringify([safeText(make).toLowerCase(),safeText(model).toLowerCase()]);
+ for(const group of existingGroups){
+  if(group.dataset.anybikeResearchIdentity&&group.dataset.anybikeResearchIdentity!==identity)
+   group.remove?.();
+ }
+ if(existingPanel?.dataset.anybikeResearchIdentity&&
+    existingPanel.dataset.anybikeResearchIdentity!==identity)existingPanel.remove?.();
  const allFacts=exactVerifiedModelFacts(rows,make,model);
  // A previously published category can be withdrawn from the audited public
  // projection. Remove it on the next successful refresh rather than leaving
@@ -254,6 +264,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  const panel=doc.createElement('section');
  panel.className='card feature anybike-verified-model-research';
  panel.dataset.anybikeVerifiedModelFacts='1';
+ panel.dataset.anybikeResearchIdentity=identity;
  panel.style.cssText='grid-column:1/-1;min-width:0;background:#fff;color:#171717;border:1px solid #d7d7d7;border-top:3px solid #ed1c24';
  const heading=node(doc,'h2',make+' '+model+' — documented factory research');
  heading.style.cssText='color:#171717;line-height:1.3;overflow-wrap:anywhere';
@@ -278,6 +289,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   const items=factoryCategories.has(category)?orderedVerifiedFactoryFacts(originalItems):originalItems;
   const group=doc.createElement('div');
   group.dataset.anybikeResearchCategory=category;
+  group.dataset.anybikeResearchIdentity=identity;
   group.dataset.anybikeResearchFactIds=fingerprint(category);
   group.style.cssText='padding:14px 0;border-top:1px solid #dedede';
   const groupHeading=node(doc,'h3',sections[category]);
