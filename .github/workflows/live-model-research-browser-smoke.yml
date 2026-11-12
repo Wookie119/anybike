@@ -1,0 +1,30 @@
+name: Live exact-model research browser smoke
+on:
+  schedule:
+    - cron: '45 8 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser test dependency
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Check rendered approved model facts on public pages
+        run: node scripts/check-live-model-research-rendering.mjs
+      - name: Preserve failed browser screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-model-rendering-failures
+          path: artifacts/live-model-smoke/*.png
+          if-no-files-found: ignore
+          retention-days: 14
