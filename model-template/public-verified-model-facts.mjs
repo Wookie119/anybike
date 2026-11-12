@@ -338,30 +338,30 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px;align-items:stretch';
   for(const fact of items){
    const article=doc.createElement('article');
-   article.style.cssText='background:#fafafa;color:#171717;border:1px solid #dedede;border-radius:8px;padding:18px;min-width:0;overflow-wrap:anywhere';
+   article.style.cssText='background:#202020;color:#fff;border:1px solid #484848;border-radius:8px;padding:18px;min-width:0;overflow-wrap:anywhere';
    const productionDate=verifiedFactoryDate(fact);
    if(productionDate){
     article.style.borderLeft='3px solid #ed1c24';
     const dated=node(doc,'p','Factory record: '+productionDate);
-    dated.style.cssText='font-size:14px;font-weight:700;color:#171717;margin:0 0 8px';
+    dated.style.cssText='font-size:14px;font-weight:700;color:#fff;margin:0 0 8px';
     article.append(dated);
    }
    const factHeading=node(doc,'h4',fact.label);
-   factHeading.style.cssText='color:#171717;line-height:1.4;margin:0 0 10px;overflow-wrap:anywhere';
+   factHeading.style.cssText='color:#fff;line-height:1.4;margin:0 0 10px;overflow-wrap:anywhere';
    article.append(factHeading);
    const detail=[fact.start_year!==null&&fact.start_year!==''&&Number.isInteger(Number(fact.start_year))&&Number(fact.start_year)>=1885&&Number(fact.start_year)<=2100&&'Reference year: '+fact.start_year,
     safeText(fact.market)&&'Market: '+fact.market].filter(Boolean);
    if(detail.length){
     const detailLine=node(doc,'p',detail.join(' · '));
-    detailLine.style.cssText='color:#444;line-height:1.5';
+    detailLine.style.cssText='color:#ddd;line-height:1.5';
     article.append(detailLine);
    }
    const dl=doc.createElement('dl');
-   dl.style.cssText='display:grid;grid-template-columns:minmax(0,34%) minmax(0,1fr);gap:9px 14px;line-height:1.55;overflow-wrap:anywhere;color:#171717;margin:0';
+   dl.style.cssText='display:grid;grid-template-columns:minmax(0,34%) minmax(0,1fr);gap:9px 14px;line-height:1.55;overflow-wrap:anywhere;color:#fff;margin:0';
    for(const entry of fact.display){
     const term=node(doc,'dt',entry.label),value=node(doc,'dd',entry.value);
-    term.style.cssText='color:#444;font-weight:600;min-width:0;margin:0';
-    value.style.cssText='color:#171717;min-width:0;margin:0;overflow-wrap:anywhere';
+    term.style.cssText='color:#bbb;font-weight:600;min-width:0;margin:0';
+    value.style.cssText='color:#fff;min-width:0;margin:0;overflow-wrap:anywhere';
     dl.append(term,value);
    }
    article.append(dl);
@@ -375,7 +375,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
     if(validUrl(documentUrl)&&/^https:\/\/[^\s]+$/i.test(documentUrl)){
      const ref=node(doc,'a',name+' ↗');
      ref.href=documentUrl;ref.target='_blank';ref.rel='noopener noreferrer';
-     ref.style.cssText='display:inline-block;margin-top:12px;color:#171717;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px;overflow-wrap:anywhere';
+     ref.style.cssText='display:inline-block;margin-top:12px;color:#ff4850;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px;overflow-wrap:anywhere';
      article.append(ref);
     }
    }
@@ -402,10 +402,10 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   const existing=existingResearchCard(category);
   if(existing){
    // The source-linked group stays visually readable inside dark legacy cards.
-   group.style.cssText+=';background:#fff;color:#171717;padding:16px;border:1px solid #dedede;border-radius:8px';
+   group.style.cssText+=';background:#202020;color:#fff;padding:16px;border:1px solid #484848;border-radius:8px';
    // Integrated research sits on a white surface: override dark-panel metadata colours.
-   references.style.color='#444';
-   for(const link of references.querySelectorAll('a'))link.style.color='#b5121b';
+   references.style.color='#ddd';
+   for(const link of references.querySelectorAll('a'))link.style.color='#ff4850';
    groupHeading.style.display='none'; // The approved card already owns this heading.
    group.dataset.anybikeResearchIntegrated='1';
    existing.dataset.anybikeResearchCategory=category;
