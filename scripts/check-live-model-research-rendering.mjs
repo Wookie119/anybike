@@ -12,6 +12,7 @@ const cases=[
  {make:'BMW',model:'R 1250 GS'},
  {make:'Honda',model:'CB500X',expectGallery:true},
  {make:'Kawasaki',model:'Ninja 650',expectGallery:true},
+ {make:'Honda',model:'CB500X',expectGallery:true,mobile:true},
  {make:'Triumph',model:'STREET TRIPLE 765 RS',expectGallery:true},
  {make:'Triumph',model:'TIGER 900 GT PRO',expectGallery:true}
 ];
@@ -20,7 +21,10 @@ let failures=0;
 mkdirSync('artifacts/live-model-smoke',{recursive:true});
 try{
  for(const item of cases){
-  const page=await browser.newPage({viewport:{width:1366,height:900}});
+  const page=await browser.newPage({
+   viewport:item.mobile?{width:390,height:844}:{width:1366,height:900},
+   isMobile:!!item.mobile,hasTouch:!!item.mobile
+  });
   const url=new URL('/motorcycle-model-guide.html',origin);
   url.searchParams.set('make',item.make);url.searchParams.set('model',item.model);
   try{
@@ -85,11 +89,12 @@ try{
    // assertions above remain the source of truth for published fact coverage.
    await page.screenshot({
     path:resolve('artifacts/live-model-smoke',
-     'passed-'+item.make.replace(/[^a-z0-9]/gi,'-')+'-'+
+     'passed-'+(item.mobile?'mobile-':'desktop-')+item.make.replace(/[^a-z0-9]/gi,'-')+'-'+
      item.model.replace(/[^a-z0-9]/gi,'-')+'.png'),
     fullPage:true
    });
-   console.log('PASS live model research:',item.make,item.model,JSON.stringify(result));
+   console.log('PASS live model research:',item.make,item.model,
+    item.mobile?'mobile':'desktop',JSON.stringify(result));
   }catch(error){
    failures++;
    console.error('FAIL live model research:',item.make,item.model,error.message);
