@@ -334,7 +334,7 @@ assert.equal(specsBody.children.length,1,
  'Approved technical specifications heading must absorb verified facts without another full-width panel');
 assert.equal(existingSpecsCard.dataset.anybikeResearchCategory,'specification');
 
-assert.equal(mountVerifiedModelFacts(integratedBody,[sample({fact_id:8701,category:'engine'})],'Suzuki','RM250'),0,
+assert.equal(mountVerifiedModelFacts(integratedBody,[sample({fact_id:8701,category:'engine',value:{engine_cc:246}})],'Suzuki','RM250'),0,
  'Repeated model research installation must not duplicate facts within an approved card');
 // When research coverage expands, an already-integrated category must not
 // block a newly verified category from receiving its own display destination.
