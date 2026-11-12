@@ -40,6 +40,8 @@ assert(header.includes('/motorcycle-complete-catalogue-navigation.js?v='),'Share
 assert(brand.includes('id="modelGroups"'),'Manufacturer model collection missing');
 assert(brand.includes('const groups=key&&guides[key]?Object.fromEntries('),'Manufacturers without legacy curated models must render their database models');
 assert(brand.includes('public_anybike_manufacturer_catalogue_names_v1'),'Manufacturer cards must read the canonical public model names');
+assert(brand.includes('rest/v1/rpc/public_anybike_manufacturer_catalogue_names_v1'),'Manufacturer model cards must work without the optional Supabase JS client');
+assert(brand.includes('if(models.length)return {models};'),'Canonical model cards must take precedence over stale static catalogue');
 assert(guide.includes('motorcycle-model-guide.html')||guide.includes('id="nextAction"'),'Shared model guide missing');
 assert(!script.includes('international-public-stock'),'Pill navigation must never query private stock');
 assert(!script.includes("if(!rows.length)return;"),'Static catalogue outage must not suppress database model pills');
