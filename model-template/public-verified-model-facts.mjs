@@ -163,7 +163,12 @@ const node=(doc,tag,value)=>{const el=doc.createElement(tag);el.textContent=Stri
 export function mountVerifiedModelFacts(body,rows,make,model){
  if(!body||body.querySelector?.('[data-anybike-verified-model-facts]')||
     body.querySelector?.('[data-anybike-research-integrated="1"]'))return 0;
- const facts=exactVerifiedModelFacts(rows,make,model);
+ const alreadyIntegrated=new Set(
+  [...body.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]]
+   .map(group=>group.dataset?.anybikeResearchCategory).filter(Boolean)
+ );
+ const facts=exactVerifiedModelFacts(rows,make,model)
+  .filter(fact=>!alreadyIntegrated.has(fact.category));
  if(!facts.length)return 0;
  const doc=body.ownerDocument||document;
  const grouped=new Map();
