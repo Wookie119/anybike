@@ -17,7 +17,19 @@ FROM public.anybike_public_model_research_coverage_v1
 WHERE verified_research_facts = 0 OR approved_hero_photos = 0
 ORDER BY make, model;
 
--- Verified facts per research category; use to plan factory-source research batches.
+
+-- Separate missing research from photography approval, so one does not block the other.
+SELECT make,
+       count(*) AS public_models,
+       count(*) FILTER (WHERE verified_research_facts = 0) AS models_without_verified_research,
+       count(*) FILTER (WHERE verified_research_facts > 0 AND approved_hero_photos = 0) AS researched_models_without_approved_hero,
+       count(*) FILTER (WHERE verified_research_facts > 0 AND approved_hero_photos > 0) AS researched_models_with_approved_hero
+FROM public.anybike_public_model_research_coverage_v1
+GROUP BY make
+ORDER BY models_without_verified_research DESC, make;
+
+-- A database category with zero published facts is still a supported renderer destination,
+-- but editors should see it in the source-research queue rather than inventing content.
 SELECT s.section_order, s.category, s.display_label,
        count(f.id) AS verified_facts
 FROM public.anybike_model_research_section_registry s
