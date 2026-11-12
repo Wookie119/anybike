@@ -216,13 +216,29 @@ export async function installVerifiedModelFacts({body,make,model,client}={}){
   return 0;
  }
 }
-if(typeof document!=='undefined'&&typeof location!=='undefined'&&
-   location.pathname==='/motorcycle-model-guide.html'){
- const start=()=>{
-  const p=new URLSearchParams(location.search);
-  void installVerifiedModelFacts({body:document.getElementById('body'),
-   make:(p.get('make')||'').trim(),model:(p.get('model')||'').trim()});
+// Use the SAME public sourced-facts renderer on verified existing BMW guides.
+// Dedicated routes are resolved by the database; never derive the motorcycle
+// identity from a filename or render unpublished universal research.
+if(typeof document!=='undefined'&&typeof location!=='undefined'){
+ const start=async()=>{
+  const body=document.getElementById('body');if(!body)return;
+  if(location.pathname==='/motorcycle-model-guide.html'){
+   const p=new URLSearchParams(location.search);
+   await installVerifiedModelFacts({body,make:(p.get('make')||'').trim(),model:(p.get('model')||'').trim()});
+   return;
+  }
+  if(!/^\\/bmw-[a-z0-9-]+\\.html$/.test(location.pathname)||
+     location.pathname==='/bmw-motorcycles.html'||location.pathname==='/bmw-r1300gs.html')return;
+  const db=globalThis.supabase?.createClient?.(ENDPOINT,PUBLIC_KEY);
+  if(!db)return;
+  try{
+   const {data,error}=await db.rpc('public_anybike_manufacturer_model_routes_v1',{p_make:'BMW'});
+   if(error||!Array.isArray(data))return;
+   const exact=data.filter(x=>x?.make==='BMW'&&x.url===location.pathname&&typeof x.model==='string');
+   if(exact.length!==1)return;
+   await installVerifiedModelFacts({body,make:'BMW',model:exact[0].model,client:db});
+  }catch(error){console.warn('Verified BMW research route unavailable; existing guide preserved',error);}
  };
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
- else start();
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>void start(),{once:true});
+ else void start();
 }
