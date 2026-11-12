@@ -175,7 +175,10 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  // A category may gain additional audited factory records after its first
  // publication. Compare the complete set of fact IDs, not only its category.
  const fingerprint=category=>allFacts.filter(fact=>fact.category===category)
-  .map(fact=>String(fact.fact_id)).sort().join(',');
+  .map(fact=>JSON.stringify([
+   String(fact.fact_id),fact.label,fact.start_year,fact.end_year,
+   fact.source_name,fact.source_url,fact.display,fact.value
+  ])).sort().join('|');
  const refreshGroups=new Map();
  for(const group of existingGroups){
   const category=group.dataset.anybikeResearchCategory;
