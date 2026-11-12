@@ -38,6 +38,7 @@ const identity=models.map(x=>{const u=new URL(x);return u.searchParams.get('make
 assert.equal(identity.length,new Set(identity).size,'Duplicate model identities');
 assert(read('motorcycle-model-guide.html').includes('content="index,follow" id="modelRobots"'),'Model renderer noindex');
 assert(read('motorcycle-brand.html').includes('content="index,follow"'),'Brand renderer noindex');
-assert(read('motorcycle-brand.html').includes('if(!knownBrand)document.querySelector'), 'Unknown manufacturer URLs must be noindex');
+assert(read('motorcycle-brand.html').includes('if(!knownBrand){'), 'Unknown manufacturer URLs must be noindex');
+assert(read('motorcycle-brand.html').includes('if(knownBrand)document.getElementById("canonicalLink").href='), 'Unknown manufacturer URLs must not self-canonicalise');
 assert(read('motorcycle-model-guide.html').includes('if(!row&&!guide){\n el("modelRobots").content="noindex,follow"'), 'Unknown model URLs must be noindex');
 console.log('PASS: '+models.length+' models, '+(brands.length+2)+' manufacturers including BMW/Harley, '+markets.length+' international market pages, unique identities and canonical checks');
