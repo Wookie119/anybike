@@ -112,4 +112,18 @@ assert(vRodHero.includes('<img ')&&vRodHero.includes('Addvisor'),'V-Rod must hav
 assert.equal((vRodPage.match(/class="model-archive-photo"/g)||[]).length,1,'V-Rod must not duplicate its museum archive image below the hero');
 console.log('PASS: 14 Harley exact-model licensed hero photographs retain attribution; no new artwork/duplicate V-Rod archive.');
 
+
+// Supplier-provided model photographs on these Harley guides belong in the
+// existing hero, not below it. This does not grant external syndication rights.
+for(const slug of ['cvo-pan-america','low-rider-s','pan-america-1250-st']){
+ const page=fs.readFileSync('harley-davidson-'+slug+'.html','utf8');
+ const hero=page.match(/<section class="hero"[\s\S]*?<\/section>/)?.[0]||'';
+ assert(hero.includes('<img '),'Harley '+slug+' has no photo inside the hero');
+ assert(hero.includes('supplied to AnyBike'),'Harley '+slug+' source photo caption must be preserved');
+ assert.equal((page.match(/<figure class="card(?: harley-user-photo)?"/g)||[]).length,1,'Harley '+slug+' photo should not be duplicated');
+}
+const standard=fs.readFileSync('harley-davidson-softail-standard.html','utf8');
+assert(standard.includes('AI-generated illustration'),'Softail Standard unverified artwork must remain explicitly labelled');
+console.log('PASS: existing Harley supplied photographs are inside their heroes without duplicate figures.');
+
 console.log('PASS: existing detailed-model routes, fallback sourcing and both model-specific customer journeys are intact.');
