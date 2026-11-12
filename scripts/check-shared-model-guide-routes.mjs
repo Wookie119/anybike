@@ -79,7 +79,7 @@ assert(completeNav.includes("public_anybike_manufacturer_model_routes_v1"),'Veri
 assert(!completeNav.includes("international-public-stock"),'Catalogue navigation must not read protected stock');
 assert(completeNav.includes('async function correctRelated()'), 'Shared related model curation missing');
 assert(completeNav.includes('Math.abs(currentYear-year)<=22'), 'Related models must respect documented production eras');
-assert(completeNav.includes("if(!chosen.length){panel.remove();return;}"), 'Unrelated historical model suggestions must be removed');
+assert(completeNav.includes("if(!chosen.length)return;"), 'Unrelated suggestions must not overwrite approved editorial panels when related metadata is unavailable');
 assert(completeNav.includes('Explore related .* models'), 'Legacy broad-category related panels must be intercepted');
 assert(completeNav.includes('const relatedAdded=records.some('),'Related-model observer must filter actual relevant DOM additions');
 assert(completeNav.includes('if(!relatedAdded||scheduled)return;'),'Unrelated dealer stock/country DOM updates must not trigger related scans');
