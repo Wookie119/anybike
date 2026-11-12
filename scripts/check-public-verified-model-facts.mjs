@@ -315,7 +315,7 @@ const denied=await installVerifiedModelFacts({
 });
 assert.equal(denied,0,'Never hide or alter the approved page when public facts unavailable');
 const html=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
-assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261112-research4'));
+assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261112-research5'));
 assert(html.indexOf('id="body"')>html.indexOf('id="generationPanel"'));
 assert(html.includes('catalogue.models.find(x=>x&&typeof x.make==="string"&&typeof x.model==="string"'),
  'Malformed catalogue entries must not crash public model guides');
