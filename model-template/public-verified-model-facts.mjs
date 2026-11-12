@@ -383,7 +383,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   group.dataset.anybikeResearchCategory=category;
   group.dataset.anybikeResearchIdentity=identity;
   group.dataset.anybikeResearchFactIds=fingerprint(category);
-  group.style.cssText='padding:14px 0;border-top:1px solid #dedede';
+  group.style.cssText='padding:14px 0;border-top:1px solid #626262';
   const groupHeading=node(doc,'h3',sections[category]);
   groupHeading.style.cssText='color:#fff;line-height:1.35';
   group.append(groupHeading);
@@ -430,7 +430,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
     if(validUrl(documentUrl)&&/^https:\/\/[^\s]+$/i.test(documentUrl)){
      const ref=node(doc,'a',name+' ↗');
      ref.href=documentUrl;ref.target='_blank';ref.rel='noopener noreferrer';
-     ref.style.cssText='display:inline-block;margin-top:12px;color:#ff4850;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px;overflow-wrap:anywhere';
+     ref.style.cssText='display:inline-block;margin-top:12px;color:#fff;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px;overflow-wrap:anywhere';
      article.append(ref);
     }
    }
@@ -450,7 +450,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   for(const [url,name] of sources){
    const source=node(doc,'a',name+' ↗');
    source.href=url;source.target='_blank';source.rel='noopener noreferrer';
-   source.style.cssText='display:inline-block;color:#ff4850;text-decoration:underline;text-decoration-color:#ff4850;text-underline-offset:3px;margin-right:16px;overflow-wrap:anywhere';
+   source.style.cssText='display:inline-block;color:#fff;text-decoration:underline;text-decoration-color:#ff4850;text-underline-offset:3px;margin-right:16px;overflow-wrap:anywhere';
    references.append(source);
   }
   group.append(references);
