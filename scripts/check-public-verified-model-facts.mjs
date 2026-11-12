@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts} from '../model-template/public-verified-model-facts.mjs';
+import {exactVerifiedModelFacts,mountVerifiedModelFacts,installVerifiedModelFacts,verifiedFactoryDate,orderedVerifiedFactoryFacts} from '../model-template/public-verified-model-facts.mjs';
 import {approvedExactModelGallery,mountApprovedModelGallery,installApprovedModelGallery} from '../model-template/public-approved-model-gallery.mjs';
 const sample=(overrides={})=>({
  fact_id:49,make:'Suzuki',model:'RM250',category:'model_year',
@@ -81,6 +81,28 @@ const documentedOwnership=exactVerifiedModelFacts([sample({
 })],'Suzuki','RM250');
 assert.equal(documentedOwnership[0].display[0].value.split(' · ').length,3,
  'Sourced used buying and ownership research needs a readable checklist');
+
+// Manufacturing milestones have real dated places in the ONE model research
+// panel, rather than being stored as unsorted technical-value placeholders.
+const factoryRows=[
+ sample({fact_id:7001,category:'manufacturing_evidence',start_year:2021,
+  value:{date:'2021-03-04',factory:'Borgo Panigale',evidence:'Verified start of manufacture'}}),
+ sample({fact_id:7002,category:'manufacturing_evidence',start_year:null,
+  value:{date:'2017-11-15',evidence:'Verified earlier factory production'}}),
+ sample({fact_id:7003,category:'manufacturing_evidence',start_year:2020,
+  value:{date:'2020-10',evidence:'Source establishes the month only'}}),
+ sample({fact_id:7004,category:'manufacturing_evidence',start_year:null,
+  value:{evidence:'Source has no supported date'}})
+];
+assert.deepEqual(orderedVerifiedFactoryFacts(factoryRows).map(x=>x.fact_id),
+ [7002,7003,7001,7004],'Only documented factory dates may define chronological order');
+assert.equal(verifiedFactoryDate(factoryRows[2]),'2020-10',
+ 'Do not invent a day of month where the factory source gave only year and month');
+assert.equal(verifiedFactoryDate(factoryRows[3]),'',
+ 'Missing factory dates must not be invented');
+assert.equal(verifiedFactoryDate(sample({fact_id:7005,category:'market_launch',start_year:2020})), '',
+ 'Press launch dates must not be mislabeled as factory production dates');
+assert.equal(verifiedFactoryDate(factoryRows[0]),'2021-03-04');
 
 const documentedColour=exactVerifiedModelFacts([sample({
  fact_id:52,category:'factory_colours',label:'Factory colour: Blackstorm metallic',
@@ -214,6 +236,18 @@ assert.equal(await installApprovedModelGallery({
 assert.equal(mountVerifiedModelFacts(body,[sample()],'Suzuki','RM250'),1);
 assert.equal(body.children.length,1);
 assert.equal(body.children[0].dataset.anybikeVerifiedModelFacts,'1');
+
+const factoryBody={ownerDocument:doc,children:[],firstChild:null,
+ querySelector(){return null},insertBefore(child){this.children.unshift(child)}};
+assert.equal(mountVerifiedModelFacts(factoryBody,factoryRows,'Suzuki','RM250'),4);
+const manufacturingGroup=factoryBody.children[0].children.filter(x=>x.tag==='div').find(x=>x.children.some(c=>c.tag==='h3'&&c.textContent==='Factory and manufacturing evidence'));
+assert(manufacturingGroup,'Factory chronology must appear in the approved research section');
+const factoryCards=manufacturingGroup.children.find(x=>x.tag==='div').children;
+assert.equal(factoryCards[0].children[0].textContent,'Factory record: 2017-11-15');
+assert.equal(factoryCards[1].children[0].textContent,'Factory record: 2020-10');
+assert.equal(factoryCards[2].children[0].textContent,'Factory record: 2021-03-04');
+assert.equal(factoryCards[3].children[0].tag,'h4','Unknown factory date must not become a fabricated chronology marker');
+
 assert(body.children[0].children.some(x=>x.tag==='p'&&
  String(x.textContent).includes('1976')&&String(x.textContent).includes('not a claim of continuous production')),
  'Factory chronology must identify sourced reference years without inventing continuous production');
