@@ -435,10 +435,10 @@ export function mountVerifiedModelFacts(body,rows,make,model){
 const pendingVerifiedResearch=new WeakMap();
 export async function installVerifiedModelFacts({body,make,model,client}={}){
  if(!body||!safeText(make)||!safeText(model))return 0;
- const db=client||globalThis.supabase?.createClient?.(ENDPOINT,PUBLIC_KEY);
- if(!db)return 0;
  const request=Symbol('verified-model-research');
  pendingVerifiedResearch.set(body,request);
+ const db=client||globalThis.supabase?.createClient?.(ENDPOINT,PUBLIC_KEY);
+ if(!db)return 0;
  try{
   const {data,error}=await db.rpc('public_anybike_verified_model_facts_v1',
    {p_make:make,p_model:model});
