@@ -49,24 +49,24 @@ export function mountApprovedModelGallery(body,loaded,make,model){
  panel.dataset.anybikeModelResearchGallery='1';
  panel.dataset.anybikeGalleryIdentity=identity;
  panel.dataset.anybikeGalleryFingerprint=fingerprint;
- panel.style.cssText='grid-column:1/-1;min-width:0;background:#fff;color:#171717;border:1px solid #d7d7d7;border-top:3px solid #ed1c24';
+ panel.style.cssText='grid-column:1/-1;min-width:0;background:#252525;color:#fff;border:2px solid #ed1c24;border-radius:12px;padding:22px';
  const heading=node(doc,'h2',make+' '+model+' — documented model photography');
- heading.style.cssText='color:#171717;line-height:1.35';
+ heading.style.cssText='color:#fff;line-height:1.35';
  panel.append(heading);
  const intro=node(doc,'p','Photographs are dated where documented. Colour, equipment and trim can differ by year and market; images do not establish the specification of a motorcycle for sale.');
- intro.style.cssText='color:#444;line-height:1.6';panel.append(intro);
+ intro.style.cssText='color:#ddd;line-height:1.6';panel.append(intro);
  const grid=doc.createElement('div');
  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px;align-items:start';
  for(const r of rows){
   const figure=doc.createElement('figure');
-  figure.style.cssText='min-width:0;margin:0;padding:12px;border:1px solid #dedede;border-radius:8px;background:#fafafa;color:#171717';
+  figure.style.cssText='min-width:0;margin:0;overflow:hidden;border:1px solid #767676;border-left:3px solid #ed1c24;border-radius:8px;background:#303030;color:#fff';
   const img=doc.createElement('img');
   img.src=r.image_url;img.alt=make+' '+model+' — '+r.title;
   img.loading='lazy';img.decoding='async';
-  img.style.cssText='display:block;max-width:100%;width:100%;height:auto;max-height:290px;object-fit:contain;background:#fff;border-radius:4px';
+  img.style.cssText='display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#303030';
   figure.append(img);
   const caption=doc.createElement('figcaption');
-  caption.style.cssText='padding-top:10px;color:#333;line-height:1.55;overflow-wrap:anywhere';
+  caption.style.cssText='padding:12px 14px;color:#eee;line-height:1.55;overflow-wrap:anywhere';
   caption.append(node(doc,'strong',r.title));
   if(Number.isInteger(Number(r.model_year_start))&&Number(r.model_year_start)>=1885&&Number(r.model_year_start)<=2100){
    const yr=r.model_year_end===null||r.model_year_end===''?String(r.model_year_start):
@@ -77,7 +77,7 @@ export function mountApprovedModelGallery(body,loaded,make,model){
   caption.append(credit);
   for(const [url,label] of [[r.source_page_url,'Original photo and attribution ↗'],[r.licence_url,'Licence terms ↗']]){
    const link=node(doc,'a',label);link.href=url;link.target='_blank';link.rel='noopener noreferrer';
-   link.style.cssText='display:inline-block;margin-right:14px;color:#171717;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px;overflow-wrap:anywhere';
+   link.style.cssText='display:inline-block;margin-right:14px;color:#fff;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px;overflow-wrap:anywhere';
    caption.append(link);
   }
   figure.append(caption);grid.append(figure);
