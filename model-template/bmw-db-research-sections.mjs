@@ -154,8 +154,26 @@ export function applyBmwDatabaseSections(body,content){
     // and silently changes the page's editorial layout.
     if(others.length){
      const primary=others[0];
-     if(primary!==card)primary.replaceWith(card);
-     for(const duplicate of others.slice(1))duplicate.remove();
+     // Preserve already-mounted, source-verified research when the BMW
+     // projection replaces a legacy card. Otherwise an asynchronous loader
+     // can silently discard factory facts inserted by the shared renderer.
+     const preserveVerifiedGroups=from=>{
+      for(const group of [...from.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]]){
+       const category=group.dataset?.anybikeResearchCategory;
+       if(!category||card.querySelector?.('[data-anybike-research-category="'+category+'"]'))continue;
+       card.append(group);
+       card.dataset.anybikeResearchIntegrated='1';
+       card.dataset.anybikeResearchCategory=category;
+      }
+     };
+     if(primary!==card){
+      preserveVerifiedGroups(primary);
+      primary.replaceWith(card);
+     }
+     for(const duplicate of others.slice(1)){
+      preserveVerifiedGroups(duplicate);
+      duplicate.remove();
+     }
     }else if(!card.isConnected){
      // A database-only section has no old slot to replace. Keep it with
      // research cards rather than introducing a second page layout.
