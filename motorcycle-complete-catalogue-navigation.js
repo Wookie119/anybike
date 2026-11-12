@@ -168,7 +168,13 @@ async function mount(){
   observer.observe(main,{childList:true,subtree:true});
  }
 
- const currentName=params.get('model')||routes.find(x=>x.url===path)?.model||'';
+ // The approved BMW/Harley H1 is an independent source of the current
+ // model identity when the dedicated-route RPC is unavailable.
+ const heading=main.querySelector('h1')?.textContent?.trim()||'';
+ const headingModel=heading.toLowerCase().startsWith(make.toLowerCase()+' ')
+  ?heading.slice(make.length).trim():'';
+ const currentName=params.get('model')||routes.find(x=>x.url===path)?.model||
+  models.find(name=>normalize(name)===normalize(headingModel))||'';
  void correctRelated();
  const entries=models;
  const nav=section('Explore other '+make+' models','Every named model from this manufacturer, including the motorcycle you are viewing. Select any other model to open its guide.',entries,currentName,m=>byModel.get(normalize(m))||genericUrl(make,m));
