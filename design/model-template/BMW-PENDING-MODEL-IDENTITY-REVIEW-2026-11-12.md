@@ -22,3 +22,13 @@ Purpose: reconcile factory-confirmed model identities with AnyBike's pending nam
 2. Before approving an individual record, confirm model identity, canonical make/model, year/generation, and relationship to its parent; update review status and canonical identity together, then refresh the published identity snapshot and sitemap in one checked release.
 3. Do not copy technical specifications from parent models or introduce an alternate page template.
 4. Retain all original dealer feed labels for matching stock; canonical SEO names should be distinct.
+
+## Permanent non-destructive history policy (owner confirmed)
+
+- Never delete or merge raw motorcycle records solely because the make and model strings match. Discontinued models may be reintroduced after long gaps, with different engines, frames, homologation and production years.
+- A canonical public model name is **not** a unique historical generation identifier. Preserve original source model names and identifiers. Distinguish generations by documented production period, factory model code, platform, market and source evidence when available.
+- Aliases are reversible navigation mappings only; do not delete their source rows, stock references or associated historical evidence.
+- A pending review is not a rejection of the motorcycle's existence. Preserve every pending row until research resolves its identity and relationship.
+- For BMW R 12, retain the historical and modern name histories separately; never apply modern specifications to the pre-war motorcycle or vice versa.
+- If a future catalogue imports a second generation with the same name, flag for human review instead of deduplicating or overwriting either record.
+- Do not assume a missing end year means current production. An unknown production end date is not evidence of continuous production.
