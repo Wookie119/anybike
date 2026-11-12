@@ -86,9 +86,21 @@ function createImageLoader(imageFactory){
   const im=imageFactory?imageFactory():typeof Image==='function'?new Image():null;
   if(!im)return false;
   return await new Promise(resolve=>{
-   im.onload=()=>resolve(true);
-   im.onerror=()=>resolve(false);
-   im.src=url;
+   let complete=false;
+   const finish=ok=>{
+    if(complete)return;
+    complete=true;
+    clearTimeout(timeout);
+    im.onload=null;
+    im.onerror=null;
+    resolve(ok);
+   };
+   // An unavailable external image must never prevent the other licensed
+   // research photographs from reaching the page indefinitely.
+   const timeout=setTimeout(()=>finish(false),8000);
+   im.onload=()=>finish(true);
+   im.onerror=()=>finish(false);
+   try{im.src=url;}catch(_){finish(false);}
   });
  };
 }
