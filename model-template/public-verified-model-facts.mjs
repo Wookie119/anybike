@@ -249,7 +249,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  }else if(existingPanel&&referenceYearText){
   const intro=node(body.ownerDocument||document,'p',referenceYearText);
   intro.dataset.anybikeResearchYearsIntro='1';
-  intro.style.cssText='font-size:16px;line-height:1.65;color:#333';
+  intro.style.cssText='font-size:16px;line-height:1.65;color:#ddd';
   existingPanel.insertBefore(intro,existingPanel.children?.[1]||null);
  }
  const facts=allFacts.filter(fact=>{
@@ -307,18 +307,18 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  panel.className='card feature anybike-verified-model-research';
  panel.dataset.anybikeVerifiedModelFacts='1';
  panel.dataset.anybikeResearchIdentity=identity;
- panel.style.cssText='grid-column:1/-1;min-width:0;background:#fff;color:#171717;border:1px solid #d7d7d7;border-top:3px solid #ed1c24';
+ panel.style.cssText='grid-column:1/-1;min-width:0;background:#242424;color:#fff;border:1px solid #ed1c24;border-radius:12px';
  const heading=node(doc,'h2',make+' '+model+' — documented factory research');
- heading.style.cssText='color:#171717;line-height:1.3;overflow-wrap:anywhere';
+ heading.style.cssText='color:#fff;line-height:1.3;overflow-wrap:anywhere';
  panel.append(heading);
  if(referenceYearText){
   const intro=node(doc,'p',referenceYearText);
   intro.dataset.anybikeResearchYearsIntro='1';
-  intro.style.cssText='font-size:16px;line-height:1.65;color:#333';
+  intro.style.cssText='font-size:16px;line-height:1.65;color:#ddd';
   panel.append(intro);
  }
  const caveat=node(doc,'p','Model-year and market-specific source records. Figures are not interchangeable between generations; verify the exact motorcycle before buying.');
- caveat.style.cssText='color:#444;line-height:1.65';
+ caveat.style.cssText='color:#ddd;line-height:1.65';
  panel.append(caveat);
  for(const category of researchOrder){
   const originalItems=grouped.get(category);
@@ -330,7 +330,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   group.dataset.anybikeResearchFactIds=fingerprint(category);
   group.style.cssText='padding:14px 0;border-top:1px solid #dedede';
   const groupHeading=node(doc,'h3',sections[category]);
-  groupHeading.style.cssText='color:#171717;line-height:1.35';
+  groupHeading.style.cssText='color:#fff;line-height:1.35';
   group.append(groupHeading);
   // Stable research destinations support future integration into the approved
   // model sections without creating alternate layouts or changing facts.
@@ -390,12 +390,12 @@ export function mountVerifiedModelFacts(body,rows,make,model){
     sources.set(fact.source_url,safeText(fact.source_name)||'Manufacturer source');
   }
   const references=doc.createElement('p');
-  references.style.cssText='margin:12px 0 0;color:#333;line-height:1.7;overflow-wrap:anywhere';
+  references.style.cssText='margin:12px 0 0;color:#ddd;line-height:1.7;overflow-wrap:anywhere';
   references.append(node(doc,'strong',sources.size===1?'Source: ':'Sources: '));
   for(const [url,name] of sources){
    const source=node(doc,'a',name+' ↗');
    source.href=url;source.target='_blank';source.rel='noopener noreferrer';
-   source.style.cssText='display:inline-block;color:#171717;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px;margin-right:16px;overflow-wrap:anywhere';
+   source.style.cssText='display:inline-block;color:#ff4850;text-decoration:underline;text-decoration-color:#ff4850;text-underline-offset:3px;margin-right:16px;overflow-wrap:anywhere';
    references.append(source);
   }
   group.append(references);
