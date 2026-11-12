@@ -432,6 +432,14 @@ assert(html.includes('/shared-model-catalogue.js?v=20261111safe1'),
  'Generic model pages must load the validated shared catalogue script');
 
 
+const harleyResearchSource=readFileSync(new URL('../model-template/public-harley-verified-research.mjs',import.meta.url),'utf8');
+assert(harleyResearchSource.includes("import {installVerifiedModelFacts} from './public-verified-model-facts.mjs'"),
+ 'Harley-Davidson guides must reuse the shared verified facts renderer, not a parallel design');
+assert(harleyResearchSource.includes("public_anybike_manufacturer_model_routes_v1")&&
+ harleyResearchSource.includes("exactApprovedHarleyRoute(routes,path)"),
+ 'Harley research must be mounted using the exact approved database route identity');
+assert(harleyResearchSource.includes("main.insertBefore(slot,before)"),
+ 'Harley research must retain its approved position before related links and credits');
 const bmwReconcileSource=readFileSync(new URL('../model-template/bmw-db-research-sections.mjs',import.meta.url),'utf8');
 assert(bmwReconcileSource.includes('preserveVerifiedGroups(primary)')&&
  bmwReconcileSource.includes('preserveVerifiedGroups(duplicate)'),
