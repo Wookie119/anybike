@@ -493,6 +493,32 @@ assert.equal(reusedModelBody.children.includes(previousModelPanel),false,
  'Research from the previous motorcycle must not remain after a model identity change');
 assert.equal(reusedModelBody.children.filter(x=>x.dataset?.anybikeVerifiedModelFacts==='1').length,1,
  'A model route transition must retain only one exact-model research panel');
+const yearSummaryBody={...body,children:[],firstChild:null,
+ querySelector(selector){
+  return selector==='[data-anybike-verified-model-facts]'?
+   this.children.find(x=>x.dataset?.anybikeVerifiedModelFacts==='1')||null:null;
+ }
+};
+const modelYearFact=(id,year)=>sample({fact_id:id,category:'model_year',
+ start_year:year,value:{model_year:year}});
+assert.equal(mountVerifiedModelFacts(yearSummaryBody,[
+ modelYearFact(8861,1976)
+],'Suzuki','RM250'),1);
+const yearSummaryPanel=yearSummaryBody.children.find(x=>x.dataset?.anybikeVerifiedModelFacts==='1');
+assert(yearSummaryPanel.children.some(x=>x.dataset?.anybikeResearchYearsIntro==='1'&&
+ x.textContent.includes('1976')));
+assert.equal(mountVerifiedModelFacts(yearSummaryBody,[
+ modelYearFact(8861,1976),modelYearFact(8862,1977)
+],'Suzuki','RM250'),2);
+assert(yearSummaryPanel.children.find(x=>x.dataset?.anybikeResearchYearsIntro==='1')
+ ?.textContent.includes('1976, 1977'),
+ 'Adding a verified year must update the existing model-year summary');
+assert.equal(mountVerifiedModelFacts(yearSummaryBody,[
+ sample({fact_id:8863,category:'engine',value:{engine_cc:246}})
+],'Suzuki','RM250'),1);
+assert(!yearSummaryPanel.children.some(x=>x.dataset?.anybikeResearchYearsIntro==='1'),
+ 'Withdrawing all verified model-year facts must remove the outdated year summary');
+
 const documentRefreshBody={...body,children:[],firstChild:null,
  querySelector(selector){
   return selector==='[data-anybike-verified-model-facts]'?
