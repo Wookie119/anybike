@@ -34,15 +34,7 @@ async function mount(){
  const rows=Array.isArray(catalogue.models)?catalogue.models.filter(x=>x&&typeof x.make==='string'&&typeof x.model==='string'&&x.make.trim()&&x.model.trim()):[];
  if(!rows.length)return;
  const makes=[...new Map(rows.map(x=>[normalize(x.make),x.make])).values()].sort((a,b)=>a.localeCompare(b,'en'));
- if(isBrand){
-   const other=makes.filter(m=>normalize(m)!==normalize(make));
-   const manufacturers=section('Explore all motorcycle manufacturers','Browse every manufacturer in the AnyBike public catalogue.',other,'',makeUrl);
-   manufacturers.dataset.completeCatalogueNavigation='1';main.append(manufacturers);
-   // Complete model catalogue is already rendered on the generic brand page.
-   // Dedicated BMW and Harley pages have their own approved guides and the
-   // independent database-backed route index; do not hide or replace these.
-   return;
- }
+
  const models=[...new Map(rows.filter(x=>normalize(x.make)===normalize(make)).map(x=>[normalize(x.model),x.model])).values()].sort((a,b)=>a.localeCompare(b,'en',{numeric:true}));
  if(!models.length)return;
  let routes=[];
@@ -54,6 +46,29 @@ async function mount(){
    }catch(error){console.warn('Dedicated model route lookup unavailable',error)}
  }
  const byModel=new Map(routes.map(x=>[normalize(x.model),x.url]));
+ // Every manufacturer page must show the same complete, clickable model-pill
+ // directory as the approved R 1300 GS guide. Use exact manufacturer matching,
+ // never unrelated makes or a small curated subset.
+ if(isBrand){
+  const models=[...new Map(rows.filter(x=>normalize(x.make)===normalize(make)).map(x=>[normalize(x.model),x.model])).values()]
+   .sort((a,b)=>a.localeCompare(b,'en',{numeric:true}));
+  if(models.length){
+   const nav=section('All '+make+' motorcycle models','Choose any '+make+' model to open its individual AnyBike model guide.',models,'',name=>byModel.get(normalize(name))||genericUrl(make,name));
+   nav.dataset.completeCatalogueNavigation='1';
+   const existing=main.querySelector('nav[aria-label="All '+make+' model guides"],nav[aria-label="Related '+make+' model guides"]');
+   if(existing){
+    existing.replaceChildren(...Array.from(nav.querySelector('nav').children));
+    existing.setAttribute('aria-label','All '+make+' model guides');
+   }else{
+    const modelGroups=main.querySelector('#modelGroups,#models');
+    if(modelGroups)modelGroups.before(nav);else main.append(nav);
+   }
+  }
+  const other=makes.filter(m=>normalize(m)!==normalize(make));
+  const manufacturers=section('Explore all motorcycle manufacturers','Browse every manufacturer in the AnyBike public catalogue.',other,'',makeUrl);
+  manufacturers.dataset.completeCatalogueNavigation='1';main.append(manufacturers);
+  return;
+ }
 
  // Curate genuine relatives only. A broad category (e.g. "Heritage") is
  // never enough to link a 1923 R 32 with a modern GS or RT.
