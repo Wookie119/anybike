@@ -24,15 +24,21 @@ export function mountApprovedModelGallery(body,loaded,make,model){
  if(!body)return 0;
  const identity=JSON.stringify([clean(make).toLowerCase(),clean(model).toLowerCase()]);
  const previous=body.querySelector?.('[data-anybike-model-research-gallery]');
- if(previous?.dataset.anybikeGalleryIdentity===identity)return 0;
- if(previous)previous.remove?.();
  const rows=approvedExactModelGallery(loaded,make,model);
+ const fingerprint=rows.map(r=>JSON.stringify([
+  r.image_url,r.title,r.source_page_url,r.licence_url,r.licence,
+  r.attribution,r.model_year_start,r.model_year_end,r.subject_category
+ ])).sort().join('|');
+ if(previous?.dataset.anybikeGalleryIdentity===identity&&
+    (!rows.length||previous.dataset.anybikeGalleryFingerprint===fingerprint))return 0;
+ if(previous)previous.remove?.();
  if(!rows.length)return 0;
  const doc=body.ownerDocument||document;
  const panel=doc.createElement('section');
  panel.className='card feature anybike-verified-model-gallery';
  panel.dataset.anybikeModelResearchGallery='1';
  panel.dataset.anybikeGalleryIdentity=identity;
+ panel.dataset.anybikeGalleryFingerprint=fingerprint;
  panel.style.cssText='grid-column:1/-1;min-width:0;background:#fff;color:#171717;border:1px solid #d7d7d7;border-top:3px solid #ed1c24';
  const heading=node(doc,'h2',make+' '+model+' — documented model photography');
  heading.style.cssText='color:#171717;line-height:1.35';
