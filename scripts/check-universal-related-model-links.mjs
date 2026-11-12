@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const guide=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
+const related=guide.indexOf('const related=catalogue.models.filter(');
+const editorial=guide.indexOf('if(guide){',related);
+assert(related>=0&&editorial>related,'Related models must appear even without a curated editorial guide');
+assert(guide.includes('x.make.toLowerCase()===actualMake.toLowerCase()'),'Related models must be same manufacturer');
+assert(guide.includes('x.model.toLowerCase()!==actualModel.toLowerCase()'),'Current model must be excluded');
+assert(guide.includes('encodeURIComponent(x.make)'),'Related make must be encoded');
+assert(guide.includes('encodeURIComponent(x.model)'),'Related model must be encoded');
+assert(!guide.includes('if(actualMake==="BMW"){\n const related='),'BMW-only navigation must not return');
+console.log('PASS: catalogue-driven related-model links work across manufacturers and without editorial records');
