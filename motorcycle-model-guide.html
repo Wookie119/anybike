@@ -66,6 +66,27 @@ if(catalogueResult.status==="fulfilled"&&catalogueResult.value.ok){try{const val
 let indexedModels=[];
 if(indexResult.status==="fulfilled"&&indexResult.value.ok){try{const value=await indexResult.value.json();if(Array.isArray(value.models))indexedModels=value.models}catch(error){console.warn("Indexed model identity fallback",error)}}
 const indexed=indexedModels.find(x=>x&&typeof x.make==="string"&&typeof x.model==="string"&&x.make.trim().toLowerCase()===make.toLowerCase()&&x.model.trim().toLowerCase()===model.toLowerCase());
+// Known feed aliases must resolve to one approved canonical model page.
+const modelAliases={
+ "aprilia|rs660":["Aprilia","RS 660"],
+ "bmw|ce 02 am 7.9% apr representative":["BMW","CE 02 AM"],
+ "bmw|k 1600 b grand america":["BMW","K 1600 Grand America"],
+ "indian|scout":["Indian Motorcycle","Scout"],
+ "indian|scout bobber":["Indian Motorcycle","Scout Bobber"],
+ "kawasaki|z900rs":["Kawasaki","Z900 RS"]
+};
+const alias=modelAliases[make.toLowerCase()+"|"+model.toLowerCase()];
+if(alias){location.replace("/motorcycle-model-guide.html?make="+encodeURIComponent(alias[0])+"&model="+encodeURIComponent(alias[1]));return;}
+// Reviewed-but-unapproved identities must never be promoted by old static data.
+const pendingModelNames=new Set(["bmw|f 900 gs adventure","bmw|f450 gs","bmw|k 1600","bmw|m 1000 xr full","bmw|m 1000 xr m","bmw|r 12","bmw|r 12 s","bmw|s 1000 rr m"]);
+if(pendingModelNames.has(make.toLowerCase()+"|"+model.toLowerCase())){
+ el("modelRobots").content="noindex,follow";
+ el("modelCanonical").href="https://www.anybike.co.uk/motorcycle-manufacturers.html";
+ el("heading").textContent=make+" "+model;
+ el("summary").textContent="This model identity is undergoing verification. Ask AnyBike about the exact motorcycle, year and specification.";
+ el("nextAction").hidden=false;
+ return;
+}
 const clean=cleanResult.status==="fulfilled"?cleanResult.value:null;
 // A single malformed catalogue record must not blank the entire model page.
 const legacy=catalogue.models.find(x=>x&&typeof x.make==="string"&&typeof x.model==="string"&&
