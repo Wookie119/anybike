@@ -175,6 +175,13 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  // transition that reuses the same body. The approved model identity is
  // recorded on each group and panel when it is first published.
  const identity=JSON.stringify([safeText(make).toLowerCase(),safeText(model).toLowerCase()]);
+ const foreignPanelGroups=new Set(
+  existingPanel?.dataset.anybikeResearchIdentity&&
+  existingPanel.dataset.anybikeResearchIdentity!==identity
+   ? [...existingPanel.querySelectorAll?.('[data-anybike-research-category]')||[],
+      ...existingPanel.children||[]]
+   : []
+ );
  for(const group of existingGroups){
   if(group.dataset.anybikeResearchIdentity&&group.dataset.anybikeResearchIdentity!==identity)
    group.remove?.();
@@ -213,7 +220,8 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   ])).sort().join('|');
  const refreshGroups=new Map();
  for(const group of existingGroups){
-  if(group.dataset.anybikeResearchIdentity&&group.dataset.anybikeResearchIdentity!==identity)continue;
+  if(foreignPanelGroups.has(group)||
+     (group.dataset.anybikeResearchIdentity&&group.dataset.anybikeResearchIdentity!==identity))continue;
   const category=group.dataset.anybikeResearchCategory;
   if(!refreshGroups.has(category))refreshGroups.set(category,[]);
   refreshGroups.get(category).push(group);
