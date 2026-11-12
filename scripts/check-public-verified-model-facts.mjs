@@ -922,14 +922,14 @@ assert(renderSource.includes('background:#242424;color:#fff'),
  'Shared verified research outer panel must have readable white text on charcoal');
 assert(renderSource.includes("intro.style.cssText='font-size:16px;line-height:1.65;color:inherit'"),
  'Previously mounted model-year text must inherit its host card contrast');
-assert(renderSource.includes('background:#fafafa;color:#171717;border:1px solid #dedede'),
+assert(renderSource.includes('background:#202020;color:#fff;border:1px solid #484848'),
  'Shared model specification cards must have legible foreground and background');
 assert(renderSource.includes('minmax(min(100%,420px),1fr)'),
  'Factory research columns must be wide enough for legible specifications');
 assert(renderSource.includes('minmax(0,1fr);gap:9px 14px'),
  'Long technical values must wrap instead of forming cramped columns');
-assert(renderSource.includes("term.style.cssText='color:#444"),'Technical labels must remain readable');
-assert(renderSource.includes("value.style.cssText='color:#171717"),'Verified values must remain readable');
+assert(renderSource.includes("term.style.cssText='color:#bbb"),'Technical labels must remain readable');
+assert(renderSource.includes("value.style.cssText='color:#fff"),'Verified values must remain readable');
 assert(renderSource.includes("source.style.cssText='display:inline-block;color:#ff4850"),'Factory source links must contrast against the dark research panel');
 assert(renderSource.includes("groupHeading.style.cssText='color:#fff"),'Research headings must remain readable on charcoal');
 
@@ -943,12 +943,12 @@ assert(guideVersion&&headerVersion&&guideVersion===headerVersion,
  'Universal and BMW model pages must request the same research renderer version');
 assert(renderSource.includes("references.style.cssText='margin:12px 0 0;color:#ddd"),
  'Standalone source labels must contrast against charcoal');
-assert(renderSource.includes("references.style.color='#444'"),
- 'Integrated source labels must contrast against white research cards');
-assert(renderSource.includes("link.style.color='#b5121b'"),
- 'Integrated factory source links must remain readable on white cards');
-assert(renderSource.includes("group.style.cssText+=';background:#fff;color:#171717"),
- 'Integrated fact cards must retain their approved light specification surface');
+assert(renderSource.includes("references.style.color='#ddd'"),
+ 'Integrated source labels must contrast against charcoal research cards');
+assert(renderSource.includes("link.style.color='#ff4850'"),
+ 'Integrated factory source links must remain readable on charcoal cards');
+assert(renderSource.includes("group.style.cssText+=';background:#202020;color:#fff"),
+ 'Integrated fact cards must use the approved charcoal specification surface');
 
 // Database publication and browser rendering must agree about every approved
 // research destination. A new category must have a working display section
