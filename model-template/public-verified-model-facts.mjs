@@ -538,14 +538,18 @@ export async function installVerifiedModelFacts({body,make,model,client}={}){
  }
  const db=client||globalThis.supabase?.createClient?.(ENDPOINT,PUBLIC_KEY)||publicRpcClient;
  try{
-  let {data,error}=await db.rpc('public_anybike_verified_model_facts_v1',
-   {p_make:make,p_model:model});
-  // The optional CDN client can load successfully but its RPC transport may
-  // still fail. Retry only the same approved public read endpoint, never a
-  // private table, and never override an explicitly supplied test/client.
+  const args={p_make:make,p_model:model};
+  let data,error;
+  try{
+   ({data,error}=await db.rpc('public_anybike_verified_model_facts_v1',args));
+  }catch(primaryError){
+   error=primaryError;
+  }
+  // An optional CDN client can load but its transport may fail either by
+  // returning an error or throwing. Only retry the approved public RPC.
+  // Explicit callers retain their supplied client without a hidden retry.
   if(!client&&db!==publicRpcClient&&(error||!Array.isArray(data))){
-   ({data,error}=await publicRpcClient.rpc('public_anybike_verified_model_facts_v1',
-    {p_make:make,p_model:model}));
+   ({data,error}=await publicRpcClient.rpc('public_anybike_verified_model_facts_v1',args));
   }
   if(pendingVerifiedResearch.get(body)!==request)return 0;
   if(error||!Array.isArray(data))return 0;
