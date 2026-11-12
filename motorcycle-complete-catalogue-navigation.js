@@ -133,8 +133,8 @@ async function mount(){
 
  const currentName=params.get('model')||routes.find(x=>x.url===path)?.model||'';
  void correctRelated();
- const entries=models.filter(x=>normalize(x)!==normalize(currentName));
- const nav=section('Explore other '+make+' models','Every named model in the AnyBike public catalogue. Choose a model to view its own guide, production history and sourcing information.',entries,'',m=>byModel.get(normalize(m))||genericUrl(make,m));
+ const entries=models;
+ const nav=section('Explore other '+make+' models','Every named model from this manufacturer, including the motorcycle you are viewing. Select any other model to open its guide.',entries,currentName,m=>byModel.get(normalize(m))||genericUrl(make,m));
  nav.dataset.completeCatalogueNavigation='1';
  const existing=main.querySelector('nav[aria-label="Related BMW model guides"],nav[aria-label="Related Harley-Davidson model guides"]');
  if(existing){
