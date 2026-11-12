@@ -26,6 +26,7 @@ for(const phrase of [
  'if(isBrand){',
  'public_anybike_manufacturer_catalogue_names_v1',
  'public_anybike_manufacturer_names_v1',
+ 'rest/v1/rpc/public_anybike_manufacturer_model_routes_v1',
  'Public catalogue fallback unavailable; trying canonical Supabase directory',
  'databaseModels.length?databaseModels:publicModels','const models=[...new Map([...(databaseModels.length?databaseModels:publicModels).map(x=>x.model),...routes.map(x=>x.model)]',
  "rows.filter(x=>normalize(x.make)===normalize(make)",
@@ -46,4 +47,5 @@ assert(brand.includes('if(models.length)return {models};'),'Canonical model card
 assert(guide.includes('motorcycle-model-guide.html')||guide.includes('id="nextAction"'),'Shared model guide missing');
 assert(!script.includes('international-public-stock'),'Pill navigation must never query private stock');
 assert(!script.includes("if(!rows.length)return;"),'Static catalogue outage must not suppress database model pills');
+assert(!script.includes('window.supabase?.createClient'),'Approved dedicated model route lookup must not depend on optional client library');
 console.log('PASS: '+models.length+' approved public model identities across '+manufacturers.size+' manufacturers; all manufacturer and model pages use shared same-make pill navigation.');
