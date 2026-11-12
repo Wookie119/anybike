@@ -5,6 +5,13 @@ const brand=readFileSync(new URL('../motorcycle-brand.html',import.meta.url),'ut
 const sitemap=readFileSync(new URL('../sitemap.xml',import.meta.url),'utf8');
 const approved=JSON.parse(readFileSync(new URL('../data/motorcycle-index-identities.json',import.meta.url),'utf8')).models;
 assert(guide.includes('<meta name="robots" content="index,follow" id="modelRobots">'),'Model pages must be indexable without waiting for Supabase');
+assert(guide.includes('<header id="publicHeader"></header>'),'Shared model guide must preserve the standard AnyBike header');
+assert(guide.includes('/shared-model-catalogue.js'),'Shared model guide must retain catalogue-based model identity resolution');
+assert(guide.includes('/model-template/public-verified-model-facts.mjs'),'All models must use the shared verified facts enrichment');
+assert(guide.includes('/model-template/public-approved-model-hero.mjs'),'All models must use the approved hero system');
+assert(guide.includes('/model-template/public-approved-model-gallery.mjs'),'All models must use the approved gallery system');
+assert(!approved.some(x=>x.make==='Indian'&&['Scout','Chief','Four'].includes(x.model)),'Original Indian heritage identities must not leak into modern public model routes');
+
 assert(guide.includes('if(!make||!model){el("modelRobots").content="noindex,follow"'),'Empty model identities must be noindex');
 assert(!guide.includes('if(clean)el("modelRobots").content="index,follow"'),'Indexing must not depend on an asynchronous Supabase response');
 assert(brand.includes('<meta name="robots" content="index,follow">'),'Manufacturer pages must be indexable');
