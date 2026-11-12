@@ -99,3 +99,49 @@ FROM public.motorcycle_catalog_editorial_source_index s
 JOIN public.anybike_public_model_research_coverage_v1 c
  ON c.model_id=s.model_id
 WHERE s.verification_status='pending_review';
+
+-- 9. Manufacturer-wide publication batches, not one model at a time.
+-- Use this to allocate source-extraction batches without changing public data.
+-- A source link alone is never an approved factual claim.
+WITH candidate AS (
+ SELECT c.model_id,c.make,c.model,c.verified_research_facts,
+        COUNT(DISTINCT s.source_url) FILTER
+          (WHERE s.verification_status='pending_review'
+             AND s.source_url ~* '^https://') AS source_count
+ FROM public.anybike_public_model_research_coverage_v1 c
+ LEFT JOIN public.motorcycle_catalog_editorial_source_index s
+   ON s.model_id=c.model_id
+ GROUP BY c.model_id,c.make,c.model,c.verified_research_facts
+)
+SELECT make,
+       COUNT(*) AS catalogue_models,
+       COUNT(*) FILTER (WHERE verified_research_facts=0) AS no_research_models,
+       COUNT(*) FILTER (WHERE verified_research_facts=0 AND source_count>0)
+         AS source_ready_for_fact_review,
+       COUNT(*) FILTER (WHERE verified_research_facts=0 AND source_count=0)
+         AS needs_source_discovery,
+       SUM(source_count) AS pending_candidate_urls
+FROM candidate
+GROUP BY make
+ORDER BY source_ready_for_fact_review DESC,
+         no_research_models DESC,make;
+
+-- 10. Next 100 exact-model manufacturer source reviews. Work through the
+-- whole output as a batch. Never conflate model variants or generations.
+WITH queue AS (
+ SELECT c.model_id,c.make,c.model,
+        COUNT(DISTINCT s.source_url) AS candidate_sources,
+        ARRAY_AGG(DISTINCT s.source_url ORDER BY s.source_url) AS source_urls
+ FROM public.anybike_public_model_research_coverage_v1 c
+ JOIN public.motorcycle_catalog_editorial_source_index s
+   ON s.model_id=c.model_id
+ WHERE c.verified_research_facts=0
+   AND s.verification_status='pending_review'
+   AND s.source_url ~* '^https://'
+ GROUP BY c.model_id,c.make,c.model
+)
+SELECT make,model,model_id,candidate_sources,source_urls,
+       'Verify source and model/year; write facts into approved sections; audit; publish' AS action
+FROM queue
+ORDER BY candidate_sources DESC,make,model
+LIMIT 100;
