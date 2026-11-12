@@ -181,6 +181,12 @@ export function mountVerifiedModelFacts(body,rows,make,model){
      !approvedCategories.has(group.dataset.anybikeResearchCategory))
    group.remove?.();
  }
+ // A successful empty or reduced public projection must not leave an empty
+ // research panel advertising evidence that is no longer approved.
+ const remainingPanelGroups=()=>[...existingPanel?.children||[]]
+  .filter(child=>child.dataset?.anybikeResearchCategory);
+ if(existingPanel&&!remainingPanelGroups().length&&
+    !allFacts.length)existingPanel.remove?.();
  // A category may gain additional audited factory records after its first
  // publication. Compare the complete set of fact IDs, not only its category.
  const fingerprint=category=>allFacts.filter(fact=>fact.category===category)
