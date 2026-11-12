@@ -109,8 +109,12 @@ function appendContent(doc,parent,value,depth=0){
   // section only when its source verification is explicitly signed off.
   // A draft source URL is metadata, not a licence or public citation.
   const documentedUrl=safeText(value.source_url);
+  // An explicitly approved nested editorial entry may carry a manufacturer
+  // citation even when the source-verification field is omitted. Draft
+  // entries remain blocked above; unreviewed source-only records stay hidden.
+  const editorialApproved=['approved','published'].includes(editorialStatus);
   if(documentedUrl && documentedUrl!==evidenceUrl &&
-     ['verified','approved','published'].includes(sourceReview) &&
+     (['verified','approved','published'].includes(sourceReview)||editorialApproved) &&
      documentedUrl.startsWith('https://')&&approvedLink(documentedUrl)){
     const citation=node(doc,'a','View manufacturer source','anybike-universal-source-link');
     citation.href=documentedUrl;
