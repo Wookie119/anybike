@@ -11,7 +11,7 @@ const models=urls.filter(x=>x.includes('/motorcycle-model-guide.html?'));
 const brands=urls.filter(x=>x.includes('/motorcycle-brand.html?'));
 const markets=urls.filter(x=>x.includes('/markets/'));
 assert.equal(models.length,965,'Model sitemap must match reconciled Supabase snapshot');
-assert.equal(brands.length,49,'Generic manufacturer URLs must include Indian and Mugen but exclude BMW/Harley redirects');
+assert.equal(brands.length,49,'Generic manufacturer URLs must exclude Indian/BMW/Harley redirects');
 assert(urls.includes('https://www.anybike.co.uk/bmw-motorcycles.html'),'BMW dedicated manufacturer route missing');
 assert(urls.includes('https://www.anybike.co.uk/harley-davidson-motorcycles.html'),'Harley-Davidson dedicated manufacturer route missing');
 assert.equal(markets.length,217,'International markets sitemap incomplete');
@@ -37,7 +37,7 @@ for(const url of urls){
 const identity=models.map(x=>{const u=new URL(x);return u.searchParams.get('make').trim().toLowerCase()+'|'+u.searchParams.get('model').trim().toLowerCase()});
 assert.equal(identity.length,new Set(identity).size,'Duplicate model identities');
 const indexed=JSON.parse(read('data/motorcycle-index-identities.json'));
-assert.equal(indexed.models.length,965,'Public identity fallback must include every published Supabase model');
+assert.equal(indexed.models.length,965,'Public identity fallback must contain every approved clean Supabase model');
 const indexedIdentity=indexed.models.map(x=>String(x.make).trim().toLowerCase()+'|'+String(x.model).trim().toLowerCase());
 assert.equal(new Set(indexedIdentity).size,indexedIdentity.length,'Public identity fallback must not contain duplicate models');
 assert.deepEqual([...new Set(identity)].sort(),[...new Set(indexedIdentity)].sort(),'Sitemap and public model fallback must have identical model identities');
@@ -49,6 +49,10 @@ for(const make of publishedMakes){
 }
 assert(!genericMakes.has('bmw')&&!genericMakes.has('harley-davidson'),'Dedicated brands must not use generic sitemap URLs');
 assert(read('motorcycle-model-guide.html').includes('const row=clean||indexed||legacy;'),'Renderer must use the public index identity fallback');
+const renderer=read('motorcycle-model-guide.html');
+for(const alias of ['aprilia|rs660','indian|scout','kawasaki|z900rs'])assert(renderer.includes('"'+alias+'":'),'Missing canonical model alias redirect: '+alias);
+for(const pending of ['bmw|f 900 gs adventure','bmw|r 12','bmw|s 1000 rr m'])assert(renderer.includes('"'+pending+'"'),'Pending BMW model must remain noindex: '+pending);
+assert(renderer.includes('if(pendingModelNames.has('),'Pending models must be blocked before legacy catalogue rendering');
 assert(read('motorcycle-model-guide.html').includes('content="index,follow" id="modelRobots"'),'Model renderer noindex');
 assert(read('motorcycle-brand.html').includes('content="index,follow"'),'Brand renderer noindex');
 assert(read('motorcycle-brand.html').includes('if(!knownBrand){'), 'Unknown manufacturer URLs must be noindex');
