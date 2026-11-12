@@ -39,6 +39,8 @@ assert.equal(report.researchedWithoutGallery,12);
 assert(toMarkdown(report).includes('not** a full catalogue'));
 assert(toMarkdown(report).includes('Researched models awaiting approved gallery'));
 assert(toMarkdown(report).includes('BMW R 1300 GS'));
+assert(toMarkdown(report).includes('motorcycle-model-guide.html?make=BMW&model=R%201300%20GS'),
+ 'Daily audit must provide a directly reviewable exact-model public page link');
 const bad=await runDailyAudit({
  fetcher:async()=>({ok:false,status:503}),
  models:[],date:new Date('2026-11-12T12:00:00Z')
