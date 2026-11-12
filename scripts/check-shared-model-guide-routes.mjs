@@ -247,6 +247,20 @@ console.log('PASS: second model research migration preserves dated sources and a
 
 console.log('PASS: four manufacturer factory research sources, audit and bounded page observer preserved.');
 
+
+// Licensed historical and engineering gallery reuses the generic model guide
+// and does not touch dedicated BMW R1300 GS / Harley model templates.
+const verifiedGallery=fs.readFileSync('model-template/public-approved-model-gallery.mjs','utf8');
+const verifiedGalleryRpc=fs.readFileSync('supabase/migrations/20261112210000_public_exact_model_research_gallery.sql','utf8');
+assert(universalGuide.includes('/model-template/public-approved-model-gallery.mjs?v=20261112-gallery1'),'The universal model page must load approved gallery photographs');
+assert(verifiedGallery.includes("location.pathname==='/motorcycle-model-guide.html'"),'Gallery must not modify dedicated BMW/Harley designs');
+assert(verifiedGallery.includes("im.onerror=()=>resolve(false)"),'Broken photos must not create visible galleries');
+for(const guard of ["p.approval_status='approved'","p.subject_category='whole_motorcycle'","p.licence_url ~ '^https://","p.source_page_url ~ '^https://","p.manufacturer=r.manufacturer and p.model=r.model"])
+ assert(verifiedGalleryRpc.includes(guard),'Exact model licensed photo gallery guard missing: '+guard);
+assert(verifiedGalleryRpc.includes('model_variant_gallery'),'Gallery photos must be explicitly approved for variant-gallery use');
+assert(!verifiedGalleryRpc.includes("'model_hero'=any(p.usage_contexts)"),'Gallery must not duplicate the main hero image');
+console.log('PASS: universal model gallery loads only licensed exact-model photographs, without altering protected pages.');
+
 console.log('PASS: generic manufacturer/model photography uses approved exact-model RPC with image-load guard.');
 
 console.log('PASS: existing detailed-model routes, fallback sourcing and both model-specific customer journeys are intact.');
