@@ -235,6 +235,8 @@ assert.equal(mountVerifiedModelFacts(integratedBody,[sample({
 assert.equal(integratedBody.children.length,1,
  'Exact approved research sections must not create a duplicate full-width research panel');
 assert.equal(existingEngineCard.dataset.anybikeResearchCategory,'engine');
+assert.equal(existingEngineCard.dataset.anybikeResearchIntegrated,'1',
+ 'Integrated-only pages must retain a marker that prevents a second mount');
 assert.equal(existingEngineCard.children[0].dataset.anybikeResearchIntegrated,'1');
 
 const badDocumentBody={...body,children:[],firstChild:null};
