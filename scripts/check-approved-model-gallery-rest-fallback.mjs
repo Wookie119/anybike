@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const gallery=readFileSync(new URL('../model-template/public-approved-model-gallery.mjs',import.meta.url),'utf8');
+const guide=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
+assert(gallery.includes("db.rpc('public_anybike_verified_model_gallery_v1'"),'SDK path missing');
+assert(gallery.includes("fetch(API+'/rest/v1/rpc/public_anybike_verified_model_gallery_v1'"),'Public REST fallback missing');
+assert(gallery.includes("headers:{apikey:KEY,'Content-Type':'application/json'}"),'REST public request headers missing');
+assert(gallery.includes('approvedExactModelGallery(data,make,model)'),'Exact model and approval filter missing');
+assert(gallery.includes('if(!Array.isArray(data))return 0;'),'Invalid REST payload guard missing');
+assert(guide.includes('public-approved-model-gallery.mjs?v=20261112-gallery-rest4'),'Guide gallery cache version missing');
+console.log('PASS: approved exact-model gallery loads with SDK or public RPC fallback');
