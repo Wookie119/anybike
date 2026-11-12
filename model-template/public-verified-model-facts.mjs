@@ -41,11 +41,11 @@ const researchOrder=[
 const safeText=x=>typeof x==='string'?x.trim():'';
 const validUrl=x=>typeof x==='string'&&/^https:\/\/[^\s/?#]+(?:[^\s]*)$/i.test(x);
 const factLabels={
- engine_cc:'Engine capacity (cc)',power:'Power',weight:'Weight',
- technical_changes:'Engineering changes',torque_nm:'Torque (Nm)',
- engine_capacity_cc:'Engine capacity (cc)',fuel_capacity_litres:'Fuel capacity (litres)',
+ engine_cc:'Engine capacity',power:'Power',weight:'Weight',
+ technical_changes:'Engineering changes',torque_nm:'Torque',
+ engine_capacity_cc:'Engine capacity',fuel_capacity_litres:'Fuel capacity',
  model_year:'Model year',production_year:'Production year',
- power_hp:'Power (hp)',engine_type:'Engine configuration',
+ power_hp:'Power',engine_type:'Engine configuration',
  announcement_date:'Factory announcement date',sales_start:'Sales introduction',
  planned_global_sales:'Planned sales introduction',
  initial_markets:'Initial markets',front_fork:'Front suspension',
