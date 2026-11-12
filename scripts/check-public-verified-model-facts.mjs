@@ -471,7 +471,9 @@ previousModelPanel.dataset.anybikeVerifiedModelFacts='1';
 previousModelPanel.dataset.anybikeResearchIdentity=JSON.stringify(['suzuki','rm250']);
 const previousModelGroup=fakeElement('div');
 previousModelGroup.dataset.anybikeResearchCategory='engine';
-previousModelGroup.dataset.anybikeResearchIdentity=JSON.stringify(['suzuki','rm250']);
+// Simulate a legacy group created before per-group model identity existed.
+// Its parent panel still identifies the old motorcycle.
+
 previousModelGroup.dataset.anybikeResearchFactIds='old';
 previousModelPanel.append(previousModelGroup);
 const reusedModelBody={...body,children:[previousModelPanel],firstChild:previousModelPanel,
