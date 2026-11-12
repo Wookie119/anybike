@@ -317,7 +317,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   intro.style.cssText='font-size:16px;line-height:1.65;color:#ddd';
   panel.append(intro);
  }
- const caveat=node(doc,'p','Model-year and market-specific source records. Figures are not interchangeable between generations; verify the exact motorcycle before buying.');
+ const caveat=node(doc,'p','Specifications and equipment may vary by model year and market. AnyBike uses documented manufacturer information wherever available.');
  caveat.style.cssText='color:#ddd;line-height:1.65';
  panel.append(caveat);
  for(const category of researchOrder){
