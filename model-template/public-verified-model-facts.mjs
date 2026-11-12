@@ -229,6 +229,29 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   if(!refreshGroups.has(category))refreshGroups.set(category,[]);
   refreshGroups.get(category).push(group);
  }
+ // The reference-year introduction describes the current complete audited
+ // snapshot, not just newly added categories. Refresh it even when no category
+ // group needs rerendering, so withdrawn years never remain in the heading.
+ const referenceYears=[...new Set(allFacts.filter(x=>
+  x.category==='model_year'&&x.start_year!==null&&x.start_year!==''&&
+  Number.isInteger(Number(x.start_year))&&Number(x.start_year)>=1885&&
+  Number(x.start_year)<=2100).map(x=>Number(x.start_year)))].sort((a,b)=>a-b);
+ const referenceYearText=referenceYears.length?
+  'Factory-source records document '+referenceYears.length+' individual reference year'+
+  (referenceYears.length===1?'':'s')+' for the '+make+' '+model+
+  ': '+referenceYears.join(', ')+
+  '. These are documented versions, not a claim of continuous production.':'';
+ const previousYearIntro=[...(existingPanel?.children||[])]
+  .find(child=>child.dataset?.anybikeResearchYearsIntro==='1');
+ if(previousYearIntro){
+  if(referenceYearText)previousYearIntro.textContent=referenceYearText;
+  else previousYearIntro.remove?.();
+ }else if(existingPanel&&referenceYearText){
+  const intro=node(body.ownerDocument||document,'p',referenceYearText);
+  intro.dataset.anybikeResearchYearsIntro='1';
+  intro.style.cssText='font-size:16px;line-height:1.65;color:#333';
+  existingPanel.insertBefore(intro,existingPanel.children?.[1]||null);
+ }
  const facts=allFacts.filter(fact=>{
   const existing=refreshGroups.get(fact.category);
   return !existing?.length||existing.some(group=>
@@ -288,14 +311,9 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  const heading=node(doc,'h2',make+' '+model+' — documented factory research');
  heading.style.cssText='color:#171717;line-height:1.3;overflow-wrap:anywhere';
  panel.append(heading);
- const yearFacts=facts.filter(x=>x.category==='model_year'&&x.start_year!==null&&x.start_year!==''&&Number.isInteger(Number(x.start_year))&&Number(x.start_year)>=1885&&Number(x.start_year)<=2100);
- const sortedYears=[...new Set(yearFacts.map(x=>Number(x.start_year)))].sort((a,b)=>a-b);
- if(sortedYears.length){
-  const intro=node(doc,'p',
-   'Factory-source records document '+sortedYears.length+' individual reference year'+
-   (sortedYears.length===1?'':'s')+' for the '+make+' '+model+
-   ': '+sortedYears.join(', ')+
-   '. These are documented versions, not a claim of continuous production.');
+ if(referenceYearText){
+  const intro=node(doc,'p',referenceYearText);
+  intro.dataset.anybikeResearchYearsIntro='1';
   intro.style.cssText='font-size:16px;line-height:1.65;color:#333';
   panel.append(intro);
  }
