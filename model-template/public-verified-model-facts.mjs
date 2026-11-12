@@ -161,7 +161,11 @@ export function orderedVerifiedFactoryFacts(items){
 }
 const node=(doc,tag,value)=>{const el=doc.createElement(tag);el.textContent=String(value??'');return el;};
 export function mountVerifiedModelFacts(body,rows,make,model){
- if(!body||body.querySelector?.('[data-anybike-verified-model-facts]'))return 0;
+ if(!body)return 0;
+ // A fallback panel may already exist from an earlier load. New verified
+ // categories should be eligible for publication without creating a second
+ // full-width panel; the existing panel remains the one approved destination.
+ const existingPanel=body.querySelector?.('[data-anybike-verified-model-facts]')||null;
  const alreadyIntegrated=new Set(
   [...body.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]]
    .map(group=>group.dataset?.anybikeResearchCategory).filter(Boolean)
@@ -314,7 +318,12 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  }
  // Preserve stock and enquiry panels above #body; place factual research
  // ahead of generic fallback and discovery cards, without replacing either.
- if(panelGroups)body.insertBefore(panel,body.firstChild);
+ if(panelGroups){
+  if(existingPanel){
+   for(const child of [...panel.children].filter(child=>child.dataset?.anybikeResearchCategory))
+    existingPanel.append(child);
+  }else body.insertBefore(panel,body.firstChild);
+ }
  // Once sourced research is visible, the old unsourced "About this model"
  // placeholder is redundant. Keep all enquiry and buying action cards.
  const removeGenericPlaceholder=()=>{
