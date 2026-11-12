@@ -17,7 +17,11 @@ values
 ('Honda','Africa Twin CRF1000L','CRF1000L AFRICA TWIN',
  'Honda CRF1000L Africa Twin word-order variation; not CRF1100L or Adventure Sports.'),
 ('Yamaha','Ténéré 700','Tenere 700',
- 'Accent-only spelling variation of standard Ténéré 700; not Rally or World Raid.')
+ 'Accent-only spelling variation of standard Ténéré 700; not Rally or World Raid.'),
+('Kawasaki','Z900 RS','Z900RS',
+ 'Space-only naming variation of Kawasaki Z900RS, not standard Z900.'),
+('Yamaha','XT660Z Ténéré','XT660Z Tenere',
+ 'Accent-only spelling variation of XT660Z Ténéré, not newer Ténéré 700.')
 on conflict(manufacturer,alias_model) do nothing;
 
 create or replace function public.public_anybike_model_hero_v1(p_make text,p_model text)
