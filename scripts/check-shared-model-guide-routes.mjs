@@ -66,4 +66,17 @@ assert(r1300.includes('BMW R 1300 GS — development and ownership'),'R 1300 GS 
 assert(r1300.includes('internationalGuestRequestForm'),'R 1300 GS guest enquiry missing');
 console.log('PASS: international model galleries, Fat Boy/Africa Twin year cards, real-stock priority and enquiry hooks are preserved.');
 
+
+const completeNav=fs.readFileSync('motorcycle-complete-catalogue-navigation.js','utf8');
+const publicLoader=fs.readFileSync('public-header.js','utf8');
+assert(publicLoader.includes('/motorcycle-complete-catalogue-navigation.js'), 'Complete catalogue navigation is not loaded from shared public header');
+assert(completeNav.includes('motorcycle-catalogue-master.json'), 'Complete links must come from the shared public model catalogue');
+assert(completeNav.includes('Explore all motorcycle manufacturers'), 'All-manufacturer navigation is missing');
+assert(completeNav.includes('Explore other '+ "'+make+'" +' models'), 'All same-brand model pills are missing');
+assert(!completeNav.includes('.slice(0,8)')&&!completeNav.includes('links.length>=6'), 'Complete model/manufacturer directory is capped');
+assert(completeNav.includes("existing.replaceChildren"),'Approved R 1300 GS pill area is not reused');
+assert(completeNav.includes("public_anybike_manufacturer_model_routes_v1"),'Verified dedicated model routes must be preferred');
+assert(!completeNav.includes("international-public-stock"),'Catalogue navigation must not read protected stock');
+console.log('PASS: Complete public manufacturer and same-brand model pill navigation is mounted without stock permission changes.');
+
 console.log('PASS: existing detailed-model routes, fallback sourcing and both model-specific customer journeys are intact.');
