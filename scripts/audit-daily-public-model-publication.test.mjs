@@ -16,6 +16,14 @@ for(let day=0;day<7;day++){
  for(const row of selectDailyModels(fullCatalogue,date))
   weekly.add(identity(row.make,row.model));
 }
+const mondayWeek=new Set();
+for(let day=0;day<7;day++){
+ const date=new Date(Date.UTC(2026,10,9+day));
+ for(const row of selectDailyModels(fullCatalogue,date))
+  mondayWeek.add(identity(row.make,row.model));
+}
+assert.equal(fullCatalogue.filter(x=>mondayWeek.has(identity(x.make,x.model))).length,965,
+ 'Monday–Sunday audit rotation must cover the full clean catalogue');
 assert.equal(fullCatalogue.filter(x=>weekly.has(identity(x.make,x.model))).length,965,
  'Every clean catalogue model must be sampled within seven consecutive days');
 assert(a.some(x=>x.make==='BMW'&&x.model==='R 1300 GS'),
