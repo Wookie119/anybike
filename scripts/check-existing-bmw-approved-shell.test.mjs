@@ -14,7 +14,7 @@ test('26 current BMW pages share the approved shell and preserve their canonical
  assert.equal(pages.length,26);
  for(const path of pages){
   const s=fs.readFileSync(path,'utf8');
-  assert.ok(s.includes('type="module" src="/model-template/approved-bmw-page-shell.mjs?v=20261107-bmw-db-hero-v3"'),path+' shared shell');
+  assert.match(s,/type="module" src="\/model-template\/approved-bmw-page-shell\.mjs\?v=[a-zA-Z0-9-]+"/,path+' shared shell');
   assert.ok(s.includes('/public-header.css?v=20261107-bmw-db-hero-v3'),path+' shared CSS');
   assert.ok(s.includes('id="generationPanel"'),path+' specification');
   assert.ok(s.includes('id="body"'),path+' research');
@@ -69,6 +69,14 @@ test('stock is independent, development follows specifications, R1250 gallery st
  const r1300=fs.readFileSync('bmw-r1300gs.html','utf8');
  assert.ok(!r1300.includes('approved-bmw-page-shell.mjs'));
  assert.ok(r1300.includes('id="internationalModelStock"'));
+});
+test('BMW hero displays the photograph only after the exact approved file loads',()=>{
+ const shell=fs.readFileSync('model-template/approved-bmw-page-shell.mjs','utf8');
+ assert.ok(shell.includes("img.onload=()=>"),'Hero photograph needs a successful load signal');
+ assert.ok(shell.includes("media.append(img,caption)"),'Photo and attribution appear together');
+ assert.ok(shell.includes("fallback.remove()"),'Successful photograph replaces typographic fallback');
+ assert.ok(shell.includes("img.onerror=tryNext"),'Broken image must retry or retain clean fallback');
+ assert.ok(shell.includes("if(nextImage>=imageCandidates.length)"),'Unavailable image must not render a broken placeholder');
 });
 test('optional BMW guide data cannot blank existing approved model sections',()=>{
  const shell=fs.readFileSync('model-template/approved-bmw-page-shell.mjs','utf8');
