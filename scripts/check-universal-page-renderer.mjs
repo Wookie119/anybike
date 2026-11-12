@@ -448,6 +448,40 @@ for(const marker of [
 ])assert(!nestedText.includes(marker),'Unreleased nested content leaked: '+marker);
 console.log('PASS: nested denied, source-captured and embargoed history stays private');
 
+// Shared factory research must render approved Suzuki and Honda typed fields,
+// without promoting draft facts or altering the approved page shell.
+const factoryFieldsRoot=new FakeElement('main',documentFake);
+factoryFieldsRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(factoryFieldsRoot,{entity:gs,sections:[mk(gs,12,{
+ verified_catalogue_facts:[{
+  label:'2024 factory launch specification',
+  source_verification_status:'verified',editorial_status:'approved',
+  publication_eligible:true,source_url:'https://www.globalsuzuki.com/globalnews/2023/1107.html',
+  value:{model_year:2024,engine_capacity_cc:776,engine_configuration:'Parallel twin',
+   crank_degrees:270,front_fork:'Showa SFF-BP',curb_mass_kg:205,
+   seat_height_mm:810,fuel_capacity_l:14,factory_colours:'Metallic Triton Blue',
+   fuel_consumption_km_per_l:23.8,co2_g_per_km:99}
+ },{
+  label:'2016 Honda European factory reference',
+  source_verification_status:'verified',editorial_status:'approved',
+  publication_eligible:true,source_url:'https://global.honda/en/newsroom/news/2015/2151016eng-crf1000l.html',
+  value:{engine_type:'Liquid-cooled parallel twin',fuel_capacity_litres:18.8}
+ },{
+  label:'Private draft must not appear',source_verification_status:'verified',
+  editorial_status:'draft',publication_eligible:true,
+  source_url:'https://example.org/draft',value:{engine_capacity_cc:999}
+ }]
+})]});
+const factoryNodes=collect(factoryFieldsRoot);
+const factoryText=factoryNodes.map(x=>x.textContent||'').join(' | ');
+for(const token of ['776 cc','270 °','Showa SFF-BP','205 kg','810 mm',
+ '14 L','Metallic Triton Blue','23.8 km/L','99 g/km','18.8 L'])
+ assert(factoryText.includes(token),'Missing factory specification: '+token);
+assert(!factoryText.includes('999 cc'),'Draft factory fact leaked');
+assert(factoryNodes.some(x=>x.href==='https://www.globalsuzuki.com/globalnews/2023/1107.html'),
+ 'Factory evidence lost Suzuki source URL');
+console.log('PASS: shared verified Suzuki/Honda factory fields, units, and draft guard');
+
 console.log('PASS: source-verified facts retain numeric units and announcement dates');
 
 
