@@ -150,7 +150,8 @@ export function orderedVerifiedFactoryFacts(items){
 }
 const node=(doc,tag,value)=>{const el=doc.createElement(tag);el.textContent=String(value??'');return el;};
 export function mountVerifiedModelFacts(body,rows,make,model){
- if(!body||body.querySelector?.('[data-anybike-verified-model-facts]'))return 0;
+ if(!body||body.querySelector?.('[data-anybike-verified-model-facts]')||
+    body.querySelector?.('[data-anybike-research-integrated="1"]'))return 0;
  const facts=exactVerifiedModelFacts(rows,make,model);
  if(!facts.length)return 0;
  const doc=body.ownerDocument||document;
@@ -278,6 +279,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
    groupHeading.style.display='none'; // The approved card already owns this heading.
    group.dataset.anybikeResearchIntegrated='1';
    existing.dataset.anybikeResearchCategory=category;
+   existing.dataset.anybikeResearchIntegrated='1';
    existing.append(group);
   }else{
    panel.append(group);
