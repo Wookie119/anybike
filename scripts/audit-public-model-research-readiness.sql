@@ -70,7 +70,8 @@ WITH probes(make, model) AS (
  VALUES
  ('BMW','R 1300 GS'),('BMW','R 1250 GS'),('BMW','F 900 GS'),
  ('BMW','S 1000 RR'),('Suzuki','RM250'),('Yamaha','YZ250'),
- ('Honda','Africa Twin'),('Ducati','Panigale V4'),
+ ('Honda','Africa Twin CRF1000L'),('Honda','Africa Twin CRF1100L'),
+ ('Ducati','Panigale V4'),
  ('Harley-Davidson','Fat Boy'),('Kawasaki','Ninja ZX-10R')
 )
 SELECT make,model,
