@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Read-only audit. Never infer duplicates solely from shared model names.
 import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 import {dirname,resolve} from 'node:path';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -33,3 +34,15 @@ for(const model of reviewCases){
 }
 console.log('PASS: '+rows.length+' approved model identities; aliases and pending review identities excluded.');
 console.log('Policy: matching names do not imply same production generation; preserve raw source rows.');
+
+// Protect the existing shared generation comparison and the locked visual template.
+const renderer=readFileSync(resolve(root,'motorcycle-model-guide.html'),'utf8');
+const design=readFileSync(resolve(root,'model-template/approved-r1300gs-model-design.css'),'utf8');
+for(const id of ['generationPanel','generationControls','generationDetail','generationCompareRows']){
+ assert(renderer.includes('id="'+id+'"'),'Approved shared model generation component missing: '+id);
+}
+assert(renderer.includes('const generations=guide.production?.generations||[];'),'Existing sourced generation research must remain available');
+assert(renderer.includes('g.image.permission_status==="approved"'),'Unapproved generation photographs must not be shown');
+assert(renderer.includes('if(Number.isInteger(production.first_model_year)&&!Number.isInteger(production.production_end_year)'),'Unknown production end year must not imply ongoing production');
+assert(design.includes('body:has(#generationPanel) main'),'R 1300 GS shared design frame must remain in use');
+console.log('PASS: generation comparison, photo approval and shared design safeguards preserved');
