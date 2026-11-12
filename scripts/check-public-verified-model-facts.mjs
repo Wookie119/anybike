@@ -221,6 +221,22 @@ assert.equal(documentGroups[0].dataset.anybikeResearchCategory,'factory_document
 const documentArticle=documentGroups[0].children.find(x=>x.tag==='div')?.children[0];
 assert(documentArticle?.children.some(x=>x.tag==='a'&&x.href==='https://www.ducati.com/gb/en/service-maintenance/owner-manuals'),
  'Factory archive document links should actually display in the shared public page');
+// Existing approved section cards are the preferred destinations for exact
+// matching sourced categories; no second research panel should be created.
+const existingEngineCard=fakeElement('section');
+existingEngineCard.querySelector=selector=>selector==='h2'?{textContent:'Engine and powertrain'}:null;
+const integratedBody={...body,children:[existingEngineCard],firstChild:existingEngineCard,
+ querySelector(selector){return selector==='[data-anybike-verified-model-facts]'?null:null},
+ querySelectorAll(selector){return selector==='section.card'?[existingEngineCard]:[]}
+};
+assert.equal(mountVerifiedModelFacts(integratedBody,[sample({
+ fact_id:8701,category:'engine',value:{engine_cc:246}
+})],'Suzuki','RM250'),1);
+assert.equal(integratedBody.children.length,1,
+ 'Exact approved research sections must not create a duplicate full-width research panel');
+assert.equal(existingEngineCard.dataset.anybikeResearchCategory,'engine');
+assert.equal(existingEngineCard.children[0].dataset.anybikeResearchIntegrated,'1');
+
 const badDocumentBody={...body,children:[],firstChild:null};
 mountVerifiedModelFacts(badDocumentBody,[sample({
  fact_id:6703,category:'factory_documents',value:{
