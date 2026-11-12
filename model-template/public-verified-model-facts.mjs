@@ -209,6 +209,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   ])).sort().join('|');
  const refreshGroups=new Map();
  for(const group of existingGroups){
+  if(group.dataset.anybikeResearchIdentity&&group.dataset.anybikeResearchIdentity!==identity)continue;
   const category=group.dataset.anybikeResearchCategory;
   if(!refreshGroups.has(category))refreshGroups.set(category,[]);
   refreshGroups.get(category).push(group);
