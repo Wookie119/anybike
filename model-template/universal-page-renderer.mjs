@@ -206,7 +206,22 @@ function appendVerifiedFacts(doc,parent,facts){
     ['Edition','variant',''],['Model-year reference','reference_model_year',''],
     ['Model-year reference','model_year',''],
     ['Description','evidence',''],['Transmission','transmission',''],
-    ['Announcement date','announcement_date',''],['Documented date','date','']
+    ['Announcement date','announcement_date',''],['Documented date','date',''],
+    // Exact-year Suzuki and other factory records: explicit source values only.
+    ['Planned global sales','planned_global_sales',''],['Sales start','sales_start',''],
+    ['Initial markets','initial_markets',''],['Event','event',''],
+    ['Fairing','fairing',''],['Front fork','front_fork',''],
+    ['Handlebars','handlebars',''],['Throttle','throttle',''],
+    ['Drive modes','drive_modes',''],['Quickshifter','quickshifter',''],
+    ['Traction control','traction_control',''],['Engine capacity','engine_capacity_cc','cc'],
+    ['Engine configuration','engine_configuration',''],['Crank angle','crank_degrees','°'],
+    ['Display','display',''],['Kerb mass','curb_mass_kg','kg'],
+    ['Seat height','seat_height_mm','mm'],['Fuel capacity','fuel_capacity_l','L'],
+    ['Fuel tank','fuel_tank_l','L'],['Wheelbase','wheelbase_mm','mm'],
+    ['Front tyre','front_tyre',''],['Rear tyre','rear_tyre',''],
+    ['CO₂ emissions','co2_g_per_km','g/km'],
+    ['Fuel consumption','fuel_consumption_km_per_l','km/L'],
+    ['Factory colours','factory_colours','']
    ];
    for(const [label,key,unit] of fields){
     const value=data[key];
