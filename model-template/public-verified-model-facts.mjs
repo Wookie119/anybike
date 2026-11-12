@@ -178,6 +178,11 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   if(!sections[category]||typeof body.querySelectorAll!=='function')return null;
   const matches=[...body.querySelectorAll('section.card')].filter(card=>{
    if(card.dataset?.anybikeVerifiedModelFacts)return false;
+   // A replacement BMW research card may already contain a category marker
+   // without a direct research group (legacy loader reconciliation). Do not
+   // treat that marker as proof the verified facts are present.
+   const integrated=[...card.querySelectorAll?.('[data-anybike-research-integrated="1"]')||[]];
+   if(integrated.some(group=>group.dataset?.anybikeResearchCategory===category))return false;
    // Only direct approved section headings count. A nested article heading
    // must never redirect research into an unrelated parent card.
    const heading=[...card.children].find(child=>child.tagName?.toLowerCase()==='h2')?.textContent||
@@ -185,7 +190,8 @@ export function mountVerifiedModelFacts(body,rows,make,model){
    if(!approvedResearchSectionHeading(category,heading))return false;
    // A card can contain verified research from multiple approved categories,
    // but never the same category twice.
-   return ![...card.children].some(child=>child.dataset?.anybikeResearchCategory===category);
+   return ![...card.children].some(child=>child.dataset?.anybikeResearchCategory===category&&
+    child.dataset?.anybikeResearchIntegrated==='1');
   });
   return matches.length===1?matches[0]:null;
  };
