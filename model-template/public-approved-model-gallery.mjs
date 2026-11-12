@@ -9,7 +9,8 @@ export function approvedExactModelGallery(rows,make,model){
  if(!Array.isArray(rows)||!clean(make)||!clean(model))return [];
  const seen=new Set(),out=[];
  for(const r of rows){
-  if(!r||clean(r.make)!==clean(make)||clean(r.model)!==clean(model)||
+  if(!r||clean(r.make).toLowerCase()!==clean(make).toLowerCase()||
+    clean(r.model).toLowerCase()!==clean(model).toLowerCase()||
     !https(r.image_url)||!https(r.source_page_url)||!https(r.licence_url)||
     !clean(r.licence)||!clean(r.attribution)||!clean(r.title)||
     !['whole_motorcycle','engine','component','detail'].includes(r.subject_category))continue;
@@ -17,7 +18,16 @@ export function approvedExactModelGallery(rows,make,model){
   seen.add(r.image_url);
   out.push(r);
  }
- return out;
+ // Database row order is not a publication order. Keep dated photographs
+ // stable as the catalogue grows, with a deterministic tie-breaker.
+ return out.sort((a,b)=>{
+  const year=x=>Number.isInteger(Number(x.model_year_start))&&
+   Number(x.model_year_start)>=1885&&Number(x.model_year_start)<=2100?
+   Number(x.model_year_start):9999;
+  return year(a)-year(b)||
+   clean(a.title).localeCompare(clean(b.title))||
+   clean(a.image_url).localeCompare(clean(b.image_url));
+ });
 }
 const node=(doc,tag,text)=>{const n=doc.createElement(tag);n.textContent=String(text??'');return n;};
 export function mountApprovedModelGallery(body,loaded,make,model){
