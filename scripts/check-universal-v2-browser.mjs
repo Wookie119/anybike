@@ -110,6 +110,7 @@ try{
    await page.goto(origin+'/motorcycle-v2-master.html?make='+encodeURIComponent(make)+
     '&model='+encodeURIComponent(model),{waitUntil:'domcontentloaded'});
    await page.waitForFunction(()=>window.__anybikeV2EditorialReady===true,null,{timeout:30000});
+   await page.waitForFunction(()=>window.__anybikeV2NavigationReady===true,null,{timeout:25000});
    const permitted=make==='Suzuki'&&width===390;
    await page.waitForFunction(expected=>
     document.querySelector('#internationalModelStock')?.dataset.stockFeedState===expected,
