@@ -87,7 +87,7 @@ check('Customer lead and sourcing paths survive the V2 migration',()=>{
  assert.match(renderer,/sell-your-motorcycle\.html/);
 });
 check('Legacy guide research remains exact-identity-only',()=>{
- assert.match(renderer,/location.pathname==='\/motorcycle-model-guide.html'/);
+ assert.match(renderer,/if\(!guide\)\{/);
  assert.match(renderer,/motorcycle-model-guides\.json/);
  assert.match(renderer,/exact.length===1/);
  assert.match(renderer,/canonicalPath/);
