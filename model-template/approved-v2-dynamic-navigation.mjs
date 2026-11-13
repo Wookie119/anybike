@@ -250,7 +250,7 @@ async function countryNavigation(){
  if(!nav)return;
  try{
   const db=window.supabase?.createClient?.(ENDPOINT,KEY);
-  if(!db)return;
+  if(!db){section.hidden=true;return;}
   const {data,error}=await db.rpc('public_anybike_country_navigation_v1');
   if(error)throw error;
   const rows=(Array.isArray(data)?data:[]).filter(x=>validCountryPath(x.url)&&String(x.label||'').trim());
