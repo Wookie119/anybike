@@ -49,10 +49,12 @@ for(const path of routes){
  }else assert(html.includes('approved-bmw-page-shell.mjs'),
   path+' missing approved V2 renderer or preserved legacy shell');
  if(path==='bmw-r1250gs.html'){
-  assert(html.includes('id="ukR1250ModelGallery"'),
-   'R 1250 GS approved gallery missing');
-  assert(html.includes('id="r1250LiveStock"'),
-   'R 1250 GS stock panel missing');
+  assert(html.includes('approved-v2-universal-preview.mjs'),'R1250 must use the shared V2 master');
+  assert(html.includes('id="internationalModelStock"'),'R1250 exact model stock must remain before research');
+  assert(html.includes('id="databaseHeroPhoto"'),'R1250 licensed photo display region missing');
+  const preserved=JSON.parse(readFileSync(new URL('../data/bmw-r1250gs-v2-preservation.json',import.meta.url),'utf8'));
+  assert.deepEqual(preserved.model_year_gallery.years,[2019,2020,2021,2022,2023]);
+  assert(preserved.approved_existing_hero.licence_url.startsWith('https://creativecommons.org/licenses/'));
  }
 }
 const shared=readFileSync(new URL('../public-header.js',import.meta.url),'utf8');
