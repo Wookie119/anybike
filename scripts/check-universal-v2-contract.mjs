@@ -63,6 +63,13 @@ check('Shared catalogue reads public RPC before offline JSON',()=>{
  assert.match(renderer,/if\(!liveCatalogueLoaded\)/);
  assert.match(nav,/rest\/v1\/rpc\/public_anybike_manufacturer_catalogue_names_v1/);
 });
+check('All 217 published country markets use the safe public RPC fallback',()=>{
+ assert.match(nav,/rest\/v1\/rpc\/public_anybike_country_navigation_v1/);
+ assert.match(nav,/public_anybike_country_navigation_v1/);
+ assert.match(nav,/if\(!data\)/);
+ assert.match(nav,/section\.hidden=true/);
+ assert.match(nav,/validCountryPath\(x\.url\)/);
+});
 check('Established published canonical model URLs are preserved',()=>{
  assert.match(renderer,/public_anybike_manufacturer_model_routes_v1/);
  assert.match(nav,/for\(const \[key,item\] of approved\)combined\.set\(key,item\)/);
