@@ -92,7 +92,9 @@ try{
     await context.route('**/data/motorcycle-model-guides.json',route=>route.fulfill({
      status:200,contentType:'application/json',body:JSON.stringify({models:{
       cb650r:{make:'Honda',model:'CB650R',summary:'Documented Honda model research',
-       production:{specifications:[{model_year:2024,market:'UK',
+       production:{specifications:[{model_year:2025,market:'UK',
+        engine_cc:649,power_hp:95,source:'https://example.org/factory-cb650r-2025'},
+       {model_year:2024,market:'UK',
         engine_cc:649,power_hp:94,source:'https://example.org/factory-cb650r'}],
         documented_milestones:[{year:2024,event:'Model-year update',
          source:'https://example.org/factory-cb650r'}]},
@@ -162,6 +164,9 @@ try{
      'Honda approved factory specification fixture must render a real panel');
     assert.match(await page.locator('#v2DocumentedSpecifications').innerText(),/649 cc/);
     assert.match(await page.locator('#v2DocumentedSpecifications').innerText(),/2024/);
+    const specificationYears=await page.locator('#v2DocumentedSpecifications article h4').allTextContents();
+    assert.deepEqual(specificationYears.map(x=>x.trim()),['2024 · UK','2025 · UK'],
+     'Factory model-year specifications must render chronologically, not in arbitrary source order');
     assert.doesNotMatch(await page.locator('main').innerText(),/9999|Wrong model must not render/,
      'Similar Honda model records must never contaminate exact-model research');
     assert.equal(await page.locator('#r1300V2VerifiedExtras').isVisible(),true);
