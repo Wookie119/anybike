@@ -324,7 +324,13 @@ main{max-width:1240px!important}
  #body>.anybike-verified-model-research>[data-anybike-research-category] article{padding:16px!important}
  #body>.anybike-verified-model-research>[data-anybike-research-category] article dl{grid-template-columns:minmax(0,1fr)!important}
 }
-</style></head><body><header id="publicHeader"></header><main><section class="hero"><span class="eyebrow" id="category">Motorcycle model</span><h1 id="heading"></h1><div class="intro" id="summary"></div><div id="years"></div><figure class="recovered-hero-photo" id="databaseHeroPhoto" hidden><img alt="" loading="eager" decoding="async"><figcaption></figcaption></figure><div class="actions"><a id="source" class="button" href="/bulk-buying-request.html">Ask AnyBike to source this motorcycle →</a></div></section><section id="generationPanel" class="generation-panel" hidden><h2>Explore model generations</h2><p>Compare documented model changes. Confirm the year and exact specification of any individual motorcycle before buying.</p><div id="generationControls" class="generation-controls" role="group" aria-label="Choose model generation"></div><div id="generationDetail" class="generation-detail" aria-live="polite"></div><div id="generationCompare" class="generation-compare" hidden><h3>Compare documented versions</h3><div class="generation-compare-scroll" tabindex="0" role="region" aria-label="Scrollable model generation comparison"><table class="generation-compare-table"><caption>Figures apply to the documented version and market, not every year or trim.</caption><thead><tr><th scope="col">Version</th><th scope="col">Engine</th><th scope="col">Power</th><th scope="col">Torque</th><th scope="col">Gearbox</th></tr></thead><tbody id="generationCompareRows"></tbody></table></div></div></section><section id="r1300V2VerifiedExtras" class="r1300-v2-extras" aria-label="Documented model-year changes and technical details">
+<style id="approved-v2-rich-research">#body .v2-editorial-research{padding:20px;background:#292929;color:#fff;border:1px solid #565656;border-left:3px solid #ed1c24;border-radius:9px;margin:14px 0 20px}
+#body .v2-editorial-research h4{font-size:20px;line-height:1.4;margin:0 0 12px;color:#fff}
+#body .v2-editorial-research p{font-size:16px;line-height:1.75;margin:0 0 12px;color:#e5e5e5}
+#body .v2-editorial-research a{font-size:14px;color:#fff;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px}
+#body .v2-editorial-category{border-top:1px solid #626262;padding:22px 0}
+#body .v2-editorial-category>h3{font-size:22px;margin:0 0 12px}
+</style></style></head><body><header id="publicHeader"></header><main><section class="hero"><span class="eyebrow" id="category">Motorcycle model</span><h1 id="heading"></h1><div class="intro" id="summary"></div><div id="years"></div><figure class="recovered-hero-photo" id="databaseHeroPhoto" hidden><img alt="" loading="eager" decoding="async"><figcaption></figcaption></figure><div class="actions"><a id="source" class="button" href="/bulk-buying-request.html">Ask AnyBike to source this motorcycle →</a></div></section><section id="generationPanel" class="generation-panel" hidden><h2>Explore model generations</h2><p>Compare documented model changes. Confirm the year and exact specification of any individual motorcycle before buying.</p><div id="generationControls" class="generation-controls" role="group" aria-label="Choose model generation"></div><div id="generationDetail" class="generation-detail" aria-live="polite"></div><div id="generationCompare" class="generation-compare" hidden><h3>Compare documented versions</h3><div class="generation-compare-scroll" tabindex="0" role="region" aria-label="Scrollable model generation comparison"><table class="generation-compare-table"><caption>Figures apply to the documented version and market, not every year or trim.</caption><thead><tr><th scope="col">Version</th><th scope="col">Engine</th><th scope="col">Power</th><th scope="col">Torque</th><th scope="col">Gearbox</th></tr></thead><tbody id="generationCompareRows"></tbody></table></div></div></section><section id="r1300V2VerifiedExtras" class="r1300-v2-extras" aria-label="Documented model-year changes and technical details">
  <div class="r1300-v2-extra-head"><h2 data-v2-introduction="timeline_heading"></h2><p data-v2-introduction="timeline_description"></p></div>
  <div class="r1300-v2-extra-grid">
   <details open><summary><span data-v2-development-label="timeline_label"></span> <span data-v2-development-label="timeline_range"></span></summary><div class="r1300-v2-detail" id="databaseModelTimeline"></div></details>
@@ -572,6 +578,58 @@ try{
  await installVerifiedModelFacts({
   body:el("body"),make:actualMake,model:actualModel,client:editorialClient
  });
+ // Published long-form research enriches the SAME approved V2 category cards.
+ // Keep factual measurement records visible; attach explanatory context to
+ // their parent category instead of creating a second model layout.
+ const explanations=guide.research_explanations;
+ if(explanations&&typeof explanations==="object"&&!Array.isArray(explanations)){
+  const doc=el("body").ownerDocument;
+  const researchPanel=el("body").querySelector('[data-anybike-verified-model-facts]');
+  const labels={history:"Motorcycle history",engineering:"Engineering and technical development",
+   engine:"Engine and powertrain",transmission:"Transmission",
+   performance:"Performance",chassis:"Chassis and suspension",brakes:"Braking system",
+   dimensions:"Dimensions and weights",wheels:"Wheels and tyres",
+   design:"Design and development",touring:"Touring equipment and specifications",
+   market_launch:"Market introductions",used_buying:"Used buying and ownership guidance"};
+  const order=["market_launch","history","design","engineering","engine","transmission",
+   "performance","dimensions","chassis","wheels","brakes","touring","used_buying"];
+  for(const category of order){
+   const entry=explanations[category];
+   if(!entry||!Array.isArray(entry.paragraphs)||!entry.paragraphs.length||
+      typeof entry.source_url!=="string"||
+      !/^https:\/\/[^\s]+$/i.test(entry.source_url))continue;
+   let group=[...el("body").querySelectorAll("[data-anybike-research-category]")].
+    find(n=>n.dataset.anybikeResearchCategory===category);
+   if(!group&&researchPanel){
+    group=doc.createElement("div");
+    group.dataset.anybikeResearchCategory=category;
+    group.dataset.anybikeResearchIdentity=JSON.stringify([actualMake.toLowerCase(),actualModel.toLowerCase()]);
+    group.className="v2-editorial-category";
+    const heading=doc.createElement("h3");
+    heading.textContent=labels[category]||category;
+    group.append(heading);
+    researchPanel.append(group);
+   }
+   if(!group||group.querySelector('[data-v2-editorial-explanation]'))continue;
+   const article=doc.createElement("article");
+   article.className="v2-editorial-research";
+   article.dataset.v2EditorialExplanation=category;
+   const h4=doc.createElement("h4");
+   h4.textContent=typeof entry.title==="string"?entry.title:labels[category];
+   article.append(h4);
+   for(const paragraph of entry.paragraphs){
+    if(typeof paragraph!=="string"||!paragraph.trim())continue;
+    const p=doc.createElement("p");p.textContent=paragraph;article.append(p);
+   }
+   const link=doc.createElement("a");
+   link.href=entry.source_url;link.target="_blank";link.rel="noopener noreferrer";
+   link.textContent=(entry.source_name||"Manufacturer reference")+" ↗";
+   article.append(link);
+   // Show researched context before the compact values for this category.
+   group.insertBefore(article,group.querySelector("div")||group.children[1]||null);
+  }
+ }
+
 }catch(researchError){
  console.warn("Approved V2 supplemental verified research unavailable; original V2 retained",researchError);
 }
