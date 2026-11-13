@@ -3,13 +3,12 @@
 // route registry; do not infer model identity from filenames, replace page
 // designs, or interfere with stock, hero photos or historical content.
 import {installVerifiedModelFacts} from './public-verified-model-facts.mjs';
+import {resolveApprovedV2Identity} from './approved-v2-route-identity.mjs';
 const ENDPOINT='https://tuehtnezhdnkqbbhttgp.supabase.co';
 const PUBLIC_KEY='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
 export function exactApprovedHarleyRoute(rows,pathname){
- if(!Array.isArray(rows)||typeof pathname!=='string'||!/^\/harley-davidson-[a-z0-9-]+\.html$/.test(pathname))return null;
- const matches=rows.filter(x=>x&&x.make==='Harley-Davidson'&&x.url===pathname&&
-  typeof x.model==='string'&&x.model.trim()&&x.model.length<=120);
- return matches.length===1?matches[0]:null;
+ const route=resolveApprovedV2Identity(pathname,rows);
+ return route?.make==='Harley-Davidson'?route:null;
 }
 function publicRpcClient(fetchFn){
  return {async rpc(name,params){
