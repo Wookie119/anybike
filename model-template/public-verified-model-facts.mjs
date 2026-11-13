@@ -458,7 +458,9 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   if(existing){
    // The source-linked group stays visually readable inside dark legacy cards.
    group.style.cssText+=';background:#202020;color:#fff;padding:16px;border:1px solid #484848;border-radius:8px';
-   // Integrated research sits on a white surface: override dark-panel metadata colours.
+   // Keep the approved AnyBike charcoal/red palette even when older
+   // manufacturer cards have a light background. The research group owns
+   // its own contrast-safe dark surface and never inherits white-card text.
    references.style.color='#ddd';
    for(const link of references.querySelectorAll('a'))link.style.color='#ff4850';
    groupHeading.style.display='none'; // The approved card already owns this heading.
