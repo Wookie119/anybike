@@ -52,6 +52,13 @@ try{
    const mainOrder=await page.locator('main > *').evaluateAll(nodes=>nodes.map(node=>node.id||node.className));
    assert.equal(mainOrder.indexOf('internationalModelStock'),mainOrder.indexOf('hero')+1,
     'Approved exact-model stock must follow the hero');
+   const specs=page.locator('#v2DocumentedSpecifications');
+   if(await specs.count()){
+    const position=mainOrder.indexOf('v2DocumentedSpecifications');
+    assert(position>mainOrder.indexOf('internationalModelStock')&&
+     position<mainOrder.indexOf('generationPanel'),
+     'Published factory specifications should precede model years');
+   }
    assert.equal(await page.locator('#r1300gsModelHistory').evaluate(node=>node.parentElement?.tagName),
     'MAIN','Development and ownership must not remain nested inside stock');
    assert.equal(await page.locator('#r1300gsModelHistory').evaluate(node=>node.previousElementSibling?.id),
