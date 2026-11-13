@@ -275,6 +275,8 @@ async function countryNavigation(){
  const section=document.getElementById('r1300CountryMarkets');
  const nav=section?.querySelector('nav[aria-label="Country market links"]');
  if(!nav)return;
+ // The country directory must not appear as a blank section while loading.
+ section.hidden=true;
  try{
   const db=window.supabase?.createClient?.(ENDPOINT,KEY);
   let data=null;
@@ -377,3 +379,5 @@ async function globalNavigation(){
 }
 // A failed or incomplete catalogue identity must not create model-specific links.
 if(make&&current?.model)await Promise.allSettled([modelNavigation(),manufacturerNavigation(),countryNavigation(),globalNavigation()]);
+window.__anybikeV2NavigationReady=true;
+window.dispatchEvent(new Event('anybike:v2-navigation-ready'));
