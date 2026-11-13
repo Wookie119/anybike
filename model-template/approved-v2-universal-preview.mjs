@@ -226,7 +226,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
      return entry?{...entry,publication_status:archive.publication_status}:null;
     })();
     const {preserveDedicatedModelResearch,preservedExistingHero}=
-     await import('/model-template/approved-v2-dedicated-preservation.mjs');
+     await import('/model-template/approved-v2-dedicated-preservation.mjs?v=20261113-r1250-merge2');
     guide=preserveDedicatedModelResearch(guide,row,{make,model,url:approvedDedicatedRoute});
     preservedExistingPhoto=preservedExistingHero(row,{make,model,url:approvedDedicatedRoute});
    }catch(error){
