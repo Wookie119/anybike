@@ -3101,11 +3101,17 @@ async function anybikeShowPublicSignedInIdentity(){
  const path=window.location.pathname.toLowerCase();
  const generic=path==='/motorcycle-model-guide.html';
  const dedicated=/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(path);
- const protectedMaster=path==='/bmw-r1300gs-v2.html'||
+ const protectedMaster=path==='/bmw-r1300gs.html'||
+  path==='/bmw-r1300gs-v2.html'||
   path==='/bmw-r1300gs-v2-development.html'||
   path==='/motorcycle-model-universal-development.html';
  const brand=path==='/bmw-motorcycles.html'||path==='/harley-davidson-motorcycles.html';
- if((!generic&&!dedicated)||protectedMaster||brand)return;
+ // A dedicated legacy model can have different navigation, forms and approved
+ // layouts. Apply the shared V2 presentation only to compatible model surfaces.
+ // The generic route is the universal route for every catalogue manufacturer.
+ const compatible=!!document.querySelector('main #generationPanel')&&
+  !!document.querySelector('main #body');
+ if((!generic&&!dedicated)||protectedMaster||brand||!compatible||!document.body)return;
  document.body.classList.add('anybike-v2-model-rollout');
  if(document.querySelector('link[data-anybike-v2-rollout]'))return;
  const link=document.createElement('link');
