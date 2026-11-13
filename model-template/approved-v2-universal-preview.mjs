@@ -75,6 +75,8 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const found=candidates.filter(row=>normalize(row.make)===normalize(wantMake)&&normalize(row.model)===normalize(wantModel));
   if(found.length!==1)throw Error('No unique published model matches that make and model.');
   const selected=found[0],make=str(selected.make),model=str(selected.model),title=make+' '+model;
+  const canonicalId=Number(selected.model_id||selected.catalogue_model_id);
+  const hasCanonicalId=Number.isSafeInteger(canonicalId)&&canonicalId>0;
   const enquiry='/bulk-buying-request.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
   const manufacturer=normalize(make)==='bmw'?'/bmw-motorcycles.html':
    normalize(make)==='harley davidson'?'/harley-davidson-motorcycles.html':
@@ -84,12 +86,18 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   let guide=null;
   if(client){
    try{
-    const {data,error}=await client.from('motorcycle_model_v2_editorial')
-     .select('model_id,slug,editorial').eq('preview_visible',true)
-     .eq('editorial->>make',make).eq('editorial->>model',model).limit(1).maybeSingle();
-    if(!error&&data?.editorial&&normalize(data.editorial.make)===normalize(make)&&
-       normalize(data.editorial.model)===normalize(model))guide=data.editorial;
-    if(error)console.warn('V2 editorial not available for this identity; verified facts remain',error);
+    // Editorial must match the canonical catalogue ID, not merely similarly
+    // spelt make/model fields. When no ID is available, show verified facts only.
+    if(hasCanonicalId){
+     const {data,error}=await client.from('motorcycle_model_v2_editorial')
+      .select('model_id,slug,editorial').eq('preview_visible',true)
+      .eq('model_id',canonicalId)
+      .eq('editorial->>make',make).eq('editorial->>model',model).limit(1).maybeSingle();
+     if(!error&&data?.editorial&&Number(data.model_id)===canonicalId&&
+        normalize(data.editorial.make)===normalize(make)&&
+        normalize(data.editorial.model)===normalize(model))guide=data.editorial;
+     if(error)console.warn('V2 editorial not available for this identity; verified facts remain',error);
+    }
    }catch(e){console.warn('V2 editorial lookup unavailable',e);}
   }
   window.__anybikeV2ModelIdentity=Object.freeze({make,model});
@@ -178,7 +186,12 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    sourceLink(caption,approvedHero.source_page_url,'Photograph attribution ↗');
    fig.hidden=false;
   }
-  const galleryItems=approvedGallery.filter(safePhoto);
+  // Never repeat the hero as a gallery card or display the same image twice.
+  const galleryUrls=new Set(safePhoto(approvedHero)?[approvedHero.image_url]:[]);
+  const galleryItems=approvedGallery.filter(photo=>{
+   if(!safePhoto(photo)||galleryUrls.has(photo.image_url))return false;
+   galleryUrls.add(photo.image_url);return true;
+  });
   if(galleryItems.length){
    const gallerySection=makeSection('v2ApprovedGallery','Approved '+title+' photographs',fig?.closest('.hero')||$('body'));
    const holder=node('div',undefined,'v2-documentary-grid');
@@ -351,8 +364,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // timestamps and nested approvals. Render its approved research into V2,
   // not a second page layout. Zero approved slots means NO draft leakage.
   let publishedCount=0;
-  const canonicalId=Number(selected.model_id||selected.catalogue_model_id);
-  if(client&&Number.isSafeInteger(canonicalId)&&canonicalId>0){
+  if(client&&hasCanonicalId){
    try{
     const {loadUniversalPublishedPage}=await import('/model-template/universal-page-data.mjs');
     const {renderUniversalPage}=await import('/model-template/universal-page-renderer.mjs');
