@@ -141,17 +141,32 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const masterUrl=new URL('/motorcycle-v2-master.html?make='+
    encodeURIComponent(make)+'&model='+encodeURIComponent(model),location.origin);
   let canonical=masterUrl.href;
-  if(client){
-   try{
-    const {data,error}=await client.rpc('public_anybike_manufacturer_model_routes_v1',{p_make:make});
-    if(!error&&Array.isArray(data)){
-     const exact=data.filter(item=>normalize(item.make)===normalize(make)&&
-      normalize(item.model)===normalize(model)&&
-      /^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(String(item.url||'')));
-     if(exact.length===1)canonical=new URL(exact[0].url,location.origin).href;
+  try{
+   let routes=null;
+   if(client){
+    try{
+     const {data,error}=await client.rpc('public_anybike_manufacturer_model_routes_v1',{p_make:make});
+     if(error)throw error;
+     if(Array.isArray(data))routes=data;
+    }catch(error){console.warn('Supabase JS canonical routes unavailable',error);}
+   }
+   if(!routes){
+    const response=await fetch(ENDPOINT+'/rest/v1/rpc/public_anybike_manufacturer_model_routes_v1',{
+     method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},
+     body:JSON.stringify({p_make:make}),cache:'no-store'
+    });
+    if(response.ok){
+     const data=await response.json();
+     if(Array.isArray(data))routes=data;
     }
-   }catch(e){console.warn('Canonical published route lookup unavailable',e)}
-  }
+   }
+   if(routes){
+    const exact=routes.filter(item=>normalize(item.make)===normalize(make)&&
+     normalize(item.model)===normalize(model)&&
+     /^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(String(item.url||'')));
+    if(exact.length===1)canonical=new URL(exact[0].url,location.origin).href;
+   }
+  }catch(e){console.warn('Canonical published route lookup unavailable',e)}
   document.title=pageTitle;
   const setMeta=(selector,value)=>{
    const item=document.querySelector(selector);
