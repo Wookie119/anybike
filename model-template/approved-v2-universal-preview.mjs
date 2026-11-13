@@ -5,7 +5,7 @@
    RLS-approved V2 editorial optionally enriches the SAME sections.
    Missing research produces no empty box. Existing live routes are untouched.
 */
-import {installVerifiedModelFacts} from '/model-template/public-verified-model-facts.mjs?v=20261113-chronological1';
+import {installVerifiedModelFacts,approvedResearchSectionHeading} from '/model-template/public-verified-model-facts.mjs?v=20261113-chronological1';
 const ENDPOINT='https://tuehtnezhdnkqbbhttgp.supabase.co';
 const KEY='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
 const $=id=>document.getElementById(id);
@@ -381,7 +381,6 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
      const approved=[...holder.querySelectorAll('[data-anybike-role="research"] > section.card')];
      if(approved.length){
       const destination=$('body');
-      const {approvedResearchSectionHeading}=await import('/model-template/public-verified-model-facts.mjs');
       for(const section of approved){
        // Keep the 20-slot publication contract intact. If a verified facts
        // group already occupies the SAME explicitly registered research
