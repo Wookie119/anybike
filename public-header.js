@@ -3092,6 +3092,29 @@ async function anybikeShowPublicSignedInIdentity(){
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
 
+/* Approved BMW R 1300 GS V2 layout across existing model routes.
+ * Pure presentation: never alters stock access, research publication,
+ * generation data, enquiry forms, or the protected R 1300 GS master.
+ * Dedicated BMW/Harley and generic manufacturer models use the same CSS.
+ */
+(function loadApprovedUniversalModelLayout(){
+ const path=window.location.pathname.toLowerCase();
+ const generic=path==='/motorcycle-model-guide.html';
+ const dedicated=/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(path);
+ const protectedMaster=path==='/bmw-r1300gs-v2.html'||
+  path==='/bmw-r1300gs-v2-development.html'||
+  path==='/motorcycle-model-universal-development.html';
+ const brand=path==='/bmw-motorcycles.html'||path==='/harley-davidson-motorcycles.html';
+ if((!generic&&!dedicated)||protectedMaster||brand)return;
+ document.body.classList.add('anybike-v2-model-rollout');
+ if(document.querySelector('link[data-anybike-v2-rollout]'))return;
+ const link=document.createElement('link');
+ link.rel='stylesheet';
+ link.href='/model-template/r1300-v2-universal-rollout.css?v=20261113-all-models1';
+ link.dataset.anybikeV2Rollout='1';
+ document.head.appendChild(link);
+})();
+
 /* Complete manufacturer/model links, loaded only on catalogue pages. */
 (function(){
  const path=location.pathname;
