@@ -270,6 +270,38 @@ function renderVerifiedModelExploration(body,facts,make,model){
   content.append(description,link);detail.append(summary,content);deepEntries.append(detail);
  }
  deepDive.hidden=deepEntries.children.length===0;
+ const technical=doc.getElementById?.('verifiedModelTechnical');
+ const technicalEntries=doc.getElementById?.('verifiedModelTechnicalEntries');
+ if(technical&&technicalEntries){
+  technicalEntries.replaceChildren();
+  technical.dataset.anybikeResearchIdentity=identity;
+  const technicalCategories=new Set(['engine','transmission','performance','specification','dimensions','chassis','wheels','brakes','engineering']);
+  for(const category of researchOrder){
+   if(!technicalCategories.has(category)||!anchors.has(category))continue;
+   const items=facts.filter(fact=>fact.category===category);
+   if(!items.length)continue;
+   const card=doc.createElement('article');card.className='anybike-model-technical-card';
+   card.append(node(doc,'h3',sections[category]));
+   for(const fact of items){
+    const line=doc.createElement('div');line.className='anybike-model-technical-record';
+    const label=node(doc,'strong',fact.label);
+    const details=doc.createElement('p');
+    // Values come from the same audited scalar projection as the full
+    // research card; no units or year applicability are inferred here.
+    details.textContent=fact.display.map(entry=>entry.label+': '+entry.value).join(' · ');
+    line.append(label,details);
+    const qualifiers=[fact.start_year!==null&&fact.start_year!==''?'Reference year: '+fact.start_year:'',
+     safeText(fact.market)?'Market: '+fact.market:''].filter(Boolean);
+    if(qualifiers.length)line.append(node(doc,'small',qualifiers.join(' · ')));
+    card.append(line);
+   }
+   const link=node(doc,'a','See verified '+sections[category].toLowerCase()+' and sources →');
+   link.href='#'+anchors.get(category);card.append(link);
+   technicalEntries.append(card);
+  }
+  technical.hidden=technicalEntries.children.length===0;
+ }
+
 }
 export function mountVerifiedModelFacts(body,rows,make,model){
  if(!body)return 0;
@@ -611,13 +643,14 @@ export async function installVerifiedModelFacts({body,make,model,client}={}){
  // Immediately hide a previous motorcycle's navigation and source links
  // while its replacement RPC is loading. Do not erase same-model research
  // on a temporary network failure.
- for(const id of ['verifiedModelTimeline','verifiedModelDeepDive','modelSources']){
+ for(const id of ['verifiedModelTimeline','verifiedModelDeepDive','verifiedModelTechnical','modelSources']){
   const section=body.ownerDocument?.getElementById?.(id);
   if(section?.dataset?.anybikeResearchIdentity&&
      section.dataset.anybikeResearchIdentity!==requestedIdentity){
    section.hidden=true;
    if(id==='verifiedModelTimeline')section.querySelector('#verifiedModelTimelineEntries')?.replaceChildren();
    if(id==='verifiedModelDeepDive')section.querySelector('#verifiedModelDeepDiveEntries')?.replaceChildren();
+   if(id==='verifiedModelTechnical')section.querySelector('#verifiedModelTechnicalEntries')?.replaceChildren();
    if(id==='modelSources')section.querySelector('#verifiedModelSources')?.replaceChildren();
   }
  }
