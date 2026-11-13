@@ -266,7 +266,11 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    events.forEach(e=>{const p=node('p');p.append(node('strong',e.period+': '),document.createTextNode(e.description));list.append(p)});
    sourceLink(list,guide?.model_year_timeline_reference?.url,guide?.model_year_timeline_reference?.label);
   }
-  const yearCards=arr(guide?.model_year_cards).filter(x=>str(x.period)&&str(x.description));
+  // Chronological documentary model-year cards; unknown periods keep input order.
+  const yearCards=arr(guide?.model_year_cards).filter(x=>str(x.period)&&str(x.description))
+   .map((card,index)=>({card,index,year:Number(str(card.period).match(/(?:18|19|20)\\d{2}/)?.[0]||0)}))
+   .sort((a,b)=>(a.year||9999)-(b.year||9999)||a.index-b.index)
+   .map(x=>x.card);
   const devCards=arr(guide?.development_cards).filter(x=>str(x.title)&&str(x.description));
   if(development&&(yearCards.length||devCards.length)){
    development.hidden=false;
@@ -425,12 +429,15 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
      group=node('div',undefined,'v2-editorial-category');
      group.dataset.anybikeResearchCategory=key;
      group.append(node('h3',str(entry.title)||key.replace(/_/g,' ')));
+     group.dataset.anybikeResearchIdentity=JSON.stringify([make.toLowerCase(),model.toLowerCase()]);
      panel.append(group);
     }
     if(group.querySelector('[data-v2-editorial-explanation]'))continue;
     const article=node('article',undefined,'v2-editorial-research');
     article.dataset.v2EditorialExplanation=key;
-    article.append(node('h4',str(entry.title)||key.replace(/_/g,' ')));
+    const groupHeading=group.querySelector(':scope > h3')?.textContent?.trim();
+    const articleHeading=str(entry.title)||key.replace(/_/g,' ');
+    if(normalize(groupHeading)!==normalize(articleHeading))article.append(node('h4',articleHeading));
     arr(entry.paragraphs).forEach(x=>paragraph(article,x));
     sourceLink(article,entry.source_url,entry.source_name||'Manufacturer reference ↗');
     group.append(article);
