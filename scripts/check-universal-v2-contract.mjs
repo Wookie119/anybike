@@ -96,6 +96,19 @@ check('Restricted public stock is exact-model, entitlement-verified and deduplic
  assert.match(renderer,/res\.status===401\|\|res\.status===403/);
  assert.match(renderer,/stockForCanonicalModel\(data\.items,pageIdentity,6\)/);
 });
+check('Guest enquiry is available before slow research, even without a visitor session',()=>{
+ const form=renderer.indexOf("const form=$('internationalGuestRequestForm')");
+ const photos=renderer.indexOf("const publicMedia=async");
+ const research=renderer.indexOf("await installVerifiedModelFacts");
+ assert(form>=0&&photos>form&&research>form,'Guest enquiry must initialize before model research and media');
+ assert.match(renderer,/const optionalVisitorToken=async/);
+ assert.match(renderer,/await client\?\.auth\?\.getSession\?\.\(\)/);
+ assert.match(renderer,/const reply=await res\.json\(\)\.catch\(\(\)=>null\)/);
+});
+check('Unexpected model failures do not leave stock permanently checking',()=>{
+ assert.match(renderer,/pendingStock\?\.dataset\.stockFeedState==='checking'/);
+ assert.match(renderer,/pendingStock\.dataset\.stockFeedState='unavailable'/);
+});
 check('Shared enquiries and available stock remain available before research',()=>{
  assert.match(renderer,/international-guest-enquiry/);
  assert.match(renderer,/if\(header&&stock\)header\.after\(stock\)/);
