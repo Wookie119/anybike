@@ -318,6 +318,42 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // Source-verified exact-model facts populate research without manufacturing
   // invented specifications or blank mandatory panels.
   const factCount=await installVerifiedModelFacts({body:$('body'),make,model,client});
+  // The existing 20-slot editorial contract is the ONLY future publication
+  // source. It independently checks RLS-visible release provenance, identity,
+  // timestamps and nested approvals. Render its approved research into V2,
+  // not a second page layout. Zero approved slots means NO draft leakage.
+  let publishedCount=0;
+  const canonicalId=Number(selected.model_id||selected.catalogue_model_id);
+  if(client&&Number.isSafeInteger(canonicalId)&&canonicalId>0){
+   try{
+    const {loadUniversalPublishedPage}=await import('/model-template/universal-page-data.mjs');
+    const {renderUniversalPage}=await import('/model-template/universal-page-renderer.mjs');
+    const publication=await loadUniversalPublishedPage(client,{type:'model',id:canonicalId});
+    if(publication){
+     if(normalize(publication.entity.name)!==normalize(model)||
+        publication.entity.id!==canonicalId)throw Error('Cross-model universal publication blocked');
+     const holder=node('div');
+     holder.dataset.anybikeUniversalRoot='true';
+     renderUniversalPage(holder,{
+      entity:{...publication.entity,manufacturer_name:make},
+      sections:publication.sections,stock:[]
+     });
+     const approved=[...holder.querySelectorAll('[data-anybike-role="research"] > section.card')];
+     if(approved.length){
+      const destination=$('body');
+      for(const section of approved){
+       section.classList.add('anybike-v2-reviewed-universal-section');
+       destination.append(section);
+      }
+      publishedCount=approved.length;
+     }
+    }
+   }catch(e){
+    // Fail closed: a malformed or unpublished section must never replace
+    // exact-model verified research or surface editorial drafts.
+    console.warn('Reviewed 20-slot editorial projection unavailable or rejected',e);
+   }
+  }
   const explanations=guide?.research_explanations;
   if(explanations&&typeof explanations==='object'&&!Array.isArray(explanations)){
    let panel=$('body').querySelector('[data-anybike-verified-model-facts]');
@@ -343,7 +379,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     group.append(article);
    }
   }
-  if(!factCount&&!guide){
+  if(!factCount&&!guide&&!publishedCount){
    const note=node('p','Verified research is not yet published for this motorcycle. You can enquire about a specific year and specification.');
    const section=makeSection('v2ResearchPending','Research publication status',$('generationPanel'));
    section.append(note);
