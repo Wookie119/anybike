@@ -262,10 +262,29 @@ async function countryNavigation(){
 async function globalNavigation(){
  const anchor=document.getElementById('r1300CountryMarkets');
  if(!anchor||!make)return;
- const panel=makePanel('approvedV2GlobalStories','AnyBike Global — '+make+' stories',
-  'Read published manufacturer stories, history and comparisons on AnyBike Global.',anchor);
+ const panel=makePanel('approvedV2GlobalStories','Discover '+make+' on AnyBike Global',
+  'Factory history, engineering stories and comparisons to help you understand the motorcycles behind the specifications.',anchor);
  const nav=panel.querySelector('nav');
+ nav.classList.add('anybike-v2-story-grid');
+ panel.classList.add('anybike-v2-global-feature');
+ panel.querySelector('h2').insertAdjacentText('beforebegin','ANYBIKE GLOBAL');
  const more={label:'Explore all AnyBike Global stories →',url:'/anybike-global.html'};
+ const renderStories=entries=>{
+  nav.replaceChildren();
+  for(const entry of entries){
+   const card=document.createElement('article');card.className='anybike-v2-story-card';
+   const eyebrow=document.createElement('p');eyebrow.className='anybike-v2-story-tag';
+   eyebrow.textContent=entry.tag||'Motorcycle story';
+   const title=document.createElement('h3');title.textContent=entry.label;
+   const summary=document.createElement('p');summary.textContent=entry.description||'Read the published story on AnyBike Global.';
+   const action=document.createElement('a');action.href=entry.url;
+   action.textContent='Read story →';
+   card.append(eyebrow,title,summary,action);nav.append(card);
+  }
+  const moreLink=document.createElement('a');moreLink.href=more.url;
+  moreLink.className='anybike-v2-global-all';moreLink.textContent=more.label;
+  panel.append(moreLink);
+ };
  try{
   const doc=new DOMParser().parseFromString(await fetchPublished('/anybike-global.html'),'text/html');
   const entries=[];
@@ -279,9 +298,11 @@ async function globalNavigation(){
    const direct=article.querySelector('a[href^="/global/"]');
    const path=direct?.getAttribute('href')||('/anybike-global.html#'+article.id);
    if(!/^\/(?:global\/[a-z0-9-]+\.html|anybike-global\.html#[a-z0-9-]+)$/.test(path))continue;
-   entries.push({label:title,url:path});
+   const description=article.querySelector('p')?.textContent?.trim()||'';
+   const tag=article.querySelector('.tag')?.textContent?.trim()||'AnyBike Global';
+   entries.push({label:title,url:path,description,tag});
   }
-  safeNav(nav,[...entries.slice(0,12),more]);
- }catch(error){safeNav(nav,[more]);console.warn('V2 published Global index unavailable',error);}
+  renderStories(entries.slice(0,6));
+ }catch(error){renderStories([]);console.warn('V2 published Global index unavailable',error);}
 }
 await Promise.allSettled([modelNavigation(),manufacturerNavigation(),countryNavigation(),globalNavigation()]);
