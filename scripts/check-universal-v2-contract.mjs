@@ -116,6 +116,11 @@ check('Unexpected model failures do not leave stock permanently checking',()=>{
  assert.match(renderer,/pendingStock\?\.dataset\.stockFeedState==='checking'/);
  assert.match(renderer,/pendingStock\.dataset\.stockFeedState='unavailable'/);
 });
+check('Approved model photo galleries never displace exact-model stock',()=>{
+ assert.match(renderer,/makeSection\('v2ApprovedGallery','Approved '\+title\+' photographs',stock\)/);
+ assert(renderer.indexOf("if(header&&stock)header.after(stock)")<
+  renderer.indexOf("makeSection('v2ApprovedGallery'"));
+});
 check('Shared enquiries and available stock remain available before research',()=>{
  assert.match(renderer,/international-guest-enquiry/);
  assert.match(renderer,/if\(header&&stock\)header\.after\(stock\)/);
