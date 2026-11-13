@@ -37,6 +37,13 @@ check('V2 rollout never modifies the protected BMW master',()=>{
  assert.match(header,/path==='\/bmw-r1300gs-v2\.html'/);
  assert.doesNotMatch(master,/anybike-v2-model-rollout/);
 });
+check('Legacy public header detects V2 before module script parses',()=>{
+ assert.match(header,/const actualV2=!!document\.getElementById\('databaseHeroPhoto'\)/);
+ assert.match(header,/const sharedV2Guide=!!document\.getElementById\('databaseHeroPhoto'\)/);
+ assert.match(header,/getElementById\('internationalGuestRequestForm'\)/);
+ assert.match(header,/getElementById\('v2FormSubmit'\)/);
+ assert.doesNotMatch(header,/script\[src\*="\/model-template\/approved-v2-universal-preview\.mjs"\]/);
+});
 check('Incompatible legacy designs fail closed',()=>{
  assert.match(header,/const compatible=!!document\.querySelector\('main #generationPanel'\)/);
  assert.match(header,/!!document\.querySelector\('main #body'\)/);
