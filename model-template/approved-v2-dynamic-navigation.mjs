@@ -100,7 +100,7 @@ async function modelNavigation(){
  // Related models are chosen from the same published links, never hardcoded
  // into an individual model page.
  if(links.length){
-  const hero=document.querySelector('main > .hero');
+  const hero=document.querySelector('main > .hero, main #universalV2Preview > .hero');
   const stock=document.getElementById('internationalModelStock');
   const placement=stock||hero;
   if(placement){
