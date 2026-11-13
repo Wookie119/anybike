@@ -108,7 +108,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     if(!error&&Array.isArray(data)){
      const exact=data.filter(item=>normalize(item.make)===normalize(make)&&
       normalize(item.model)===normalize(model)&&
-      /^\\/(?:bmw|harley-davidson)-[a-z0-9-]+\\.html$/.test(String(item.url||'')));
+      /^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(String(item.url||'')));
      if(exact.length===1)canonical=new URL(exact[0].url,location.origin).href;
     }
    }catch(e){console.warn('Canonical published route lookup unavailable',e)}
