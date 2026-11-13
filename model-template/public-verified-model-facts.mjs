@@ -494,7 +494,16 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  for(const category of researchOrder){
   const originalItems=grouped.get(category);
   if(!originalItems?.length)continue;
-  const items=factoryCategories.has(category)?orderedVerifiedFactoryFacts(originalItems):originalItems;
+  // Factory archive model years must read chronologically, not in the order
+  // the verified RPC happens to return them. Preserve the source year exactly.
+  const items=factoryCategories.has(category)?orderedVerifiedFactoryFacts(originalItems):
+   category==='model_year'?[...originalItems].sort((a,b)=>{
+    const year=x=>{
+     const n=Number(x.start_year);
+     return Number.isInteger(n)&&n>=1885&&n<=2100?n:Number.POSITIVE_INFINITY;
+    };
+    return year(a)-year(b)||Number(a.fact_id)-Number(b.fact_id);
+   }):originalItems;
   const group=doc.createElement('div');
   group.dataset.anybikeResearchCategory=category;
   group.dataset.anybikeResearchIdentity=identity;
