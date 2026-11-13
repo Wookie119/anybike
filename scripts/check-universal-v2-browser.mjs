@@ -53,22 +53,23 @@ try{
     else if(pathname.endsWith('/international-guest-enquiry')){submissions.push(payload);body={ok:true,reference:'MOCK-ONLY'};}
     else {status=404;body={error:'Unknown mock endpoint'};}
     await route.fulfill({status,contentType:'application/json',headers:{
-     'access-control-allow-origin':'*','access-control-allow-headers':'*'},body:JSON.stringify(body)});
+     'access-control-allow-origin':'*','access-control-allow-headers':'*',
+     'access-control-allow-methods':'GET,POST,OPTIONS'},body:JSON.stringify(body)});
    });
    const page=await context.newPage(),errors=[];
    page.on('pageerror',e=>errors.push(String(e)));
    await page.goto(origin+'/motorcycle-v2-master.html?make='+encodeURIComponent(make)+
     '&model='+encodeURIComponent(model),{waitUntil:'domcontentloaded'});
-   await page.waitForFunction(()=>window.__anybikeV2EditorialReady===true,{timeout:30000});
+   await page.waitForFunction(()=>window.__anybikeV2EditorialReady===true,null,{timeout:30000});
    await page.waitForFunction(()=>document.querySelector('#internationalModelStock')?.dataset.stockFeedState==='restricted',
-    {timeout:15000});
+    null,{timeout:15000});
    assert.equal(await page.locator('#heading').innerText(),make+' '+model);
    assert.equal(await page.locator('meta[name=robots]').getAttribute('content'),'index,follow');
    assert.match(await page.locator('#internationalModelCards').innerText(),/access is restricted/i);
    assert.equal(await page.locator('#internationalGuestRequestForm').isVisible(),true);
    const order=await page.locator('main > *').evaluateAll(nodes=>nodes.map(n=>n.id||n.className));
    assert.equal(order.indexOf('internationalModelStock'),order.indexOf('hero')+1);
-   await page.waitForFunction(()=>document.querySelector('#r1300CountryMarkets')?.hidden===false,{timeout:15000});
+   await page.waitForFunction(()=>document.querySelector('#r1300CountryMarkets')?.hidden===false,null,{timeout:15000});
    assert.match(await page.locator('#r1300CountryMarkets').innerText(),/View all 1 international markets/);
    if(make==='BMW'){
     assert.equal(await page.locator('#databaseHeroPhoto').isVisible(),true);
