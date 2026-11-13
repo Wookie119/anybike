@@ -52,13 +52,18 @@ check('All 27 approved dedicated BMW routes contain a compatible surface',()=>{
   assert.match(html,/public-header\.js/,row.url);
  }
 });
-check('All 18 approved dedicated Harley pages preserved, not overwritten',()=>{
+check('All 18 Harley dedicated routes run the shared V2 renderer and retain archival research',()=>{
  const harley=approved.filter(row=>row.make==='Harley-Davidson');
+ const archive=JSON.parse(read('data/harley-v2-legacy-preservation.json')).models;
  assert.equal(harley.length,18);
+ assert.equal(archive.length,18);
  for(const row of harley){
   const html=read(row.url.slice(1));
-  assert.doesNotMatch(html,/anybike-v2-model-rollout/,row.url);
+  assert.match(html,/approved-v2-universal-preview\.mjs/,row.url);
+  assert.match(html,/approved-v2-dynamic-navigation\.mjs/,row.url);
   assert.match(html,/public-header\.js/,row.url);
+  assert.match(html,/id="internationalGuestRequestForm"/,row.url);
+  assert(archive.some(entry=>entry.url===row.url&&entry.make===row.make&&entry.model===row.model),row.url);
  }
 });
 check('The shared layout has accessible contrast, readable cards and mobile flow',()=>{
