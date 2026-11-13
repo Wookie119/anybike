@@ -2,7 +2,7 @@
 // Master-only browser smoke test: mocked RPC and enquiries; never touches live data.
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
-import {readFile} from 'node:fs/promises';
+import {readFile,mkdir} from 'node:fs/promises';
 import {resolve,sep,extname} from 'node:path';
 import {chromium} from 'playwright';
 const root=resolve(process.cwd());
@@ -25,6 +25,7 @@ const inventory={
 const photo={make:'BMW',model:'R 1300 GS',title:'Verified hero',image_url:'https://photos.example.invalid/hero.jpg',
  attribution:'Licensed photographer',licence:'CC BY-SA 4.0',source_page_url:'https://example.org/source',
  licence_url:'https://creativecommons.org/licenses/by-sa/4.0/'};
+await mkdir('artifacts/universal-v2-browser',{recursive:true});
 const tests=[['BMW','R 1300 GS',1280],['BMW','R 1300 GS',390],['Suzuki','RM250',1280],
  ['Suzuki','RM250',390],['Harley-Davidson','Fat Boy',1280]];
 let passed=0;
@@ -85,6 +86,14 @@ try{
    assert.equal(submissions.length,1);
    assert.equal(submissions[0].make,make);
    assert.equal(submissions[0].model,model);
+   const metrics=await page.evaluate(()=>({
+    viewport:innerWidth,documentWidth:document.documentElement.scrollWidth,
+    hidden:document.querySelectorAll('main [hidden]').length
+   }));
+   assert(metrics.documentWidth<=metrics.viewport+3,
+    'Horizontal overflow at '+width+'px: '+JSON.stringify(metrics));
+   await page.screenshot({path:'artifacts/universal-v2-browser/'+make.replace(/[^a-z0-9]/gi,'-')+
+    '-'+model.replace(/[^a-z0-9]/gi,'-')+'-'+width+'.png',fullPage:true});
    assert.deepEqual(errors,[]);
    console.log('PASS '+make+' '+model+' '+width+'px');passed++;
   }finally{await context.close();}
