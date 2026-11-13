@@ -91,7 +91,10 @@ async function modelNavigation(){
  // If public navigation is temporarily unavailable, preserve the existing
  // V2 pills rather than replace them with an empty list.
  const links=[...combined.values()].sort((a,b)=>a.label.localeCompare(b.label,'en-GB',{numeric:true}))
-  .map(item=>({...item,current:normalize(item.label)===normalize(current.model)}));
+  .map(item=>{
+   const here=normalize(item.label)===normalize(current.model);
+   return {...item,current:here,url:here?location.pathname+location.search:item.url};
+  });
  const rendered=safeNav(target,links);
  if(rendered){
   const heading=target.closest('section')?.querySelector('h2');
