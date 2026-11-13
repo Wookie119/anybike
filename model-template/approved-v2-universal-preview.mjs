@@ -63,7 +63,7 @@ let approvedDedicatedRoute=null;
 // A dedicated page can adopt this exact renderer in a later approved migration
 // without duplicating the template or guessing an identity from its URL slug.
 // The checked-in reviewed route map supplies both make and exact model name.
-if(/^\\/(?:bmw|harley-davidson)-[a-z0-9-]+\\.html$/.test(location.pathname)){
+if(/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(location.pathname)){
  try{
   const response=await fetch('/data/approved-dedicated-model-routes.json',{cache:'no-cache'});
   if(!response.ok)throw Error('Reviewed dedicated route map unavailable');
