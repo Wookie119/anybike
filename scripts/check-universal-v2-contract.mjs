@@ -141,4 +141,11 @@ check('Verified-facts outages do not block exact-model stock or public enquiries
  assert.match(beforeFacts,/try\s*\{/);
  assert.match(renderer.slice(factStart,catchStart),/catch\(error\)\s*\{/);
 });
+check('Documented BMW milestone and specification rows display with sources',()=>{
+ assert(renderer.includes('production.documented_milestones'));
+ assert(renderer.includes('production.specifications'));
+ assert(renderer.includes("makeSection('v2DocumentedSpecifications'"));
+ assert(renderer.includes('sourceLink(article,spec.source'));
+ assert(renderer.includes('sourceLink(p,e.source'));
+});
 console.log('Universal V2 regression checks: '+passed+' passed');
