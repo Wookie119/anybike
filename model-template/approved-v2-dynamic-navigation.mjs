@@ -5,7 +5,15 @@
  */
 const ENDPOINT='https://tuehtnezhdnkqbbhttgp.supabase.co';
 const KEY='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
-const current=window.__anybikeV2ModelIdentity||{make:'BMW',model:'R 1300 GS'};
+// The page identifies the exact published motorcycle after the V2 editorial RPC
+// succeeds. Do not guess a different model during future universal rollout.
+const current=await new Promise(resolve=>{
+ if(window.__anybikeV2ModelIdentity?.make&&window.__anybikeV2ModelIdentity?.model){
+  resolve(window.__anybikeV2ModelIdentity);return;
+ }
+ window.addEventListener('anybike:v2-model-identity-ready',
+  ()=>resolve(window.__anybikeV2ModelIdentity),{once:true});
+});
 const make=String(current.make||'').trim();
 const normalize=s=>String(s||'').toLocaleLowerCase('en-GB').replace(/[^a-z0-9]+/g,' ').trim();
 const validModelPath=s=>/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(s);
@@ -95,12 +103,16 @@ async function manufacturerNavigation(){
   const entries=new Map();
   for(const node of doc.querySelectorAll('.brand')){
    const link=node.matches('a[href]')?node:node.querySelector('a[href]');
-   const name=node.getAttribute('data-name')||link?.textContent||'';
+   const label=node.querySelector('strong')?.textContent?.trim()||'';
+   const name=label||node.getAttribute('data-name')||'';
    if(!name||!link)continue;
-   const path=new URL(link.getAttribute('href'),location.origin);
-   if(path.origin!==location.origin||!/^\/(?:motorcycle-brand\.html|bmw-motorcycles\.html|harley-davidson-motorcycles\.html)$/.test(path.pathname))continue;
-   const label=(link.textContent||name).replace(/\s+/g,' ').trim();
-   const url=path.pathname+(path.search||'');
+   const source=new URL(link.getAttribute('href'),location.origin);
+   if(source.origin!==location.origin)continue;
+   // The A–Z directory commonly points to sourcing forms. A model-guide
+   // link must instead open the real manufacturer page.
+   const url=name==='BMW'?'/bmw-motorcycles.html':
+    name==='Harley-Davidson'?'/harley-davidson-motorcycles.html':
+    '/motorcycle-brand.html?make='+encodeURIComponent(name);
    const key=normalize(name);
    if(key===normalize(make)||!key||entries.has(key))continue;
    entries.set(key,{label:label.length<60?label:name,url});
