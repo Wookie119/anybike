@@ -17,7 +17,13 @@ export function renderExactModelStock(section,items,identity){
  const status=section.querySelector('[data-exact-model-stock-status]');
  if(!cards||!status)return 0;
  cards.replaceChildren();
- const matches=matchingPublishedMotorcycles(items,identity,{limit:6});
+ const candidates=matchingPublishedMotorcycles(items,identity,{limit:24});
+ // The protected endpoint already controls publication and country access.
+ // Never join multiple canonical IDs into one model gallery even when text
+ // names happen to match (especially reintroduced or derivative models).
+ const canonicalIds=new Set(candidates.map(item=>item.catalog_model_id)
+  .filter(id=>id!==null&&id!==undefined&&id!=='').map(String));
+ const matches=canonicalIds.size>1?[]:candidates.slice(0,6);
  section.hidden=false;
  if(!matches.length){
   status.textContent='No published stock has been confirmed for this exact model. Ask AnyBike to search UK suppliers.';
@@ -53,7 +59,19 @@ export async function loadExactModelStock(){
  for(let i=0;i<30&&!allowed();i++)await new Promise(resolve=>setTimeout(resolve,100));
  if(!allowed())return;
  try{
-  const response=await fetch(endpoint,{cache:'no-store',credentials:'omit'});
+  // Match the existing buyer-safe BMW request: a signed-in session may have
+  // stock entitlements that a guest does not. No client-side access bypass.
+  let token=null;
+  try{
+   const auth=globalThis.supabase?.createClient?.(
+    'https://tuehtnezhdnkqbbhttgp.supabase.co',
+    'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
+   token=(await auth?.auth.getSession())?.data?.session?.access_token||null;
+  }catch(error){console.warn('Optional stock session unavailable',error);}
+  const response=await fetch(endpoint,{
+   cache:'no-store',
+   headers:token?{'Authorization':'Bearer '+token}:{}
+  });
   if(!response.ok)throw Error('Public stock endpoint returned '+response.status);
   const data=await response.json();
   if(!Array.isArray(data?.items))throw Error('Invalid public stock result');
