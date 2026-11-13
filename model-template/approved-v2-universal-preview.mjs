@@ -48,7 +48,11 @@ const done=()=>{
  window.dispatchEvent(new Event('anybike:v2-editorial-ready'));
 };
 if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
- showError('Specify a published make and model in the URL.');
+ showError('Explore motorcycle manufacturers and choose a model to view its researched specifications.');
+ const browse=node('a','Browse all motorcycle manufacturers →');
+ browse.href='/motorcycle-manufacturers.html';
+ browse.style.cssText='display:inline-block;margin-top:10px;color:#fff;text-decoration:underline;text-decoration-color:#ed1c24';
+ $('previewStatusError').append(browse);
 }else{
  try{
   const client=window.supabase?.createClient?.(ENDPOINT,KEY);
@@ -130,7 +134,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    '@context':'https://schema.org','@type':'WebPage',
    name:pageTitle,description,url:canonical,
    isPartOf:{'@type':'WebSite',name:'AnyBike',url:'https://www.anybike.co.uk/'},
-   about:{'@type':'Product',category:'Motorcycle',name:title,brand:{'@type':'Brand',name:make}}
+   about:{'@type':'Motorcycle',name:title,brand:{'@type':'Brand',name:make}}
   });
   $('heading').textContent=title;
   $('category').textContent=str(guide?.page_metadata?.category)||str(selected.category)||'Motorcycle model';
@@ -158,6 +162,15 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    validURL(x.source_page_url)&&validURL(x.licence_url)&&
    str(x.attribution)&&str(x.licence);
   if(fig&&safePhoto(approvedHero)){
+   // Share/preview images are added only when the same exact-model photo
+   // passed the central image rights and identity checks.
+   let openGraphPhoto=document.querySelector('meta[property="og:image"]');
+   if(!openGraphPhoto){
+    openGraphPhoto=document.createElement('meta');
+    openGraphPhoto.setAttribute('property','og:image');
+    document.head.append(openGraphPhoto);
+   }
+   openGraphPhoto.content=approvedHero.image_url;
    const img=fig.querySelector('img');img.src=approvedHero.image_url;
    img.alt=str(approvedHero.title)||title+' motorcycle';
    const caption=fig.querySelector('figcaption');
