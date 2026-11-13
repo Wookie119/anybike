@@ -36,15 +36,18 @@ try{
   // must display reviewed sections and suppress draft sections on the SAME V2.
   if(make==='Suzuki'){
    const approved=width===1280;
-   const rows=[{
-    source_section_id:700,entity_type:'model',entity_id:202,
-    entity_name:'RM250',manufacturer_id:99,section_number:1,
-    section_key:'section_01',section_title:'Documented factory history',
-    content:{paragraphs:['Approved factory history smoke-test record.']},
-    editorial_status:approved?'published':'draft',
-    publication_eligible:true,published_at:'2026-01-01T00:00:00Z',
+   const publication=(n,status)=>({
+    source_section_id:700+n,entity_type:'model',entity_id:202,
+    entity_name:'RM250',manufacturer_id:99,section_number:n,
+    section_key:'section_'+String(n).padStart(2,'0'),
+    section_title:'Approved research section '+n,
+    content:{paragraphs:['Approved factory history smoke-test record '+n+'.']},
+    editorial_status:status,publication_eligible:true,
+    published_at:'2026-01-01T00:00:00Z',
     publication_review_reference:'MOCK-REVIEW-NOT-REAL'
-   }];
+   });
+   const rows=approved?Array.from({length:20},(_,i)=>publication(i+1,'published')):
+    [publication(1,'draft')];
    await context.addInitScript(({rows})=>{
     window.supabase={createClient:()=>({
      rpc:async(name,args)=>{
@@ -114,8 +117,9 @@ try{
    if(make==='Suzuki'){
     const visible=page.locator('.anybike-v2-reviewed-universal-section');
     if(width===1280){
-     assert.equal(await visible.count(),1,'Approved research must render on universal master');
-     assert.match(await visible.innerText(),/Approved factory history smoke-test record/);
+     assert.equal(await visible.count(),20,'All 20 approved research slots must render on the master');
+     assert.match(await visible.first().innerText(),/Approved factory history smoke-test record 1/);
+     assert.match(await visible.last().innerText(),/Approved factory history smoke-test record 20/);
     }else{
      assert.equal(await visible.count(),0,'Draft research must never become visible');
      assert.equal((await page.locator('#body').innerText()).includes('Approved factory history smoke-test record'),false);
