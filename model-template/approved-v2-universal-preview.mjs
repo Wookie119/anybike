@@ -381,11 +381,29 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
      const approved=[...holder.querySelectorAll('[data-anybike-role="research"] > section.card')];
      if(approved.length){
       const destination=$('body');
+      const {approvedResearchSectionHeading}=await import('/model-template/public-verified-model-facts.mjs');
       for(const section of approved){
-       section.classList.add('anybike-v2-reviewed-universal-section');
-       destination.append(section);
+       // Keep the 20-slot publication contract intact. If a verified facts
+       // group already occupies the SAME explicitly registered research
+       // heading, enrich that group instead of creating a second heading.
+       // Unknown section titles remain standalone: never fuzzy-match facts.
+       const heading=section.querySelector(':scope > h2')?.textContent?.trim()||'';
+       const matches=[...destination.querySelectorAll('[data-anybike-research-category]')]
+        .filter(group=>group.dataset.anybikeResearchIdentity===JSON.stringify([make.toLowerCase(),model.toLowerCase()])&&
+         approvedResearchSectionHeading(group.dataset.anybikeResearchCategory,heading));
+       const content=[...section.children].filter(child=>child.tagName!=='H2');
+       if(matches.length===1&&content.length){
+        const merged=node('div',undefined,'anybike-v2-reviewed-universal-section');
+        merged.dataset.sectionKey=section.dataset.sectionKey||'';
+        merged.dataset.anybikeReviewedPublication='true';
+        merged.append(node('h4','Additional approved research'),...content);
+        matches[0].append(merged);
+       }else{
+        section.classList.add('anybike-v2-reviewed-universal-section');
+        destination.append(section);
+       }
+       publishedCount++;
       }
-      publishedCount=approved.length;
      }
     }
    }catch(e){
