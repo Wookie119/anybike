@@ -22,7 +22,7 @@ as $function$
    and p_make is not null
    and length(p_make) between 2 and 80
    and length(trim(d.model)) between 1 and 120
-   and d.model !~* '(\\m(apr|pcp|finance|financing|deposit|representative)\\M|[0-9]+[.]?[0-9]*%)'
+   and d.model !~* '(\m(apr|pcp|finance|financing|deposit|representative)\M|[0-9]+[.]?[0-9]*%)'
   order by d.model
   limit 200
  ) as q;
