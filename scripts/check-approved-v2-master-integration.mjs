@@ -52,8 +52,12 @@ assert(renderer.includes('public_anybike_model_hero_v1')&&
  renderer.includes('public_anybike_verified_model_gallery_v1'),
  'Master must use rights-approved public photography');
 assert(renderer.includes('installVerifiedModelFacts')&&
- renderer.includes("normalize(x?.make)===normalize(make)&&normalize(x?.model)===normalize(model)"),
- 'Master must filter research and stock to the exact make/model');
+ renderer.includes('stockForCanonicalModel')&&renderer.includes('catalog_model_id:canonicalId'),
+ 'Master must isolate researched model identity and verified stock by canonical model ID');
+const stockContract=read('model-template/canonical-public-stock-identity.mjs');
+assert(stockContract.includes("item.catalogue_identity_status !== 'verified'")&&
+ stockContract.includes('item.publication_eligible !== true'),
+ 'Stock identity verification and listing publication must remain mandatory');
 assert(renderer.includes('selected.model_id||selected.catalogue_model_id')&&
  renderer.includes('loadUniversalPublishedPage')&&renderer.includes('renderUniversalPage'),
  'Master must connect canonical model ID to the existing published 20-slot renderer');
