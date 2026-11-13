@@ -77,17 +77,34 @@ async function modelNavigation(){
  // route; otherwise use the existing exact-model generic route until rollout.
  let models=[];
  try{
+  const db=window.supabase?.createClient?.(ENDPOINT,KEY);
+  if(db){
+   const {data,error}=await db.rpc('public_anybike_manufacturer_catalogue_names_v1',{p_make:make});
+   if(error)throw error;
+   models=(Array.isArray(data)?data:[])
+    .filter(row=>normalize(row.make)===normalize(make)&&typeof row.model==='string')
+    .map(row=>row.model.trim());
+  }
+ }catch(error){console.warn('Public manufacturer catalogue unavailable',error)}
+ if(!models.length)try{
   const published=JSON.parse(await fetchPublished('/data/motorcycle-catalogue-master.json'));
   models=(Array.isArray(published.models)?published.models:[])
-   .filter(row=>normalize(row.make)===normalize(make)&&typeof row.model==='string'&&row.model.trim())
-   .filter(row=>!/\b(?:apr|representative|finance offer|discount)\b/i.test(row.model))
+   .filter(row=>normalize(row.make)===normalize(make)&&typeof row.model==='string')
    .map(row=>row.model.trim());
- }catch(error){console.warn('V2 public model directory unavailable',error);}
+ }catch(error){console.warn('Static manufacturer catalogue unavailable',error)}
+ models=models.filter(name=>name&&!/\b(?:apr|representative|finance offer|discount)\b/i.test(name));
  const combined=new Map();
  for(const name of models)combined.set(normalize(name),{
-  label:name,url:'/motorcycle-model-guide.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(name)
+  label:name,url:(location.pathname==='/motorcycle-v2-master.html'?
+   '/motorcycle-v2-master.html':'/motorcycle-model-guide.html')+
+   '?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(name)
  });
- for(const [key,item] of approved)combined.set(key,item);
+ for(const [key,item] of approved){
+  if(location.pathname==='/motorcycle-v2-master.html'){
+   combined.set(key,{label:item.label,url:'/motorcycle-v2-master.html?make='+
+    encodeURIComponent(make)+'&model='+encodeURIComponent(item.label)});
+  }else combined.set(key,item);
+ }
  // If public navigation is temporarily unavailable, preserve the existing
  // V2 pills rather than replace them with an empty list.
  const links=[...combined.values()].sort((a,b)=>a.label.localeCompare(b.label,'en-GB',{numeric:true}))
@@ -130,60 +147,39 @@ async function modelNavigation(){
     details.append(all);
     panel.append(heading,description,near,details);
    }
-   const modelWords=normalize(current.model).split(' ').filter(Boolean);
-   // A model family is manufacturer-specific: "R" identifies BMW's broad
-   // R-series, but the same prefix cannot be treated as a family rule for
-   // Honda, Suzuki, Harley-Davidson or any other manufacturer.
-   const bmwSeries=label=>{
-    if(normalize(make)!=='bmw')return '';
-    const match=String(label||'').trim().match(/^([RFMKCSG])\s*(?=\d|nine\b)/i);
-    return match?match[1].toUpperCase():'';
+   // Shared naming heuristics are a fallback until the catalogue provides
+   // curated related_models for all 979 model rows. No make-specific rules.
+   const family=name=>{
+    const raw=String(name||'').trim();
+    const match=raw.match(/^([a-z]{1,6})(?:-[a-z])?(?=\s*[- ]?\d)/i);
+    return match?match[1].toLowerCase():'';
    };
-   const currentSeries=bmwSeries(current.model);
-   // Suzuki's RM and RM-Z are motocross ranges; Address/Bandit are not
-   // related to RM250 merely because they belong to the same manufacturer.
-   const suzukiMotocross=label=>/^RM(?:-?Z)?\s*\d+/i.test(String(label||'').trim());
-   const isSuzukiMotocross=normalize(make)==='suzuki'&&suzukiMotocross(current.model);
-   const currentNumber=Number(modelWords.find(word=>/^\d{3,4}$/.test(word))||0);
+   const selectedFamily=family(current.model);
+   const tokenSet=name=>new Set(normalize(name).split(' ').filter(x=>x.length>1));
+   const currentTokens=tokenSet(current.model);
+   const capacity=name=>{
+    const m=String(name||'').match(/\d{2,4}/);
+    return m?Number(m[0]):0;
+   };
+   const selectedCapacity=capacity(current.model);
    const score=item=>{
-    const words=normalize(item.label).split(' ').filter(Boolean);
-    if(item.current)return -1000;
+    const tokens=tokenSet(item.label);
     let points=0;
-    if(currentSeries&&bmwSeries(item.label)===currentSeries)points+=25;
-    if(isSuzukiMotocross&&suzukiMotocross(item.label)){
-     points+=25;
-     // Closest RM two-strokes first; RM-Z motocross models are related by
-     // riding discipline, not represented as an identical engine platform.
-     if(/^RM\s*\d+/i.test(item.label))points+=10;
+    if(selectedFamily&&family(item.label)===selectedFamily)points+=30;
+    for(const token of tokens)if(currentTokens.has(token))points+=9;
+    const otherCapacity=capacity(item.label);
+    if(selectedCapacity&&otherCapacity){
+     const distance=Math.abs(selectedCapacity-otherCapacity);
+     points+=distance===0?10:distance<=100?8:distance<=250?5:distance<=500?2:0;
     }
-    // Prioritise the nearest GS relatives *within* BMW's R family.
-    // The R-series itself remains broad: R 18 and R 32 are still eligible.
-    if(normalize(make)==='bmw'){
-     if(modelWords.includes('gs')&&words.includes('gs'))points+=14;
-     const number=Number(words.find(word=>/^\d{3,4}$/.test(word))||0);
-     if(currentNumber&&number){
-      const distance=Math.abs(currentNumber-number);
-      points+=distance===0?10:distance<=100?8:distance<=200?6:distance<=400?3:0;
-     }
-    }else{
-     // Without an approved manufacturer-specific family definition, use
-     // shared descriptive model tokens, never a one-letter prefix.
-     if(modelWords[0]?.length>2&&words[0]===modelWords[0])points+=8;
-     if(modelWords.length>1&&modelWords[1].length>2&&words[1]===modelWords[1])points+=7;
-    }
-    if(modelWords.some(x=>x.length>2&&words.includes(x)))points+=3;
     return points;
    };
-   // Related pills must stay inside the same BMW series. A matching
-   // capacity number alone does NOT make a K 1300 S related to an R 1300 GS.
-   // The expandable full catalogue below remains unrestricted.
-   const ranked=links.filter(item=>{
-    if(item.current)return false;
-    if(normalize(make)==='bmw'&&currentSeries)
-     return bmwSeries(item.label)===currentSeries;
-    if(isSuzukiMotocross)return suzukiMotocross(item.label);
-    return true;
-   }).sort((a,b)=>score(b)-score(a)||a.label.localeCompare(b.label,'en-GB',{numeric:true}));
+   // Keep pills within the identified model family when available.
+   // Everything remains accessible through the full A–Z catalogue below.
+   let ranked=links.filter(item=>!item.current&&
+    (!selectedFamily||family(item.label)===selectedFamily));
+   if(!ranked.length)ranked=links.filter(item=>!item.current);
+   ranked.sort((a,b)=>score(b)-score(a)||a.label.localeCompare(b.label,'en-GB',{numeric:true}));
    // Show a useful cross-section of the same manufacturer-specific family;
    // the pills wrap naturally on wider screens. The full catalogue remains expandable.
    const compact=ranked.slice(0,14);
