@@ -183,7 +183,7 @@ for(const source of ['global.honda/en/newsroom/news/2015/','global.yamaha-motor.
 assert(verifiedFactsScript.includes('const placeholderAdded=records.some('),'Verified model facts observer must filter late placeholders');
 assert(verifiedFactsScript.includes('watcher.disconnect();'),'Verified model facts observer must disconnect');
 assert(!verifiedFactsScript.includes('new MutationObserver(()=>removeGenericPlaceholder())'),'Unbounded research observer reintroduced');
-assert(universalGuide.includes('/model-template/public-verified-model-facts.mjs?v=20261112-research-rest-throw11'),'New approved research renderer must refresh browser cache');
+assert(v2Renderer.includes("import {installVerifiedModelFacts,approvedResearchSectionHeading} from '/model-template/public-verified-model-facts.mjs?v="),'The shared V2 renderer must version its verified-facts dependency');
 
 // Additional dated factory research must stay versioned with its audit, not
 // hardcoded into manufacturer-specific HTML pages.
