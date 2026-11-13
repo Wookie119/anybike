@@ -12,6 +12,14 @@ for(const sharedElement of ['<section class="hero">','<div class="intro" id="sum
  assert(guide.includes(sharedElement),'Universal model guide must preserve BMW-approved structural element: '+sharedElement);
 }
 assert(guide.includes('--red:#ed1c24;--panel:#151515'),'Universal model guide must retain approved AnyBike charcoal/red palette');
+assert(approvedMaster.includes('class="model-sources-footer"'),'BMW master must retain its source-reference footer');
+assert(guide.includes('id="modelSources" class="model-sources-footer"'),'Every universal model guide must include the approved source-reference footer');
+assert(guide.includes('id="verifiedModelSources"'),'Universal source footer must provide an audited research destination');
+const verifiedRenderer=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
+assert(verifiedRenderer.includes("const allFacts=exactVerifiedModelFacts(rows,make,model)"),'Research sources must come from exact verified model identity');
+assert(verifiedRenderer.includes("sourceList.replaceChildren()"),'Source footer must remove withdrawn source links on refresh');
+assert(verifiedRenderer.includes("sourceFooter.hidden=sources.size===0"),'Models without approved research must not show an empty sources footer');
+
 
 assert(guide.includes('/shared-model-catalogue.js'),'Shared model guide must retain catalogue-based model identity resolution');
 assert(guide.includes('/model-template/public-verified-model-facts.mjs'),'All models must use the shared verified facts enrichment');
