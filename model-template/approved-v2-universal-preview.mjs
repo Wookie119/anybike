@@ -581,7 +581,14 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // engineering prose: figures from different model years must not be merged.
   const documentedSpecs=arr(production.specifications).filter(x=>
    x&&validURL(x.source)&&(Number.isInteger(x.model_year)||str(x.model_year))&&
-   ['engine_cc','power_hp','torque_nm','transmission'].some(k=>x[k]!==null&&x[k]!==undefined&&String(x[k]).trim()));
+   ['engine_cc','power_hp','torque_nm','transmission'].some(k=>x[k]!==null&&x[k]!==undefined&&String(x[k]).trim()))
+   .map((spec,index)=>({spec,index,year:Number(spec.model_year)}))
+   // Factory figures belong to their documented model year. Sort only years
+   // we can parse, retain original source order for undated records, and
+   // never combine separate market or edition specifications.
+   .sort((a,b)=>(Number.isInteger(a.year)&&a.year>0?a.year:9999)-
+                (Number.isInteger(b.year)&&b.year>0?b.year:9999)||a.index-b.index)
+   .map(({spec})=>spec);
   if(documentedSpecs.length){
    const section=makeSection('v2DocumentedSpecifications','Documented specifications',$('v2EngineeringOverview')||$('v2FactoryColours')||$('body'));
    const grid=node('div',undefined,'v2-documentary-grid');
