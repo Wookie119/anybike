@@ -35,4 +35,19 @@ for(const [name,html] of [['master',master],['guide',guide]]) {
  const research=html.indexOf('id="body"');
  assert(stock>0 && stock<generations && stock<research, name+': international exact-model stock must precede research in source order');
 }
+// Guard the runtime stock path, not only its static HTML position.
+// A denied feed must never be treated as empty stock or replaced by a
+// manufacturer-wide/name-matched fallback.
+const stockIdentity=read('model-template/canonical-public-stock-identity.mjs');
+for(const required of [
+ 'header.after(stock)',
+ "res.status===401||res.status===403",
+ "feedState='restricted'",
+ 'stockForCanonicalModel(data.items,pageIdentity,6)',
+ "stock.dataset.stockFeedState=feedState"
+]) assert(renderer.includes(required),'Exact-model stock runtime contract missing: '+required);
+assert(stockIdentity.includes("item.catalogue_identity_status !== 'verified'"),'Stock canonical identity verification missing');
+assert(stockIdentity.includes('item.publication_eligible !== true'),'Stock publication eligibility check missing');
+assert(stockIdentity.includes('Number(item.catalog_model_id) !== Number(page.catalog_model_id)'),'Stock exact catalogue ID check missing');
+assert(stockIdentity.includes('if (seen.has(id)) return false'),'Stock deduplication missing');
 console.log('PASS: shared V2 structure, unique IDs, public RPC and '+categories.length+' research categories.');
