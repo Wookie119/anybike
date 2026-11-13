@@ -9,9 +9,7 @@ const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const routes=JSON.parse(read('data/approved-dedicated-model-routes.json')).models;
 const master=read('motorcycle-v2-master.html');
 const masterSections=[...master.matchAll(/<section\b([^>]*)>/g)].map(m=>m[1]);
-const protectedRoutes=new Set([
- '/bmw-r1250gs.html','/bmw-r1300gs.html'
-]);
+const protectedRoutes=new Set(['/bmw-r1300gs.html']);
 const bmw=routes.filter(x=>x.make==='BMW');
 assert.equal(bmw.length,27);
 let migrated=0;
@@ -37,6 +35,6 @@ for(const row of bmw){
  assert(!html.includes('approved-bmw-page-shell.mjs'),'Old renderer must not run alongside V2 '+row.url);
  migrated++;
 }
-assert.equal(migrated,25,'BMW V2 initial batch should contain exactly 25 fully shared routes');
+assert.equal(migrated,26,'BMW V2 initial batch should contain exactly 26 fully shared routes');
 assert(read('bmw-r1300gs-v2-approved-20261102.html').includes('id="generationPanel"'));
-console.log('PASS: 25 dedicated BMW pages share the exact V2 master; 5 protected originals retained');
+console.log('PASS: 26 dedicated BMW pages share the exact V2 master; 5 protected originals retained');
