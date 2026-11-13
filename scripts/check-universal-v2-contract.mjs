@@ -8,14 +8,39 @@ import {SECTION_COUNT,SECTION_KEYS,buildUniversalPageSections,visibleUniversalSe
 const load=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
 let passed=0;
 const check=(name,fn)=>{fn();passed++;console.log('PASS '+name)};
-const [html,renderer,nav,rawCatalogue]=await Promise.all([
+const [html,referenceHtml,approvedCss,renderer,nav,rawCatalogue]=await Promise.all([
  load('motorcycle-v2-master.html'),
+ load('bmw-r1300gs-v2-approved-20261102.html'),
+ load('model-template/approved-v2-preview-style.css'),
  load('model-template/approved-v2-universal-preview.mjs'),
  load('model-template/approved-v2-dynamic-navigation.mjs'),
  load('data/motorcycle-catalogue-master.json')
 ]);
 const catalogue=JSON.parse(rawCatalogue);
 const normalize=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+check('All approved V2 reference styles are present verbatim in the shared stylesheet',()=>{
+ const approved=[...referenceHtml.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map(match=>match[1]);
+ assert(approved.length>=30,'Expected approved V2 style reference');
+ for(const [index,style] of approved.entries())
+  assert(approvedCss.includes(style),'Approved reference style block missing: '+index);
+});
+check('Approved V2 model-section structure matches the exact reference',()=>{
+ const sectionClasses=source=>[...source.matchAll(/<section\b([^>]*)>/g)].map(match=>
+  (match[1].match(/\bclass="([^"]+)"/)||[])[1]||'');
+ assert.deepEqual(sectionClasses(html),sectionClasses(referenceHtml));
+ const required=['publicHeader','category','heading','summary','years','databaseHeroPhoto','source',
+  'generationPanel','generationControls','generationDetail','generationCompare',
+  'r1300V2VerifiedExtras','databaseModelTimeline','body','r1300DeepDive',
+  'databaseDeepDive','databaseRelatedModels','databaseMotorcycleTypes',
+  'r1300CountryMarkets','internationalModelStock','internationalModelCards',
+  'internationalGuestRequest','internationalGuestRequestForm','v2FormSubmit',
+  'internationalGuestRequestStatus','nextAction','sourceBottom','modelSources',
+  'verifiedModelSources'];
+ for(const id of required){
+  assert(referenceHtml.includes('id="'+id+'"'),'Reference missing '+id);
+  assert(html.includes('id="'+id+'"'),'Master missing '+id);
+ }
+});
 check('Static fallback has unique make/model identities',()=>{
  assert(Array.isArray(catalogue.models)&&catalogue.models.length>0);
  const keys=catalogue.models.map(row=>normalize(row.make)+'|'+normalize(row.model));
