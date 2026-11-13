@@ -247,6 +247,26 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   existingPanel=null;
  }
  const allFacts=exactVerifiedModelFacts(rows,make,model);
+ // The universal guide uses the same collapsible source-reference footer as
+ // the approved BMW R 1300 GS design. Populate it only from the audited
+ // exact-model public projection; never link unapproved photo/source drafts.
+ const sourceFooter=body.ownerDocument?.getElementById?.('modelSources');
+ const sourceList=body.ownerDocument?.getElementById?.('verifiedModelSources');
+ if(sourceFooter&&sourceList){
+  sourceList.replaceChildren();
+  const sources=new Map();
+  for(const fact of allFacts){
+   if(!sources.has(fact.source_url))
+    sources.set(fact.source_url,safeText(fact.source_name)||'Manufacturer source');
+  }
+  for(const [url,name] of sources){
+   const link=node(body.ownerDocument,'a',name+' ↗');
+   link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+   sourceList.append(link);
+  }
+  sourceFooter.hidden=sources.size===0;
+ }
+
  // A previously published category can be withdrawn from the audited public
  // projection. Remove it on the next successful refresh rather than leaving
  // revoked or superseded research visible indefinitely.
