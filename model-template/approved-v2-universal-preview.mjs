@@ -207,6 +207,27 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     console.warn('Optional exact-route BMW history unavailable; retaining existing V2 research',error);
    }
   }
+  // Previously published content from approved dedicated model routes is
+  // displayed through the same V2 layout, never as unverified factory facts.
+  let preservedExistingPhoto=null;
+  if(approvedDedicatedRoute&&(normalize(make)==='harley davidson'||
+     (normalize(make)==='bmw'&&normalize(model)==='r 1250 gs'))){
+   try{
+    const archivePath=normalize(make)==='bmw'?
+     '/data/bmw-r1250gs-v2-preservation.json':'/data/harley-v2-legacy-preservation.json';
+    const response=await fetch(archivePath,{cache:'no-cache'});
+    if(!response.ok)throw Error('Preserved public research unavailable');
+    const archive=await response.json();
+    const row=normalize(make)==='bmw'?archive:
+     arr(archive.models).find(entry=>entry.url===approvedDedicatedRoute);
+    const {preserveDedicatedModelResearch,preservedExistingHero}=
+     await import('/model-template/approved-v2-dedicated-preservation.mjs');
+    guide=preserveDedicatedModelResearch(guide,row,{make,model,url:approvedDedicatedRoute});
+    preservedExistingPhoto=preservedExistingHero(row,{make,model,url:approvedDedicatedRoute});
+   }catch(error){
+    console.warn('Preserved legacy model evidence unavailable; approved V2 continues',error);
+   }
+  }
   window.__anybikeV2ModelIdentity=Object.freeze({make,model});
   window.__anybikeV2Editorial=guide;
   window.dispatchEvent(new Event('anybike:v2-model-identity-ready'));
@@ -366,6 +387,10 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    normalize(x.model)===normalize(model)&&validURL(x.image_url)&&
    validURL(x.source_page_url)&&validURL(x.licence_url)&&
    str(x.attribution)&&str(x.licence);
+  // Central photo-bank approvals take precedence. An already-published,
+  // attributed exact-model Wikimedia image is used only as a fallback.
+  if(!safePhoto(approvedHero)&&safePhoto(preservedExistingPhoto))
+   approvedHero=preservedExistingPhoto;
   if(fig&&safePhoto(approvedHero)){
    // Share/preview images are added only when the same exact-model photo
    // passed the central image rights and identity checks.
@@ -381,6 +406,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    const caption=fig.querySelector('figcaption');
    caption.textContent=str(approvedHero.attribution)+' · ';
    sourceLink(caption,approvedHero.source_page_url,'Photograph attribution ↗');
+   sourceLink(caption,approvedHero.licence_url,' · Licence ↗');
    fig.hidden=false;
   }
   // Never repeat the hero as a gallery card or display the same image twice.
