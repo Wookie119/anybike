@@ -58,6 +58,25 @@ function makeSection(id,title,after){
 }
 const params=new URLSearchParams(location.search);
 const wantMake=str(params.get('make')),wantModel=str(params.get('model'));
+// Preserve reviewed public alias links from the established general model route.
+// A known alias redirects to one explicitly named published identity; there
+// is no fuzzy matching and the destination still passes the public catalogue.
+if(location.pathname==='/motorcycle-model-guide.html'){
+ const aliases={
+  'aprilia|rs660':['Aprilia','RS 660'],
+  'bmw|ce 02 am 7.9% apr representative':['BMW','CE 02 AM'],
+  'bmw|k 1600 b grand america':['BMW','K 1600 Grand America'],
+  'indian|scout':['Indian Motorcycle','Scout'],
+  'indian|scout bobber':['Indian Motorcycle','Scout Bobber'],
+  'kawasaki|z900rs':['Kawasaki','Z900 RS']
+ };
+ const alias=aliases[wantMake.toLowerCase()+'|'+wantModel.toLowerCase()];
+ if(alias){
+  location.replace('/motorcycle-model-guide.html?make='+encodeURIComponent(alias[0])+
+   '&model='+encodeURIComponent(alias[1])+location.hash);
+ }
+}
+
 const done=()=>{
  window.__anybikeV2EditorialReady=true;
  window.dispatchEvent(new Event('anybike:v2-editorial-ready'));
