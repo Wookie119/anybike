@@ -173,7 +173,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // until an ID-matched, RLS-published V2 editorial record supersedes it.
   // The legacy JSON is public website content, not private editorial or stock.
   // Never borrow an entry for a similarly named model or another manufacturer.
-  if(!guide&&location.pathname==='/motorcycle-model-guide.html'){
+  if(!guide){
    try{
     const response=await fetch('/data/motorcycle-model-guides.json',{cache:'no-cache'});
     if(response.ok){
