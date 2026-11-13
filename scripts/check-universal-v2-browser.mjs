@@ -97,7 +97,10 @@ try{
         documented_milestones:[{year:2024,event:'Model-year update',
          source:'https://example.org/factory-cb650r'}]},
        model_year_cards:[{period:'2024',description:'Documented UK model year',
-        source:'https://example.org/factory-cb650r'}]}
+        source:'https://example.org/factory-cb650r'}]},
+      another:{make:'Honda',model:'CBR650R',summary:'Wrong model must not render',
+       production:{specifications:[{model_year:2024,market:'UK',engine_cc:9999,
+        source:'https://example.org/wrong-model'}]}}
      }})}));
    }
    await context.route('https://tuehtnezhdnkqbbhttgp.supabase.co/**',async route=>{
@@ -159,6 +162,8 @@ try{
      'Honda approved factory specification fixture must render a real panel');
     assert.match(await page.locator('#v2DocumentedSpecifications').innerText(),/649 cc/);
     assert.match(await page.locator('#v2DocumentedSpecifications').innerText(),/2024/);
+    assert.doesNotMatch(await page.locator('main').innerText(),/9999|Wrong model must not render/,
+     'Similar Honda model records must never contaminate exact-model research');
     assert.equal(await page.locator('#r1300V2VerifiedExtras').isVisible(),true);
     assert.match(await page.locator('#r1300gsModelHistory').innerText(),/Documented UK model year/);
    }
