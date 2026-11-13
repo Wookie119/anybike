@@ -228,20 +228,8 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // Long-form source-linked editorial fields: open-ended section registry.
   // New category keys render only when they contain approved paragraphs and
   // a source, without changing the template or adding hundreds of blanks.
-  const explanations=guide?.research_explanations;
-  if(explanations&&typeof explanations==='object'&&!Array.isArray(explanations)){
-   const card=makeSection('v2EditorialResearch','Additional sourced motorcycle research',$('v2EngineeringOverview')||$('v2FactoryColours')||$('body'));
-   const grid=node('div',undefined,'v2-documentary-grid');
-   for(const [key,entry] of Object.entries(explanations)){
-    if(!/^[a-z][a-z0-9_]{1,64}$/.test(key)||!entry||
-       !arr(entry.paragraphs).some(str)||!validURL(entry.source_url))continue;
-    const article=node('article');article.append(node('h4',str(entry.title)||key.replace(/_/g,' ')));
-    arr(entry.paragraphs).forEach(p=>paragraph(article,p));
-    sourceLink(article,entry.source_url,entry.source_name||'Manufacturer reference ↗');
-    grid.append(article);
-   }
-   if(grid.children.length)card.append(grid);else card.remove();
-  }
+  // Source-linked extra research is attached to its verified category below,
+  // not duplicated as a second grid of technical sections.
   // Legacy editorial sections are optional and content-driven, not empty.
   const textSections=arr(guide?.sections).filter(x=>Array.isArray(x)&&str(x[0])&&str(x[1]));
   if(textSections.length){
@@ -263,6 +251,31 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // Source-verified exact-model facts populate research without manufacturing
   // invented specifications or blank mandatory panels.
   const factCount=await installVerifiedModelFacts({body:$('body'),make,model,client});
+  const explanations=guide?.research_explanations;
+  if(explanations&&typeof explanations==='object'&&!Array.isArray(explanations)){
+   let panel=$('body').querySelector('[data-anybike-verified-model-facts]');
+   const supplied=Object.entries(explanations).filter(([key,entry])=>
+    /^[a-z][a-z0-9_]{1,64}$/.test(key)&&entry&&
+    arr(entry.paragraphs).some(str)&&validURL(entry.source_url));
+   if(supplied.length&&!panel)panel=makeSection('v2EditorialResearch','Documented factory research',$('body'));
+   for(const [key,entry] of supplied){
+    let group=[...panel.querySelectorAll('[data-anybike-research-category]')]
+      .find(x=>x.dataset.anybikeResearchCategory===key);
+    if(!group){
+     group=node('div',undefined,'v2-editorial-category');
+     group.dataset.anybikeResearchCategory=key;
+     group.append(node('h3',str(entry.title)||key.replace(/_/g,' ')));
+     panel.append(group);
+    }
+    if(group.querySelector('[data-v2-editorial-explanation]'))continue;
+    const article=node('article',undefined,'v2-editorial-research');
+    article.dataset.v2EditorialExplanation=key;
+    article.append(node('h4',str(entry.title)||key.replace(/_/g,' ')));
+    arr(entry.paragraphs).forEach(x=>paragraph(article,x));
+    sourceLink(article,entry.source_url,entry.source_name||'Manufacturer reference ↗');
+    group.append(article);
+   }
+  }
   if(!factCount&&!guide){
    const note=node('p','Verified research is not yet published for this motorcycle. You can enquire about a specific year and specification.');
    const section=makeSection('v2ResearchPending','Research publication status',$('generationPanel'));
@@ -329,7 +342,17 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const related=$('databaseRelatedModels');
   // The shared navigation renderer owns the related pills and 217 markets;
   // never hardcode a second manufacturer or model directory.
-  if(related)related.hidden=true;
+  if(related){
+   related.hidden=true;
+   const duplicate=related.closest('section');
+   if(duplicate)duplicate.hidden=true; // compact related pills remain above research
+  }
+  const typeHeading=$('databaseMotorcycleTypes')?.closest('section');
+  if(typeHeading){
+   const h=typeHeading.querySelector('h2'),p=typeHeading.querySelector('p:not(.eyebrow)');
+   if(h)h.textContent='Find your riding style';
+   if(p)p.textContent='Explore motorcycles by category across manufacturers.';
+  }
   done();
  }catch(error){
   console.error('Universal V2 master failed safely',error);
