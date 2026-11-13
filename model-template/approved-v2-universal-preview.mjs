@@ -152,7 +152,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    '/motorcycle-brand.html?make='+encodeURIComponent(make);
   // Access is read-only and subject to the table's existing publication RLS.
   // Filtering on both JSONB identity fields prevents cross-model leakage.
-  let guide=null;
+  let guide=null,publishedV2Editorial=false;
   if(client){
    try{
     // Editorial must match the canonical catalogue ID, not merely similarly
@@ -164,7 +164,9 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
       .eq('editorial->>make',make).eq('editorial->>model',model).limit(1).maybeSingle();
      if(!error&&data?.editorial&&Number(data.model_id)===canonicalId&&
         normalize(data.editorial.make)===normalize(make)&&
-        normalize(data.editorial.model)===normalize(model))guide=data.editorial;
+        normalize(data.editorial.model)===normalize(model)){
+          guide=data.editorial;publishedV2Editorial=true;
+        }
      if(error)console.warn('V2 editorial not available for this identity; verified facts remain',error);
     }
    }catch(e){console.warn('V2 editorial lookup unavailable',e);}
@@ -197,7 +199,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     });
     if(error)throw error;
     const {mergeApprovedBmwHistory}=await import('/model-template/approved-v2-bmw-history-bridge.mjs');
-    guide=mergeApprovedBmwHistory(guide,data,{make,model,approvedRoute:approvedDedicatedRoute});
+    guide=mergeApprovedBmwHistory(guide,data,{make,model,approvedRoute:approvedDedicatedRoute,preferExisting:publishedV2Editorial});
    }catch(error){
     console.warn('Optional exact-route BMW history unavailable; retaining existing V2 research',error);
    }
