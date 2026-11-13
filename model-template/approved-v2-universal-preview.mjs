@@ -92,12 +92,27 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   window.__anybikeV2Editorial=guide;
   window.dispatchEvent(new Event('anybike:v2-model-identity-ready'));
 
-  // Shared metadata contract. This preview intentionally stays noindex;
-  // a production release must verify the original URL and editorial approval.
+  // Shared indexable metadata: where an existing approved canonical
+  // public model route exists, keep it as the preferred URL. Otherwise the
+  // unique make/model master URL is its own canonical. Never use an editorial
+  // draft's unapproved canonical metadata or cross-model URLs.
   const pageTitle=title+' | Motorcycle History & Specifications | AnyBike';
   const description=str(guide?.page_metadata?.description)||
    'Explore source-verified '+title+' model history, specifications, model years and UK motorcycle sourcing with AnyBike.';
-  const canonical=new URL(location.pathname+location.search,location.origin).href;
+  const masterUrl=new URL('/motorcycle-v2-master.html?make='+
+   encodeURIComponent(make)+'&model='+encodeURIComponent(model),location.origin);
+  let canonical=masterUrl.href;
+  if(client){
+   try{
+    const {data,error}=await client.rpc('public_anybike_manufacturer_model_routes_v1',{p_make:make});
+    if(!error&&Array.isArray(data)){
+     const exact=data.filter(item=>normalize(item.make)===normalize(make)&&
+      normalize(item.model)===normalize(model)&&
+      /^\\/(?:bmw|harley-davidson)-[a-z0-9-]+\\.html$/.test(String(item.url||'')));
+     if(exact.length===1)canonical=new URL(exact[0].url,location.origin).href;
+    }
+   }catch(e){console.warn('Canonical published route lookup unavailable',e)}
+  }
   document.title=pageTitle;
   const setMeta=(selector,value)=>{
    const item=document.querySelector(selector);
