@@ -19,6 +19,18 @@ const verifiedRenderer=readFileSync(new URL('../model-template/public-verified-m
 assert(verifiedRenderer.includes("const allFacts=exactVerifiedModelFacts(rows,make,model)"),'Research sources must come from exact verified model identity');
 assert(verifiedRenderer.includes("sourceList.replaceChildren()"),'Source footer must remove withdrawn source links on refresh');
 assert(verifiedRenderer.includes("sourceFooter.hidden=sources.size===0"),'Models without approved research must not show an empty sources footer');
+for(const [id,approvedClass] of [['verifiedModelTimeline','r1300-v2-extras'],['verifiedModelDeepDive','r1300-deep-dive']]){
+ assert(guide.includes('id="'+id+'" class="'+approvedClass+'"'),'Universal guide must retain approved BMW research section '+id);
+ assert(approvedMaster.includes('class="'+approvedClass+'"'),'Approved BMW master must retain the matching research section design '+approvedClass);
+}
+assert(guide.includes('id="verifiedModelTimelineEntries"'),'Model-year timeline must have a verified-data destination');
+assert(guide.includes('id="verifiedModelDeepDiveEntries"'),'Deep-dive must have a verified-data destination');
+assert(guide.includes('approved-r1300gs-model-design.css'),'Universal guide must load the shared approved BMW design stylesheet');
+assert(verifiedRenderer.includes('renderVerifiedModelExploration(body,allFacts,make,model)'),'Universal exploration must use the same exact-model audited facts');
+assert(verifiedRenderer.includes("timeline.hidden=dated.length===0"),'No fabricated model-year timeline for models without dated research');
+assert(verifiedRenderer.includes("deepDive.hidden=deepEntries.children.length===0"),'No empty or fabricated deep-dive sections');
+assert(verifiedRenderer.includes("section.dataset.anybikeResearchIdentity!==requestedIdentity"),'Changing motorcycle must clear previous research exploration and sources');
+
 
 
 assert(guide.includes('/shared-model-catalogue.js'),'Shared model guide must retain catalogue-based model identity resolution');
