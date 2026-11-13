@@ -3130,7 +3130,9 @@ async function anybikeShowPublicSignedInIdentity(){
 (function(){
  const path=location.pathname;
  const dedicated=(path.startsWith('/bmw-')||path.startsWith('/harley-davidson-'))&&path.endsWith('.html');
- if(path==='/motorcycle-brand.html'||path==='/bmw-motorcycles.html'||path==='/harley-davidson-motorcycles.html'||path==='/motorcycle-model-guide.html'||dedicated){
+ const sharedV2Guide=path==='/motorcycle-model-guide.html'&&
+  !!document.querySelector('script[src*="/model-template/approved-v2-universal-preview.mjs"]');
+ if(!sharedV2Guide&&(path==='/motorcycle-brand.html'||path==='/bmw-motorcycles.html'||path==='/harley-davidson-motorcycles.html'||path==='/motorcycle-model-guide.html'||dedicated)){
   const script=document.createElement('script');
   script.src='/motorcycle-complete-catalogue-navigation.js?v=20261113-related-dedupe13';
   script.defer=true;document.head.append(script);
