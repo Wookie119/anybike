@@ -8,6 +8,7 @@ on:
       - 'data/motorcycle-catalogue-master.json'
       - 'scripts/check-universal-v2-contract.mjs'
       - 'scripts/check-universal-v2-browser.mjs'
+      - 'scripts/check-universal-v2-live-browser.mjs'
       - '.github/workflows/universal-v2-master-regression.yml'
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - 'data/motorcycle-catalogue-master.json'
       - 'scripts/check-universal-v2-contract.mjs'
       - 'scripts/check-universal-v2-browser.mjs'
+      - 'scripts/check-universal-v2-live-browser.mjs'
       - '.github/workflows/universal-v2-master-regression.yml'
   workflow_dispatch:
 permissions:
@@ -62,6 +64,17 @@ jobs:
             --output "$RUNNER_TEMP/anybike-live-renderer.mjs"
           cmp model-template/approved-v2-universal-preview.mjs "$RUNNER_TEMP/anybike-live-renderer.mjs"
           echo 'LIVE MASTER AND RENDERER MATCH GITHUB SOURCE'
+      - name: Check deployed public master in read-only browser
+        continue-on-error: true
+        run: node scripts/check-universal-v2-live-browser.mjs
+      - name: Preserve live public rendering screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-v2-live-public-screenshots
+          path: artifacts/universal-v2-live-browser/*.png
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Preserve visual verification screenshots
         if: always()
         uses: actions/upload-artifact@v4
