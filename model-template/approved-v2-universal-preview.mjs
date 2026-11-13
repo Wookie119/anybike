@@ -470,7 +470,14 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const typeSection=nav.closest('section');if(typeSection)typeSection.hidden=!nav.children.length;
   // Source-verified exact-model facts populate research without manufacturing
   // invented specifications or blank mandatory panels.
-  const factCount=await installVerifiedModelFacts({body:$('body'),make,model,client});
+  let factCount=0;
+   try{
+    factCount=await installVerifiedModelFacts({body:$('body'),make,model,client});
+   }catch(error){
+    // Verified research is optional; a public facts RPC outage must not
+    // disable the model's sourcing enquiry or exact-model stock.
+    console.warn('Source-verified model research unavailable; continuing model page',error);
+   }
   // The existing 20-slot editorial contract is the ONLY future publication
   // source. It independently checks RLS-visible release provenance, identity,
   // timestamps and nested approvals. Render its approved research into V2,
