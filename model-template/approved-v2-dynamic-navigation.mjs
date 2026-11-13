@@ -95,6 +95,67 @@ async function modelNavigation(){
    const here=normalize(item.label)===normalize(current.model);
    return {...item,current:here,url:here?location.pathname+location.search:item.url};
   });
+ // Compact stock-style model navigation for the approved V2 reading flow.
+ // The complete manufacturer directory stays further down the same page.
+ // Related models are chosen from the same published links, never hardcoded
+ // into an individual model page.
+ if(links.length){
+  const hero=document.querySelector('main > .hero');
+  const stock=document.getElementById('internationalModelStock');
+  const placement=stock||hero;
+  if(placement){
+   let panel=document.getElementById('approvedV2ModelQuickLinks');
+   if(!panel){
+    panel=document.createElement('section');
+    panel.id='approvedV2ModelQuickLinks';
+    panel.className='card bmw-explore anybike-v2-model-quicklinks';
+    panel.setAttribute('aria-label','Explore '+make+' motorcycle models');
+    const heading=document.createElement('h2');
+    heading.textContent='Explore other '+make+' models';
+    const description=document.createElement('p');
+    description.textContent='Explore the '+make+' range, including models not currently in stock.';
+    const near=document.createElement('nav');
+    near.className='guide-links';
+    near.setAttribute('aria-label','Related '+make+' motorcycle model guides');
+    near.dataset.v2QuickRelated='1';
+    const details=document.createElement('details');
+    details.className='anybike-v2-all-models';
+    const summary=document.createElement('summary');
+    summary.textContent='View all '+make+' models';
+    details.append(summary);
+    const all=document.createElement('nav');
+    all.className='guide-links';
+    all.dataset.v2QuickAll='1';
+    all.setAttribute('aria-label','All '+make+' model guides');
+    details.append(all);
+    panel.append(heading,description,near,details);
+   }
+   const modelWords=normalize(current.model).split(' ').filter(Boolean);
+   const family=modelWords.find(word=>/^[a-z]+$/.test(word)&&word.length>2)||'';
+   const score=item=>{
+    const words=normalize(item.label).split(' ').filter(Boolean);
+    let points=0;
+    if(item.current)return -1000;
+    if(modelWords[0]&&words[0]===modelWords[0])points+=8;
+    if(modelWords.length>1&&words[1]===modelWords[1])points+=7;
+    if(family&&words.includes(family))points+=4;
+    if(modelWords.some(x=>x.length>2&&words.includes(x)))points+=3;
+    if(words.some(x=>modelWords.some(y=>y.length>2&&x.startsWith(y))))points+=2;
+    return points;
+   };
+   const ranked=links.filter(item=>!item.current)
+    .sort((a,b)=>score(b)-score(a)||a.label.localeCompare(b.label,'en-GB',{numeric:true}));
+   const compact=ranked.slice(0,6);
+   safeNav(panel.querySelector('[data-v2-quick-related]'),compact);
+   safeNav(panel.querySelector('[data-v2-quick-all]'),links);
+   panel.querySelector('.anybike-v2-all-models summary').textContent=
+    'View all '+links.length+' '+make+' models';
+   // The international stock section is directly below the hero. This
+   // panel follows it, ahead of Documented model specification.
+   placement.after(panel);
+   panel.dataset.anybikeV2Source='published-catalogue-and-routes';
+  }
+ }
  const rendered=safeNav(target,links);
  if(rendered){
   const heading=target.closest('section')?.querySelector('h2');
