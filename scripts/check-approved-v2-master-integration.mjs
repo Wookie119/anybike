@@ -21,12 +21,14 @@ for(const id of required){
 for(const path of [
  'model-template/approved-v2-universal-preview.mjs',
  'model-template/approved-v2-dynamic-navigation.mjs',
- 'model-template/public-verified-model-facts.mjs'
+ 'model-template/public-verified-model-facts.mjs',
+ 'model-template/approved-v2-route-identity.mjs'
 ])execFileSync(process.execPath,['--check',new URL('../'+path,import.meta.url).pathname]);
 assert(html.includes('name="robots" content="index,follow"'),
  'Valid-model universal master must be eligible for indexing');
 assert(renderer.includes('public_anybike_manufacturer_model_routes_v1')&&
- renderer.includes('const masterUrl=new URL(')&&renderer.includes('if(exact.length===1)canonical='),
+ renderer.includes('new URL(approvedDedicatedRoute,location.origin)')&&
+ renderer.includes('if(exact.length===1)canonical='),
  'A model's canonical must prefer its existing approved route and otherwise use the universal URL');
 assert(renderer.includes("'@type':'Motorcycle'")&&!renderer.includes("'@type':'Product'"),
  'Model schema must describe research without inventing a product offer');
@@ -62,7 +64,7 @@ assert(renderer.includes('selected.model_id||selected.catalogue_model_id')&&
  renderer.includes('loadUniversalPublishedPage')&&renderer.includes('renderUniversalPage'),
  'Master must connect canonical model ID to the existing published 20-slot renderer');
 assert(renderer.includes('Cross-model universal publication blocked')&&
- renderer.includes("publishedCount=approved.length"),
+ renderer.includes('publishedCount++'),
  'Master must reject wrong-model published research and hide unpublished empty slots');
 assert(renderer.includes('res.status===401||res.status===403')&&
  renderer.includes("feedState='restricted'"),
