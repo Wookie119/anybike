@@ -85,6 +85,21 @@ try{
    const submissions=[];
    await context.route('https://cdn.jsdelivr.net/**',route=>route.abort());
    await context.route('https://photos.example.invalid/**',route=>route.abort());
+   // A real published-guide-shaped fixture proves that year-specific factory
+   // specifications render through the shared guide route, not just that the
+   // renderer contains the right source-code phrase.
+   if(make==='Honda'){
+    await context.route('**/data/motorcycle-model-guides.json',route=>route.fulfill({
+     status:200,contentType:'application/json',body:JSON.stringify({models:{
+      cb650r:{make:'Honda',model:'CB650R',summary:'Documented Honda model research',
+       production:{specifications:[{model_year:2024,market:'UK',
+        engine_cc:649,power_hp:94,source:'https://example.org/factory-cb650r'}],
+        documented_milestones:[{year:2024,event:'Model-year update',
+         source:'https://example.org/factory-cb650r'}]},
+       model_year_cards:[{period:'2024',description:'Documented UK model year',
+        source:'https://example.org/factory-cb650r'}]}
+     }})}));
+   }
    await context.route('https://tuehtnezhdnkqbbhttgp.supabase.co/**',async route=>{
     const pathname=new URL(route.request().url()).pathname;
     let payload={};try{payload=route.request().postDataJSON()||{}}catch{}
@@ -139,6 +154,14 @@ try{
    const order=await page.locator('main > *').evaluateAll(nodes=>nodes.map(n=>n.id||n.className));
    assert.equal(order.indexOf('internationalModelStock'),order.indexOf('hero')+1);
    const specificationPlacement=await page.locator('#v2DocumentedSpecifications').count();
+   if(make==='Honda'){
+    assert.equal(specificationPlacement,1,
+     'Honda approved factory specification fixture must render a real panel');
+    assert.match(await page.locator('#v2DocumentedSpecifications').innerText(),/649 cc/);
+    assert.match(await page.locator('#v2DocumentedSpecifications').innerText(),/2024/);
+    assert.equal(await page.locator('#r1300V2VerifiedExtras').isVisible(),true);
+    assert.match(await page.locator('#r1300gsModelHistory').innerText(),/Documented UK model year/);
+   }
    if(specificationPlacement){
     assert.equal(await page.locator('#v2DocumentedSpecifications').evaluate(el=>el.parentElement?.tagName),'MAIN');
     const specificationPosition=order.indexOf('v2DocumentedSpecifications');
