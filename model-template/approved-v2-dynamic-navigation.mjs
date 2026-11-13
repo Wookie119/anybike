@@ -173,7 +173,9 @@ async function modelNavigation(){
      return bmwSeries(item.label)===currentSeries;
     return true;
    }).sort((a,b)=>score(b)-score(a)||a.label.localeCompare(b.label,'en-GB',{numeric:true}));
-   const compact=ranked.slice(0,6);
+   // Show a useful cross-section of the same manufacturer-specific family;
+   // the pills wrap naturally on wider screens. The full catalogue remains expandable.
+   const compact=ranked.slice(0,14);
    safeNav(panel.querySelector('[data-v2-quick-related]'),compact);
    safeNav(panel.querySelector('[data-v2-quick-all]'),links);
    panel.querySelector('.anybike-v2-all-models summary').textContent=
