@@ -39,6 +39,12 @@ assert(renderer.includes('public_anybike_model_hero_v1')&&
 assert(renderer.includes('installVerifiedModelFacts')&&
  renderer.includes("normalize(x?.make)===normalize(make)&&normalize(x?.model)===normalize(model)"),
  'Master must filter research and stock to the exact make/model');
+assert(renderer.includes('selected.model_id||selected.catalogue_model_id')&&
+ renderer.includes('loadUniversalPublishedPage')&&renderer.includes('renderUniversalPage'),
+ 'Master must connect canonical model ID to the existing published 20-slot renderer');
+assert(renderer.includes('Cross-model universal publication blocked')&&
+ renderer.includes("publishedCount=approved.length"),
+ 'Master must reject wrong-model published research and hide unpublished empty slots');
 assert(renderer.includes('res.status===401||res.status===403')&&
  renderer.includes("feedState='restricted'"),
  'Master must respect server-enforced stock access restrictions');
