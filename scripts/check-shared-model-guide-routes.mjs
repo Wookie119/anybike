@@ -28,10 +28,10 @@ for(const id of ['v2UkSellAction','internationalGuestRequestForm','sourceBottom'
  assert(guide.includes('id="'+id+'"'),'V2 model guide action missing '+id);
 assert(v2Renderer.includes("textContent='UK owners: Sell My '+title"),'Dynamic UK seller heading missing');
 assert(v2Renderer.includes('const actualMake')===false,'Legacy inline renderers must not return');
-assert(!/<nav\\b[^>]*class="[^"]*\\bcrumb\\b/i.test(guide),'Breadcrumb returned');
-const ids=[...guide.matchAll(/\\bid="([^"]+)"/g)].map(x=>x[1]);
+assert(!/<nav\b[^>]*class="[^"]*\bcrumb\b/i.test(guide),'Breadcrumb returned');
+const ids=[...guide.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]);
 assert.equal(ids.length,new Set(ids).size,'Duplicate model guide HTML IDs');
-const sectionTags=s=>[...s.matchAll(/<section\\b([^>]*)>/g)].map(x=>x[1]);
+const sectionTags=s=>[...s.matchAll(/<section\b([^>]*)>/g)].map(x=>x[1]);
 assert.deepEqual(sectionTags(guide),sectionTags(v2Master),'Generic guide must use the exact approved V2 section structure');
 
 // Regression guard for the approved AnyBike international model galleries.
