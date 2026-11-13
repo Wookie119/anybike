@@ -2101,6 +2101,36 @@ function renderNotificationList(items){
     `;
   }).join("");
 
+  // Explicit, account-scoped clearing only. Closing the popover or opening a
+  // conversation must never bulk-clear notifications.
+  if(items.some(function(item){return !!item.id;})){
+    const clearButton=document.createElement("button");
+    clearButton.type="button";
+    clearButton.textContent="Mark all notifications as read";
+    clearButton.setAttribute("aria-label","Mark all notifications as read");
+    clearButton.style.cssText="display:block;margin:0 0 12px auto;padding:8px 12px;background:#252525;color:#fff;border:1px solid #555;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;";
+    list.prepend(clearButton);
+    clearButton.addEventListener("click",async function(event){
+      event.preventDefault();
+      event.stopPropagation();
+      if(!anybikeHeaderUser?.id || typeof sb==="undefined")return;
+      clearButton.disabled=true;
+      clearButton.textContent="Clearing…";
+      try{
+        const {error}=await sb.from("customer_notifications")
+          .update({is_read:true})
+          .eq("customer_id",anybikeHeaderUser.id)
+          .eq("is_read",false);
+        if(error)throw error;
+        await loadCustomerHeaderActivity(anybikeHeaderUser);
+      }catch(error){
+        console.warn("Notifications could not be cleared",error);
+        clearButton.textContent="Could not clear — retry";
+        clearButton.disabled=false;
+      }
+    });
+  }
+
   list.querySelectorAll("[data-notification-id]").forEach(function(item){
     item.addEventListener("click",async function(event){
       if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
