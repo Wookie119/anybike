@@ -218,8 +218,13 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     const response=await fetch(archivePath,{cache:'no-cache'});
     if(!response.ok)throw Error('Preserved public research unavailable');
     const archive=await response.json();
-    const row=normalize(make)==='bmw'?archive:
-     arr(archive.models).find(entry=>entry.url===approvedDedicatedRoute);
+    const row=normalize(make)==='bmw'?archive:(()=>{
+     const entry=arr(archive.models).find(record=>
+      record.url===approvedDedicatedRoute&&
+      normalize(record.make)===normalize(make)&&
+      normalize(record.model)===normalize(model));
+     return entry?{...entry,publication_status:archive.publication_status}:null;
+    })();
     const {preserveDedicatedModelResearch,preservedExistingHero}=
      await import('/model-template/approved-v2-dedicated-preservation.mjs');
     guide=preserveDedicatedModelResearch(guide,row,{make,model,url:approvedDedicatedRoute});
