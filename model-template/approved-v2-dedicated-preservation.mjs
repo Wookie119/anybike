@@ -48,6 +48,9 @@ export function preserveDedicatedModelResearch(guide,data,{make,model,url}={}){
   const previous=Array.isArray(data.sections)?data.sections.filter(s=>s&&s.heading&&s.text):[];
   const combined=[...existing];
   for(const section of previous){
+   // The five chronological cards own the old model-year gallery; keeping
+   // the same gallery as another research section would duplicate it.
+   if(/^bmw r 1250 gs model years 2019 2023$/.test(norm(section.heading)))continue;
    const heading=norm(section.heading);
    if(!heading||known.has(heading))continue;
    known.add(heading);
