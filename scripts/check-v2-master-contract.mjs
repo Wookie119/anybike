@@ -29,7 +29,10 @@ assert.equal(new Set(categories).size,categories.length,'Duplicate research dest
 for(const key of ['model_year','history','engineering','engine','specification','factory_colours','manufacturing_evidence','factory_documents','used_buying'])
  assert(categories.includes(key),'Verified research destination missing: '+key);
 assert(categories.length>=20,'Research category coverage reduced unexpectedly');
-// Report, rather than silently approve, stock that follows research in the DOM.
-if(master.indexOf('id="internationalModelStock"')>master.indexOf('id="generationPanel"'))
- console.warn('FOLLOW-UP: international stock follows generation research in source order; verify live placement before rollout.');
+for(const [name,html] of [['master',master],['guide',guide]]) {
+ const stock=html.indexOf('id="internationalModelStock"');
+ const generations=html.indexOf('id="generationPanel"');
+ const research=html.indexOf('id="body"');
+ assert(stock>0 && stock<generations && stock<research, name+': international exact-model stock must precede research in source order');
+}
 console.log('PASS: shared V2 structure, unique IDs, public RPC and '+categories.length+' research categories.');
