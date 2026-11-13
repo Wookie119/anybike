@@ -21,11 +21,15 @@ try{
    const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
    assert.equal(response?.status(),200,'Public master is not HTTP 200: '+url);
    await page.waitForFunction(()=>window.__anybikeV2EditorialReady===true,null,{timeout:35000});
+   await page.waitForFunction(()=>window.__anybikeV2NavigationReady===true,null,{timeout:25000});
    await page.waitForFunction(()=>['checked','restricted','unavailable'].includes(
     document.getElementById('internationalModelStock')?.dataset.stockFeedState),null,{timeout:25000});
    assert.equal(await page.locator('#heading').innerText(),make+' '+model);
    assert.equal(await page.locator('#internationalModelStock').isVisible(),true);
    assert.equal(await page.locator('#internationalGuestRequestForm').isVisible(),true);
+   assert.equal(await page.locator('#r1300CountryMarkets').isVisible(),true,
+    'Verified 217-country section failed to load');
+   assert.match(await page.locator('#r1300CountryMarkets').innerText(),/View all 217 international markets/);
    assert.equal(await page.locator('meta[name=robots]').getAttribute('content'),'index,follow');
    assert.equal(await page.locator('#previewStatusError').isVisible(),false,'Master displayed fatal loading error');
    const metrics=await page.evaluate(()=>({
