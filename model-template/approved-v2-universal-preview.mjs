@@ -268,7 +268,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   }
   // Chronological documentary model-year cards; unknown periods keep input order.
   const yearCards=arr(guide?.model_year_cards).filter(x=>str(x.period)&&str(x.description))
-   .map((card,index)=>({card,index,year:Number(str(card.period).match(/(?:18|19|20)\\d{2}/)?.[0]||0)}))
+   .map((card,index)=>({card,index,year:Number(str(card.period).match(/(?:18|19|20)\d{2}/)?.[0]||0)}))
    .sort((a,b)=>(a.year||9999)-(b.year||9999)||a.index-b.index)
    .map(x=>x.card);
   const devCards=arr(guide?.development_cards).filter(x=>str(x.title)&&str(x.description));
