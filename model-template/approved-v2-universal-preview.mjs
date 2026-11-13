@@ -601,6 +601,11 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     grid.append(article);
    }
    section.append(grid);
+   // Approved sales-first sequence: the verified factory specification must
+   // precede model-year development and research, rather than sit in #body
+   // after the generation timeline. One shared placement for every make.
+   const firstDevelopment=$('generationPanel');
+   if(firstDevelopment)firstDevelopment.before(section);
   }
   // Long-form source-linked editorial fields: open-ended section registry.
   // New category keys render only when they contain approved paragraphs and
