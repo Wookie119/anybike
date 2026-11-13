@@ -104,18 +104,30 @@ async function modelNavigation(){
    if(category)categories.set(normalize(name),category);
   }
  };
+ let catalogueLoaded=false;
  try{
   const db=window.supabase?.createClient?.(ENDPOINT,KEY);
   if(db){
    const {data,error}=await db.rpc('public_anybike_manufacturer_catalogue_names_v1',{p_make:make});
    if(error)throw error;
-   collect(data);
+   if(!Array.isArray(data))throw Error('Invalid catalogue data');
+   collect(data);catalogueLoaded=true;
   }
- }catch(error){console.warn('Public manufacturer catalogue unavailable',error)}
- if(!models.length)try{
+ }catch(error){console.warn('Supabase JS manufacturer catalogue unavailable',error)}
+ if(!catalogueLoaded)try{
+  const response=await fetch(ENDPOINT+'/rest/v1/rpc/public_anybike_manufacturer_catalogue_names_v1',{
+   method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},
+   body:JSON.stringify({p_make:make}),cache:'no-store'
+  });
+  if(!response.ok)throw Error('Public catalogue HTTP '+response.status);
+  const data=await response.json();
+  if(!Array.isArray(data))throw Error('Invalid public catalogue data');
+  collect(data);catalogueLoaded=true;
+ }catch(error){console.warn('Read-only manufacturer catalogue unavailable',error)}
+ if(!catalogueLoaded)try{
   const published=JSON.parse(await fetchPublished('/data/motorcycle-catalogue-master.json'));
   collect(published.models);
- }catch(error){console.warn('Static manufacturer catalogue unavailable',error)}
+ }catch(error){console.warn('Offline manufacturer catalogue unavailable',error)}
  const combined=new Map();
  for(const name of models)combined.set(normalize(name),{
   label:name,url:(location.pathname==='/motorcycle-v2-master.html'?
