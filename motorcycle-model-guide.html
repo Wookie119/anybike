@@ -148,6 +148,15 @@ el("manufacturer").href=brandUrl;el("manufacturer").textContent="View "+actualMa
 el("source").href="/bulk-buying-request.html?make="+encodeURIComponent(actualMake)+"&model="+encodeURIComponent(actualModel);el("sourceBottom").href=el("source").href;
 el("summary").textContent=guide?.summary||"Learn about this motorcycle and its place in the "+actualMake+" model range. AnyBike can help international trade buyers enquire about motorcycles available from UK suppliers.";
 const add=(title,html,feature=false)=>{const item=document.createElement("section");item.className="card"+(feature?" feature":"");item.innerHTML="<h2>"+esc(title)+"</h2>"+html;el("body").appendChild(item)};
+// Only collapse identical published records. Different model years, markets,
+// editions, source URLs and original evidence stay separate in the database
+// and on this guide.
+const uniqueRecords=(rows,fields)=>{const seen=new Set();return (Array.isArray(rows)?rows:[]).filter(row=>{
+ if(!row||typeof row!=="object")return false;
+ const key=JSON.stringify(fields.map(field=>String(row[field]??"").trim().replace(/\\s+/g," ").toLowerCase()));
+ if(seen.has(key))return false;
+ seen.add(key);return true;
+});};
  const related=(indexedModels.length?indexedModels:catalogue.models).filter(x=>x&&typeof x.make==="string"&&typeof x.model==="string"&&x.make.toLowerCase()===actualMake.toLowerCase()&&x.model.toLowerCase()!==actualModel.toLowerCase()&&(!row?.category||!x.category||x.category.toLowerCase()===row.category.toLowerCase())).slice(0,6);
  if(related.length)add("Explore related "+actualMake+" models",'<p>Compare other '+esc(actualMake)+' motorcycles in this category. Each model guide has its own documented generations and specifications.</p><ul class="facts">'+related.map(x=>'<li><a href="/motorcycle-model-guide.html?make='+encodeURIComponent(x.make)+'&amp;model='+encodeURIComponent(x.model)+'">'+esc(x.make+" "+x.model)+' →</a></li>').join("")+'</ul>');
 if(guide){
@@ -161,7 +170,7 @@ if(guide){
  if(Number.isInteger(production.first_model_year)&&!Number.isInteger(production.production_end_year)&&production.year_range_status==="manufacturer_factory_start_confirmed_end_pending"){
   const start=document.createElement("p");start.className="meta";start.textContent="Verified factory production began: "+production.first_model_year+". Final production date not confirmed.";el("years").appendChild(start);
  }
- const evidence=(production.documented_production_evidence||[]).filter(x=>x.evidence&&x.source);
+ const evidence=uniqueRecords(production.documented_production_evidence,["date","evidence","market","source"]).filter(x=>x.evidence&&x.source);
  if(evidence.length){
    const items=evidence.map(x=>'<li><strong>'+esc(x.date||"Factory record")+'</strong> — '+esc(x.evidence)+(x.market?' <span class="meta">('+esc(x.market)+')</span>':"")+' <a href="'+esc(x.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer source ↗</a></li>').join("");
    add("Manufacturer production and launch evidence",'<p>Records may document an announcement, model-year introduction or factory production. An announcement does not confirm the first or last manufacturing date.</p><ul class="facts">'+items+'</ul>');
@@ -198,11 +207,11 @@ if(guide){
  if(actualMake==="BMW"){
  add("BMW stories and comparisons",'<p>Explore editorial features about BMW motorcycles on AnyBike Global. Stories about related models, including the GS Adventure, may describe different specifications from this motorcycle.</p><p><a href="/bmw-motorcycles.html#bmw-stories">Browse BMW stories from AnyBike Global →</a></p>');
  }
- const milestones=guide.production?.generation_milestones||[];
+ const milestones=uniqueRecords(guide.production?.generation_milestones,["model_year","name","change","source"]);
  if(milestones.length&&!generations.length)add("Model development",'<ul class="facts">'+milestones.map(g=>'<li><strong>'+esc(g.model_year)+(g.name?" · "+esc(g.name):"")+'</strong> — '+esc(g.change)+(g.source?' <a href="'+esc(g.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer information ↗</a>':"")+'</li>').join("")+"</ul>",true);
- const specs=guide.production?.specifications||[];
+ const specs=uniqueRecords(guide.production?.specifications,["model_year","market","variant","engine_cc","power_hp","torque_nm","battery_kwh","transmission","source"]);
  if(specs.length&&!generations.length)add("Technical specifications",'<ul class="facts">'+specs.map(x=>'<li><strong>'+esc(x.model_year||x.market||"Model-specific data")+(x.variant?" · "+esc(x.variant):"")+'</strong> '+[x.engine_cc?x.engine_cc+" cc":"",x.power_hp?x.power_hp+" hp":"",x.torque_nm?x.torque_nm+" Nm":"",x.battery_kwh?x.battery_kwh+" kWh battery":"",x.transmission||""].filter(Boolean).map(esc).join(" · ")+(x.source?' <a href="'+esc(x.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer information ↗</a>':"")+'</li>').join("")+"</ul>");
- const colours=guide.production?.official_colours||[];
+ const colours=uniqueRecords(guide.production?.official_colours,["model_year","market","name","variant","source"]);
  if(colours.length)add("Factory colours",'<ul class="facts">'+colours.map(x=>'<li>'+esc(x.model_year||x.market||"Factory option")+" — "+esc(x.name)+(x.variant?" ("+esc(x.variant)+")":"")+(x.source?' <a href="'+esc(x.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer information ↗</a>':"")+"</li>").join("")+"</ul>");
  // All manufacturers use one editorial stream. Exact duplicate source
  // paragraphs are displayed once; distinct year/market research is preserved.
@@ -217,12 +226,15 @@ if(guide){
   add(title,"<p>"+esc(description)+"</p>");
  });
  // Shared, data-driven enrichment for every make and model; only grounded content appears.
- const evidenceRows=(Array.isArray(guide.production?.documented_production_evidence)?guide.production.documented_production_evidence:[]).filter(x=>x&&typeof x.source==="string"&&typeof x.evidence==="string");
  const sourceRows=(Array.isArray(guide.production?.generation_milestones)?guide.production.generation_milestones:[]).filter(x=>x&&typeof x.source==="string"&&typeof x.change==="string");
- const referenceItems=[
-  ...evidenceRows.slice(0,4).map(x=>({heading:x.date||"Production record",body:x.evidence,url:x.source})),
-  ...sourceRows.slice(0,4).map(x=>({heading:String(x.model_year||"Model milestone"),body:x.change,url:x.source}))
- ];
+ // Evidence is already visible in the production section above, so do not
+ // repeat it in an expandable panel. When generations are present, retain
+ // separately documented milestones that the comparison UI does not narrate.
+ // If there are no generations the Model development card already shows them.
+ const referenceItems=generations.length
+  ?uniqueRecords(sourceRows,["model_year","change","source"]).slice(0,4)
+    .map(x=>({heading:String(x.model_year||"Model milestone"),body:x.change,url:x.source}))
+  :[];
  const extraPanel=document.createElement("section");extraPanel.className="model-deep-dive";
  const deepHeading=document.createElement("h2");deepHeading.textContent="Explore this motorcycle in more detail";
  extraPanel.appendChild(deepHeading);
@@ -248,7 +260,7 @@ if(guide){
  // Engineering and ownership paragraphs are already rendered in their
  // approved model research cards above. Do not copy their complete prose
  // into a second expandable panel: that creates duplicate reading surfaces.
- // Keep this sourced factory-reference panel for original documentary links.
+ // Keep only distinct milestone narratives not already in the main cards.
  if(deepGrid.children.length)el("body").after(extraPanel);
 
 }else{
