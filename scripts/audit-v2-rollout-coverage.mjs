@@ -17,6 +17,7 @@ const renderer='/model-template/approved-v2-universal-preview.mjs';
 const normalize=s=>String(s||'').toLocaleLowerCase('en-GB').replace(/[^a-z0-9]+/g,' ').trim();
 const key=(make,model)=>normalize(make)+'|'+normalize(model);
 const failures=[];
+const warnings=[];
 const verify=(condition,message)=>{if(!condition)failures.push(message);};
 const sections=html=>[...html.matchAll(/<section\b([^>]*)>/g)].map(m=>m[1]);
 const rendererVersion=master.match(/src="(\/model-template\/approved-v2-universal-preview\.mjs\?v=[^"]+)"/)?.[1];
@@ -29,7 +30,7 @@ for(const row of approved){
  verify(typeof route==='string'&&/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(route||''),'Unapproved dedicated route: '+route);
  verify(!registered.has(route),'Duplicate dedicated route: '+route);
  registered.add(route);
- verify(catalogue.some(item=>key(item.make,item.model)===identity),'Dedicated identity missing from catalogue: '+route);
+ if(!catalogue.some(item=>key(item.make,item.model)===identity))warnings.push('Dedicated identity absent from offline fallback; verify live public catalogue: '+route);
  if(typeof route!=='string'||!route.startsWith('/')||!exists(route.slice(1))){failures.push('Missing dedicated HTML: '+route);continue;}
  const html=read(route.slice(1));
  verify(html.includes('https://www.anybike.co.uk'+route),'Missing exact canonical: '+route);
@@ -71,6 +72,7 @@ const report={
  master_and_generic_same_structure:JSON.stringify(sections(master))===JSON.stringify(sections(generic)),
  source_audit_passed:failures.length===0,
  source_audit_limitations:'Does not verify live 123-reg deployment, Supabase published facts, roles, actual browser rendering, or photo rights.',
+ warnings,
  errors:failures
 };
 console.log(JSON.stringify(report,null,2));
