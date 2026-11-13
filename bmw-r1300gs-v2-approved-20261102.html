@@ -662,7 +662,12 @@ try{
    market_launch:"Market introductions",used_buying:"Used buying and ownership guidance"};
   const order=["market_launch","history","design","engineering","engine","transmission",
    "performance","dimensions","chassis","wheels","brakes","touring","used_buying"];
-  for(const category of order){
+  // This is a flexible master: newly approved research keys are included
+  // without changing page HTML or creating empty placeholder sections.
+  // Keep the approved hierarchy first, followed by any new populated keys.
+  const keys=[...new Set([...order,...Object.keys(explanations)
+   .filter(key=>/^[a-z][a-z0-9_]{1,64}$/.test(key)).sort()])];
+  for(const category of keys){
    const entry=explanations[category];
    if(!entry||!Array.isArray(entry.paragraphs)||!entry.paragraphs.length||
       typeof entry.source_url!=="string"||
@@ -675,7 +680,7 @@ try{
     group.dataset.anybikeResearchIdentity=JSON.stringify([actualMake.toLowerCase(),actualModel.toLowerCase()]);
     group.className="v2-editorial-category";
     const heading=doc.createElement("h3");
-    heading.textContent=labels[category]||category;
+    heading.textContent=labels[category]||category.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase());
     group.append(heading);
     researchPanel.append(group);
    }
