@@ -47,6 +47,11 @@ check('Static fallback has unique make/model identities',()=>{
  assert(keys.every(key=>!key.startsWith('|')&&!key.endsWith('|')));
  assert.equal(new Set(keys).size,keys.length);
 });
+check('Hidden or unpublished sections stay hidden across the shared V2 design',()=>{
+ assert.match(html,/main \[hidden\]\{display:none!important\}/);
+ assert.match(renderer,/if\(!factCount&&!guide&&!publishedCount\)/);
+ assert.doesNotMatch(renderer,/makeSection\('v2ResearchPending'/);
+});
 check('One indexable V2 master and identical asset versions',()=>{
  assert.match(html,/name="robots" content="index,follow"/);
  assert.doesNotMatch(html,/noindex/i);
