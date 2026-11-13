@@ -254,7 +254,8 @@ async function countryNavigation(){
   const {data,error}=await db.rpc('public_anybike_country_navigation_v1');
   if(error)throw error;
   const rows=(Array.isArray(data)?data:[]).filter(x=>validCountryPath(x.url)&&String(x.label||'').trim());
-  if(!rows.length)return;
+  if(!rows.length){section.hidden=true;return;}
+  section.hidden=false;
   const regions=new Map(),seen=new Set();
   for(const item of rows){
    if(seen.has(item.url))continue;seen.add(item.url);
@@ -263,6 +264,7 @@ async function countryNavigation(){
    regions.get(region).push({label:item.label,url:item.url});
   }
   nav.replaceChildren();
+  section.querySelectorAll('.anybike-v2-country-regions').forEach(old=>old.remove());
   const overview=document.createElement('a');overview.href='/international-markets.html';
   overview.textContent='View all '+seen.size+' international markets →';nav.append(overview);
   const groups=document.createElement('div');groups.className='anybike-v2-country-regions';
@@ -276,7 +278,7 @@ async function countryNavigation(){
   }
   section.append(groups);
   section.dataset.anybikeV2Source='public-country-navigation-rpc';
- }catch(error){console.warn('V2 country directory unavailable',error);}
+ }catch(error){section.hidden=true;console.warn('V2 country directory unavailable',error);}
 }
 async function globalNavigation(){
  const anchor=document.getElementById('r1300CountryMarkets');
@@ -293,6 +295,7 @@ async function globalNavigation(){
  anchor.before(panel);
  const more={label:'Explore all AnyBike Global stories →',url:'/anybike-global.html'};
  const renderStories=entries=>{
+  if(!entries.length){panel.remove();return;}
   nav.replaceChildren();
   for(const entry of entries){
    const card=document.createElement('article');card.className='anybike-v2-story-card';
