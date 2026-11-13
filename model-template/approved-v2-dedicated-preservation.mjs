@@ -42,12 +42,18 @@ export function preserveDedicatedModelResearch(guide,data,{make,model,url}={}){
   // An approved V2 editorial record may contain newer, sourced model-year cards.
   const result={...original};
   if(!existingCards.length&&cards.length===5)result.model_year_cards=cards;
-  const known=new Set((Array.isArray(original.sections)?original.sections:[])
-   .filter(Array.isArray).map(section=>norm(section[0])));
+  const existing=(Array.isArray(original.sections)?original.sections:[])
+   .filter(section=>Array.isArray(section)&&section.length===2);
+  const known=new Set(existing.map(section=>norm(section[0])));
   const previous=Array.isArray(data.sections)?data.sections.filter(s=>s&&s.heading&&s.text):[];
-  if(!known.size&&previous.length){
-   result.sections=previous.map(s=>[s.heading,s.text]);
+  const combined=[...existing];
+  for(const section of previous){
+   const heading=norm(section.heading);
+   if(!heading||known.has(heading))continue;
+   known.add(heading);
+   combined.push([section.heading,section.text]);
   }
+  if(combined.length)result.sections=combined;
   return result;
  }
  if(make==='Harley-Davidson'&&data.publication_status==='migration_snapshot_only_not_automatically_publication_approved'){
