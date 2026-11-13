@@ -267,7 +267,11 @@ async function globalNavigation(){
  const nav=panel.querySelector('nav');
  nav.classList.add('anybike-v2-story-grid');
  panel.classList.add('anybike-v2-global-feature');
- panel.querySelector('h2').insertAdjacentText('beforebegin','ANYBIKE GLOBAL');
+ const brandLabel=document.createElement('p');brandLabel.className='anybike-v2-global-eyebrow';
+ brandLabel.textContent='ANYBIKE GLOBAL';
+ panel.querySelector('h2').before(brandLabel);
+ // Feature the editorial stories before the compact market directory.
+ anchor.before(panel);
  const more={label:'Explore all AnyBike Global stories →',url:'/anybike-global.html'};
  const renderStories=entries=>{
   nav.replaceChildren();
