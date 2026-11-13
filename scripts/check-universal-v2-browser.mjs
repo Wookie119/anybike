@@ -87,7 +87,18 @@ try{
     else if(pathname.endsWith('/public_anybike_verified_model_gallery_v1'))body=make==='BMW'?
      [photo,{...photo,image_url:'https://photos.example.invalid/engine.jpg'}]:[];
     else if(pathname.endsWith('/public_anybike_verified_model_facts_v1'))body=[];
-    else if(pathname.endsWith('/international-public-stock')){status=403;body={error:'Restricted'};}
+    else if(pathname.endsWith('/international-public-stock')){
+     if(make==='Suzuki'&&width===390){
+      body={items:[
+       {item_id:41,catalog_model_id:202,catalogue_identity_status:'verified',
+        publication_eligible:true,make:'Suzuki',model:'RM250',year:1999,price:2500},
+       {item_id:42,catalog_model_id:203,catalogue_identity_status:'verified',
+        publication_eligible:true,make:'Suzuki',model:'RM125',year:2000,price:2500},
+       {item_id:43,catalog_model_id:202,catalogue_identity_status:'pending',
+        publication_eligible:true,make:'Suzuki',model:'RM250',year:1998}
+      ]};
+     }else{status=403;body={error:'Restricted'};}
+    }
     else if(pathname.endsWith('/international-guest-enquiry')){submissions.push(payload);body={ok:true,reference:'MOCK-ONLY'};}
     else {status=404;body={error:'Unknown mock endpoint'};}
     await route.fulfill({status,contentType:'application/json',headers:{
@@ -99,11 +110,18 @@ try{
    await page.goto(origin+'/motorcycle-v2-master.html?make='+encodeURIComponent(make)+
     '&model='+encodeURIComponent(model),{waitUntil:'domcontentloaded'});
    await page.waitForFunction(()=>window.__anybikeV2EditorialReady===true,null,{timeout:30000});
-   await page.waitForFunction(()=>document.querySelector('#internationalModelStock')?.dataset.stockFeedState==='restricted',
-    null,{timeout:15000});
+   const permitted=make==='Suzuki'&&width===390;
+   await page.waitForFunction(expected=>
+    document.querySelector('#internationalModelStock')?.dataset.stockFeedState===expected,
+    permitted?'checked':'restricted',{timeout:15000});
    assert.equal(await page.locator('#heading').innerText(),make+' '+model);
    assert.equal(await page.locator('meta[name=robots]').getAttribute('content'),'index,follow');
-   assert.match(await page.locator('#internationalModelCards').innerText(),/access is restricted/i);
+   if(permitted){
+    assert.equal(await page.locator('#internationalModelCards > a').count(),1,
+     'Only one authorised exact-model stock item must remain');
+    assert.match(await page.locator('#internationalModelCards > a').first().getAttribute('href'),/id=41$/);
+    assert.doesNotMatch(await page.locator('#internationalModelCards').innerText(),/RM125/);
+   }else assert.match(await page.locator('#internationalModelCards').innerText(),/access is restricted/i);
    assert.equal(await page.locator('#internationalGuestRequestForm').isVisible(),true);
    const order=await page.locator('main > *').evaluateAll(nodes=>nodes.map(n=>n.id||n.className));
    assert.equal(order.indexOf('internationalModelStock'),order.indexOf('hero')+1);
