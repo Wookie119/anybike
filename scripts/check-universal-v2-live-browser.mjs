@@ -3,17 +3,19 @@
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {chromium} from 'playwright';
-const base='https://www.anybike.co.uk/motorcycle-v2-master.html';
+const base='https://www.anybike.co.uk';
 const cases=[
  ['BMW','R 1300 GS',1280],
  ['Suzuki','RM250',1280],
  ['Suzuki','RM250',390],
- ['Harley-Davidson','Fat Boy',1280]
+ ['Harley-Davidson','Fat Boy',1280],
+ ['Honda','CB650R',1280,'motorcycle-model-guide.html'],
+ ['Yamaha','MT-09',390,'motorcycle-model-guide.html']
 ];
 await mkdir('artifacts/universal-v2-live-browser',{recursive:true});
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 try{
- for(const [make,model,width] of cases){
+ for(const [make,model,width,routeName='motorcycle-v2-master.html'] of cases){
   const context=await browser.newContext({viewport:{width,height:850}});
   try{
    const page=await context.newPage();
@@ -21,9 +23,9 @@ try{
    page.on('pageerror',error=>issues.push('PAGE_ERROR '+String(error)));
    page.on('console',message=>{if(['error','warning'].includes(message.type()))issues.push(message.type()+' '+message.text());});
    page.on('requestfailed',request=>{if(request.url().includes('model-template')||request.url().includes('supabase.co'))issues.push('REQUEST_FAILED '+request.url()+' '+request.failure()?.errorText);});
-   const url=base+'?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
+   const url=base+'/'+routeName+'?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
    const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
-   assert.equal(response?.status(),200,'Public master is not HTTP 200: '+url);
+   assert.equal(response?.status(),200,'Public V2 model route is not HTTP 200: '+url);
    await page.waitForFunction(()=>window.__anybikeV2EditorialReady===true,null,{timeout:35000});
    try{
     await page.waitForFunction(()=>window.__anybikeV2NavigationReady===true,null,{timeout:15000});
@@ -39,7 +41,7 @@ try{
      countryLinks:document.querySelectorAll('#r1300CountryMarkets a').length
     }));
     await page.screenshot({path:'artifacts/universal-v2-live-browser/'+make.replace(/[^a-z0-9]/gi,'-')+
-     '-'+model.replace(/[^a-z0-9]/gi,'-')+'-'+width+'-NAVIGATION-DIAGNOSTIC.png',fullPage:true});
+     '-'+model.replace(/[^a-z0-9]/gi,'-')+'-'+width+'-'+routeName+'-NAVIGATION-DIAGNOSTIC.png',fullPage:true});
     throw Error('Live V2 navigation did not finish: '+JSON.stringify({diagnostic,issues}));
    }
    await page.waitForFunction(()=>['checked','restricted','unavailable'].includes(
@@ -47,6 +49,17 @@ try{
    assert.equal(await page.locator('#heading').innerText(),make+' '+model);
    assert.equal(await page.locator('#internationalModelStock').isVisible(),true);
    assert.equal(await page.locator('#internationalGuestRequestForm').isVisible(),true);
+   const mainOrder=await page.locator('main > *').evaluateAll(nodes=>nodes.map(node=>node.id||node.className));
+   assert.equal(mainOrder.indexOf('internationalModelStock'),mainOrder.indexOf('hero')+1,
+    'Approved exact-model stock must follow the hero');
+   assert.equal(await page.locator('#r1300gsModelHistory').evaluate(node=>node.parentElement?.tagName),
+    'MAIN','Development and ownership must not remain nested inside stock');
+   assert.equal(await page.locator('#r1300gsModelHistory').evaluate(node=>node.previousElementSibling?.id),
+    'r1300V2VerifiedExtras','Development must follow model-year timeline');
+   if(routeName==='motorcycle-model-guide.html'){
+    assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),url,
+     'Generic model route should retain its exact-model canonical URL');
+   }
    assert.equal(await page.locator('#r1300CountryMarkets').isVisible(),true,
     'Verified 217-country section failed to load');
    assert.match(await page.locator('#r1300CountryMarkets').innerText(),/View all 217 international markets/);
@@ -60,8 +73,8 @@ try{
    }));
    assert(metrics.scrollWidth<=metrics.width+3,'Live master horizontal overflow: '+JSON.stringify(metrics));
    await page.screenshot({path:'artifacts/universal-v2-live-browser/'+make.replace(/[^a-z0-9]/gi,'-')+
-    '-'+model.replace(/[^a-z0-9]/gi,'-')+'-'+width+'.png',fullPage:true});
-   console.log('PASS LIVE '+make+' '+model+' '+width+'px '+JSON.stringify(metrics));
+    '-'+model.replace(/[^a-z0-9]/gi,'-')+'-'+width+'-'+routeName+'.png',fullPage:true});
+   console.log('PASS LIVE '+make+' '+model+' '+width+'px '+routeName+' '+JSON.stringify(metrics));
   }finally{await context.close();}
  }
 }finally{await browser.close();}
