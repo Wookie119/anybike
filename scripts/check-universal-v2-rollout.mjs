@@ -8,6 +8,8 @@ import assert from 'node:assert/strict';
 const read=path=>fs.readFileSync(path,'utf8');
 const header=read('public-header.js');
 const shared=read('motorcycle-model-guide.html');
+const sourceMaster=read('motorcycle-v2-master.html');
+const renderer=read('model-template/approved-v2-universal-preview.mjs');
 const css=read('model-template/r1300-v2-universal-rollout.css');
 const approved=JSON.parse(read('data/approved-dedicated-model-routes.json')).models;
 const master=read('bmw-r1300gs-v2.html');
@@ -20,11 +22,15 @@ const check=(label,fn)=>{
  try{fn();console.log('PASS',label);}
  catch(err){console.error('FAIL',label,err.message);process.exitCode=1;}
 };
-check('One shared V2 layout directly loaded by universal model route',()=>{
- assert.match(shared,/r1300-v2-universal-rollout\.css\?v=/);
- assert.match(shared,/<body class="anybike-v2-model-rollout">/);
+check('Generic model route uses the exact shared V2 renderer and section layout',()=>{
+ assert.match(shared,/approved-v2-preview-style\\.css\\?v=/);
+ assert.match(shared,/approved-v2-universal-preview\\.mjs\\?v=/);
+ assert.match(shared,/approved-v2-dynamic-navigation\\.mjs\\?v=/);
  assert.match(shared,/id="generationPanel"/);
  assert.match(shared,/id="body"/);
+ const sections=html=>[...html.matchAll(/<section\\b([^>]*)>/g)].map(x=>x[1]);
+ assert.deepEqual(sections(shared),sections(sourceMaster));
+ assert.match(shared,/name="robots" content="index,follow"/);
 });
 check('V2 rollout never modifies the protected BMW master',()=>{
  assert.match(header,/protectedMaster/);
@@ -61,21 +67,30 @@ check('The shared layout has accessible contrast, readable cards and mobile flow
  assert.match(css,/@media\(max-width:800px\)/);
  assert.match(css,/focus-visible/);
 });
-check('Verified model data, approved photography and exact-stock isolation remain in place',()=>{
- assert.match(shared,/public-verified-model-facts\.mjs/);
- assert.match(shared,/public-approved-model-hero\.mjs/);
- assert.match(shared,/public-approved-model-gallery\.mjs/);
- assert.match(shared,/public-exact-model-stock\.mjs/);
+check('V2 research, approved photography and exact-stock isolation remain in place',()=>{
+ assert.match(renderer,/installVerifiedModelFacts/);
+ assert.match(renderer,/public_anybike_model_hero_v1/);
+ assert.match(renderer,/public_anybike_verified_model_gallery_v1/);
+ assert.match(renderer,/stockForCanonicalModel/);
+ assert.match(renderer,/international-public-stock/);
  assert.match(facts,/exactVerifiedModelFacts/);
  assert.match(stock,/matchingPublishedMotorcycles/);
  assert.match(hero,/approved/i);
  assert.match(gallery,/approved/i);
 });
-check('Customer lead/sourcing paths survive',()=>{
+check('Customer lead and sourcing paths survive the V2 migration',()=>{
  assert.match(shared,/id="sourceBottom"/);
- assert.match(shared,/id="sellBottom"/);
- assert.match(shared,/bulk-buying-request\.html/);
- assert.match(shared,/uk-motorcycle-selling\.html/);
+ assert.match(shared,/id="v2UkSellAction"/);
+ assert.match(shared,/id="internationalGuestRequestForm"/);
+ assert.match(renderer,/international-guest-enquiry/);
+ assert.match(shared,/bulk-buying-request\\.html/);
+ assert.match(renderer,/sell-your-motorcycle\\.html/);
+});
+check('Legacy guide research remains exact-identity-only',()=>{
+ assert.match(renderer,/location.pathname==='\\/motorcycle-model-guide.html'/);
+ assert.match(renderer,/motorcycle-model-guides\\.json/);
+ assert.match(renderer,/exact.length===1/);
+ assert.match(renderer,/canonicalPath/);
 });
 if(process.exitCode)console.error('Universal V2 source checks FAILED. Live role and visual checks are still required.');
 else console.log('Universal V2 source checks passed. Live role and visual checks are still required.');
