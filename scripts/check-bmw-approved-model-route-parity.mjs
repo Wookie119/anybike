@@ -40,8 +40,14 @@ for(const path of routes){
    'R 1300 GS approved gallery missing');
   assert(html.includes('id="internationalModelStock"'),
    'R 1300 GS stock panel missing');
+ }else if(html.includes('/model-template/approved-v2-universal-preview.mjs')){
+  assert(html.includes('approved-v2-dynamic-navigation.mjs'),path+' missing V2 model navigation');
+  assert(html.includes('id="internationalGuestRequestForm"'),path+' missing non-login enquiry form');
+  assert(html.includes('id="internationalModelStock"'),path+' missing exact-model stock surface');
+  assert(html.includes('id="v2UkSellAction"'),path+' missing UK seller action');
+  assert(html.includes('approved-v2-preview-style.css'),path+' missing approved master styles');
  }else assert(html.includes('approved-bmw-page-shell.mjs'),
-  path+' missing shared approved shell');
+  path+' missing approved V2 renderer or preserved legacy shell');
  if(path==='bmw-r1250gs.html'){
   assert(html.includes('id="ukR1250ModelGallery"'),
    'R 1250 GS approved gallery missing');
