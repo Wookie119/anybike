@@ -215,6 +215,60 @@ export function orderedVerifiedFactoryFacts(items){
  });
 }
 const node=(doc,tag,value)=>{const el=doc.createElement(tag);el.textContent=String(value??'');return el;};
+// Populate the BMW-approved timeline and deeper-research surfaces from the
+// SAME audited exact-model projection. They are navigational summaries, not
+// separate editorial records or an alternative research publication path.
+function renderVerifiedModelExploration(body,facts,make,model){
+ const doc=body.ownerDocument;
+ const timeline=doc?.getElementById?.('verifiedModelTimeline');
+ const timelineEntries=doc?.getElementById?.('verifiedModelTimelineEntries');
+ const deepDive=doc?.getElementById?.('verifiedModelDeepDive');
+ const deepEntries=doc?.getElementById?.('verifiedModelDeepDiveEntries');
+ if(!timeline||!timelineEntries||!deepDive||!deepEntries)return;
+ timelineEntries.replaceChildren();deepEntries.replaceChildren();
+ const identity=JSON.stringify([safeText(make).toLowerCase(),safeText(model).toLowerCase()]);
+ const groups=[...body.querySelectorAll('[data-anybike-research-category]')].filter(group=>
+  group.dataset.anybikeResearchIdentity===identity&&
+  group.dataset.anybikeResearchFactIds&&group.isConnected!==false);
+ const anchors=new Map();
+ for(const group of groups){
+  const category=group.dataset.anybikeResearchCategory;
+  if(!anchors.has(category)){
+   // Stable per-category destination; a category can be integrated into a
+   // legacy approved card or placed in the full-width sourced panel.
+   group.id='anybike-verified-'+category;
+   anchors.set(category,group.id);
+  }
+ }
+ const timelineCategories=new Set(['model_year','market_launch','history']);
+ const dated=facts.filter(fact=>timelineCategories.has(fact.category)&&
+  anchors.has(fact.category)&&Number.isInteger(Number(fact.start_year))&&
+  Number(fact.start_year)>=1885&&Number(fact.start_year)<=2100);
+ dated.sort((a,b)=>Number(a.start_year)-Number(b.start_year)||Number(a.fact_id)-Number(b.fact_id));
+ for(const fact of dated){
+  const item=doc.createElement('article');item.className='anybike-model-timeline-entry';
+  const year=node(doc,'strong',String(fact.start_year));year.className='anybike-model-timeline-year';
+  const link=node(doc,'a',fact.label);link.href='#'+anchors.get(fact.category);
+  item.append(year,link);
+  if(safeText(fact.market))item.append(node(doc,'p','Market: '+fact.market));
+  timelineEntries.append(item);
+ }
+ timeline.hidden=dated.length===0;
+ for(const category of researchOrder){
+  if(!anchors.has(category))continue;
+  const items=facts.filter(fact=>fact.category===category);
+  if(!items.length)continue;
+  const detail=doc.createElement('details');detail.className='anybike-model-deep-detail';
+  const summary=doc.createElement('summary');
+  summary.append(node(doc,'strong',sections[category]||category),node(doc,'span',items.length+' verified record'+(items.length===1?'':'s')));
+  const content=doc.createElement('div');content.className='anybike-model-deep-content';
+  const description=node(doc,'p','Verified manufacturer and historical records for '+make+' '+model+'. Check the source-linked facts for year and market qualifications.');
+  const link=node(doc,'a','Read documented '+(sections[category]||category).toLowerCase()+' →');
+  link.href='#'+anchors.get(category);
+  content.append(description,link);detail.append(summary,content);deepEntries.append(detail);
+ }
+ deepDive.hidden=deepEntries.children.length===0;
+}
 export function mountVerifiedModelFacts(body,rows,make,model){
  if(!body)return 0;
  // A fallback panel may already exist from an earlier load. New verified
@@ -332,7 +386,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   return !existing?.length||existing.some(group=>
    group.dataset.anybikeResearchFactIds&&group.dataset.anybikeResearchFactIds!==fingerprint(fact.category));
  });
- if(!facts.length)return 0;
+ if(!facts.length){renderVerifiedModelExploration(body,allFacts,make,model);return 0;}
  // Replace a stale category group atomically from the newly verified RPC
  // snapshot. Never append a second copy of the same section.
  const refreshedCategories=new Set(facts.map(fact=>fact.category));
@@ -518,7 +572,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
     card.remove();
   }
  };
- removeGenericPlaceholder();
+ renderVerifiedModelExploration(body,allFacts,make,model);\n removeGenericPlaceholder();
  // The legacy guide can insert its generic placeholder after this sourced
  // panel. Observe only late, direct placeholder cards for a short period.
  // Never rescan the entire page after unrelated stock/research DOM updates.
