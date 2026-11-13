@@ -127,6 +127,24 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     }
    }catch(e){console.warn('V2 editorial lookup unavailable',e);}
   }
+  // Migration bridge: preserve previously published generic-model research
+  // until an ID-matched, RLS-published V2 editorial record supersedes it.
+  // The legacy JSON is public website content, not private editorial or stock.
+  // Never borrow an entry for a similarly named model or another manufacturer.
+  if(!guide&&location.pathname==='/motorcycle-model-guide.html'){
+   try{
+    const response=await fetch('/data/motorcycle-model-guides.json',{cache:'no-cache'});
+    if(response.ok){
+     const publicGuides=await response.json();
+     const exact=Object.values(publicGuides?.models||{}).filter(record=>
+      record&&normalize(record.make)===normalize(make)&&
+      normalize(record.model)===normalize(model));
+     if(exact.length===1)guide=exact[0];
+    }
+   }catch(error){
+    console.warn('Previously published model guide unavailable; V2 research continues',error);
+   }
+  }
   window.__anybikeV2ModelIdentity=Object.freeze({make,model});
   window.__anybikeV2Editorial=guide;
   window.dispatchEvent(new Event('anybike:v2-model-identity-ready'));
