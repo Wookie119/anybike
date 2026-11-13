@@ -76,23 +76,29 @@ async function modelNavigation(){
  // that their engineering research is approved. Prefer a validated dedicated
  // route; otherwise use the existing exact-model generic route until rollout.
  let models=[];
+ const categories=new Map();
+ const collect=items=>{
+  for(const row of (Array.isArray(items)?items:[])){
+   if(normalize(row.make)!==normalize(make)||typeof row.model!=='string')continue;
+   const name=row.model.trim();
+   if(!name||/\b(?:apr|representative|finance offer|discount)\b/i.test(name))continue;
+   models.push(name);
+   const category=normalize(row.category||row.motorcycle_type);
+   if(category)categories.set(normalize(name),category);
+  }
+ };
  try{
   const db=window.supabase?.createClient?.(ENDPOINT,KEY);
   if(db){
    const {data,error}=await db.rpc('public_anybike_manufacturer_catalogue_names_v1',{p_make:make});
    if(error)throw error;
-   models=(Array.isArray(data)?data:[])
-    .filter(row=>normalize(row.make)===normalize(make)&&typeof row.model==='string')
-    .map(row=>row.model.trim());
+   collect(data);
   }
  }catch(error){console.warn('Public manufacturer catalogue unavailable',error)}
  if(!models.length)try{
   const published=JSON.parse(await fetchPublished('/data/motorcycle-catalogue-master.json'));
-  models=(Array.isArray(published.models)?published.models:[])
-   .filter(row=>normalize(row.make)===normalize(make)&&typeof row.model==='string')
-   .map(row=>row.model.trim());
+  collect(published.models);
  }catch(error){console.warn('Static manufacturer catalogue unavailable',error)}
- models=models.filter(name=>name&&!/\b(?:apr|representative|finance offer|discount)\b/i.test(name));
  const combined=new Map();
  for(const name of models)combined.set(normalize(name),{
   label:name,url:(location.pathname==='/motorcycle-v2-master.html'?
@@ -155,6 +161,7 @@ async function modelNavigation(){
     return match?match[1].toLowerCase():'';
    };
    const selectedFamily=family(current.model);
+   const selectedCategory=categories.get(normalize(current.model))||'';
    const tokenSet=name=>new Set(normalize(name).split(' ').filter(x=>x.length>1));
    const currentTokens=tokenSet(current.model);
    const capacity=name=>{
@@ -166,6 +173,7 @@ async function modelNavigation(){
     const tokens=tokenSet(item.label);
     let points=0;
     if(selectedFamily&&family(item.label)===selectedFamily)points+=30;
+    if(selectedCategory&&categories.get(normalize(item.label))===selectedCategory)points+=12;
     for(const token of tokens)if(currentTokens.has(token))points+=9;
     const otherCapacity=capacity(item.label);
     if(selectedCapacity&&otherCapacity){
@@ -178,7 +186,11 @@ async function modelNavigation(){
    // Everything remains accessible through the full A–Z catalogue below.
    let ranked=links.filter(item=>!item.current&&
     (!selectedFamily||family(item.label)===selectedFamily));
-   if(!ranked.length)ranked=links.filter(item=>!item.current);
+   if(!ranked.length&&selectedCategory)ranked=links.filter(item=>!item.current&&
+    categories.get(normalize(item.label))===selectedCategory);
+   // If neither family nor category is established, avoid presenting random
+   // models as related; the full manufacturer catalogue remains available.
+   if(!ranked.length&&!selectedFamily&&!selectedCategory)ranked=[];
    ranked.sort((a,b)=>score(b)-score(a)||a.label.localeCompare(b.label,'en-GB',{numeric:true}));
    // Show a useful cross-section of the same manufacturer-specific family;
    // the pills wrap naturally on wider screens. The full catalogue remains expandable.
