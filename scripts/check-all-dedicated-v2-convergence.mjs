@@ -9,6 +9,8 @@ const harley=JSON.parse(read('data/harley-v2-legacy-preservation.json')).models;
 const r1250=JSON.parse(read('data/bmw-r1250gs-v2-preservation.json'));
 const v2=read('model-template/approved-v2-universal-preview.mjs');
 const master=read('motorcycle-v2-master.html');
+const rendererAsset=master.match(/src="(\/model-template\/approved-v2-universal-preview\.mjs\?v=[^"]+)"/)?.[1];
+assert(rendererAsset,'Approved master renderer version missing');
 const sections=s=>[...s.matchAll(/<section\b([^>]*)>/g)].map(m=>m[1]);
 const reference='bmw-r1300gs.html';
 assert.equal(approved.length,45);
@@ -26,6 +28,7 @@ for(const row of approved){
   continue;
  }
  assert(page.includes('/model-template/approved-v2-universal-preview.mjs'),'Unmigrated dedicated model '+row.url);
+ assert(page.includes('src="'+rendererAsset+'"'),'V2 renderer browser cache version differs from master '+row.url);
  assert.deepEqual(sections(page),sections(master),'Different V2 section structure '+row.url);
  assert(page.includes('id="heading">'+row.make+' '+row.model+'</h1>'),'Wrong motorcycle heading '+row.url);
  assert(page.includes('id="internationalModelStock"'),'Exact-model stock region missing '+row.url);
