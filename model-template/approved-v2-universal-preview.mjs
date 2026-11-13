@@ -171,23 +171,26 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     }
    }catch(e){console.warn('V2 editorial lookup unavailable',e);}
   }
-  // Migration bridge: preserve previously published generic-model research
-  // until an ID-matched, RLS-published V2 editorial record supersedes it.
-  // The legacy JSON is public website content, not private editorial or stock.
-  // Never borrow an entry for a similarly named model or another manufacturer.
-  if(!guide){
-   try{
-    const response=await fetch('/data/motorcycle-model-guides.json',{cache:'no-cache'});
-    if(response.ok){
-     const publicGuides=await response.json();
-     const exact=Object.values(publicGuides?.models||{}).filter(record=>
-      record&&normalize(record.make)===normalize(make)&&
-      normalize(record.model)===normalize(model));
-     if(exact.length===1)guide=exact[0];
+  // The public legacy guide is identity-filtered before use. If a reviewed V2
+  // editorial already exists, source-backed historical rows only fill empty
+  // facts slots; the approved V2 narrative and model identity win.
+  try{
+   const response=await fetch('/data/motorcycle-model-guides.json',{cache:'no-cache'});
+   if(response.ok){
+    const publicGuides=await response.json();
+    const exact=Object.values(publicGuides?.models||{}).filter(record=>
+     record&&normalize(record.make)===normalize(make)&&
+     normalize(record.model)===normalize(model));
+    if(exact.length===1){
+     if(!guide)guide=exact[0];
+     else{
+      const {supplementPublishedV2Guide}=await import('/model-template/approved-v2-published-guide-supplements.mjs');
+      guide=supplementPublishedV2Guide(guide,exact[0],{make,model});
+     }
     }
-   }catch(error){
-    console.warn('Previously published model guide unavailable; V2 research continues',error);
    }
+  }catch(error){
+   console.warn('Previously published model guide unavailable; V2 research continues',error);
   }
   // Previously published BMW history is an existing public database source.
   // Only approved dedicated BMW routes may consult it. The bridge validates
