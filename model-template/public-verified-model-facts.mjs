@@ -227,6 +227,8 @@ function renderVerifiedModelExploration(body,facts,make,model){
  if(!timeline||!timelineEntries||!deepDive||!deepEntries)return;
  timelineEntries.replaceChildren();deepEntries.replaceChildren();
  const identity=JSON.stringify([safeText(make).toLowerCase(),safeText(model).toLowerCase()]);
+ timeline.dataset.anybikeResearchIdentity=identity;
+ deepDive.dataset.anybikeResearchIdentity=identity;
  const groups=[...body.querySelectorAll('[data-anybike-research-category]')].filter(group=>
   group.dataset.anybikeResearchIdentity===identity&&
   group.dataset.anybikeResearchFactIds&&group.isConnected!==false);
@@ -318,6 +320,7 @@ export function mountVerifiedModelFacts(body,rows,make,model){
    link.href=url;link.target='_blank';link.rel='noopener noreferrer';
    sourceList.append(link);
   }
+  sourceFooter.dataset.anybikeResearchIdentity=identity;
   sourceFooter.hidden=sources.size===0;
  }
 
@@ -605,6 +608,19 @@ export async function installVerifiedModelFacts({body,make,model,client}={}){
  // request is loading, offline, or rejected. Same-model RPC errors preserve
  // the most recent successful verified display.
  const requestedIdentity=JSON.stringify([safeText(make).toLowerCase(),safeText(model).toLowerCase()]);
+ // Immediately hide a previous motorcycle's navigation and source links
+ // while its replacement RPC is loading. Do not erase same-model research
+ // on a temporary network failure.
+ for(const id of ['verifiedModelTimeline','verifiedModelDeepDive','modelSources']){
+  const section=body.ownerDocument?.getElementById?.(id);
+  if(section?.dataset?.anybikeResearchIdentity&&
+     section.dataset.anybikeResearchIdentity!==requestedIdentity){
+   section.hidden=true;
+   if(id==='verifiedModelTimeline')section.querySelector('#verifiedModelTimelineEntries')?.replaceChildren();
+   if(id==='verifiedModelDeepDive')section.querySelector('#verifiedModelDeepDiveEntries')?.replaceChildren();
+   if(id==='modelSources')section.querySelector('#verifiedModelSources')?.replaceChildren();
+  }
+ }
  const oldPanel=body.querySelector?.('[data-anybike-verified-model-facts]');
  if(oldPanel?.dataset?.anybikeResearchIdentity&&
     oldPanel.dataset.anybikeResearchIdentity!==requestedIdentity)oldPanel.remove?.();
