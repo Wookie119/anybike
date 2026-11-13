@@ -164,8 +164,15 @@ async function modelNavigation(){
     if(modelWords.some(x=>x.length>2&&words.includes(x)))points+=3;
     return points;
    };
-   const ranked=links.filter(item=>!item.current)
-    .sort((a,b)=>score(b)-score(a)||a.label.localeCompare(b.label,'en-GB',{numeric:true}));
+   // Related pills must stay inside the same BMW series. A matching
+   // capacity number alone does NOT make a K 1300 S related to an R 1300 GS.
+   // The expandable full catalogue below remains unrestricted.
+   const ranked=links.filter(item=>{
+    if(item.current)return false;
+    if(normalize(make)==='bmw'&&currentSeries)
+     return bmwSeries(item.label)===currentSeries;
+    return true;
+   }).sort((a,b)=>score(b)-score(a)||a.label.localeCompare(b.label,'en-GB',{numeric:true}));
    const compact=ranked.slice(0,6);
    safeNav(panel.querySelector('[data-v2-quick-related]'),compact);
    safeNav(panel.querySelector('[data-v2-quick-all]'),links);
