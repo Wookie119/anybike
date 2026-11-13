@@ -92,10 +92,31 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   window.__anybikeV2Editorial=guide;
   window.dispatchEvent(new Event('anybike:v2-model-identity-ready'));
 
-  // MASTER HERO — no hardcoded brand text or invented history.
-  document.title=title+' | Motorcycle Research | AnyBike';
-  const meta=document.querySelector('meta[name="description"]');
-  if(meta)meta.content=str(guide?.page_metadata?.description)||'Research '+title+' model years, specifications and motorcycle sourcing with AnyBike.';
+  // Shared metadata contract. This preview intentionally stays noindex;
+  // a production release must verify the original URL and editorial approval.
+  const pageTitle=title+' | Motorcycle History & Specifications | AnyBike';
+  const description=str(guide?.page_metadata?.description)||
+   'Explore source-verified '+title+' model history, specifications, model years and UK motorcycle sourcing with AnyBike.';
+  const canonical=new URL(location.pathname+location.search,location.origin).href;
+  document.title=pageTitle;
+  const setMeta=(selector,value)=>{
+   const item=document.querySelector(selector);
+   if(item)item.setAttribute('content',value);
+  };
+  setMeta('meta[name="description"]',description);
+  setMeta('meta[property="og:title"]',pageTitle);
+  setMeta('meta[property="og:description"]',description);
+  setMeta('meta[property="og:url"]',canonical);
+  setMeta('meta[name="twitter:title"]',pageTitle);
+  setMeta('meta[name="twitter:description"]',description);
+  const canonicalNode=$('modelCanonical');if(canonicalNode)canonicalNode.href=canonical;
+  const schemaNode=$('modelStructuredData');
+  if(schemaNode)schemaNode.textContent=JSON.stringify({
+   '@context':'https://schema.org','@type':'WebPage',
+   name:pageTitle,description,url:canonical,
+   isPartOf:{'@type':'WebSite',name:'AnyBike',url:'https://www.anybike.co.uk/'},
+   about:{'@type':'Product',category:'Motorcycle',name:title,brand:{'@type':'Brand',name:make}}
+  });
   $('heading').textContent=title;
   $('category').textContent=str(guide?.page_metadata?.category)||str(selected.category)||'Motorcycle model';
   const summary=$('summary');summary.replaceChildren();
