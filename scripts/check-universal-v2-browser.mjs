@@ -21,16 +21,20 @@ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 const inventory={
  BMW:[{make:'BMW',model:'R 1300 GS',model_id:77,category:'Adventure'},{make:'BMW',model:'R 1250 GS',model_id:68,category:'Adventure'}],
  Suzuki:[{make:'Suzuki',model:'RM250',model_id:202,category:'Motocross'}],
- 'Harley-Davidson':[{make:'Harley-Davidson',model:'Fat Boy',model_id:301,category:'Cruiser'}]};
+ 'Harley-Davidson':[{make:'Harley-Davidson',model:'Fat Boy',model_id:301,category:'Cruiser'}],
+ Honda:[{make:'Honda',model:'CB650R',model_id:401,category:'Naked'}],
+ Yamaha:[{make:'Yamaha',model:'MT-09',model_id:402,category:'Naked'}]};
 const photo={make:'BMW',model:'R 1300 GS',title:'Verified hero',image_url:'https://photos.example.invalid/hero.jpg',
  attribution:'Licensed photographer',licence:'CC BY-SA 4.0',source_page_url:'https://example.org/source',
  licence_url:'https://creativecommons.org/licenses/by-sa/4.0/'};
 await mkdir('artifacts/universal-v2-browser',{recursive:true});
 const tests=[['BMW','R 1300 GS',1280],['BMW','R 1300 GS',390],['Suzuki','RM250',1280],
- ['Suzuki','RM250',390],['Harley-Davidson','Fat Boy',1280]];
+ ['Suzuki','RM250',390],['Harley-Davidson','Fat Boy',1280],
+ ['Honda','CB650R',1280,'motorcycle-model-guide.html'],
+ ['Yamaha','MT-09',390,'motorcycle-model-guide.html']];
 let passed=0;
 try{
- for(const [make,model,width] of tests){
+ for(const [make,model,width,routeName='motorcycle-v2-master.html'] of tests){
   const context=await browser.newContext({viewport:{width,height:850}});
   // One positive and one negative publication test: client-side projection
   // must display reviewed sections and suppress draft sections on the SAME V2.
@@ -107,7 +111,7 @@ try{
    });
    const page=await context.newPage(),errors=[];
    page.on('pageerror',e=>errors.push(String(e)));
-   await page.goto(origin+'/motorcycle-v2-master.html?make='+encodeURIComponent(make)+
+   await page.goto(origin+'/'+routeName+'?make='+encodeURIComponent(make)+
     '&model='+encodeURIComponent(model),{waitUntil:'domcontentloaded'});
    await page.waitForFunction(()=>window.__anybikeV2EditorialReady===true,null,{timeout:30000});
    await page.waitForFunction(()=>window.__anybikeV2NavigationReady===true,null,{timeout:25000});
@@ -126,6 +130,15 @@ try{
    assert.equal(await page.locator('#internationalGuestRequestForm').isVisible(),true);
    const order=await page.locator('main > *').evaluateAll(nodes=>nodes.map(n=>n.id||n.className));
    assert.equal(order.indexOf('internationalModelStock'),order.indexOf('hero')+1);
+   assert.equal(await page.locator('#r1300gsModelHistory').evaluate(el=>el.parentElement?.id), '',
+    'Development and ownership must be a standalone main-level panel, not nested in stock');
+   assert.equal(await page.locator('#r1300gsModelHistory').evaluate(el=>el.previousElementSibling?.id),
+    'r1300V2VerifiedExtras','Development panel must follow the model-year timeline');
+   if(routeName==='motorcycle-model-guide.html'){
+    const canonical=await page.locator('link[rel=canonical]').getAttribute('href');
+    assert.equal(canonical,origin+'/motorcycle-model-guide.html?make='+
+     encodeURIComponent(make)+'&model='+encodeURIComponent(model));
+   }
    await page.waitForFunction(()=>document.querySelector('#r1300CountryMarkets')?.hidden===false,null,{timeout:15000});
    assert.match(await page.locator('#r1300CountryMarkets').innerText(),/View all 1 international markets/);
    if(make==='BMW'){
@@ -162,7 +175,7 @@ try{
    await page.screenshot({path:'artifacts/universal-v2-browser/'+make.replace(/[^a-z0-9]/gi,'-')+
     '-'+model.replace(/[^a-z0-9]/gi,'-')+'-'+width+'.png',fullPage:true});
    assert.deepEqual(errors,[]);
-   console.log('PASS '+make+' '+model+' '+width+'px');passed++;
+   console.log('PASS '+make+' '+model+' '+width+'px '+routeName);passed++;
   }finally{await context.close();}
  }
  console.log('Universal V2 master browser scenarios passed: '+passed);
