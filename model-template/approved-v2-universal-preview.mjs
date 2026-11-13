@@ -51,17 +51,30 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
  showError('Specify a published make and model in the URL.');
 }else{
  try{
-  const response=await fetch('/data/motorcycle-catalogue-master.json',{cache:'no-cache'});
-  if(!response.ok)throw Error('Published motorcycle catalogue unavailable');
-  const catalogue=await response.json();
-  const found=arr(catalogue.models).filter(row=>normalize(row.make)===normalize(wantMake)&&normalize(row.model)===normalize(wantModel));
+  const client=window.supabase?.createClient?.(ENDPOINT,KEY);
+  // The live public Supabase catalogue is authoritative. The site JSON is
+  // only an offline/network fallback, never an alternative model template.
+  let candidates=[];
+  if(client){
+   try{
+    const {data,error}=await client.rpc('public_anybike_manufacturer_catalogue_names_v1',{p_make:wantMake});
+    if(error)throw error;
+    if(Array.isArray(data))candidates=data;
+   }catch(e){console.warn('Live model catalogue unavailable',e)}
+  }
+  if(!candidates.length){
+   const response=await fetch('/data/motorcycle-catalogue-master.json',{cache:'no-cache'});
+   if(!response.ok)throw Error('Published motorcycle catalogue unavailable');
+   const catalogue=await response.json();
+   candidates=arr(catalogue.models);
+  }
+  const found=candidates.filter(row=>normalize(row.make)===normalize(wantMake)&&normalize(row.model)===normalize(wantModel));
   if(found.length!==1)throw Error('No unique published model matches that make and model.');
   const selected=found[0],make=str(selected.make),model=str(selected.model),title=make+' '+model;
   const enquiry='/bulk-buying-request.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
   const manufacturer=normalize(make)==='bmw'?'/bmw-motorcycles.html':
    normalize(make)==='harley davidson'?'/harley-davidson-motorcycles.html':
    '/motorcycle-brand.html?make='+encodeURIComponent(make);
-  const client=window.supabase?.createClient?.(ENDPOINT,KEY);
   // Access is read-only and subject to the table's existing publication RLS.
   // Filtering on both JSONB identity fields prevents cross-model leakage.
   let guide=null;
@@ -91,15 +104,48 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   else paragraph(summary,str(guide?.summary)||'Explore source-verified '+title+' model years, specifications and documented manufacturer history. Individual motorcycles and markets may differ.');
   $('years').textContent=str(hero.years)||str(guide?.years)||'Source-verified specifications vary by model year and market.';
   $('source').href=enquiry;
-  const photo=hero.photo||{},fig=$('databaseHeroPhoto');
-  const originalRights=validURL(photo.source_url)&&/commons\.wikimedia\.org/.test(new URL(photo.source_url).hostname)&&
-   /CC BY|public domain/i.test(str(photo.source_label));
-  if(fig&&validURL(photo.url)&&(photo.republication_approved===true||originalRights)){
-   const img=fig.querySelector('img');img.src=photo.url;img.alt=str(photo.alt)||title+' motorcycle';
+  const fig=$('databaseHeroPhoto');
+  // Rights-checked photography comes from one approved photo-bank RPC,
+  // not image names, model guesses or manufacturer press hotlinks.
+  let approvedHero=null,approvedGallery=[];
+  if(client){
+   const [heroResult,galleryResult]=await Promise.allSettled([
+    client.rpc('public_anybike_model_hero_v1',{p_make:make,p_model:model}),
+    client.rpc('public_anybike_verified_model_gallery_v1',{p_make:make,p_model:model})
+   ]);
+   if(heroResult.status==='fulfilled'&&!heroResult.value.error)approvedHero=heroResult.value.data;
+   if(galleryResult.status==='fulfilled'&&!galleryResult.value.error)
+    approvedGallery=arr(galleryResult.value.data);
+  }
+  const safePhoto=x=>x&&normalize(x.make)===normalize(make)&&
+   normalize(x.model)===normalize(model)&&validURL(x.image_url)&&
+   validURL(x.source_page_url)&&validURL(x.licence_url)&&
+   str(x.attribution)&&str(x.licence);
+  if(fig&&safePhoto(approvedHero)){
+   const img=fig.querySelector('img');img.src=approvedHero.image_url;
+   img.alt=str(approvedHero.title)||title+' motorcycle';
    const caption=fig.querySelector('figcaption');
-   caption.textContent=str(photo.credit)+' · ';
-   sourceLink(caption,photo.source_url,str(photo.source_label)||'Image attribution');
+   caption.textContent=str(approvedHero.attribution)+' · ';
+   sourceLink(caption,approvedHero.source_page_url,'Photograph attribution ↗');
    fig.hidden=false;
+  }
+  const galleryItems=approvedGallery.filter(safePhoto);
+  if(galleryItems.length){
+   const gallerySection=makeSection('v2ApprovedGallery','Approved '+title+' photographs',fig?.closest('.hero')||$('body'));
+   const holder=node('div',undefined,'v2-documentary-grid');
+   for(const picture of galleryItems){
+    const article=node('article');
+    const image=node('img');image.src=picture.image_url;image.loading='lazy';
+    image.decoding='async';image.alt=str(picture.title)||title+' documented motorcycle detail';
+    image.style.cssText='width:100%;height:190px;object-fit:contain;background:#1a1a1a;border-radius:8px';
+    article.append(image,node('h4',str(picture.title)||title+' photograph'));
+    paragraph(article,[picture.model_year_start,picture.model_year_end]
+      .filter(x=>x!==null&&x!==undefined).join('–'));
+    paragraph(article,picture.attribution+' · '+picture.licence);
+    sourceLink(article,picture.source_page_url,'Original photograph ↗');
+    holder.append(article);
+   }
+   gallerySection.append(holder);
   }
   // Exactly one shared V2 layout. Move its approved sections into their
   // approved reading order rather than creating new make-specific templates.
