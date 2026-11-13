@@ -290,9 +290,16 @@ function renderVerifiedModelExploration(body,facts,make,model){
     // research card; no units or year applicability are inferred here.
     details.textContent=fact.display.map(entry=>entry.label+': '+entry.value).join(' · ');
     line.append(label,details);
-    const qualifiers=[fact.start_year!==null&&fact.start_year!==''?'Reference year: '+fact.start_year:'',
-     safeText(fact.market)?'Market: '+fact.market:''].filter(Boolean);
+    const startYear=Number(fact.start_year),endYear=Number(fact.end_year);
+    const hasStart=fact.start_year!==null&&fact.start_year!==undefined&&fact.start_year!==''&&Number.isInteger(startYear)&&startYear>=1885&&startYear<=2100;
+    const hasEnd=fact.end_year!==null&&fact.end_year!==undefined&&fact.end_year!==''&&Number.isInteger(endYear)&&endYear>=1885&&endYear<=2100;
+    const years=hasStart&&hasEnd?(startYear===endYear?String(startYear):startYear+'–'+endYear):
+     hasStart?String(startYear):hasEnd?'Through '+endYear:'';
+    const qualifiers=[years?'Documented years: '+years:'',safeText(fact.market)?'Market: '+fact.market:''].filter(Boolean);
     if(qualifiers.length)line.append(node(doc,'small',qualifiers.join(' · ')));
+    const source=node(doc,'a','Source: '+(safeText(fact.source_name)||'manufacturer documentation')+' ↗');
+    source.href=fact.source_url;source.target='_blank';source.rel='noopener noreferrer';
+    line.append(source);
     card.append(line);
    }
    const link=node(doc,'a','See verified '+sections[category].toLowerCase()+' and sources →');
