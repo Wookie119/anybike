@@ -140,12 +140,22 @@ async function modelNavigation(){
     return match?match[1].toUpperCase():'';
    };
    const currentSeries=bmwSeries(current.model);
+   // Suzuki's RM and RM-Z are motocross ranges; Address/Bandit are not
+   // related to RM250 merely because they belong to the same manufacturer.
+   const suzukiMotocross=label=>/^RM(?:-?Z)?\s*\d+/i.test(String(label||'').trim());
+   const isSuzukiMotocross=normalize(make)==='suzuki'&&suzukiMotocross(current.model);
    const currentNumber=Number(modelWords.find(word=>/^\d{3,4}$/.test(word))||0);
    const score=item=>{
     const words=normalize(item.label).split(' ').filter(Boolean);
     if(item.current)return -1000;
     let points=0;
     if(currentSeries&&bmwSeries(item.label)===currentSeries)points+=25;
+    if(isSuzukiMotocross&&suzukiMotocross(item.label)){
+     points+=25;
+     // Closest RM two-strokes first; RM-Z motocross models are related by
+     // riding discipline, not represented as an identical engine platform.
+     if(/^RM\s*\d+/i.test(item.label))points+=10;
+    }
     // Prioritise the nearest GS relatives *within* BMW's R family.
     // The R-series itself remains broad: R 18 and R 32 are still eligible.
     if(normalize(make)==='bmw'){
@@ -171,6 +181,7 @@ async function modelNavigation(){
     if(item.current)return false;
     if(normalize(make)==='bmw'&&currentSeries)
      return bmwSeries(item.label)===currentSeries;
+    if(isSuzukiMotocross)return suzukiMotocross(item.label);
     return true;
    }).sort((a,b)=>score(b)-score(a)||a.label.localeCompare(b.label,'en-GB',{numeric:true}));
    // Show a useful cross-section of the same manufacturer-specific family;
