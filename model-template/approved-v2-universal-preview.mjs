@@ -183,15 +183,33 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // Rights-checked photography comes from one approved photo-bank RPC,
   // not image names, model guesses or manufacturer press hotlinks.
   let approvedHero=null,approvedGallery=[];
-  if(client){
-   const [heroResult,galleryResult]=await Promise.allSettled([
-    client.rpc('public_anybike_model_hero_v1',{p_make:make,p_model:model}),
-    client.rpc('public_anybike_verified_model_gallery_v1',{p_make:make,p_model:model})
-   ]);
-   if(heroResult.status==='fulfilled'&&!heroResult.value.error)approvedHero=heroResult.value.data;
-   if(galleryResult.status==='fulfilled'&&!galleryResult.value.error)
-    approvedGallery=arr(galleryResult.value.data);
-  }
+  // A browser-bundle failure must not suppress authorised, rights-checked
+  // public media. Both RPCs apply their existing database publication checks.
+  const publicMedia=async name=>{
+   if(!['public_anybike_model_hero_v1','public_anybike_verified_model_gallery_v1'].includes(name))
+    throw Error('Unapproved media RPC');
+   const response=await fetch(ENDPOINT+'/rest/v1/rpc/'+name,{
+    method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_make:make,p_model:model}),cache:'no-store'
+   });
+   if(!response.ok)throw Error('Public media HTTP '+response.status);
+   return response.json();
+  };
+  const photoData=async name=>{
+   if(client){
+    try{
+     const result=await client.rpc(name,{p_make:make,p_model:model});
+     if(!result.error)return result.data;
+    }catch(error){console.warn('Supabase JS media request failed',error);}
+   }
+   return publicMedia(name);
+  };
+  const [heroResult,galleryResult]=await Promise.allSettled([
+   photoData('public_anybike_model_hero_v1'),
+   photoData('public_anybike_verified_model_gallery_v1')
+  ]);
+  if(heroResult.status==='fulfilled')approvedHero=heroResult.value;
+  if(galleryResult.status==='fulfilled')approvedGallery=arr(galleryResult.value);
   const safePhoto=x=>x&&normalize(x.make)===normalize(make)&&
    normalize(x.model)===normalize(model)&&validURL(x.image_url)&&
    validURL(x.source_page_url)&&validURL(x.licence_url)&&
