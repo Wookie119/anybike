@@ -532,7 +532,8 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     const head=target.previousElementSibling;
     if(head)head.hidden=target.children.length===0;
    }
-   if(!devCards.length)development.hidden=true;
+   // Preserve chronological year cards even when no separate development cards exist.
+   if(!devCards.length&&!yearCards.length)development.hidden=true;
   }
   const dive=arr(guide?.deep_dive).filter(x=>str(x.title)&&arr(x.paragraphs).some(p=>str(p.text)||validURL(p.link?.[0])));
   if(dive.length){
