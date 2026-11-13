@@ -15,6 +15,12 @@ const current=await new Promise(resolve=>{
   ()=>resolve(window.__anybikeV2ModelIdentity),{once:true});
 });
 const make=String(current.make||'').trim();
+// Wait until the canonical V2 editorial has finished rendering its fixed
+// publication fields; the dynamic directory must be the last writer of pills.
+await new Promise(resolve=>{
+ if(window.__anybikeV2EditorialReady){resolve();return;}
+ window.addEventListener('anybike:v2-editorial-ready',resolve,{once:true});
+});
 const normalize=s=>String(s||'').toLocaleLowerCase('en-GB').replace(/[^a-z0-9]+/g,' ').trim();
 const validModelPath=s=>/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(s);
 const validCountryPath=s=>/^\/markets\/[a-z0-9-]+\.html$/.test(s);
