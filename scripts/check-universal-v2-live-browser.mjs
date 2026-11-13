@@ -17,11 +17,31 @@ try{
   const context=await browser.newContext({viewport:{width,height:850}});
   try{
    const page=await context.newPage();
+   const issues=[];
+   page.on('pageerror',error=>issues.push('PAGE_ERROR '+String(error)));
+   page.on('console',message=>{if(['error','warning'].includes(message.type()))issues.push(message.type()+' '+message.text());});
+   page.on('requestfailed',request=>{if(request.url().includes('model-template')||request.url().includes('supabase.co'))issues.push('REQUEST_FAILED '+request.url()+' '+request.failure()?.errorText);});
    const url=base+'?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
    const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
    assert.equal(response?.status(),200,'Public master is not HTTP 200: '+url);
    await page.waitForFunction(()=>window.__anybikeV2EditorialReady===true,null,{timeout:35000});
-   await page.waitForFunction(()=>window.__anybikeV2NavigationReady===true,null,{timeout:25000});
+   try{
+    await page.waitForFunction(()=>window.__anybikeV2NavigationReady===true,null,{timeout:15000});
+   }catch(error){
+    const diagnostic=await page.evaluate(()=>({
+     identity:window.__anybikeV2ModelIdentity||null,
+     editorialReady:window.__anybikeV2EditorialReady||false,
+     navigationReady:window.__anybikeV2NavigationReady||false,
+     navScript:[...document.scripts].map(x=>x.src).filter(x=>x.includes('approved-v2-dynamic-navigation')),
+     countrySource:document.getElementById('r1300CountryMarkets')?.dataset.anybikeV2Source||'',
+     countryHidden:document.getElementById('r1300CountryMarkets')?.hidden,
+     related:document.getElementById('approvedV2ModelQuickLinks')?.textContent?.slice(0,100)||'',
+     countryLinks:document.querySelectorAll('#r1300CountryMarkets a').length
+    }));
+    await page.screenshot({path:'artifacts/universal-v2-live-browser/'+make.replace(/[^a-z0-9]/gi,'-')+
+     '-'+model.replace(/[^a-z0-9]/gi,'-')+'-'+width+'-NAVIGATION-DIAGNOSTIC.png',fullPage:true});
+    throw Error('Live V2 navigation did not finish: '+JSON.stringify({diagnostic,issues}));
+   }
    await page.waitForFunction(()=>['checked','restricted','unavailable'].includes(
     document.getElementById('internationalModelStock')?.dataset.stockFeedState),null,{timeout:25000});
    assert.equal(await page.locator('#heading').innerText(),make+' '+model);
