@@ -303,7 +303,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    galleryUrls.add(photo.image_url);return true;
   });
   if(galleryItems.length){
-   const gallerySection=makeSection('v2ApprovedGallery','Approved '+title+' photographs',fig?.closest('.hero')||$('body'));
+   const gallerySection=makeSection('v2ApprovedGallery','Approved '+title+' photographs',stock);
    const holder=node('div',undefined,'v2-documentary-grid');
    for(const picture of galleryItems){
     const article=node('article');
