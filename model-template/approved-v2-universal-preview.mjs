@@ -156,7 +156,11 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const pageTitle=title+' | Motorcycle History & Specifications | AnyBike';
   const description=str(guide?.page_metadata?.description)||
    'Explore source-verified '+title+' model history, specifications, model years and UK motorcycle sourcing with AnyBike.';
-  const masterUrl=new URL('/motorcycle-v2-master.html?make='+
+  // Keep the existing indexed generic URL when rendering the SAME V2 master
+  // at its established route; retain approved dedicated BMW/Harley canonicals.
+  const canonicalPath=location.pathname==='/motorcycle-model-guide.html'?
+   '/motorcycle-model-guide.html':'/motorcycle-v2-master.html';
+  const masterUrl=new URL(canonicalPath+'?make='+
    encodeURIComponent(make)+'&model='+encodeURIComponent(model),location.origin);
   let canonical=masterUrl.href;
   try{
