@@ -23,8 +23,11 @@ for(const path of [
  'model-template/approved-v2-dynamic-navigation.mjs',
  'model-template/public-verified-model-facts.mjs'
 ])execFileSync(process.execPath,['--check',new URL('../'+path,import.meta.url).pathname]);
-assert(html.includes('name="robots" content="noindex,follow"'),
- 'Unreleased shared master must not be indexable');
+assert(html.includes('name="robots" content="index,follow"'),
+ 'Valid-model universal master must be eligible for indexing');
+assert(renderer.includes('public_anybike_manufacturer_model_routes_v1')&&
+ renderer.includes('const masterUrl=new URL(')&&renderer.includes('if(exact.length===1)canonical='),
+ 'A model's canonical must prefer its existing approved route and otherwise use the universal URL');
 assert(!html.includes('Suzuki RM250')&&!html.includes('BMW R 1300 GS'),
  'Master HTML must never contain model-specific example copy');
 assert(html.includes('approved-v2-preview-style.css'),
@@ -64,4 +67,4 @@ assert(reference.includes('id="generationPanel"')&&
  'Original approved V2 reference must remain intact');
 assert(facts.includes('exactVerifiedModelFacts'),
  'Shared source-verified research must retain identity-filtered display');
-console.log('PASS: one approved V2 master / catalog, photos, model isolation, noindex, stock rights and route safety');
+console.log('PASS: one approved V2 master / catalog, photos, model isolation, indexable canonical, stock rights and route safety');
