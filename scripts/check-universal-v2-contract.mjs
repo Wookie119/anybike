@@ -150,6 +150,14 @@ check('Verified-facts outages do not block exact-model stock or public enquiries
  assert.match(beforeFacts,/try\s*\{/);
  assert.match(renderer.slice(factStart,catchStart),/catch\(error\)\s*\{/);
 });
+check('Verified factory specifications appear before model years on every V2 route',()=>{
+ assert.match(renderer,/const firstDevelopment=\$\('generationPanel'\)/);
+ assert.match(renderer,/if\(firstDevelopment\)firstDevelopment\.before\(section\)/);
+ for(const route of [html,genericRouteHtml]){
+  assert.match(route,/id="generationPanel"/);
+  assert.match(route,/id="r1300V2VerifiedExtras"/);
+ }
+});
 check('Documented BMW milestone and specification rows display with sources',()=>{
  assert(renderer.includes('production.documented_milestones'));
  assert(renderer.includes('production.specifications'));
