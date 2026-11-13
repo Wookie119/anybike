@@ -40,6 +40,20 @@ const r1250=preserveDedicatedModelResearch({make:'BMW',model:'R 1250 GS',summary
 assert.equal(r1250.summary,'Reviewed V2 content');
 assert.equal(r1250.model_year_cards.length,5);
 assert.deepEqual(r1250.model_year_cards.map(x=>x.year),[2019,2020,2021,2022,2023]);
+// A real existing generic guide already contains 21 researched R1250 sections.
+// Supplemental dedicated-page history must merge, not disappear or duplicate
+// the five-year gallery which is separately displayed as model-year cards.
+const publicGuides=Object.values(read('data/motorcycle-model-guides.json').models);
+const originalGuide=publicGuides.find(x=>x.make==='BMW'&&x.model==='R 1250 GS');
+assert(originalGuide&&originalGuide.sections.length===21);
+const combined=preserveDedicatedModelResearch(originalGuide,bmw,
+ {make:'BMW',model:'R 1250 GS',url:'/bmw-r1250gs.html'});
+assert.equal(combined.sections.length,28,'Original 21 + seven preserved non-gallery historical sections');
+assert.equal(combined.model_year_cards.length,5);
+assert(combined.sections.some(x=>x[0]==='The R 1250 GS story'),'Dedicated GS story was dropped');
+assert(!combined.sections.some(x=>x[0].startsWith('BMW R 1250 GS — model years:')),
+ 'Historical model year gallery must not duplicate five chronological V2 cards');
+
 const photo=preservedExistingHero(bmw,{make:'BMW',model:'R 1250 GS',url:'/bmw-r1250gs.html'});
 assert(photo&&photo.attribution.includes('Cjp24'));
 assert.equal(preservedExistingHero(bmw,{make:'BMW',model:'R 1300 GS',url:'/bmw-r1250gs.html'}),null);
