@@ -28,6 +28,18 @@ assert(html.includes('name="robots" content="index,follow"'),
 assert(renderer.includes('public_anybike_manufacturer_model_routes_v1')&&
  renderer.includes('const masterUrl=new URL(')&&renderer.includes('if(exact.length===1)canonical='),
  'A model's canonical must prefer its existing approved route and otherwise use the universal URL');
+assert(renderer.includes("'@type':'Motorcycle'")&&!renderer.includes("'@type':'Product'"),
+ 'Model schema must describe research without inventing a product offer');
+assert(renderer.includes("meta[property=\"og:image\"]")&&
+ renderer.includes("if(fig&&safePhoto(approvedHero))"),
+ 'Social imagery must use the exact model rights-approved photograph');
+const robots=read('robots.txt'),sitemap=read('sitemap.xml');
+assert(robots.includes('Allow: /')&&
+ robots.includes('Sitemap: https://www.anybike.co.uk/sitemap.xml'),
+ 'Google must be allowed to crawl indexed model guides');
+assert(sitemap.includes('https://www.anybike.co.uk/motorcycle-model-guide.html?make=')||
+ sitemap.includes('https://www.anybike.co.uk/motorcycle-model-guide.html?make='),
+ 'Keep the existing model guide URLs discoverable during phased migration');
 assert(!html.includes('Suzuki RM250')&&!html.includes('BMW R 1300 GS'),
  'Master HTML must never contain model-specific example copy');
 assert(html.includes('approved-v2-preview-style.css'),
