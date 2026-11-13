@@ -23,7 +23,11 @@ const inventory={
  Suzuki:[{make:'Suzuki',model:'RM250',model_id:202,category:'Motocross'}],
  'Harley-Davidson':[{make:'Harley-Davidson',model:'Fat Boy',model_id:301,category:'Cruiser'}],
  Honda:[{make:'Honda',model:'CB650R',model_id:401,category:'Naked'}],
- Yamaha:[{make:'Yamaha',model:'MT-09',model_id:402,category:'Naked'}]};
+ Yamaha:[{make:'Yamaha',model:'MT-09',model_id:402,category:'Naked'}],
+ Kawasaki:[{make:'Kawasaki',model:'Z900',model_id:403,category:'Naked'}],
+ Ducati:[{make:'Ducati',model:'Monster',model_id:404,category:'Naked'}],
+ Triumph:[{make:'Triumph',model:'Street Triple',model_id:405,category:'Naked'}],
+ KTM:[{make:'KTM',model:'390 Duke',model_id:406,category:'Naked'}]};
 const photo={make:'BMW',model:'R 1300 GS',title:'Verified hero',image_url:'https://photos.example.invalid/hero.jpg',
  attribution:'Licensed photographer',licence:'CC BY-SA 4.0',source_page_url:'https://example.org/source',
  licence_url:'https://creativecommons.org/licenses/by-sa/4.0/'};
@@ -31,7 +35,11 @@ await mkdir('artifacts/universal-v2-browser',{recursive:true});
 const tests=[['BMW','R 1300 GS',1280],['BMW','R 1300 GS',390],['Suzuki','RM250',1280],
  ['Suzuki','RM250',390],['Harley-Davidson','Fat Boy',1280],
  ['Honda','CB650R',1280,'motorcycle-model-guide.html'],
- ['Yamaha','MT-09',390,'motorcycle-model-guide.html']];
+ ['Yamaha','MT-09',390,'motorcycle-model-guide.html'],
+ ['Kawasaki','Z900',1280,'motorcycle-model-guide.html'],
+ ['Ducati','Monster',390,'motorcycle-model-guide.html'],
+ ['Triumph','Street Triple',1280,'motorcycle-model-guide.html'],
+ ['KTM','390 Duke',390,'motorcycle-model-guide.html']];
 let passed=0;
 try{
  for(const [make,model,width,routeName='motorcycle-v2-master.html'] of tests){
