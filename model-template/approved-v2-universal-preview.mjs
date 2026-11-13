@@ -434,13 +434,14 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     const data=await res.json();
     if(!Array.isArray(data.items))throw Error('Unexpected stock response');
     feedState='checked';
-    const same=x=>normalize(x?.make)===normalize(make)&&normalize(x?.model)===normalize(model);
-    const seen=new Set();
-    for(const row of data.items.filter(same)){
-     if(confirmedCount>=6)break;
-     const key=String(row.item_id||'');
-     if(!/^[a-z0-9_-]{1,100}$/i.test(key)||seen.has(key))continue;
-     seen.add(key);
+    // Reuse the website's existing ID-verification contract. Matching
+    // visible names alone cannot authorize model stock, especially across
+    // generations or trimmed catalogue aliases.
+    const {stockForCanonicalModel}=await import('/model-template/canonical-public-stock-identity.mjs');
+    const pageIdentity={catalog_model_id:canonicalId,manufacturer_name:make,model_name:model};
+    const matched=stockForCanonicalModel(data.items,pageIdentity,6);
+    for(const row of matched){
+     const key=String(row.item_id);
      const a=node('a');a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(key);
      if(validURL(row.image_url)){
       const img=node('img');img.src=row.image_url;img.alt=title;img.loading='lazy';a.append(img);
