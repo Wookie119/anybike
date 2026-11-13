@@ -10,7 +10,8 @@ const harley=read('data/harley-v2-legacy-preservation.json');
 const bmw=read('data/bmw-r1250gs-v2-preservation.json');
 assert.equal(harley.models.length,18);
 let retained=0,photos=0;
-for(const row of harley.models){
+for(const archived of harley.models){
+ const row={...archived,publication_status:harley.publication_status};
  const context={make:row.make,model:row.model,url:row.url};
  const baseline={...context,summary:'Approved V2 summary'};
  const result=preserveDedicatedModelResearch(baseline,row,context);
