@@ -8,8 +8,9 @@ import {SECTION_COUNT,SECTION_KEYS,buildUniversalPageSections,visibleUniversalSe
 const load=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
 let passed=0;
 const check=(name,fn)=>{fn();passed++;console.log('PASS '+name)};
-const [html,referenceHtml,approvedCss,renderer,nav,rawCatalogue]=await Promise.all([
+const [html,genericRouteHtml,referenceHtml,approvedCss,renderer,nav,rawCatalogue]=await Promise.all([
  load('motorcycle-v2-master.html'),
+ load('motorcycle-model-guide.html'),
  load('bmw-r1300gs-v2-approved-20261102.html'),
  load('model-template/approved-v2-preview-style.css'),
  load('model-template/approved-v2-universal-preview.mjs'),
@@ -51,6 +52,14 @@ check('Hidden or unpublished sections stay hidden across the shared V2 design',(
  assert.match(html,/main \[hidden\]\{display:none!important\}/);
  assert.match(renderer,/if\(!factCount&&!guide&&!publishedCount\)/);
  assert.doesNotMatch(renderer,/makeSection\('v2ResearchPending'/);
+});
+check('Established generic model-guide route uses exactly the same V2 page composition',()=>{
+ const generic=genericRouteHtml;
+ const stripEntry=source=>source.replaceAll('motorcycle-model-guide.html','SHARED-MODEL-ENTRY.html')
+  .replaceAll('motorcycle-v2-master.html','SHARED-MODEL-ENTRY.html');
+ assert.equal(stripEntry(generic),stripEntry(html),
+  'Generic and master HTML have diverged; change the same approved V2 shell, never fork the layout');
+ assert.match(generic,/name="robots" content="index,follow"/);
 });
 check('One indexable V2 master and identical asset versions',()=>{
  assert.match(html,/name="robots" content="index,follow"/);
