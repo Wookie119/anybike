@@ -53,6 +53,9 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
  browse.href='/motorcycle-manufacturers.html';
  browse.style.cssText='display:inline-block;margin-top:10px;color:#fff;text-decoration:underline;text-decoration-color:#ed1c24';
  $('previewStatusError').append(browse);
+ // Notify the shared navigation loader that there is no valid model identity.
+ // It must not wait forever or fabricate model-specific links.
+ done();
 }else{
  try{
   const client=window.supabase?.createClient?.(ENDPOINT,KEY);
