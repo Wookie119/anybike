@@ -10,11 +10,19 @@ const pages=[
  'bmw-r18.html','bmw-r32.html','bmw-r80gs.html','bmw-r90s.html',
  'bmw-rninet.html','bmw-s1000r.html','bmw-s1000rr.html','bmw-s1000xr.html'
 ];
-test('26 current BMW pages share the approved shell and preserve their canonical URLs',()=>{
+test('26 existing BMW URLs use V2 or retain the approved legacy shell and canonicals',()=>{
  assert.equal(pages.length,26);
  for(const path of pages){
   const s=fs.readFileSync(path,'utf8');
-  assert.match(s,/type="module" src="\/model-template\/approved-bmw-page-shell\.mjs\?v=[a-zA-Z0-9-]+"/,path+' shared shell');
+  const actualV2=s.includes('/model-template/approved-v2-universal-preview.mjs');
+  if(actualV2){
+   assert.match(s,/approved-v2-preview-style\.css\?v=/,path+' approved V2 styles');
+   assert.ok(s.includes('approved-v2-dynamic-navigation.mjs'),path+' V2 navigation');
+   assert.ok(s.includes('id="internationalGuestRequestForm"'),path+' guest enquiry');
+   assert.ok(s.includes('id="internationalModelStock"'),path+' canonical stock surface');
+  }else{
+   assert.match(s,/type="module" src="\/model-template\/approved-bmw-page-shell\.mjs\?v=[a-zA-Z0-9-]+"/,path+' preserved legacy shell');
+  }
   assert.match(s,/\/public-header\.css\?v=[a-zA-Z0-9-]+/,path+' shared CSS');
   assert.ok(s.includes('id="generationPanel"'),path+' specification');
   assert.ok(s.includes('id="body"'),path+' research');
