@@ -448,14 +448,26 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    });
    renderGeneration(generations[0],0);
   }
-  const events=arr(guide?.model_year_timeline).filter(x=>str(x.period)&&str(x.description));
+  // The published historical guide has source-audited milestones. Use them
+  // only when the approved V2 editorial has not supplied its own timeline.
+  // Never promote unsourced generation_milestones labelled 'pending'.
+  const documentedMilestones=arr(production.documented_milestones).filter(x=>
+   (Number.isInteger(x?.year)||/^\\d{4}$/.test(str(x?.year)))&&
+   str(x?.event)&&validURL(x?.source))
+   .map(x=>({period:String(x.year),description:x.event,source:x.source}));
+  const authoredTimeline=arr(guide?.model_year_timeline).filter(x=>str(x.period)&&str(x.description));
+  const events=authoredTimeline.length?authoredTimeline:documentedMilestones;
   if(events.length){
    const section=$('r1300V2VerifiedExtras');section.hidden=false;
    section.querySelector('h2').textContent='Model-year development timeline';
    section.querySelector('.r1300-v2-extra-head p').textContent='Documented model-year changes and production milestones.';
    section.querySelector('summary span').textContent='Model-year timeline';
    const list=$('databaseModelTimeline');list.replaceChildren();
-   events.forEach(e=>{const p=node('p');p.append(node('strong',e.period+': '),document.createTextNode(e.description));list.append(p)});
+   events.forEach(e=>{
+    const p=node('p');p.append(node('strong',e.period+': '),document.createTextNode(e.description));
+    if(validURL(e.source)){p.append(document.createTextNode(' · '));sourceLink(p,e.source,'Manufacturer reference ↗');}
+    list.append(p);
+   });
    sourceLink(list,guide?.model_year_timeline_reference?.url,guide?.model_year_timeline_reference?.label);
   }
   // Chronological documentary model-year cards; unknown periods keep input order.
