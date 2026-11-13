@@ -237,8 +237,8 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
      method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},
      body:JSON.stringify({...values,make,model,page:location.href})
     });
-    const reply=await res.json();
-    if(!res.ok||!reply.ok)throw Error(reply.error||'Could not send enquiry');
+    const reply=await res.json().catch(()=>null);
+    if(!res.ok||!reply?.ok)throw Error(typeof reply?.error==='string'?reply.error:'Could not confirm enquiry delivery. Please retry or contact AnyBike.');
     status.textContent='Your enquiry has been received'+(reply.reference?' · Reference '+reply.reference:'')+'.';
     form.reset();
    }catch(e){status.textContent=e.message||'Could not send enquiry';}
@@ -623,6 +623,12 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   done();
  }catch(error){
   console.error('Universal V2 master failed safely',error);
+  // Never leave a permanent stock-loading message after another RPC fails.
+  const pendingStock=$('internationalModelStock');
+  if(pendingStock?.dataset.stockFeedState==='checking'){
+   $('internationalModelCards')?.replaceChildren(node('p','Current stock cannot be confirmed right now. Ask AnyBike to check UK supplier availability.'));
+   pendingStock.dataset.stockFeedState='unavailable';
+  }
   showError('The selected model could not be loaded safely. No other motorcycle information has been substituted.');
   done();
  }
