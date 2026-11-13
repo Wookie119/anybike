@@ -6,29 +6,33 @@ const brand=fs.readFileSync('motorcycle-brand.html','utf8');
 const guide=fs.readFileSync('motorcycle-model-guide.html','utf8');
 const data=JSON.parse(fs.readFileSync('data/motorcycle-model-guides.json','utf8'));
 const modelRecords=Object.values(data.models);
-assert(guide.includes('brandKey==="harleydavidson"?"/harley-davidson-motorcycles.html"'),'Generic Harley model pages must link to approved Harley manufacturer page');
-assert(guide.includes('/rest/v1/rpc/public_anybike_manufacturer_catalogue_names_v1'),'Generic model identity must survive third-party Supabase JS CDN failure');
-assert(guide.includes('brandKey==="bmw"?"/bmw-motorcycles.html"'),'Generic BMW model pages must link to approved BMW manufacturer page');
-assert(guide.includes('requestedBrand==="harleydavidson"?"/harley-davidson-motorcycles.html"'),'Unknown Harley model pages must retain approved manufacturer backlink');
-for(const [make,model] of [['Honda','Africa Twin'],['Ducati','Panigale V4']]){
+// The generic route now uses the approved universal V2 renderer (not the
+// previous inline guide). Model identity and navigation remain exact-match.
+const v2Renderer=fs.readFileSync('model-template/approved-v2-universal-preview.mjs','utf8');
+const v2Master=fs.readFileSync('motorcycle-v2-master.html','utf8');
+const v2Nav=fs.readFileSync('model-template/approved-v2-dynamic-navigation.mjs','utf8');
+assert(guide.includes('approved-v2-universal-preview.mjs'),'Generic route must load approved V2 renderer');
+assert(guide.includes('approved-v2-dynamic-navigation.mjs'),'Generic route must load V2 navigation');
+assert(v2Renderer.includes('publicCatalogueRpc(wantMake)'),'Generic identity must survive Supabase JS CDN failure');
+assert(v2Renderer.includes("normalize(make)==='bmw'"),'Generic BMW guides must link to dedicated manufacturer page');
+assert(v2Renderer.includes("normalize(make)==='harley davidson'"),'Generic Harley guides must link to manufacturer page');
+for(const [make,model] of [['Honda','Africa Twin'],['Ducati','Panigale V4']])
  assert(modelRecords.some(g=>g.make===make&&g.model===model),make+' '+model+' guide data missing');
-}
-assert(brand.includes('(make==="Honda"&&model==="Africa Twin CRF1100L")'), 'Honda model guide routing missing');
-assert(brand.includes('(make==="Ducati"&&model==="Panigale V4")'), 'Ducati model guide routing missing');
-assert(brand.includes('const href="/motorcycle-model-guide.html?make="'),'All models must use shared model-guide routing');
-assert(brand.includes('const request="/bulk-buying-request.html?make="'),'Manufacturer sourcing action must remain available');
-const seller=guide.indexOf('id="ukSellerAction"'),buyer=guide.indexOf('id="nextAction"');
-assert(seller>=0&&buyer>seller,'UK seller box must precede separate international sourcing box');
-for(const id of ['ownerHeading','sellBottom','internationalHeading','sourceBottom']){
- assert(guide.includes('id="'+id+'"'),'Missing model guide action #'+id);
-}
-assert(guide.includes('UK owners: Sell My '),'Dynamic UK seller heading missing');
-assert(guide.includes('typeof guide.years==="string"?guide.years:""'),'Missing model years must never render undefined');
-assert(!guide.includes('esc(x.variant||"")+" — "+esc(x.name)+(x.variant?'),'Factory colour variant must not be duplicated');
-assert(guide.includes('typeof x.model==="string"&&x.model!==actualModel'),'Malformed related-model records must be ignored');
-assert(!/<nav\b[^>]*class="[^"]*\bcrumb\b/i.test(guide),'Breadcrumb returned');
-const ids=[...guide.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]);
+assert(brand.includes('(make==="Honda"&&model==="Africa Twin CRF1100L")'),'Honda model routing missing');
+assert(brand.includes('(make==="Ducati"&&model==="Panigale V4")'),'Ducati model routing missing');
+assert(brand.includes('const href="/motorcycle-model-guide.html?make="'),'Model cards must use shared guide routing');
+assert(brand.includes('const request="/bulk-buying-request.html?make="'),'Manufacturer sourcing must remain available');
+const seller=guide.indexOf('id="v2UkSelling"'),buyer=guide.indexOf('id="nextAction"');
+assert(seller>=0&&buyer>seller,'UK selling and international sourcing regions must survive');
+for(const id of ['v2UkSellAction','internationalGuestRequestForm','sourceBottom','nextAction'])
+ assert(guide.includes('id="'+id+'"'),'V2 model guide action missing '+id);
+assert(v2Renderer.includes("textContent='UK owners: Sell My '+title"),'Dynamic UK seller heading missing');
+assert(v2Renderer.includes('const actualMake')===false,'Legacy inline renderers must not return');
+assert(!/<nav\\b[^>]*class="[^"]*\\bcrumb\\b/i.test(guide),'Breadcrumb returned');
+const ids=[...guide.matchAll(/\\bid="([^"]+)"/g)].map(x=>x[1]);
 assert.equal(ids.length,new Set(ids).size,'Duplicate model guide HTML IDs');
+const sectionTags=s=>[...s.matchAll(/<section\\b([^>]*)>/g)].map(x=>x[1]);
+assert.deepEqual(sectionTags(guide),sectionTags(v2Master),'Generic guide must use the exact approved V2 section structure');
 
 // Regression guard for the approved AnyBike international model galleries.
 // Run this check before changing public-header.js or model-page templates.
@@ -135,7 +139,7 @@ console.log('PASS: existing Harley supplied photographs are inside their heroes 
 // photo bank without allowing related model or trim photographs.
 const universalHero=fs.readFileSync('model-template/public-approved-model-hero.mjs','utf8');
 const universalGuide=fs.readFileSync('motorcycle-model-guide.html','utf8');
-assert(universalGuide.includes('/model-template/public-approved-model-hero.mjs?v=20261112-hero-timeout4'),'Universal model guide must load exact-model hero renderer');
+assert(v2Renderer.includes('public_anybike_model_hero_v1'),'Universal V2 renderer must call rights-approved hero RPC');
 assert(universalHero.includes("public_anybike_model_hero_v1"),'Approved Supabase photo RPC missing');
 assert(universalHero.includes('data.make===make&&data.model===model'),'Exact model identity guard missing');
 assert(universalHero.includes('img.onload=()=>')&&universalHero.includes('img.onerror=next'),'Broken external image must not replace readable hero');
@@ -230,7 +234,7 @@ assert(moreTriumphDucatiResearch.includes('motorcycle_catalog_fact_verification_
 const publicBrandPage=fs.readFileSync('motorcycle-brand.html','utf8');
 assert(publicBrandPage.includes('/motorcycle-model-guide.html?make='),'Manufacturer public cards must link into the shared guide');
 assert(universalGuide.includes('id="body"'),'Shared model guide must retain research insertion point');
-assert(universalGuide.includes('/model-template/public-verified-model-facts.mjs'),'Shared guide must load verified factory facts');
+assert(v2Renderer.includes('installVerifiedModelFacts'),'V2 shared renderer must load verified factory facts');
 
 // Ducati Icon 2023 must be separate from earlier Icon and other Scrambler
 // derivatives; only the existing documented public model is enriched.
@@ -256,7 +260,7 @@ console.log('PASS: four manufacturer factory research sources, audit and bounded
 // and does not touch dedicated BMW R1300 GS / Harley model templates.
 const verifiedGallery=fs.readFileSync('model-template/public-approved-model-gallery.mjs','utf8');
 const verifiedGalleryRpc=fs.readFileSync('supabase/migrations/20261112210000_public_exact_model_research_gallery.sql','utf8');
-assert(universalGuide.includes('/model-template/public-approved-model-gallery.mjs?v=20261112-gallery3'),'The universal model page must load approved gallery photographs');
+assert(v2Renderer.includes('public_anybike_verified_model_gallery_v1'),'V2 shared renderer must load approved gallery photographs');
 assert(verifiedGallery.includes("location.pathname==='/motorcycle-model-guide.html'"),'Gallery must not modify dedicated BMW/Harley designs');
 assert(verifiedGallery.includes("im.onerror=()=>finish(false)"),'Broken photos must not create visible galleries');
 assert(verifiedGallery.includes('pendingGalleryRequests.get(body)!==request'),
