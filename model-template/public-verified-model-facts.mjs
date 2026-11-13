@@ -614,7 +614,8 @@ export function mountVerifiedModelFacts(body,rows,make,model){
     card.remove();
   }
  };
- renderVerifiedModelExploration(body,allFacts,make,model);\n removeGenericPlaceholder();
+ renderVerifiedModelExploration(body,allFacts,make,model);
+ removeGenericPlaceholder();
  // The legacy guide can insert its generic placeholder after this sourced
  // panel. Observe only late, direct placeholder cards for a short period.
  // Never rescan the entire page after unrelated stock/research DOM updates.
