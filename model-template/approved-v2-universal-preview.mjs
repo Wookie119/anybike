@@ -187,6 +187,21 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     console.warn('Previously published model guide unavailable; V2 research continues',error);
    }
   }
+  // Previously published BMW history is an existing public database source.
+  // Only approved dedicated BMW routes may consult it. The bridge validates
+  // the returned identity and rejects unreferenced generations.
+  if(approvedDedicatedRoute&&normalize(make)==='bmw'&&client){
+   try{
+    const {data,error}=await client.rpc('public_bmw_model_history_v1',{
+     requested_path:approvedDedicatedRoute
+    });
+    if(error)throw error;
+    const {mergeApprovedBmwHistory}=await import('/model-template/approved-v2-bmw-history-bridge.mjs');
+    guide=mergeApprovedBmwHistory(guide,data,{make,model,approvedRoute:approvedDedicatedRoute});
+   }catch(error){
+    console.warn('Optional exact-route BMW history unavailable; retaining existing V2 research',error);
+   }
+  }
   window.__anybikeV2ModelIdentity=Object.freeze({make,model});
   window.__anybikeV2Editorial=guide;
   window.dispatchEvent(new Event('anybike:v2-model-identity-ready'));
