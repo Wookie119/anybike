@@ -328,32 +328,56 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    section.append(note);
   }
   // Public exact-model inventory: never use whole-manufacturer stock.
-  stock.querySelector('h2').textContent=title+' motorcycles available internationally';
-  stock.querySelector('p').textContent='Available UK supplier motorcycles are only a selection. Tell AnyBike your preferred year, condition and budget to source '+title+'.';
-  stock.hidden=false;
+  // One exact-model stock component. Its public endpoint independently enforces
+  // country/role restrictions: a 403 is NOT "no stock" and must not be bypassed.
+  const stockTitle=stock.querySelector('h2');
+  const stockIntro=stock.querySelector('p');
+  stockTitle.textContent=title+' — UK supplier motorcycles';
+  stockIntro.textContent='Only confirmed, published motorcycles matching this exact model are displayed. Ask AnyBike to source other years or specifications.';
   const cards=$('internationalModelCards');cards.replaceChildren();
+  let feedState='unavailable',confirmedCount=0;
   try{
    const session=client?await client.auth.getSession():null;
    const token=session?.data?.session?.access_token;
    const res=await fetch(ENDPOINT+'/functions/v1/international-public-stock',
     {cache:'no-store',headers:token?{Authorization:'Bearer '+token}:{}});
-   if(!res.ok)throw Error('Stock endpoint unavailable');
-   const data=await res.json();
-   const same=x=>normalize(x.make)===normalize(make)&&normalize(x.model)===normalize(model);
-   for(const row of arr(data.items).filter(same).slice(0,6)){
-    if(!row.item_id)continue;
-    const a=node('a');a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(row.item_id);
-    if(validURL(row.image_url)){
-     const img=node('img');img.src=row.image_url;img.alt=title;img.loading='lazy';a.append(img);
+   if(res.status===401||res.status===403){
+    feedState='restricted';
+   }else if(!res.ok){
+    feedState='unavailable';
+   }else{
+    const data=await res.json();
+    if(!Array.isArray(data.items))throw Error('Unexpected stock response');
+    feedState='checked';
+    const same=x=>normalize(x?.make)===normalize(make)&&normalize(x?.model)===normalize(model);
+    const seen=new Set();
+    for(const row of data.items.filter(same)){
+     if(confirmedCount>=6)break;
+     const key=String(row.item_id||'');
+     if(!/^[a-z0-9_-]{1,100}$/i.test(key)||seen.has(key))continue;
+     seen.add(key);
+     const a=node('a');a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(key);
+     if(validURL(row.image_url)){
+      const img=node('img');img.src=row.image_url;img.alt=title;img.loading='lazy';a.append(img);
+     }
+     a.append(node('strong',[title,row.year].filter(Boolean).join(' ')));
+     paragraph(a,Number(row.price)>0?'£'+Number(row.price).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}):'Price on request');
+     a.append(node('span','View motorcycle →'));cards.append(a);
+     confirmedCount++;
     }
-    a.append(node('strong',[title,row.year].filter(Boolean).join(' ')));
-    paragraph(a,Number(row.price)>0?'£'+Number(row.price).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}):'Price on request');
-    a.append(node('span','View motorcycle →'));cards.append(a);
    }
-  }catch(e){console.warn('International stock unavailable; sourcing remains accessible',e)}
-  if(!cards.children.length){
-   paragraph(cards,'Current exact-model stock could not be confirmed. Ask AnyBike to check UK supplier availability.');
+  }catch(e){feedState='unavailable';console.warn('Exact-model stock request failed; no substitute inventory displayed',e)}
+  if(!confirmedCount){
+   const messages={
+    restricted:'Available-stock access is restricted for this visitor. Ask AnyBike to check this model for you.',
+    checked:'No matching published motorcycles are listed in the accessible feed. Ask AnyBike to check sourcing options.',
+    unavailable:'Current stock cannot be confirmed right now. Ask AnyBike to check UK supplier availability.'
+   };
+   const note=node('p',messages[feedState]||messages.unavailable);
+   note.className='anybike-stock-status';cards.append(note);
   }
+  stock.dataset.stockFeedState=feedState;
+  stock.hidden=false;
   const form=$('internationalGuestRequestForm'),status=$('internationalGuestRequestStatus');
   $('internationalGuestRequest').querySelector('h2').textContent='Enquire about a '+title;
   $('internationalGuestRequest').querySelector('p').textContent='International buyers can enquire without creating an account.';
