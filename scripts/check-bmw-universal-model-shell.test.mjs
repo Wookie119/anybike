@@ -4,7 +4,7 @@ import fs from 'node:fs';
 const pages=fs.readdirSync('.').filter(name=>
  /^bmw-[a-z0-9-]+\.html$/.test(name)&&
  !/(?:motorcycles|backup|preview|development|approved|-v2)\b/.test(name));
-const dedicated=new Set(['bmw-r1250gs.html','bmw-r1300gs.html','bmw-s1000rr.html']);
+const dedicated=new Set(['bmw-r1300gs.html']);
 test('every published BMW model route loads a shared model shell and editorial sections',()=>{
  assert.equal(pages.length,27,'Unexpected BMW model-route count; inspect catalogue before rollout');
  for(const path of pages){
@@ -43,16 +43,21 @@ test('publication model discovery reuses pre-existing navigation rather than cre
  assert.match(discovery,/existingNav\.append\(link\)/);
  assert.match(discovery,/relatedPanel\.dataset\.anybikeModelDiscovery="1"/);
  const f900=fs.readFileSync('bmw-f900gs.html','utf8');
- assert.match(f900,/data-anybike-related-links=/);
+ assert.match(f900,/approved-v2-dynamic-navigation\.mjs/);
 });
-test('dedicated R1300 approval stays intact, and empty R1250 sales use sourcing instead of unrelated bikes',()=>{
+test('approved R1300 remains protected and migrated R1250 uses canonical stock with preserved year data',()=>{
  const r1300=fs.readFileSync('bmw-r1300gs.html','utf8');
  const r1250=fs.readFileSync('bmw-r1250gs.html','utf8');
+ const archive=JSON.parse(fs.readFileSync('data/bmw-r1250gs-v2-preservation.json','utf8'));
+ const renderer=fs.readFileSync('model-template/approved-v2-universal-preview.mjs','utf8');
  assert.match(r1300,/id="internationalModelStock"/);
  assert.match(r1300,/id="ukR1300ModelGallery"/);
- assert.match(r1250,/id="r1250LiveStock"/);
- assert.match(r1250,/No BMW R 1250 GS motorcycles are currently published/);
- assert.match(r1250,/const matches=exact;/);
+ assert.match(r1250,/approved-v2-universal-preview\.mjs/);
+ assert.match(r1250,/id="internationalModelStock"/);
+ assert.match(r1250,/id="internationalGuestRequestForm"/);
+ assert.match(renderer,/stockForCanonicalModel/);
+ assert.match(renderer,/feedState='restricted'/);
+ assert.equal(archive.model_year_gallery.model_year_cards.length,5);
  assert.ok(r1300.indexOf('id="internationalModelStock"')<r1300.indexOf('id="generationPanel"'));
- assert.ok(r1250.indexOf('id="r1250LiveStock"')<r1250.indexOf('id="ukR1250ModelGallery"'));
+ assert.ok(r1250.indexOf('id="internationalModelStock"')<r1250.indexOf('id="generationPanel"'));
 });
