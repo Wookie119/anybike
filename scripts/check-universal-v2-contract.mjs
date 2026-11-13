@@ -63,6 +63,12 @@ check('Shared catalogue reads public RPC before offline JSON',()=>{
  assert.match(renderer,/if\(!liveCatalogueLoaded\)/);
  assert.match(nav,/rest\/v1\/rpc\/public_anybike_manufacturer_catalogue_names_v1/);
 });
+check('Country market panels stay hidden until shared navigation finishes',()=>{
+ assert.match(html,/id="r1300CountryMarkets" hidden/);
+ assert.match(nav,/section\.hidden=true/);
+ assert.match(nav,/section\.hidden=false/);
+ assert.match(nav,/__anybikeV2NavigationReady=true/);
+});
 check('All 217 published country markets use the safe public RPC fallback',()=>{
  assert.match(nav,/rest\/v1\/rpc\/public_anybike_country_navigation_v1/);
  assert.match(nav,/public_anybike_country_navigation_v1/);
