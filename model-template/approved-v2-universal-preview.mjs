@@ -194,6 +194,17 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   else paragraph(summary,str(guide?.summary)||'Explore source-verified '+title+' model years, specifications and documented manufacturer history. Individual motorcycles and markets may differ.');
   $('years').textContent=str(hero.years)||str(guide?.years)||'Source-verified specifications vary by model year and market.';
   $('source').href=enquiry;
+  // Place exact-model stock before slower photography and research requests.
+  // The loading text does not claim availability or bypass buyer permissions.
+  const header=document.querySelector('main > .hero'),stock=$('internationalModelStock');
+  if(header&&stock)header.after(stock);
+  const stockTitle=stock.querySelector('h2'),stockIntro=stock.querySelector('p');
+  stockTitle.textContent=title+' motorcycles available internationally';
+  stockIntro.textContent='Only confirmed, published motorcycles matching this exact model are displayed. Ask AnyBike to source other years or specifications.';
+  const cards=$('internationalModelCards');
+  cards.replaceChildren(node('p','Checking permitted exact-model stock…'));
+  stock.dataset.stockFeedState='checking';
+  stock.hidden=false;
   const fig=$('databaseHeroPhoto');
   // Rights-checked photography comes from one approved photo-bank RPC,
   // not image names, model guesses or manufacturer press hotlinks.
@@ -271,8 +282,6 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   }
   // Exactly one shared V2 layout. Move its approved sections into their
   // approved reading order rather than creating new make-specific templates.
-  const header=document.querySelector('main > .hero'),stock=$('internationalModelStock');
-  if(header&&stock)header.after(stock);
   const development=$('r1300gsModelHistory'),timeline=$('r1300V2VerifiedExtras');
   if(development&&timeline)timeline.after(development);
   if(development){
@@ -514,11 +523,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // Public exact-model inventory: never use whole-manufacturer stock.
   // One exact-model stock component. Its public endpoint independently enforces
   // country/role restrictions: a 403 is NOT "no stock" and must not be bypassed.
-  const stockTitle=stock.querySelector('h2');
-  const stockIntro=stock.querySelector('p');
-  stockTitle.textContent=title+' motorcycles available internationally';
-  stockIntro.textContent='Only confirmed, published motorcycles matching this exact model are displayed. Ask AnyBike to source other years or specifications.';
-  const cards=$('internationalModelCards');cards.replaceChildren();
+  cards.replaceChildren();
   let feedState='unavailable',confirmedCount=0;
   try{
    const session=client?await client.auth.getSession():null;
