@@ -56,8 +56,29 @@ function makeSection(id,title,after){
  }
  return el;
 }
+import {resolveApprovedV2Identity} from '/model-template/approved-v2-route-identity.mjs';
 const params=new URLSearchParams(location.search);
-const wantMake=str(params.get('make')),wantModel=str(params.get('model'));
+let wantMake=str(params.get('make')),wantModel=str(params.get('model'));
+// A dedicated page can adopt this exact renderer in a later approved migration
+// without duplicating the template or guessing an identity from its URL slug.
+// The checked-in reviewed route map supplies both make and exact model name.
+if(/^\\/(?:bmw|harley-davidson)-[a-z0-9-]+\\.html$/.test(location.pathname)){
+ try{
+  const response=await fetch('/data/approved-dedicated-model-routes.json',{cache:'no-cache'});
+  if(!response.ok)throw Error('Reviewed dedicated route map unavailable');
+  const data=await response.json();
+  const identity=resolveApprovedV2Identity(location.pathname,data?.models);
+  if(!identity)throw Error('Dedicated route not uniquely approved');
+  // Never allow a conflicting query string to override a reviewed route.
+  if((wantMake&&normalize(wantMake)!==normalize(identity.make))||
+     (wantModel&&normalize(wantModel)!==normalize(identity.model)))
+   throw Error('Dedicated model route/query conflict');
+  wantMake=identity.make;wantModel=identity.model;
+ }catch(error){
+  console.warn('V2 dedicated route identity rejected',error);
+  wantMake='';wantModel='';
+ }
+}
 // Preserve reviewed public alias links from the established general model route.
 // A known alias redirects to one explicitly named published identity; there
 // is no fuzzy matching and the destination still passes the public catalogue.
