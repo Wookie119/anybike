@@ -1,0 +1,74 @@
+#!/usr/bin/env node
+// Universal model master regression guard. Read-only; no live requests or secrets.
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {canonicalStockMatches,stockForCanonicalModel} from '../model-template/canonical-public-stock-identity.mjs';
+import {SECTION_COUNT,SECTION_KEYS,buildUniversalPageSections,visibleUniversalSections} from '../model-template/universal-page-section-contract.mjs';
+
+const load=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
+let passed=0;
+const check=(name,fn)=>{fn();passed++;console.log('PASS '+name)};
+const [html,renderer,nav,rawCatalogue]=await Promise.all([
+ load('motorcycle-v2-master.html'),
+ load('model-template/approved-v2-universal-preview.mjs'),
+ load('model-template/approved-v2-dynamic-navigation.mjs'),
+ load('data/motorcycle-catalogue-master.json')
+]);
+const catalogue=JSON.parse(rawCatalogue);
+const normalize=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+check('Static fallback has unique make/model identities',()=>{
+ assert(Array.isArray(catalogue.models)&&catalogue.models.length>0);
+ const keys=catalogue.models.map(row=>normalize(row.make)+'|'+normalize(row.model));
+ assert(keys.every(key=>!key.startsWith('|')&&!key.endsWith('|')));
+ assert.equal(new Set(keys).size,keys.length);
+});
+check('One indexable V2 master and identical asset versions',()=>{
+ assert.match(html,/name="robots" content="index,follow"/);
+ assert.doesNotMatch(html,/noindex/i);
+ assert.match(html,/approved-v2-universal-preview\.mjs\?v=/);
+ assert.match(html,/approved-v2-dynamic-navigation\.mjs\?v=/);
+});
+check('Shared catalogue reads public RPC before offline JSON',()=>{
+ assert(renderer.indexOf('publicCatalogueRpc(wantMake)')<renderer.indexOf("fetch('/data/motorcycle-catalogue-master.json'"));
+ assert.match(renderer,/if\(!liveCatalogueLoaded\)/);
+ assert.match(nav,/rest\/v1\/rpc\/public_anybike_manufacturer_catalogue_names_v1/);
+});
+check('Established published canonical model URLs are preserved',()=>{
+ assert.match(renderer,/public_anybike_manufacturer_model_routes_v1/);
+ assert.match(nav,/for\(const \[key,item\] of approved\)combined\.set\(key,item\)/);
+});
+check('Verified facts and authorised photos only',()=>{
+ assert.match(renderer,/installVerifiedModelFacts/);
+ assert.match(renderer,/public_anybike_verified_model_gallery_v1/);
+ assert.match(renderer,/safePhoto\(approvedHero\)/);
+ assert.match(renderer,/galleryUrls\.has\(photo\.image_url\)/);
+});
+check('Twenty reviewed research slots with no empty or cross-model substitutions',()=>{
+ const entity={type:'model',id:77,manufacturer_id:5,name:'R 1300 GS'};
+ const now=new Date(Date.now()-1000).toISOString();
+ const published={entity_type:'model',entity_id:77,manufacturer_id:5,section_number:1,section_key:'section_01',section_title:'Documented research',editorial_status:'published',publication_eligible:true,published_at:now,content:{paragraphs:['Official manufacturer reference']}};
+ assert.equal(SECTION_COUNT,20);assert.equal(SECTION_KEYS.length,20);
+ assert.equal(visibleUniversalSections(buildUniversalPageSections(entity,[published])).length,1);
+ assert.equal(visibleUniversalSections(buildUniversalPageSections(entity,[{...published,editorial_status:'draft'}])).length,0);
+ assert.equal(visibleUniversalSections(buildUniversalPageSections(entity,[])).length,0);
+ assert.throws(()=>buildUniversalPageSections(entity,[{...published,entity_id:68}]),/Cross-entity/);
+ assert.throws(()=>buildUniversalPageSections(entity,[published,published]),/Duplicate/);
+});
+check('Restricted public stock is exact-model, entitlement-verified and deduplicated',()=>{
+ const page={catalog_model_id:77,model_name:'R 1300 GS',manufacturer_name:'BMW'};
+ const item={item_id:125,catalog_model_id:77,catalogue_identity_status:'verified',publication_eligible:true,make:'BMW',model:'R 1300 GS'};
+ assert(canonicalStockMatches(item,page));
+ assert(!canonicalStockMatches({...item,catalog_model_id:68},page));
+ assert(!canonicalStockMatches({...item,catalogue_identity_status:'pending'},page));
+ assert(!canonicalStockMatches({...item,publication_eligible:false},page));
+ assert(!canonicalStockMatches({...item,model:'R 1250 GS'},page));
+ assert.equal(stockForCanonicalModel([item,item,{...item,item_id:126}],page).length,2);
+ assert.match(renderer,/res\.status===401\|\|res\.status===403/);
+ assert.match(renderer,/stockForCanonicalModel\(data\.items,pageIdentity,6\)/);
+});
+check('Shared enquiries and available stock remain available before research',()=>{
+ assert.match(renderer,/international-guest-enquiry/);
+ assert.match(renderer,/if\(header&&stock\)header\.after\(stock\)/);
+ assert.match(renderer,/loadUniversalPublishedPage\(client,\{type:'model',id:canonicalId\}\)/);
+});
+console.log('Universal V2 regression checks: '+passed+' passed');
