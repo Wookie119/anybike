@@ -3111,6 +3111,11 @@ async function anybikeShowPublicSignedInIdentity(){
  // The generic route is the universal route for every catalogue manufacturer.
  const compatible=!!document.querySelector('main #generationPanel')&&
   !!document.querySelector('main #body');
+ // The generic route now renders the real approved V2 master. Its own
+ // stylesheet owns the layout; never layer the former CSS-only approximation.
+ const actualV2=generic&&!!document.querySelector(
+  'script[src*="/model-template/approved-v2-universal-preview.mjs"]');
+ if(actualV2)return;
  if((!generic&&!dedicated)||protectedMaster||brand||!compatible||!document.body)return;
  document.body.classList.add('anybike-v2-model-rollout');
  if(document.querySelector('link[data-anybike-v2-rollout]'))return;
