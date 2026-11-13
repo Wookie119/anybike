@@ -24,12 +24,25 @@ const rows=approved.map(({url,make,model})=>{
  };
  return {url,make,model,...features};
 });
-const counts={routes:rows.length,brands:Object.fromEntries([...new Set(rows.map(x=>x.make))].map(make=>[make,rows.filter(x=>x.make===make).length])),using_shared_renderer:rows.filter(x=>x.shared_v2_renderer).length,pending_full_convergence:rows.filter(x=>!x.shared_v2_renderer).length,missing_canonical:rows.filter(x=>!x.canonical).map(x=>x.url)};
+const protectedReference='/bmw-r1300gs.html';
+const referenceRow=rows.find(x=>x.url===protectedReference);
+const pending=rows.filter(x=>!x.shared_v2_renderer&&x.url!==protectedReference);
+const counts={
+ routes:rows.length,
+ brands:Object.fromEntries([...new Set(rows.map(x=>x.make))].map(make=>[make,rows.filter(x=>x.make===make).length])),
+ shared_v2_models:rows.filter(x=>x.shared_v2_renderer).length,
+ protected_approved_reference:referenceRow?.url||null,
+ pending_full_convergence:pending.length,
+ missing_canonical:rows.filter(x=>!x.canonical).map(x=>x.url)
+};
 console.log(JSON.stringify({counts,pages:rows},null,2));
 if(!fs.existsSync(path.join(root,reference))||!fs.existsSync(path.join(root,'motorcycle-v2-master.html'))){
  console.error('FAIL: approved V2 master or reference missing');process.exitCode=1;
 }
 if(counts.missing_canonical.length){console.error('FAIL: dedicated page canonical mismatch');process.exitCode=1;}
-if(counts.pending_full_convergence){
- console.error('ROLL OUTSTANDING: '+counts.pending_full_convergence+' dedicated model URLs have not adopted the shared V2 renderer. CSS-only compatibility is not completed convergence.');
+if(!referenceRow||referenceRow.shared_v2_renderer){
+ console.error('FAIL: approved BMW R1300GS reference must remain on original protected design');process.exitCode=1;
 }
+if(counts.pending_full_convergence){
+ console.error('FAIL: '+counts.pending_full_convergence+' unprotected dedicated model URLs have not adopted the shared V2 renderer.');process.exitCode=1;
+}else console.log('PASS: 44 dedicated V2 model routes; one protected approved R1300GS reference.');
