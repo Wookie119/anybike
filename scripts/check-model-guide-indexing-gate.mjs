@@ -34,6 +34,11 @@ assert(guide.includes('id="verifiedModelTechnical" class="anybike-model-technica
 assert(guide.includes('id="verifiedModelTechnicalEntries"'),'Technical overview must have a verified-data destination');
 assert(verifiedRenderer.includes("const technicalCategories=new Set(['engine','transmission','performance','specification','dimensions','chassis','wheels','brakes','engineering'])"),'Technical overview must only display approved technical categories');
 assert(verifiedRenderer.includes('fact.display.map(entry=>entry.label'), 'Technical overview must use the audited display projection');
+assert(verifiedRenderer.includes("source.href=fact.source_url"),'Every technical record must link to its own audited source');
+assert(verifiedRenderer.includes("source.rel='noopener noreferrer'"),'External technical source links must use safe rel attributes');
+assert(verifiedRenderer.includes("hasStart&&hasEnd"),'Technical facts must preserve documented start and end years');
+assert(verifiedRenderer.includes("fact.end_year!==undefined"),'Unknown technical end dates must not be fabricated');
+
 assert(verifiedRenderer.includes('technical.hidden=technicalEntries.children.length===0'), 'Models without audited technical records must not show an empty overview');
 assert(verifiedRenderer.includes("if(id==='verifiedModelTechnical')section.querySelector('#verifiedModelTechnicalEntries')?.replaceChildren()"), 'Technical overview must clear on motorcycle identity change');
 
