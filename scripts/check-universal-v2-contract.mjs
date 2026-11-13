@@ -126,4 +126,13 @@ check('Shared enquiries and available stock remain available before research',()
  assert.match(renderer,/if\(header&&stock\)header\.after\(stock\)/);
  assert.match(renderer,/loadUniversalPublishedPage\(client,\{type:'model',id:canonicalId\}\)/);
 });
+check('Verified-facts outages do not block exact-model stock or public enquiries',()=>{
+ const factStart=renderer.indexOf('factCount=await installVerifiedModelFacts(');
+ const catchStart=renderer.indexOf("console.warn('Source-verified model research unavailable; continuing model page'");
+ const stockStart=renderer.indexOf("fetch(ENDPOINT+'/functions/v1/international-public-stock'");
+ assert(factStart>=0&&catchStart>factStart&&stockStart>catchStart);
+ const beforeFacts=renderer.slice(Math.max(0,factStart-100),factStart);
+ assert.match(beforeFacts,/try\s*\{/);
+ assert.match(renderer.slice(factStart,catchStart),/catch\(error\)\s*\{/);
+});
 console.log('Universal V2 regression checks: '+passed+' passed');
