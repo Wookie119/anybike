@@ -13,6 +13,21 @@ const str=x=>typeof x==='string'?x.trim():'';
 const normalize=s=>str(s).toLocaleLowerCase('en-GB').replace(/[^a-z0-9]+/g,' ').trim();
 const arr=x=>Array.isArray(x)?x:[];
 const validURL=x=>typeof x==='string'&&/^https:\/\/[^\s]+$/.test(x);
+// The published catalogue remains available when the optional Supabase JS
+// browser bundle fails. Only this read-only RPC is exposed through fallback;
+// never substitute an admin endpoint, service-role key or unaudited table.
+async function publicCatalogueRpc(make){
+ const response=await fetch(ENDPOINT+'/rest/v1/rpc/public_anybike_manufacturer_catalogue_names_v1',{
+  method:'POST',
+  headers:{apikey:KEY,'Content-Type':'application/json'},
+  body:JSON.stringify({p_make:make}),
+  cache:'no-store'
+ });
+ if(!response.ok)throw Error('Published model catalogue HTTP '+response.status);
+ const rows=await response.json();
+ if(!Array.isArray(rows))throw Error('Published model catalogue response invalid');
+ return rows;
+}
 const node=(tag,text,cls)=>{
  const n=document.createElement(tag);
  if(text!==undefined)n.textContent=String(text);
@@ -61,15 +76,24 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const client=window.supabase?.createClient?.(ENDPOINT,KEY);
   // The live public Supabase catalogue is authoritative. The site JSON is
   // only an offline/network fallback, never an alternative model template.
-  let candidates=[];
+  let candidates=[],liveCatalogueLoaded=false;
   if(client){
    try{
     const {data,error}=await client.rpc('public_anybike_manufacturer_catalogue_names_v1',{p_make:wantMake});
     if(error)throw error;
-    if(Array.isArray(data))candidates=data;
-   }catch(e){console.warn('Live model catalogue unavailable',e)}
+    if(!Array.isArray(data))throw Error('Unexpected catalogue response');
+    candidates=data;liveCatalogueLoaded=true;
+   }catch(e){console.warn('Supabase JS catalogue request unavailable',e)}
   }
-  if(!candidates.length){
+  if(!liveCatalogueLoaded){
+   try{
+    candidates=await publicCatalogueRpc(wantMake);
+    liveCatalogueLoaded=true;
+   }catch(e){console.warn('Read-only public catalogue unavailable',e)}
+  }
+  // The checked-in catalogue is for network outages only; an empty successful
+  // live response is authoritative and must not be replaced with stale names.
+  if(!liveCatalogueLoaded){
    const response=await fetch('/data/motorcycle-catalogue-master.json',{cache:'no-cache'});
    if(!response.ok)throw Error('Published motorcycle catalogue unavailable');
    const catalogue=await response.json();
