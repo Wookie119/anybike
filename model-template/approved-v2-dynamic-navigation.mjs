@@ -8,13 +8,15 @@ const KEY='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
 // The page identifies the exact published motorcycle after the V2 editorial RPC
 // succeeds. Do not guess a different model during future universal rollout.
 const current=await new Promise(resolve=>{
- if(window.__anybikeV2ModelIdentity?.make&&window.__anybikeV2ModelIdentity?.model){
-  resolve(window.__anybikeV2ModelIdentity);return;
- }
- window.addEventListener('anybike:v2-model-identity-ready',
-  ()=>resolve(window.__anybikeV2ModelIdentity),{once:true});
+ const identity=window.__anybikeV2ModelIdentity;
+ if(identity?.make&&identity?.model){resolve(identity);return;}
+ if(window.__anybikeV2EditorialReady){resolve(null);return;}
+ const onIdentity=()=>resolve(window.__anybikeV2ModelIdentity||null);
+ const onDone=()=>resolve(window.__anybikeV2ModelIdentity||null);
+ window.addEventListener('anybike:v2-model-identity-ready',onIdentity,{once:true});
+ window.addEventListener('anybike:v2-editorial-ready',onDone,{once:true});
 });
-const make=String(current.make||'').trim();
+const make=String(current?.make||'').trim();
 // Wait until the canonical V2 editorial has finished rendering its fixed
 // publication fields; the dynamic directory must be the last writer of pills.
 await new Promise(resolve=>{
@@ -329,4 +331,5 @@ async function globalNavigation(){
   renderStories(entries.slice(0,6));
  }catch(error){renderStories([]);console.warn('V2 published Global index unavailable',error);}
 }
-await Promise.allSettled([modelNavigation(),manufacturerNavigation(),countryNavigation(),globalNavigation()]);
+// A failed or incomplete catalogue identity must not create model-specific links.
+if(make&&current?.model)await Promise.allSettled([modelNavigation(),manufacturerNavigation(),countryNavigation(),globalNavigation()]);
