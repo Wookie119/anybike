@@ -23,12 +23,12 @@ const check=(label,fn)=>{
  catch(err){console.error('FAIL',label,err.message);process.exitCode=1;}
 };
 check('Generic model route uses the exact shared V2 renderer and section layout',()=>{
- assert.match(shared,/approved-v2-preview-style\\.css\\?v=/);
- assert.match(shared,/approved-v2-universal-preview\\.mjs\\?v=/);
- assert.match(shared,/approved-v2-dynamic-navigation\\.mjs\\?v=/);
+ assert.match(shared,/approved-v2-preview-style\.css\?v=/);
+ assert.match(shared,/approved-v2-universal-preview\.mjs\?v=/);
+ assert.match(shared,/approved-v2-dynamic-navigation\.mjs\?v=/);
  assert.match(shared,/id="generationPanel"/);
  assert.match(shared,/id="body"/);
- const sections=html=>[...html.matchAll(/<section\\b([^>]*)>/g)].map(x=>x[1]);
+ const sections=html=>[...html.matchAll(/<section\b([^>]*)>/g)].map(x=>x[1]);
  assert.deepEqual(sections(shared),sections(sourceMaster));
  assert.match(shared,/name="robots" content="index,follow"/);
 });
@@ -83,12 +83,12 @@ check('Customer lead and sourcing paths survive the V2 migration',()=>{
  assert.match(shared,/id="v2UkSellAction"/);
  assert.match(shared,/id="internationalGuestRequestForm"/);
  assert.match(renderer,/international-guest-enquiry/);
- assert.match(shared,/bulk-buying-request\\.html/);
- assert.match(renderer,/sell-your-motorcycle\\.html/);
+ assert.match(shared,/bulk-buying-request\.html/);
+ assert.match(renderer,/sell-your-motorcycle\.html/);
 });
 check('Legacy guide research remains exact-identity-only',()=>{
- assert.match(renderer,/location.pathname==='\\/motorcycle-model-guide.html'/);
- assert.match(renderer,/motorcycle-model-guides\\.json/);
+ assert.match(renderer,/location.pathname==='\/motorcycle-model-guide.html'/);
+ assert.match(renderer,/motorcycle-model-guides\.json/);
  assert.match(renderer,/exact.length===1/);
  assert.match(renderer,/canonicalPath/);
 });
