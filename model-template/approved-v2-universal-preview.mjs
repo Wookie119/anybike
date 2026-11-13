@@ -205,6 +205,45 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   cards.replaceChildren(node('p','Checking permitted exact-model stock…'));
   stock.dataset.stockFeedState='checking';
   stock.hidden=false;
+  // Forms must work even while slow research and photography are still loading.
+  // Guest requests do not depend on a successful optional login check.
+  const optionalVisitorToken=async()=>{
+   try{
+    const session=await client?.auth?.getSession?.();
+    return typeof session?.data?.session?.access_token==='string'?session.data.session.access_token:null;
+   }catch(error){console.warn('Optional visitor session unavailable; continuing as guest');return null;}
+  };
+  const form=$('internationalGuestRequestForm'),status=$('internationalGuestRequestStatus');
+  $('internationalGuestRequest').querySelector('h2').textContent='Enquire about a '+title;
+  $('internationalGuestRequest').querySelector('p').textContent='International buyers can enquire without creating an account.';
+  const labels={name:'Full name',email:'Email address',country:'Country',phone:'Phone / WhatsApp (optional)',kind:'Request type',message:'Your message'};
+  for(const [key,value] of Object.entries(labels)){
+   const n=form.querySelector('[data-form-label="'+key+'"]');if(n)n.textContent=value;
+  }
+  const placeholder={name:'Full name',email:'Email address',country:'Country',phone:'Phone / WhatsApp',message:'Year, specification, budget and your question'};
+  for(const [key,value] of Object.entries(placeholder)){
+   const n=form.querySelector('[data-form-placeholder="'+key+'"]');if(n)n.placeholder=value;
+  }
+  for(const option of form.querySelectorAll('select[name="kind"] option'))option.textContent=option.value;
+  $('v2FormSubmit').textContent='Send enquiry →';
+  form.addEventListener('submit',async event=>{
+   event.preventDefault();
+   const button=$('v2FormSubmit');button.disabled=true;status.textContent='Sending enquiry…';
+   try{
+    const values=Object.fromEntries(new FormData(form).entries());
+    if(!str(values.name)||!str(values.email)||!str(values.country)||str(values.message).length<5)throw Error('Please complete your name, email, country and message.');
+    const token=await optionalVisitorToken();
+    const res=await fetch(ENDPOINT+'/functions/v1/international-guest-enquiry',{
+     method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},
+     body:JSON.stringify({...values,make,model,page:location.href})
+    });
+    const reply=await res.json();
+    if(!res.ok||!reply.ok)throw Error(reply.error||'Could not send enquiry');
+    status.textContent='Your enquiry has been received'+(reply.reference?' · Reference '+reply.reference:'')+'.';
+    form.reset();
+   }catch(e){status.textContent=e.message||'Could not send enquiry';}
+   finally{button.disabled=false;}
+  });
   const fig=$('databaseHeroPhoto');
   // Rights-checked photography comes from one approved photo-bank RPC,
   // not image names, model guesses or manufacturer press hotlinks.
@@ -526,8 +565,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   cards.replaceChildren();
   let feedState='unavailable',confirmedCount=0;
   try{
-   const session=client?await client.auth.getSession():null;
-   const token=session?.data?.session?.access_token;
+   const token=await optionalVisitorToken();
    const res=await fetch(ENDPOINT+'/functions/v1/international-public-stock',
     {cache:'no-store',headers:token?{Authorization:'Bearer '+token}:{}});
    if(res.status===401||res.status===403){
@@ -568,37 +606,6 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   }
   stock.dataset.stockFeedState=feedState;
   stock.hidden=false;
-  const form=$('internationalGuestRequestForm'),status=$('internationalGuestRequestStatus');
-  $('internationalGuestRequest').querySelector('h2').textContent='Enquire about a '+title;
-  $('internationalGuestRequest').querySelector('p').textContent='International buyers can enquire without creating an account.';
-  const labels={name:'Full name',email:'Email address',country:'Country',phone:'Phone / WhatsApp (optional)',kind:'Request type',message:'Your message'};
-  for(const [key,value] of Object.entries(labels)){
-   const n=form.querySelector('[data-form-label="'+key+'"]');if(n)n.textContent=value;
-  }
-  const placeholder={name:'Full name',email:'Email address',country:'Country',phone:'Phone / WhatsApp',message:'Year, specification, budget and your question'};
-  for(const [key,value] of Object.entries(placeholder)){
-   const n=form.querySelector('[data-form-placeholder="'+key+'"]');if(n)n.placeholder=value;
-  }
-  for(const option of form.querySelectorAll('select[name="kind"] option'))option.textContent=option.value;
-  $('v2FormSubmit').textContent='Send enquiry →';
-  form.addEventListener('submit',async event=>{
-   event.preventDefault();
-   const button=$('v2FormSubmit');button.disabled=true;status.textContent='Sending enquiry…';
-   try{
-    const values=Object.fromEntries(new FormData(form).entries());
-    if(!str(values.name)||!str(values.email)||!str(values.country)||str(values.message).length<5)throw Error('Please complete your name, email, country and message.');
-    const token=(await client?.auth.getSession())?.data?.session?.access_token;
-    const res=await fetch(ENDPOINT+'/functions/v1/international-guest-enquiry',{
-     method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},
-     body:JSON.stringify({...values,make,model,page:location.href})
-    });
-    const reply=await res.json();
-    if(!res.ok||!reply.ok)throw Error(reply.error||'Could not send enquiry');
-    status.textContent='Your enquiry has been received'+(reply.reference?' · Reference '+reply.reference:'')+'.';
-    form.reset();
-   }catch(e){status.textContent=e.message||'Could not send enquiry';}
-   finally{button.disabled=false;}
-  });
   const related=$('databaseRelatedModels');
   // The shared navigation renderer owns the related pills and 217 markets;
   // never hardcode a second manufacturer or model directory.
