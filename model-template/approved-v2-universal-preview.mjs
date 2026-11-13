@@ -541,6 +541,32 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    section.append(grid);
    sourceLink(section,guide?.engineering_reference?.source,'Manufacturer technical reference ↗');
   }
+  // Year-and-market-specific factory specification records are already
+  // published in the reviewed legacy guide. Keep them separate from general
+  // engineering prose: figures from different model years must not be merged.
+  const documentedSpecs=arr(production.specifications).filter(x=>
+   x&&validURL(x.source)&&(Number.isInteger(x.model_year)||str(x.model_year))&&
+   ['engine_cc','power_hp','torque_nm','transmission'].some(k=>x[k]!==null&&x[k]!==undefined&&String(x[k]).trim()));
+  if(documentedSpecs.length){
+   const section=makeSection('v2DocumentedSpecifications','Documented specifications',$('v2EngineeringOverview')||$('v2FactoryColours')||$('body'));
+   const grid=node('div',undefined,'v2-documentary-grid');
+   for(const spec of documentedSpecs){
+    const article=node('article');
+    article.append(node('h4',[spec.model_year,str(spec.market)].filter(Boolean).join(' · ')));
+    const values=[
+     ['Engine',spec.engine_cc,'cc'],['Power',spec.power_hp,'hp'],
+     ['Torque',spec.torque_nm,'Nm'],['Transmission',str(spec.transmission),'']
+    ];
+    for(const [label,value,unit] of values){
+     if(value===null||value===undefined||String(value).trim()==='')continue;
+     if(typeof value==='number'&&(!Number.isFinite(value)||value<=0))continue;
+     paragraph(article,label+': '+value+(unit?' '+unit:''));
+    }
+    sourceLink(article,spec.source,'Factory specification source ↗');
+    grid.append(article);
+   }
+   section.append(grid);
+  }
   // Long-form source-linked editorial fields: open-ended section registry.
   // New category keys render only when they contain approved paragraphs and
   // a source, without changing the template or adding hundreds of blanks.
