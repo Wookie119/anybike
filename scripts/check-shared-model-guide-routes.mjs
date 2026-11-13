@@ -61,11 +61,12 @@ assert(!gallery.includes('r1250StockFallback'), 'R1250-specific alternative over
 assert(!gallery.includes("card.append(brand,name,status)"), 'False logo motorcycle-photo cards returned');
 assert(!gallery.includes('for(let i=matches.length;i<6;i++)'),'Do not restore six repetitive placeholders');
 const r1250=fs.readFileSync('bmw-r1250gs.html','utf8');
-assert(r1250.includes('const matches=exact;'), 'R1250GS must never show other BMW models');
-assert(!r1250.includes('const matches=exact.length?exact:bmw'), 'Cross-model R1250 fallback returned');
-assert(r1250.indexOf('id="r1250LiveStock"')<r1250.indexOf('id="ukR1250ModelGallery"'), 'R1250 live stock must precede research');
-assert(!r1250.includes('id="r1250StockResearch"'), 'Duplicate factory research panel returned');
-assert(r1250.includes('BMW_R_1250_GS_'), 'Licensed R1250 hero must remain');
+const r1250Data=JSON.parse(fs.readFileSync('data/bmw-r1250gs-v2-preservation.json','utf8'));
+assert(r1250.includes('approved-v2-universal-preview.mjs'), 'R1250 now uses exact shared V2 template');
+assert(r1250.indexOf('id="internationalModelStock"')<r1250.indexOf('id="generationPanel"'), 'R1250 permitted stock before research');
+assert(v2Renderer.includes('stockForCanonicalModel'), 'R1250 canonical-ID stock isolation missing');
+assert(r1250Data.model_year_gallery.model_year_cards.length===5,'R1250 five model-year gallery notes lost');
+assert(r1250Data.approved_existing_hero.licence_url.startsWith('https://creativecommons.org/licenses/'), 'R1250 approved photograph licence missing');
 
 const r1300=fs.readFileSync('bmw-r1300gs.html','utf8');
 assert(r1300.includes('id="internationalModelCards"'),'R 1300 GS published stock gallery missing');
