@@ -446,17 +446,20 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     group.append(article);
    }
   }
+  // Avoid an empty-looking extra research-status card where no verified
+  // research has yet been published. Keep model-specific sourcing available.
   if(!factCount&&!guide&&!publishedCount){
-   const note=node('p','Verified research is not yet published for this motorcycle. You can enquire about a specific year and specification.');
-   const section=makeSection('v2ResearchPending','Research publication status',$('generationPanel'));
-   section.append(note);
+   const intro=$('summary');
+   intro.replaceChildren();
+   paragraph(intro,'Documented research is not yet published for '+title+'. Tell AnyBike the year and specification you need, and we can help with your enquiry.');
+   $('years').textContent='';
   }
   // Public exact-model inventory: never use whole-manufacturer stock.
   // One exact-model stock component. Its public endpoint independently enforces
   // country/role restrictions: a 403 is NOT "no stock" and must not be bypassed.
   const stockTitle=stock.querySelector('h2');
   const stockIntro=stock.querySelector('p');
-  stockTitle.textContent=title+' — UK supplier motorcycles';
+  stockTitle.textContent=title+' motorcycles available internationally';
   stockIntro.textContent='Only confirmed, published motorcycles matching this exact model are displayed. Ask AnyBike to source other years or specifications.';
   const cards=$('internationalModelCards');cards.replaceChildren();
   let feedState='unavailable',confirmedCount=0;
