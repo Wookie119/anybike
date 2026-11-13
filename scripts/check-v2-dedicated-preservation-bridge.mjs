@@ -43,4 +43,9 @@ assert.deepEqual(r1250.model_year_cards.map(x=>x.year),[2019,2020,2021,2022,2023
 const photo=preservedExistingHero(bmw,{make:'BMW',model:'R 1250 GS',url:'/bmw-r1250gs.html'});
 assert(photo&&photo.attribution.includes('Cjp24'));
 assert.equal(preservedExistingHero(bmw,{make:'BMW',model:'R 1300 GS',url:'/bmw-r1250gs.html'}),null);
+const renderer=readFileSync(new URL('../model-template/approved-v2-universal-preview.mjs',import.meta.url),'utf8');
+assert(renderer.includes("if(!devCards.length&&!yearCards.length)development.hidden=true;"),
+ 'Published model-year cards must stay visible without separate development sections');
+assert(renderer.includes('publication_status:archive.publication_status'),
+ 'Harley model snapshots must inherit the archive publication status');
 console.log('PASS: 18 Harley stories (212 sections), 13 credited photos and R1250 five-year guide stay exact-model');
