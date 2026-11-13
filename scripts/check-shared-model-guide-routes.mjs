@@ -96,45 +96,25 @@ assert(completeNav.includes('requestAnimationFrame(()=>{scheduled=false;render()
 assert(!completeNav.includes('queueMicrotask(()=>{scheduled=false;render();});'),'Unbounded microtask render loops can freeze model pages');
 assert(publicLoader.includes('/motorcycle-complete-catalogue-navigation.js?v=20261113-related-dedupe13'),'Shared navigation browser cache must refresh');
 const r32Guide=fs.readFileSync('bmw-r32.html','utf8');
-assert(r32Guide.includes('Explore related BMW models'), 'Legacy R32 related section not detected by shared cleanup');
-console.log('PASS: genuine family/era curation suppresses misleading R32 related model suggestions.');
-console.log('PASS: Complete public manufacturer and same-brand model pill navigation is mounted without stock permission changes.');
+assert(r32Guide.includes('approved-v2-dynamic-navigation.mjs'),
+ 'R32 exact-model related navigation must use the shared V2 directory');
+console.log('PASS: manufacturer and same-brand model navigation uses one shared V2 system.');
 
-
-// Reused Harley photographs must keep an exact-model attribution and licence.
-// V-Rod and Pan America 1250 must feature an actual motorcycle near the hero.
-const creditedHarley=['breakout','fat-boy','electra-glide','iron-883','road-king','street-bob','heritage-classic','nightster','road-glide','street-glide','ultra-limited','sportster-s'];
-for(const slug of creditedHarley){
- const page=fs.readFileSync('harley-davidson-'+slug+'.html','utf8');
- const hero=page.match(/<section class="hero"[\s\S]*?<\/section>/)?.[0]||'';
- assert(hero.includes('<img '),'Harley '+slug+' exact-model hero missing');
- assert(hero.includes('<figcaption>')||hero.includes('<figcaption '),'Harley '+slug+' hero photographer acknowledgement missing');
- assert(hero.includes('creativecommons.org/licenses/'),'Harley '+slug+' hero licence link missing');
- assert(hero.includes('commons.wikimedia.org/wiki/File:'),'Harley '+slug+' photographer source link missing');
+// Approved original Harley research and credited historical photography are
+// preserved in exact-route public snapshots. Do not reinstate supplier photos
+// without publication/rights approval from the central public photo RPC.
+const harleySnapshot=JSON.parse(fs.readFileSync('data/harley-v2-legacy-preservation.json','utf8'));
+assert.equal(harleySnapshot.models.length,18);
+assert.equal(harleySnapshot.models.reduce((sum,record)=>sum+record.sections.length,0),212);
+const credited=harleySnapshot.models.flatMap(record=>record.photographs);
+assert.equal(credited.length,13);
+for(const photo of credited){
+ assert(photo.credit_text,'Credited legacy Harley photo missing attribution');
+ assert(photo.credit_links.some(url=>url.startsWith('https://creativecommons.org/licenses/')),
+  'Original Harley photo licence lost');
 }
-const panHero=fs.readFileSync('harley-davidson-pan-america-1250.html','utf8').match(/<section class="hero"[\s\S]*?<\/section>/)?.[0]||'';
-assert(panHero.includes('Pan America 1250 Special')&&panHero.includes('2023'),'Pan America hero must identify the 2023 Special derivative exactly');
-assert(panHero.includes('<img ')&&!panHero.includes('not an actual motorcycle photograph'),'Pan America must show a real photo, not decorative artwork');
-const vRodPage=fs.readFileSync('harley-davidson-v-rod.html','utf8');
-const vRodHero=vRodPage.match(/<section class="hero"[\s\S]*?<\/section>/)?.[0]||'';
-assert(vRodHero.includes('<img ')&&vRodHero.includes('Addvisor'),'V-Rod must have an exact-family licensed hero');
-assert.equal((vRodPage.match(/class="model-archive-photo"/g)||[]).length,1,'V-Rod must not duplicate its museum archive image below the hero');
-console.log('PASS: 14 Harley exact-model licensed hero photographs retain attribution; no new artwork/duplicate V-Rod archive.');
-
-
-// Supplier-provided model photographs on these Harley guides belong in the
-// existing hero, not below it. This does not grant external syndication rights.
-for(const slug of ['cvo-pan-america','low-rider-s','pan-america-1250-st']){
- const page=fs.readFileSync('harley-davidson-'+slug+'.html','utf8');
- const hero=page.match(/<section class="hero"[\s\S]*?<\/section>/)?.[0]||'';
- assert(hero.includes('<img '),'Harley '+slug+' has no photo inside the hero');
- assert(hero.includes('supplied to AnyBike'),'Harley '+slug+' source photo caption must be preserved');
- assert.equal((page.match(/<figure class="card(?: harley-user-photo)?"/g)||[]).length,1,'Harley '+slug+' photo should not be duplicated');
-}
-const standard=fs.readFileSync('harley-davidson-softail-standard.html','utf8');
-assert(standard.includes('AI-generated illustration'),'Softail Standard unverified artwork must remain explicitly labelled');
-console.log('PASS: existing Harley supplied photographs are inside their heroes without duplicate figures.');
-
+assert(v2Renderer.includes('preservedExistingHero'),'V2 photographed history must retain exact licensed fallback');
+console.log('PASS: 18 archived Harley histories and 13 original credited photo references preserved.');
 
 // Universal catalogue model guides use the central approved, exact-model
 // photo bank without allowing related model or trim photographs.
@@ -353,8 +333,7 @@ console.log('PASS: universal model gallery loads only licensed exact-model photo
 console.log('PASS: generic manufacturer/model photography uses approved exact-model RPC with image-load guard.');
 
 
-// Every approved Harley-Davidson dedicated model route must load the same
-// source-audited research system. Existing Harley layout content stays intact.
+// Every approved Harley-Davidson URL uses the ONE shared V2 renderer.
 const harleyRoutes=[
  'breakout','cvo-pan-america','electra-glide','fat-boy','heritage-classic',
  'iron-883','low-rider-s','nightster','pan-america-1250-st',
@@ -364,21 +343,13 @@ const harleyRoutes=[
 for(const route of harleyRoutes){
  const page=fs.readFileSync('harley-davidson-'+route+'.html','utf8');
  assert(page.includes('<main>'),'Harley guide main layout missing: '+route);
- assert(page.includes('/model-template/public-harley-verified-research.mjs?v=20261112-harleyresearch1'),
-  'Source-audited shared model research not connected to approved Harley guide: '+route);
- assert(page.includes('public-model-discovery.js'),'Existing Harley discovery navigation must remain: '+route);
+ assert(page.includes('approved-v2-universal-preview.mjs'),
+  'Harley page must load universal V2 research and stock: '+route);
+ assert(page.includes('approved-v2-dynamic-navigation.mjs'),
+  'Harley page must load unified model directory: '+route);
 }
-const harleyModule=fs.readFileSync('model-template/public-harley-verified-research.mjs','utf8');
-for(const guard of [
- "public_anybike_manufacturer_model_routes_v1",
- "public_anybike_verified_model_facts_v1",
- "installVerifiedModelFacts",
- "matches.length===1",
- "main.insertBefore(slot,before)",
- "if(rendered<=0){slot.remove();return 0;}",
- "if(!route)return 0",
- "page.querySelector?.('[data-anybike-harley-research-slot]')"
-])assert(harleyModule.includes(guard),'Dedicated Harley source-research safeguard missing: '+guard);
+assert(v2Renderer.includes('installVerifiedModelFacts'),'Shared Harley manufacturer facts RPC removed');
+assert(v2Renderer.includes('preserveDedicatedModelResearch'),'Preserved original Harley stories unavailable');
 const harleyMigration=fs.readFileSync('supabase/migrations/20261112234000_harley_factory_verified_model_research.sql','utf8');
 assert(harleyMigration.includes('motorcycle_catalog_fact_verification_audit'),
  'All published Harley factory records require a matched audit trail');
