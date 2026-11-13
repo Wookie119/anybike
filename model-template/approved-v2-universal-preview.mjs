@@ -59,6 +59,7 @@ function makeSection(id,title,after){
 import {resolveApprovedV2Identity} from '/model-template/approved-v2-route-identity.mjs';
 const params=new URLSearchParams(location.search);
 let wantMake=str(params.get('make')),wantModel=str(params.get('model'));
+let approvedDedicatedRoute=null;
 // A dedicated page can adopt this exact renderer in a later approved migration
 // without duplicating the template or guessing an identity from its URL slug.
 // The checked-in reviewed route map supplies both make and exact model name.
@@ -74,6 +75,7 @@ if(/^\\/(?:bmw|harley-davidson)-[a-z0-9-]+\\.html$/.test(location.pathname)){
      (wantModel&&normalize(wantModel)!==normalize(identity.model)))
    throw Error('Dedicated model route/query conflict');
   wantMake=identity.make;wantModel=identity.model;
+  approvedDedicatedRoute=identity.url;
  }catch(error){
   console.warn('V2 dedicated route identity rejected',error);
   wantMake='';wantModel='';
@@ -198,10 +200,13 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    'Explore source-verified '+title+' model history, specifications, model years and UK motorcycle sourcing with AnyBike.';
   // Keep the existing indexed generic URL when rendering the SAME V2 master
   // at its established route; retain approved dedicated BMW/Harley canonicals.
-  const canonicalPath=location.pathname==='/motorcycle-model-guide.html'?
-   '/motorcycle-model-guide.html':'/motorcycle-v2-master.html';
-  const masterUrl=new URL(canonicalPath+'?make='+
-   encodeURIComponent(make)+'&model='+encodeURIComponent(model),location.origin);
+  const canonicalPath=approvedDedicatedRoute||
+   (location.pathname==='/motorcycle-model-guide.html'?
+    '/motorcycle-model-guide.html':'/motorcycle-v2-master.html');
+  const masterUrl=approvedDedicatedRoute?
+   new URL(approvedDedicatedRoute,location.origin):
+   new URL(canonicalPath+'?make='+
+    encodeURIComponent(make)+'&model='+encodeURIComponent(model),location.origin);
   let canonical=masterUrl.href;
   try{
    let routes=null;
