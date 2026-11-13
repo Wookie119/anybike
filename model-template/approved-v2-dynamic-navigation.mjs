@@ -277,10 +277,27 @@ async function countryNavigation(){
  if(!nav)return;
  try{
   const db=window.supabase?.createClient?.(ENDPOINT,KEY);
-  if(!db){section.hidden=true;return;}
-  const {data,error}=await db.rpc('public_anybike_country_navigation_v1');
-  if(error)throw error;
-  const rows=(Array.isArray(data)?data:[]).filter(x=>validCountryPath(x.url)&&String(x.label||'').trim());
+  let data=null;
+  if(db){
+   try{
+    const result=await db.rpc('public_anybike_country_navigation_v1');
+    if(result.error)throw result.error;
+    if(Array.isArray(result.data))data=result.data;
+   }catch(error){console.warn('Supabase JS country navigation unavailable',error);}
+  }
+  if(!data){
+   // Preserve the 217 published market links using the same public RPC when
+   // the optional browser library fails. Never query private market tables.
+   const response=await fetch(ENDPOINT+'/rest/v1/rpc/public_anybike_country_navigation_v1',{
+    method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},
+    body:'{}',cache:'no-store'
+   });
+   if(!response.ok)throw Error('Public country navigation HTTP '+response.status);
+   const fetched=await response.json();
+   if(!Array.isArray(fetched))throw Error('Invalid public country navigation response');
+   data=fetched;
+  }
+  const rows=data.filter(x=>validCountryPath(x.url)&&String(x.label||'').trim());
   if(!rows.length){section.hidden=true;return;}
   section.hidden=false;
   const regions=new Map(),seen=new Set();
