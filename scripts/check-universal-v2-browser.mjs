@@ -138,6 +138,14 @@ try{
    assert.equal(await page.locator('#internationalGuestRequestForm').isVisible(),true);
    const order=await page.locator('main > *').evaluateAll(nodes=>nodes.map(n=>n.id||n.className));
    assert.equal(order.indexOf('internationalModelStock'),order.indexOf('hero')+1);
+   const specificationPlacement=await page.locator('#v2DocumentedSpecifications').count();
+   if(specificationPlacement){
+    assert.equal(await page.locator('#v2DocumentedSpecifications').evaluate(el=>el.parentElement?.tagName),'MAIN');
+    const specificationPosition=order.indexOf('v2DocumentedSpecifications');
+    assert(specificationPosition>order.indexOf('internationalModelStock')&&
+     specificationPosition<order.indexOf('generationPanel'),
+     'Documented specifications must follow stock and precede model years');
+   }
    assert.equal(await page.locator('#r1300gsModelHistory').evaluate(el=>el.parentElement?.id), '',
     'Development and ownership must be a standalone main-level panel, not nested in stock');
    assert.equal(await page.locator('#r1300gsModelHistory').evaluate(el=>el.previousElementSibling?.id),
