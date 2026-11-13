@@ -32,6 +32,40 @@ let passed=0;
 try{
  for(const [make,model,width] of tests){
   const context=await browser.newContext({viewport:{width,height:850}});
+  // One positive and one negative publication test: client-side projection
+  // must display reviewed sections and suppress draft sections on the SAME V2.
+  if(make==='Suzuki'){
+   const approved=width===1280;
+   const rows=[{
+    source_section_id:700,entity_type:'model',entity_id:202,
+    entity_name:'RM250',manufacturer_id:99,section_number:1,
+    section_key:'section_01',section_title:'Documented factory history',
+    content:{paragraphs:['Approved factory history smoke-test record.']},
+    editorial_status:approved?'published':'draft',
+    publication_eligible:true,published_at:'2026-01-01T00:00:00Z',
+    publication_review_reference:'MOCK-REVIEW-NOT-REAL'
+   }];
+   await context.addInitScript(({rows})=>{
+    window.supabase={createClient:()=>({
+     rpc:async(name,args)=>{
+      const response=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/'+name,{
+       method:'POST',headers:{'Content-Type':'application/json',apikey:'mock-test-only'},
+       body:JSON.stringify(args||{})
+      });
+      return {data:response.ok?await response.json():null,error:response.ok?null:Error('Mock RPC failed')};
+     },
+     auth:{getSession:async()=>({data:{session:null}})},
+     from:table=>{
+      const builder={
+       select:()=>builder,eq:()=>builder,order:()=>builder,
+       limit:async()=>({data:table==='motorcycle_universal_published_sections_v1'?rows:[],error:null}),
+       maybeSingle:async()=>({data:null,error:null})
+      };
+      return builder;
+     }
+    })};
+   },{rows});
+  }
   try{
    const submissions=[];
    await context.route('https://cdn.jsdelivr.net/**',route=>route.abort());
@@ -77,6 +111,16 @@ try{
     assert.equal(await page.locator('#v2ApprovedGallery article').count(),1);
     assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),origin+'/bmw-r1300gs.html');
    }else assert.equal(await page.locator('#databaseHeroPhoto').isVisible(),false);
+   if(make==='Suzuki'){
+    const visible=page.locator('.anybike-v2-reviewed-universal-section');
+    if(width===1280){
+     assert.equal(await visible.count(),1,'Approved research must render on universal master');
+     assert.match(await visible.innerText(),/Approved factory history smoke-test record/);
+    }else{
+     assert.equal(await visible.count(),0,'Draft research must never become visible');
+     assert.equal((await page.locator('#body').innerText()).includes('Approved factory history smoke-test record'),false);
+    }
+   }
    await page.locator('input[name=name]').fill('Browser Test');
    await page.locator('input[name=email]').fill('browser@example.invalid');
    await page.locator('input[name=country]').fill('United Kingdom');
