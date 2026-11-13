@@ -6,6 +6,13 @@ const sitemap=readFileSync(new URL('../sitemap.xml',import.meta.url),'utf8');
 const approved=JSON.parse(readFileSync(new URL('../data/motorcycle-index-identities.json',import.meta.url),'utf8')).models;
 assert(guide.includes('<meta name="robots" content="index,follow" id="modelRobots">'),'Model pages must be indexable without waiting for Supabase');
 assert(guide.includes('<header id="publicHeader"></header>'),'Shared model guide must preserve the standard AnyBike header');
+const approvedMaster=readFileSync(new URL('../design/model-template/approved-bmw-r1300gs-v2-2026-11-02.html',import.meta.url),'utf8');
+for(const sharedElement of ['<section class="hero">','<div class="intro" id="summary">','<div id="years">','<section id="generationPanel" class="generation-panel" hidden>','<div id="generationControls"','<div id="generationDetail"','<div id="generationCompare"']){
+ assert(approvedMaster.includes(sharedElement),'Approved BMW design missing shared structural element: '+sharedElement);
+ assert(guide.includes(sharedElement),'Universal model guide must preserve BMW-approved structural element: '+sharedElement);
+}
+assert(guide.includes('--red:#ed1c24;--panel:#151515'),'Universal model guide must retain approved AnyBike charcoal/red palette');
+
 assert(guide.includes('/shared-model-catalogue.js'),'Shared model guide must retain catalogue-based model identity resolution');
 assert(guide.includes('/model-template/public-verified-model-facts.mjs'),'All models must use the shared verified facts enrichment');
 assert(guide.includes('/model-template/public-approved-model-hero.mjs'),'All models must use the approved hero system');
