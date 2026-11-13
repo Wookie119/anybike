@@ -62,16 +62,31 @@ async function modelNavigation(){
  const target=document.getElementById('databaseRelatedModels');
  if(!target||!make)return;
  const approved=new Map();
- // The established public RPC only returns already-published dedicated guide URLs.
+ // Published dedicated routes remain authoritative even if the browser
+ // Supabase library is unavailable. This is the same public, read-only RPC.
  try{
   const db=window.supabase?.createClient?.(ENDPOINT,KEY);
+  let routes=null;
   if(db){
-   const {data,error}=await db.rpc('public_anybike_manufacturer_model_routes_v1',{p_make:make});
-   if(error)throw error;
-   for(const row of Array.isArray(data)?data:[]){
-    if(normalize(row.make)!==normalize(make)||!validModelPath(row.url)||!String(row.model||'').trim())continue;
-    approved.set(normalize(row.model),{label:row.model,url:row.url});
-   }
+   try{
+    const {data,error}=await db.rpc('public_anybike_manufacturer_model_routes_v1',{p_make:make});
+    if(error)throw error;
+    if(Array.isArray(data))routes=data;
+   }catch(error){console.warn('Supabase JS model routes unavailable',error);}
+  }
+  if(!routes){
+   const response=await fetch(ENDPOINT+'/rest/v1/rpc/public_anybike_manufacturer_model_routes_v1',{
+    method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_make:make}),cache:'no-store'
+   });
+   if(!response.ok)throw Error('Public model routes HTTP '+response.status);
+   const data=await response.json();
+   if(!Array.isArray(data))throw Error('Invalid model routes response');
+   routes=data;
+  }
+  for(const row of routes){
+   if(normalize(row.make)!==normalize(make)||!validModelPath(row.url)||!String(row.model||'').trim())continue;
+   approved.set(normalize(row.model),{label:row.model,url:row.url});
   }
  }catch(error){console.warn('V2 public model routes unavailable',error);}
  // This existing public JSON catalogue is a directory of names, not a claim
