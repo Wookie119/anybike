@@ -7,6 +7,7 @@ import {resolveApprovedV2Identity,normalizeModelIdentity} from '../model-templat
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const rows=JSON.parse(read('data/approved-dedicated-model-routes.json')).models;
 const renderer=read('model-template/approved-v2-universal-preview.mjs');
+const harleyResearch=read('model-template/public-harley-verified-research.mjs');
 const protectedPaths=new Set(['/bmw-r1300gs.html','/bmw-r1300gs-v2.html','/bmw-r1300gs-v2-approved-20261102.html']);
 assert(Array.isArray(rows)&&rows.length>0);
 const seen=new Set();
@@ -22,6 +23,7 @@ for(const unsafe of ['/motorcycle-model-guide.html','/motorcycle-brand.html','/h
  assert.equal(resolveApprovedV2Identity(unsafe,rows),null,'Unapproved URL must fail closed: '+unsafe);
 }
 assert.equal(resolveApprovedV2Identity(rows[0].url,[...rows,rows[0]]),null,'Duplicate route registration must fail closed');
+assert.match(harleyResearch,/resolveApprovedV2Identity\(pathname,rows\)/);
 assert.match(renderer,/approvedDedicatedRoute=identity\.url/);
 assert.match(renderer,/new URL\(approvedDedicatedRoute,location\.origin\)/);
 assert.match(renderer,/Dedicated model route\/query conflict/);
