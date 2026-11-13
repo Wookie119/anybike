@@ -164,6 +164,23 @@ async function mount(){
     const paragraph=panel.querySelector('p');
     if(paragraph)paragraph.textContent='Documented family or comparable generation. Browse the complete '+make+' directory for all other models.';
    });
+   // Two independent public catalogue loaders can create the same related
+   // family card. Keep the first and preserve nonduplicated links from later
+   // cards, rather than displaying identical research-navigation panels.
+   if(chosen.length){
+    const duplicates=[...main.querySelectorAll('section[data-anybike-curated-related="1"]')]
+     .filter(panel=>panel.querySelector('h2,h3')?.textContent?.trim()==='Related '+make+' model family');
+    if(duplicates.length>1){
+     const keeper=duplicates[0], keptNav=keeper.querySelector('nav');
+     const keys=new Set([...keeper.querySelectorAll('nav a[href]')].map(a=>a.href));
+     for(const redundant of duplicates.slice(1)){
+      for(const link of redundant.querySelectorAll('nav a[href]')){
+       if(keptNav&&!keys.has(link.href)){keptNav.append(link.cloneNode(true));keys.add(link.href);}
+      }
+      redundant.remove();
+     }
+    }
+   }
   }
   render();
   // Legacy guide loaders can add the related-model panel after the first
