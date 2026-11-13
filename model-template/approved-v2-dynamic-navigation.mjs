@@ -131,16 +131,37 @@ async function modelNavigation(){
     panel.append(heading,description,near,details);
    }
    const modelWords=normalize(current.model).split(' ').filter(Boolean);
-   const family=modelWords.find(word=>/^[a-z]+$/.test(word)&&word.length>2)||'';
+   // A model family is manufacturer-specific: "R" identifies BMW's broad
+   // R-series, but the same prefix cannot be treated as a family rule for
+   // Honda, Suzuki, Harley-Davidson or any other manufacturer.
+   const bmwSeries=label=>{
+    if(normalize(make)!=='bmw')return '';
+    const match=String(label||'').trim().match(/^([RFMKCSG])\s*(?=\d|nine\b)/i);
+    return match?match[1].toUpperCase():'';
+   };
+   const currentSeries=bmwSeries(current.model);
+   const currentNumber=Number(modelWords.find(word=>/^\d{3,4}$/.test(word))||0);
    const score=item=>{
     const words=normalize(item.label).split(' ').filter(Boolean);
-    let points=0;
     if(item.current)return -1000;
-    if(modelWords[0]&&words[0]===modelWords[0])points+=8;
-    if(modelWords.length>1&&words[1]===modelWords[1])points+=7;
-    if(family&&words.includes(family))points+=4;
+    let points=0;
+    if(currentSeries&&bmwSeries(item.label)===currentSeries)points+=25;
+    // Prioritise the nearest GS relatives *within* BMW's R family.
+    // The R-series itself remains broad: R 18 and R 32 are still eligible.
+    if(normalize(make)==='bmw'){
+     if(modelWords.includes('gs')&&words.includes('gs'))points+=14;
+     const number=Number(words.find(word=>/^\d{3,4}$/.test(word))||0);
+     if(currentNumber&&number){
+      const distance=Math.abs(currentNumber-number);
+      points+=distance===0?10:distance<=100?8:distance<=200?6:distance<=400?3:0;
+     }
+    }else{
+     // Without an approved manufacturer-specific family definition, use
+     // shared descriptive model tokens, never a one-letter prefix.
+     if(modelWords[0]?.length>2&&words[0]===modelWords[0])points+=8;
+     if(modelWords.length>1&&modelWords[1].length>2&&words[1]===modelWords[1])points+=7;
+    }
     if(modelWords.some(x=>x.length>2&&words.includes(x)))points+=3;
-    if(words.some(x=>modelWords.some(y=>y.length>2&&x.startsWith(y))))points+=2;
     return points;
    };
    const ranked=links.filter(item=>!item.current)
