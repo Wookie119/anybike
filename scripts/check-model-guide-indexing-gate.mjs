@@ -30,6 +30,13 @@ assert(verifiedRenderer.includes('renderVerifiedModelExploration(body,allFacts,m
 assert(verifiedRenderer.includes("timeline.hidden=dated.length===0"),'No fabricated model-year timeline for models without dated research');
 assert(verifiedRenderer.includes("deepDive.hidden=deepEntries.children.length===0"),'No empty or fabricated deep-dive sections');
 assert(verifiedRenderer.includes("section.dataset.anybikeResearchIdentity!==requestedIdentity"),'Changing motorcycle must clear previous research exploration and sources');
+assert(guide.includes('id="verifiedModelTechnical" class="anybike-model-technical"'),'Universal guide must include approved-colour technical overview');
+assert(guide.includes('id="verifiedModelTechnicalEntries"'),'Technical overview must have a verified-data destination');
+assert(verifiedRenderer.includes("const technicalCategories=new Set(['engine','transmission','performance','specification','dimensions','chassis','wheels','brakes','engineering'])"),'Technical overview must only display approved technical categories');
+assert(verifiedRenderer.includes('fact.display.map(entry=>entry.label'), 'Technical overview must use the audited display projection');
+assert(verifiedRenderer.includes('technical.hidden=technicalEntries.children.length===0'), 'Models without audited technical records must not show an empty overview');
+assert(verifiedRenderer.includes("if(id==='verifiedModelTechnical')section.querySelector('#verifiedModelTechnicalEntries')?.replaceChildren()"), 'Technical overview must clear on motorcycle identity change');
+
 
 
 
