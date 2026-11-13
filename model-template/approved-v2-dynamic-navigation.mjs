@@ -105,12 +105,10 @@ async function modelNavigation(){
    '/motorcycle-v2-master.html':'/motorcycle-model-guide.html')+
    '?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(name)
  });
- for(const [key,item] of approved){
-  if(location.pathname==='/motorcycle-v2-master.html'){
-   combined.set(key,{label:item.label,url:'/motorcycle-v2-master.html?make='+
-    encodeURIComponent(make)+'&model='+encodeURIComponent(item.label)});
-  }else combined.set(key,item);
- }
+ // Approved dedicated model URLs remain primary destinations during rollout.
+ // Never send a visitor from a published BMW/Harley URL to a parallel master
+ // URL merely because they browsed the universal model directory.
+ for(const [key,item] of approved)combined.set(key,item);
  // If public navigation is temporarily unavailable, preserve the existing
  // V2 pills rather than replace them with an empty list.
  const links=[...combined.values()].sort((a,b)=>a.label.localeCompare(b.label,'en-GB',{numeric:true}))
