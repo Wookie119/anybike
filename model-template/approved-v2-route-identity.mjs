@@ -2,7 +2,7 @@
 // Never infer a model from filename slug, brand prefix or partial name.
 export const normalizeModelIdentity=value=>String(value??'').toLocaleLowerCase('en-GB').replace(/[^a-z0-9]+/g,' ').trim();
 export function resolveApprovedV2Identity(pathname,rows){
- if(typeof pathname!=='string'||!/^\\/(?:bmw|harley-davidson)-[a-z0-9-]+\\.html$/.test(pathname))return null;
+ if(typeof pathname!=='string'||!/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(pathname))return null;
  if(!Array.isArray(rows))return null;
  const matches=rows.filter(row=>row&&row.url===pathname&&
   typeof row.make==='string'&&row.make.trim()&&
