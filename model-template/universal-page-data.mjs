@@ -110,11 +110,6 @@ export async function loadUniversalPublishedPage(client,{type,id,restEndpoint,re
        key==='source_file'||key==='source_blob_sha')&&
      Array.isArray(row.content.source_blocks))
    throw Error('Unreviewed source-only research section blocked');
-  // Keep public-loader validation in line with the direct 20-slot contract.
-  // Unreviewed metadata and arbitrary importer JSON must never be mistaken
-  // for a customer-facing researched section.
-  if(!hasRenderableUniversalResearch(row.content))
-   throw Error('Research section has no renderable editorial content');
   // Photography references are asset-rights metadata, not renderable model
   // research. A faulty publisher must not turn them into a public section
   // merely because the JSON is nonempty. Images follow the independent
@@ -130,6 +125,11 @@ export async function loadUniversalPublishedPage(client,{type,id,restEndpoint,re
      !['verified','approved','published'].includes(
        String(row.content.engineering.verification_status||'').toLowerCase()))
    throw Error('Unverified engineering-only section blocked');
+  // Keep public-loader validation in line with the direct 20-slot contract.
+  // Unreviewed metadata and arbitrary importer JSON must never be mistaken
+  // for a customer-facing researched section.
+  if(!hasRenderableUniversalResearch(row.content))
+   throw Error('Research section has no renderable editorial content');
   return {...row,entity_type:identity.type,entity_id:identity.id};
  });
  return Object.freeze({entity:identity,sections,stock:[]});
