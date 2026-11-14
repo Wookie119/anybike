@@ -253,8 +253,8 @@ assert(verifiedGallery.includes('if(!records.length){'),
  'A successful withdrawal of photo approvals must remove the old gallery');
 assert(verifiedGallery.includes('published.remove?.()'),
  'Withdrawn approved photographs must be removed from the public model page');
-assert(verifiedGallery.includes('background:#fff;color:#171717'),
- 'Approved photo gallery must follow the light research design, not introduce black panels');
+assert(verifiedGallery.includes('background:#252525;color:#fff;border:2px solid #ed1c24'),
+ 'Approved photo gallery must retain AnyBike charcoal and red styling, not white or burgundy panels');
 
 for(const guard of ["p.approval_status='approved'","p.subject_category='whole_motorcycle'","p.licence_url ~ '^https://","p.source_page_url ~ '^https://","p.manufacturer=r.manufacturer and p.model=r.model"])
  assert(verifiedGalleryRpc.includes(guard),'Exact model licensed photo gallery guard missing: '+guard);
