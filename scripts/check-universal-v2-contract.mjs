@@ -28,7 +28,22 @@ check('All approved V2 reference styles are present verbatim in the shared style
 check('Approved V2 model-section structure matches the exact reference',()=>{
  const sectionClasses=source=>[...source.matchAll(/<section\b([^>]*)>/g)].map(match=>
   (match[1].match(/\bclass="([^"]+)"/)||[])[1]||'');
- assert.deepEqual(sectionClasses(html),sectionClasses(referenceHtml));
+ // The universal rollout moves the existing Available Stock block below hero.
+ // It must not move, remove or restyle any other approved reference section.
+ const approvedOrder=sectionClasses(referenceHtml),masterOrder=sectionClasses(html);
+ assert.equal(approvedOrder.filter(x=>x==='end-action').length,5);
+ assert.equal(masterOrder.filter(x=>x==='end-action').length,5);
+ const stockPosition=html.indexOf('id="internationalModelStock"');
+ const heroPosition=html.indexOf('<section class="hero"');
+ const generationPosition=html.indexOf('id="generationPanel"');
+ assert(heroPosition>=0&&stockPosition>heroPosition&&generationPosition>stockPosition,
+  'International exact-model stock must appear after hero and before research');
+ const stockMoved=masterOrder.slice();
+ assert.equal(stockMoved[1],'end-action','Stock must be the only relocated end-action');
+ stockMoved.splice(1,1);
+ const expected=approvedOrder.slice();
+ expected.splice(expected.lastIndexOf('end-action'),1);
+ assert.deepEqual(stockMoved,expected,'Every other approved reference section must retain its order');
  const required=['publicHeader','category','heading','summary','years','databaseHeroPhoto','source',
   'generationPanel','generationControls','generationDetail','generationCompare',
   'r1300V2VerifiedExtras','databaseModelTimeline','body','r1300DeepDive',
@@ -139,7 +154,8 @@ check('Approved model photo galleries never displace exact-model stock',()=>{
 check('Shared enquiries and available stock remain available before research',()=>{
  assert.match(renderer,/international-guest-enquiry/);
  assert.match(renderer,/if\(header&&stock\)header\.after\(stock\)/);
- assert.match(renderer,/loadUniversalPublishedPage\(client,\{type:'model',id:canonicalId\}\)/);
+ assert.match(renderer,/loadUniversalPublishedPage\(client,\{/);
+ assert.match(renderer,/type:'model',id:canonicalId,restEndpoint:ENDPOINT,restKey:KEY/);
 });
 check('Verified-facts outages do not block exact-model stock or public enquiries',()=>{
  const factStart=renderer.indexOf('factCount=await installVerifiedModelFacts(');
