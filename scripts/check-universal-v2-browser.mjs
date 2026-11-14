@@ -185,7 +185,10 @@ try{
     assert.doesNotMatch(await page.locator('main').innerText(),/9999|Wrong model must not render/,
      'Similar Honda model records must never contaminate exact-model research');
     assert.equal(await page.locator('#r1300V2VerifiedExtras').isVisible(),true);
-    assert.match(await page.locator('#r1300gsModelHistory').innerText(),/Documented UK model year/);
+    // Model-year cards belong to their dedicated, source-linked V2 panel.
+    // The development/ownership heading is a separate section.
+    assert.match(await page.locator('#v2GenericModelYears').innerText(),/Documented UK model year/);
+    assert.equal(await page.locator('#v2GenericModelYears').isVisible(),true);
    }
    if(specificationPlacement){
     assert.equal(await page.locator('#v2DocumentedSpecifications').evaluate(el=>el.parentElement?.tagName),'MAIN');
