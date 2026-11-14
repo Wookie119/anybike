@@ -46,6 +46,64 @@ function sourceLink(parent,href,label){
  const a=node('a',str(label)||'Manufacturer reference ↗');
  a.href=href;a.target='_blank';a.rel='noopener noreferrer';parent.append(a);
 }
+// The factory evidence remains in the DOM, with all original text and
+// sources. Native details shorten the page without fetching or removing
+// material on click, and are keyboard/mobile accessible.
+function organiseUniversalFactoryResearch(body){
+ const panel=body?.querySelector('[data-anybike-verified-model-facts]');
+ if(!panel)return;
+ const groups=[...panel.querySelectorAll(':scope > [data-anybike-research-category]')];
+ if(groups.length<3)return;
+ panel.classList.add('anybike-v2-organised-research');
+ if(!panel.querySelector('[data-v2-research-controls]')){
+  const controls=node('div',undefined,'anybike-v2-research-controls');
+  controls.dataset.v2ResearchControls='1';
+  const expand=node('button','Expand all research');
+  const collapse=node('button','Collapse all research');
+  expand.type='button';collapse.type='button';
+  expand.addEventListener('click',()=>{
+   panel.querySelectorAll('details[data-v2-factory-category]').forEach(item=>item.open=true);
+  });
+  collapse.addEventListener('click',()=>{
+   panel.querySelectorAll('details[data-v2-factory-category]').forEach(item=>item.open=false);
+  });
+  controls.append(expand,collapse);
+  groups[0].before(controls);
+ }
+ for(const [index,group] of groups.entries()){
+  if(group.querySelector(':scope > details[data-v2-factory-category]'))continue;
+  const heading=group.querySelector(':scope > h3');
+  if(!heading||!heading.textContent?.trim())continue;
+  const details=node('details');
+  details.dataset.v2FactoryCategory='1';
+  // Keep the first documented section open; the rest are available on tap.
+  details.open=index===0;
+  const summary=node('summary');
+  summary.append(heading);
+  const evidenceCount=group.querySelectorAll('article').length;
+  if(evidenceCount)summary.append(node('span',evidenceCount+' documented '+(evidenceCount===1?'record':'records')));
+  details.append(summary);
+  for(const child of [...group.children])details.append(child);
+  group.append(details);
+ }
+ // The separately authored reference panels may add year-specific detail.
+ // Keep their text and source citations, but avoid an additional large
+ // permanently expanded sequence after the verified research.
+ for(const id of ['v2FactoryColours','v2EngineeringOverview']){
+  const section=$(id);
+  if(!section||section.querySelector('[data-v2-compact-supplement]'))continue;
+  const heading=section.querySelector(':scope > h2');
+  if(!heading)continue;
+  const detail=node('details');
+  detail.dataset.v2CompactSupplement='1';
+  const summary=node('summary');
+  summary.append(heading);
+  detail.append(summary);
+  for(const child of [...section.children])detail.append(child);
+  section.append(detail);
+  section.classList.add('anybike-v2-compact-supplement');
+ }
+}
 function makeSection(id,title,after){
  let el=$(id);
  if(!el){
@@ -773,6 +831,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     group.append(article);
    }
   }
+  organiseUniversalFactoryResearch($('body'));
   // Avoid an empty-looking extra research-status card where no verified
   // research has yet been published. Keep model-specific sourcing available.
   if(!factCount&&!guide&&!publishedCount){
