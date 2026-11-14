@@ -527,6 +527,10 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   if(development&&(yearCards.length||devCards.length)){
    development.hidden=false;
    const years=makeSection('v2GenericModelYears','Model years & editions',development);
+   // The approved BMW R 1300 GS reading order places model years and
+   // editions before the broader development and ownership stories.
+   // Reuse one shared section for every make; no per-model markup variants.
+   development.before(years);
    years.querySelector('h2').textContent=title+' — model years and editions';
    const container=node('div',undefined,'v2-model-year-cards');
    for(const c of yearCards){
