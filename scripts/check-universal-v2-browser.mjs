@@ -40,7 +40,8 @@ const tests=[['BMW','R 1300 GS',1280],['BMW','R 1300 GS',390],['Suzuki','RM250',
  ['Ducati','Monster',390,'motorcycle-model-guide.html'],
  ['Triumph','Street Triple',1280,'motorcycle-model-guide.html'],
  ['KTM','390 Duke',390,'motorcycle-model-guide.html'],
- ['Suzuki','RM250',1024],['Suzuki','RM250',768]];
+ ['Suzuki','RM250',1024],['Suzuki','RM250',768],
+ ['Suzuki','RM250',560]];
 let passed=0;
 try{
  for(const [make,model,width,routeName='motorcycle-v2-master.html'] of tests){
@@ -114,8 +115,10 @@ try{
     let body=null,status=200;
     if(pathname.endsWith('/motorcycle_universal_published_sections_v1')){
      const query=new URL(route.request().url()).searchParams;
-     publishedRestRequests.push({method:route.request().method(),query});
-     if(make==='Suzuki'&&query.get('entity_type')==='eq.model'&&
+     // OPTIONS preflight is not a research read. Count actual GETs only.
+     if(route.request().method()==='GET')
+      publishedRestRequests.push({method:route.request().method(),query});
+     if(make==='Suzuki'&&width!==560&&query.get('entity_type')==='eq.model'&&
         query.get('entity_id')==='eq.202'&&
         query.get('publication_eligible')==='eq.true'&&
         query.get('order')==='section_number.asc'&&
