@@ -89,8 +89,8 @@ for(const file of models){
  assert(accepted,'Model guide still using stale stock script: '+file);
  assert(html.includes('<h1')||file==='motorcycle-variant.html','Model heading missing: '+file);
 }
-const v2=fs.readFileSync('bmw-r1300gs-v2.html','utf8');
-assert(v2.includes('bmw-r1300gs.html'),'Protected V2 canonical missing');
+const protectedLegacyV2=fs.readFileSync('bmw-r1300gs-v2.html','utf8');
+assert(protectedLegacyV2.includes('bmw-r1300gs.html'),'Protected V2 canonical missing');
 const harley=fs.readFileSync('harley-davidson-motorcycles.html','utf8');
 assert(harley.includes('<h1'),'Protected Harley manufacturer page missing');
 console.log('PASS: '+models.length+' guide routes; '+cases.length+' matching cases; no unrelated model listings; approved R 1300 GS and R 1250 GS research/stock hooks remain.');
