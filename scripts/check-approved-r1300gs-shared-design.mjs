@@ -32,7 +32,9 @@ for(const token of ['--red:#ed1c24','background:#000','background:var(--panel)',
  '.generation-panel','.factory-colour-card','.grid']){
  assert(shared.includes(token),'Approved design token missing: '+token);
 }
-assert(guide.includes('internationalHeading'),'Existing international enquiry route must remain available');
+assert(guide.includes('id="internationalGuestRequestForm"')&&
+ guide.includes('id="internationalGuestRequest"')&&guide.includes('id="sourceBottom"'),
+ 'Shared model guide must preserve the visible no-login international enquiry and sourcing actions');
 const dedicatedRoutes=JSON.parse(readFileSync('data/approved-dedicated-model-routes.json','utf8')).models;
 assert(dedicatedRoutes.length>=45,'All approved dedicated routes must remain in the catalogue');
 for(const {url} of dedicatedRoutes){
