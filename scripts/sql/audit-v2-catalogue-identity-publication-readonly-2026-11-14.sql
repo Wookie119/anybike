@@ -47,6 +47,39 @@ SELECT COUNT(*) AS models_with_drafts,
        COUNT(*) FILTER (WHERE manufacturer_matches>1) AS ambiguous_manufacturer
 FROM matches;
 
+-- 2a. Authoritative publication gate: the reviewed parent-identity table,
+--     NOT text matching, is what the release trigger actually checks.
+--     A matching manufacturer name cannot waive a missing verified relation.
+WITH researched_models AS (
+ SELECT DISTINCT model_id
+ FROM public.motorcycle_universal_page_sections_v1
+ WHERE entity_type='model'
+), validated AS (
+ SELECT r.model_id,p.manufacturer_id,p.review_status
+ FROM researched_models r
+ LEFT JOIN public.motorcycle_catalog_model_parent_identity_v1 p
+   ON p.catalog_model_id=r.model_id
+)
+SELECT COUNT(*) AS models_with_draft_sections,
+       COUNT(*) FILTER (WHERE review_status='verified' AND manufacturer_id IS NOT NULL)
+         AS verified_canonical_parents,
+       COUNT(*) FILTER (WHERE review_status IS NULL OR manufacturer_id IS NULL)
+         AS unresolved_parents,
+       COUNT(*) FILTER (WHERE review_status IS NOT NULL AND review_status<>'verified')
+         AS unapproved_parents
+FROM validated;
+
+-- 2b. Identify unresolved models without altering or guessing their parents.
+SELECT m.id AS catalog_model_id,m.manufacturer,m.model,
+       p.manufacturer_id,p.review_status
+FROM public.motorcycle_catalog_models m
+JOIN (SELECT DISTINCT model_id FROM public.motorcycle_universal_page_sections_v1
+      WHERE entity_type='model') researched ON researched.model_id=m.id
+LEFT JOIN public.motorcycle_catalog_model_parent_identity_v1 p
+  ON p.catalog_model_id=m.id
+WHERE p.review_status IS DISTINCT FROM 'verified' OR p.manufacturer_id IS NULL
+ORDER BY m.manufacturer,m.model,m.id;
+
 -- 3. Per-model editorial readiness for the approved 20-slot layout.
 --    Missing slots are EMPTY DESTINATIONS, not missing templates. No assumption
 --    that a draft with a source_reference is verified, licensed or publishable.
