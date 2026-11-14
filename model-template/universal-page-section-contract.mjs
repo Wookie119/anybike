@@ -71,6 +71,11 @@ export function buildUniversalPageSections(entity,sections){
    if(Array.isArray(s.content.source_blocks)&&
       keys.every(k=>['source_blocks','source_file','source_blob_sha'].includes(k)))
     continue;
+   // A photo-rights dossier is not customer-facing editorial research.
+   // Reject it here too: direct renderer callers cannot bypass the
+   // published-only database loader's photography-only safeguard.
+   if(keys.length===1&&Object.prototype.hasOwnProperty.call(s.content,'photography'))
+    continue;
    // A pending engineering payload on its own is not a published section.
    // Approved surrounding editorial may still display independently, with
    // nested technical claims filtered by the renderer.
