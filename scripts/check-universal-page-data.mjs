@@ -81,4 +81,47 @@ const reviewedRoot=await loadUniversalPublishedPage(makeClient({data:[{
 }],error:null}),{type:'model',id:68});
 assert.equal(reviewedRoot.sections.length,1);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[],error:null}),{type:'model',id:0}),/Canonical/);
+// The same released research must work when the optional Supabase browser
+// bundle is missing. This REST fallback must never query the private drafts.
+const originalFetch=globalThis.fetch;
+const calls=[];
+try {
+ globalThis.fetch=async (url,options)=>{
+  const parsed=new URL(url);
+  calls.push({parsed,options});
+  return {ok:true,json:async()=>rows};
+ };
+ const fallback=await loadUniversalPublishedPage(null,{
+  type:'model',id:68,
+  restEndpoint:'https://example.supabase.co',restKey:'public-test-only'
+ });
+ assert.equal(fallback.sections.length,1,'Public REST fallback lost reviewed data');
+ assert.equal(fallback.entity.id,68,'Public REST fallback changed catalogue identity');
+ assert.equal(calls.length,1,'Unexpected additional public read');
+ assert.equal(calls[0].parsed.pathname,'/rest/v1/'+UNIVERSAL_PUBLIC_SECTIONS);
+ assert.equal(calls[0].parsed.searchParams.get('entity_type'),'eq.model');
+ assert.equal(calls[0].parsed.searchParams.get('entity_id'),'eq.68');
+ assert.equal(calls[0].parsed.searchParams.get('publication_eligible'),'eq.true');
+ assert.equal(calls[0].parsed.searchParams.get('order'),'section_number.asc');
+ assert.equal(calls[0].parsed.searchParams.get('limit'),'21');
+ assert.equal(calls[0].options.method,'GET');
+ assert.equal(calls[0].options.headers.apikey,'public-test-only');
+ assert.equal(calls[0].options.cache,'no-store');
+ globalThis.fetch=async()=>({ok:true,json:async()=>[{...rows[0],editorial_status:'draft'}]});
+ await assert.rejects(loadUniversalPublishedPage(null,{
+  type:'model',id:68,restEndpoint:'https://example.supabase.co',restKey:'public-test-only'
+ }),/Unpublished content returned/,'REST must preserve draft suppression');
+ globalThis.fetch=async()=>({ok:true,json:async()=>[]});
+ assert.equal(await loadUniversalPublishedPage(null,{
+  type:'model',id:68,restEndpoint:'https://example.supabase.co',restKey:'public-test-only'
+ }),null,'REST must not invent missing approved research');
+ globalThis.fetch=async()=>({ok:false,status:403});
+ await assert.rejects(loadUniversalPublishedPage(null,{
+  type:'model',id:68,restEndpoint:'https://example.supabase.co',restKey:'public-test-only'
+ }),/Published catalogue unavailable/,'REST must fail closed on RLS denial');
+ await assert.rejects(loadUniversalPublishedPage(null,{
+  type:'model',id:68,restEndpoint:'http://unsafe.example',restKey:'public-test-only'
+ }),/Supabase public client required/,'Never use insecure REST endpoint');
+} finally {globalThis.fetch=originalFetch;}
+
 console.log('PASS: public-only universal Supabase projection and strict manufacturer/model identity checks');
