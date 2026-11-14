@@ -57,7 +57,12 @@ assert(brand.includes('id="modelGroups"'),'Manufacturer model collection missing
 assert(brand.includes('const groups=key&&guides[key]?Object.fromEntries('),'Manufacturers without legacy curated models must render their database models');
 assert(brand.includes('public_anybike_manufacturer_catalogue_names_v1'),'Manufacturer cards must read the canonical public model names');
 assert(brand.includes('rest/v1/rpc/public_anybike_manufacturer_catalogue_names_v1'),'Manufacturer model cards must work without the optional Supabase JS client');
-assert(brand.includes('if(models.length)return {models};'),'Canonical model cards must take precedence over stale static catalogue');
+assert(brand.includes('if(models.length)return await mergePublishedManufacturerModels(models);'),
+ 'Canonical Supabase model cards must be merged with reviewed published identities');
+assert(brand.includes('for(const item of [...published,...liveModels])'),
+ 'Newly returned canonical models must take precedence over older published snapshot entries');
+assert(brand.includes('merged.set(item.model.trim().toLowerCase(),item)'),
+ 'Canonical duplicate model identities must be resolved during merge');
 assert(brand.includes('groups[category]=list.filter(name=>approved.has(match(name)))'),'Manufacturer cards must not mix stale curated names into the canonical model directory');
 assert(guide.includes('motorcycle-model-guide.html')||guide.includes('id="nextAction"'),'Shared model guide missing');
 assert(!script.includes('international-public-stock'),'Pill navigation must never query private stock');
