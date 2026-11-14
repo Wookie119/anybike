@@ -87,3 +87,32 @@ FROM public.motorcycle_universal_page_sections_v1
 WHERE entity_type='model' AND model_id=77
   AND content::text ILIKE '%pending_editorial_review%'
 ORDER BY section_number;
+
+-- 4. Editorial payload compatibility with the approved universal renderer.
+-- A metadata-only section must not become a blank public research card.
+-- Photography remains subject to the independent rights-approved hero/gallery
+-- pathway; this report does NOT authorise photos or alter the approved design.
+WITH renderable_keys(key) AS (
+ SELECT unnest(ARRAY[
+ 'summary','years','timeline','production_evidence','engineering',
+ 'generations','milestones','types','specifications','colours','editions',
+ 'global_stories','deep_dive','development_cards','related_model_links',
+ 'actions','customer_copy','paragraphs','entries','links','hero','production'
+ ]::text[])
+)
+SELECT s.section_number,s.section_title,
+       array(SELECT jsonb_object_keys(s.content) ORDER BY 1) AS content_keys,
+       EXISTS (
+         SELECT 1 FROM renderable_keys k WHERE s.content ? k.key
+       ) AS contains_recognised_renderer_payload,
+       CASE
+         WHEN s.content ? 'photography' AND
+              NOT EXISTS (SELECT 1 FROM renderable_keys k WHERE s.content ? k.key)
+           THEN 'PHOTOGRAPHY_METADATA_ONLY: use rights-approved media pipeline'
+         WHEN NOT EXISTS (SELECT 1 FROM renderable_keys k WHERE s.content ? k.key)
+           THEN 'REVIEW_UNRENDERABLE_SECTION'
+         ELSE 'SCHEMA_KEY_RECOGNISED: still requires content and editorial QA'
+       END AS renderer_review
+FROM public.motorcycle_universal_page_sections_v1 s
+WHERE s.entity_type='model' AND s.model_id=77
+ORDER BY s.section_number;
