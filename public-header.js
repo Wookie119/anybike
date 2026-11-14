@@ -1020,12 +1020,7 @@ async function addMyDealershipMenuIfEligible(user){
       document.documentElement.classList.add("anybike-international-dealer");
       for(const menuId of ["loggedInMenu","mobileLoggedInMenu"]){
         const menu=document.getElementById(menuId);if(!menu)continue;
-        menu.querySelectorAll('a[href="/my-selling.html"],a[href="/sell-your-motorcycle.html"]').forEach(a=>a.remove());
-        if(!menu.querySelector('[data-international-stock-menu="true"]')){
-          const a=document.createElement("a");a.href="/available-stock.html?vat=qualifying";
-          a.textContent="Available Stock";a.dataset.internationalStockMenu="true";
-          menu.prepend(a);
-        }
+        menu.querySelectorAll('a[href="/my-selling.html"],a[href="/sell-your-motorcycle.html"],a[data-international-stock-menu="true"]').forEach(a=>a.remove());
       }
       document.querySelectorAll('.public-nav a[href="/sell-your-motorcycle.html"],.mobile-nav a[href="/sell-your-motorcycle.html"]').forEach(a=>a.style.display="none");
       for(const navSelector of [".public-nav",".mobile-nav"]){
