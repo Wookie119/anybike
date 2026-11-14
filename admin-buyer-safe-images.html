@@ -603,6 +603,47 @@ async function showSellerBulkApproval(){
     }catch(e){alert("No photos were bulk-approved: "+String(e.message||e));await showSellerBulkApproval();}
   });
   panel.append(text,button);
+  if(Number(data?.needs_attention||0)>0){
+   const cleanButton=document.createElement('button');
+   cleanButton.type='button';cleanButton.className='dark';
+   cleanButton.textContent='Clean pending photos for review';
+   cleanButton.title='Create buyer-safe processed copies; does not approve or publish photographs';
+   cleanButton.addEventListener('click',async()=>{
+    if(!confirm('Process the unreviewed photographs for this motorcycle? Originals remain private. You must inspect the cleaned results and approve them separately.'))return;
+    cleanButton.disabled=true;button.disabled=true;
+    let done=0,failed=0,errors=[];
+    try{
+     const {data:photos,error:photoError}=await sb.rpc('admin_get_seller_submission_images_v2',
+      {p_submission_id:sellerReviewId});
+     if(photoError)throw photoError;
+     const pending=(photos||[]).filter(photo=>
+      !['approved','rejected'].includes(String(photo.final_status||''))&&
+      !photo.buyer_safe_url&&
+      !['running','processing'].includes(String(photo.processing_status||'')));
+     if(!pending.length){
+      detail.textContent='No pending photographs need cleaning. Refresh the images to review their status.';
+      return;
+     }
+     for(const photo of pending){
+      cleanButton.textContent='Cleaning '+(done+failed+1)+' of '+pending.length+'…';
+      try{
+       const {data:result,error:cleanError}=await sb.functions.invoke('admin-clean-seller-photo',
+        {body:{image_id:Number(photo.image_id)}});
+       if(cleanError||!result?.success)throw Error(result?.error||cleanError?.message||'Cleaning failed');
+       done++;
+      }catch(error){failed++;errors.push('Photo '+photo.image_position+': '+String(error.message||error));}
+     }
+     await loadSellerSubmissionComparisons();
+     if(failed)alert(done+' photo(s) processed for private review; '+failed+
+      ' could not be processed. '+errors.slice(0,3).join(' | '));
+     else alert(done+' photo(s) processed. Inspect every buyer-safe preview, then approve only suitable photographs.');
+    }catch(error){
+     detail.textContent='Could not start cleaning: '+String(error.message||error);
+     cleanButton.disabled=false;cleanButton.textContent='Retry cleaning pending photos';
+    }
+   });
+   panel.append(cleanButton);
+  }
 }
 async function loadSellerSubmissionComparisons(){
   const host=$("compareList");
