@@ -39,27 +39,29 @@ const tests=[['BMW','R 1300 GS',1280],['BMW','R 1300 GS',390],['Suzuki','RM250',
  ['Kawasaki','Z900',1280,'motorcycle-model-guide.html'],
  ['Ducati','Monster',390,'motorcycle-model-guide.html'],
  ['Triumph','Street Triple',1280,'motorcycle-model-guide.html'],
- ['KTM','390 Duke',390,'motorcycle-model-guide.html']];
+ ['KTM','390 Duke',390,'motorcycle-model-guide.html'],
+ ['Suzuki','RM250',1024],['Suzuki','RM250',768]];
 let passed=0;
 try{
  for(const [make,model,width,routeName='motorcycle-v2-master.html'] of tests){
   const context=await browser.newContext({viewport:{width,height:850}});
   // One positive and one negative publication test: client-side projection
   // must display reviewed sections and suppress draft sections on the SAME V2.
-  if(make==='Suzuki'){
-   const approved=width===1280;
-   const publication=(n,status)=>({
-    source_section_id:700+n,entity_type:'model',entity_id:202,
-    entity_name:'RM250',manufacturer_id:99,section_number:n,
-    section_key:'section_'+String(n).padStart(2,'0'),
-    section_title:'Approved research section '+n,
-    content:{paragraphs:['Approved factory history smoke-test record '+n+'.']},
-    editorial_status:status,publication_eligible:true,
+  const approvedResearch=make==='Suzuki'&&(width===1280||width===1024);
+  const publicationRows=make==='Suzuki'?Array.from(
+   {length:approvedResearch?20:1},(_,i)=>({
+    source_section_id:701+i,entity_type:'model',entity_id:202,
+    entity_name:'RM250',manufacturer_id:99,section_number:i+1,
+    section_key:'section_'+String(i+1).padStart(2,'0'),
+    section_title:'Approved research section '+(i+1),
+    content:{paragraphs:['Approved factory history smoke-test record '+(i+1)+'.']},
+    editorial_status:approvedResearch?'published':'draft',publication_eligible:true,
     published_at:'2026-01-01T00:00:00Z',
     publication_review_reference:'MOCK-REVIEW-NOT-REAL'
-   });
-   const rows=approved?Array.from({length:20},(_,i)=>publication(i+1,'published')):
-    [publication(1,'draft')];
+   })): [];
+  const useInjectedClient=make==='Suzuki'&&(width===1280||width===390);
+  if(useInjectedClient){
+   const rows=publicationRows;
    await context.addInitScript(({rows})=>{
     window.supabase={createClient:()=>({
      rpc:async(name,args)=>{
@@ -82,7 +84,7 @@ try{
    },{rows});
   }
   try{
-   const submissions=[];
+   const submissions=[],publishedRestRequests=[];
    await context.route('https://cdn.jsdelivr.net/**',route=>route.abort());
    await context.route('https://photos.example.invalid/**',route=>route.abort());
    // A real published-guide-shaped fixture proves that year-specific factory
@@ -110,7 +112,17 @@ try{
     let payload={};try{payload=route.request().postDataJSON()||{}}catch{}
     const target=payload.p_make||make;
     let body=null,status=200;
-    if(pathname.endsWith('/public_anybike_manufacturer_catalogue_names_v1'))body=inventory[target]||[];
+    if(pathname.endsWith('/motorcycle_universal_published_sections_v1')){
+     const query=new URL(route.request().url()).searchParams;
+     publishedRestRequests.push({method:route.request().method(),query});
+     if(make==='Suzuki'&&query.get('entity_type')==='eq.model'&&
+        query.get('entity_id')==='eq.202'&&
+        query.get('publication_eligible')==='eq.true'&&
+        query.get('order')==='section_number.asc'&&
+        query.get('limit')==='21')body=publicationRows;
+     else{status=403;body={error:'Incorrect public projection filter'};}
+    }
+    else if(pathname.endsWith('/public_anybike_manufacturer_catalogue_names_v1'))body=inventory[target]||[];
     else if(pathname.endsWith('/public_anybike_manufacturer_model_routes_v1'))body=target==='BMW'?
      [{make:'BMW',model:'R 1300 GS',url:'/bmw-r1300gs.html'}]:[];
     else if(pathname.endsWith('/public_anybike_country_navigation_v1'))body=[
@@ -197,7 +209,7 @@ try{
    }else assert.equal(await page.locator('#databaseHeroPhoto').isVisible(),false);
    if(make==='Suzuki'){
     const visible=page.locator('.anybike-v2-reviewed-universal-section');
-    if(width===1280){
+    if(approvedResearch){
      assert.equal(await visible.count(),20,'All 20 approved research slots must render on the master');
      assert.match(await visible.first().innerText(),/Approved factory history smoke-test record 1/);
      assert.match(await visible.last().innerText(),/Approved factory history smoke-test record 20/);
@@ -205,6 +217,14 @@ try{
      assert.equal(await visible.count(),0,'Draft research must never become visible');
      assert.equal((await page.locator('#body').innerText()).includes('Approved factory history smoke-test record'),false);
     }
+   }
+   if(make==='Suzuki'){
+    if(!useInjectedClient){
+     assert.equal(publishedRestRequests.length,1,'CDN-free research should read published-only table once');
+     assert.equal(publishedRestRequests[0].method,'GET');
+     assert.equal(publishedRestRequests[0].query.get('select')?.includes('publication_review_reference'),true);
+    }else assert.equal(publishedRestRequests.length,0,
+     'Existing Supabase client must remain the preferred publication path');
    }
    await page.locator('input[name=name]').fill('Browser Test');
    await page.locator('input[name=email]').fill('browser@example.invalid');
