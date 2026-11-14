@@ -585,24 +585,70 @@ async function showSellerBulkApproval(){
   detail.textContent=(data?.approved||0)+" already approved · "+sellerBulkReadyIds.length+" ready for approval · "+(data?.needs_attention||0)+" still need processing or review. Unsafe photos stay private.";
   detail.style.cssText="display:block;color:#ccc;margin-top:6px;line-height:1.45";
   text.append(title,detail);
-  const button=document.createElement("button");button.type="button";
-  button.textContent="Approve all "+sellerBulkReadyIds.length+" ready photos";
-  button.disabled=!sellerBulkReadyIds.length;
-  button.style.cssText="background:#ed1c24;border:1px solid #ed1c24;color:white;border-radius:8px;padding:12px 17px;font-weight:800;cursor:pointer";
-  button.addEventListener("click",async()=>{
-    const chosen=[...sellerBulkReadyIds];
-    if(!chosen.length)return;
-    if(!confirm("I have checked the processed previews for these "+chosen.length+" photos and confirm they contain no unwanted text, contact information, branding or other problems. Approve them for the auction?"))return;
-    button.disabled=true;button.textContent="Approving photos…";
-    try{
-      const {data:result,error:saveError}=await sb.rpc("admin_approve_seller_submission_photos_v1",
-        {p_submission_id:sellerReviewId,p_image_ids:chosen});
-      if(saveError||!result?.success)throw Error(saveError?.message||"Approval could not be saved");
-      await loadSellerSubmissionComparisons();
-      alert(result.approved+" reviewed photograph(s) approved. Photos needing work remain private.");
-    }catch(e){alert("No photos were bulk-approved: "+String(e.message||e));await showSellerBulkApproval();}
+  // The server alone determines which photographs are eligible.
+  // Selection is for the administrator's convenience; it never overrides
+  // processing, sanitisation, or publication checks.
+  const selection=document.createElement('div');
+  selection.style.cssText='width:100%;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center';
+  const readySet=new Set(sellerBulkReadyIds);
+  const selected=new Set();
+  const allLabel=document.createElement('label');
+  allLabel.style.cssText='display:flex;align-items:center;gap:8px;font-weight:800;cursor:pointer';
+  const allBox=document.createElement('input');allBox.type='checkbox';
+  allBox.disabled=!sellerBulkReadyIds.length;
+  allLabel.append(allBox,document.createTextNode('Select all ready photos ('+sellerBulkReadyIds.length+')'));
+  selection.append(allLabel);
+  const photoChoices=document.createElement('div');
+  photoChoices.style.cssText='display:flex;flex-wrap:wrap;gap:9px 15px;width:100%';
+  const choices=[];
+  for(const id of sellerBulkReadyIds){
+   const label=document.createElement('label');
+   label.style.cssText='display:inline-flex;align-items:center;gap:6px;border:1px solid #444;background:#111;border-radius:8px;padding:7px 11px;cursor:pointer';
+   const input=document.createElement('input');input.type='checkbox';input.value=String(id);
+   label.append(input,document.createTextNode('Photo '+(choices.length+1)));
+   input.addEventListener('change',()=>{
+    if(input.checked)selected.add(id);else selected.delete(id);
+    updateSelection();
+   });
+   choices.push({id,input});
+   photoChoices.append(label);
+  }
+  selection.append(photoChoices);
+  const button=document.createElement('button');button.type='button';
+  button.style.cssText='background:#ed1c24;border:1px solid #ed1c24;color:white;border-radius:8px;padding:12px 17px;font-weight:800;cursor:pointer';
+  function updateSelection(){
+   allBox.checked=!!sellerBulkReadyIds.length&&selected.size===sellerBulkReadyIds.length;
+   allBox.indeterminate=selected.size>0&&selected.size<sellerBulkReadyIds.length;
+   button.disabled=selected.size===0;
+   button.textContent='Approve selected ('+selected.size+')';
+  }
+  allBox.addEventListener('change',()=>{
+   selected.clear();
+   if(allBox.checked)for(const id of sellerBulkReadyIds)selected.add(id);
+   for(const item of choices)item.input.checked=selected.has(item.id);
+   updateSelection();
   });
-  panel.append(text,button);
+  updateSelection();
+  button.addEventListener('click',async()=>{
+   const chosen=[...selected].filter(id=>readySet.has(id));
+   if(!chosen.length)return;
+   if(!confirm('I have individually inspected the buyer-safe preview for each of the '+chosen.length+' selected photos and confirm that number plates, private details, watermarks and other unwanted material have been handled. Approve these photos for the advert?'))return;
+   button.disabled=true;allBox.disabled=true;
+   for(const item of choices)item.input.disabled=true;
+   button.textContent='Approving '+chosen.length+' photo(s)…';
+   try{
+    // The database repeats its safety checks for every selected photo.
+    const {data:result,error:saveError}=await sb.rpc('admin_approve_seller_submission_photos_v1',
+     {p_submission_id:sellerReviewId,p_image_ids:chosen});
+    if(saveError||!result?.success)throw Error(saveError?.message||'Approval could not be saved');
+    await loadSellerSubmissionComparisons();
+    alert(result.approved+' reviewed photograph(s) approved. Unselected or unsafe photos remain private.');
+   }catch(error){
+    alert('Photos were not approved: '+String(error.message||error));
+    await showSellerBulkApproval();
+   }
+  });
+  panel.append(text,selection,button);
   if(Number(data?.needs_attention||0)>0){
    const cleanButton=document.createElement('button');
    cleanButton.type='button';cleanButton.className='dark';
