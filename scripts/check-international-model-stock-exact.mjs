@@ -96,7 +96,10 @@ for(const file of models){
  assert(html.includes('<h1')||file==='motorcycle-variant.html','Model heading missing: '+file);
 }
 const protectedLegacyV2=fs.readFileSync('bmw-r1300gs-v2.html','utf8');
-assert(protectedLegacyV2.includes('bmw-r1300gs.html'),'Protected V2 canonical missing');
+assert(protectedR1300.includes('href="https://www.anybike.co.uk/bmw-r1300gs.html"'),
+ 'Protected BMW R 1300 GS canonical missing');
+assert(protectedLegacyV2.includes('bmw-r1300gs-v2-approved-20261102.html'),
+ 'Approved historical V2 reference canonical missing');
 const harley=fs.readFileSync('harley-davidson-motorcycles.html','utf8');
 assert(harley.includes('<h1'),'Protected Harley manufacturer page missing');
 console.log('PASS: '+models.length+' guide routes; '+cases.length+' matching cases; no unrelated model listings; approved R 1300 GS and R 1250 GS research/stock hooks remain.');
