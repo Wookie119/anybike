@@ -32,7 +32,8 @@ const photo={make:'BMW',model:'R 1300 GS',title:'Verified hero',image_url:'https
  attribution:'Licensed photographer',licence:'CC BY-SA 4.0',source_page_url:'https://example.org/source',
  licence_url:'https://creativecommons.org/licenses/by-sa/4.0/'};
 await mkdir('artifacts/universal-v2-browser',{recursive:true});
-const tests=[['BMW','R 1300 GS',1280],['BMW','R 1300 GS',390],['Suzuki','RM250',1280],
+const tests=[['BMW','R 1300 GS',1280],['BMW','R 1300 GS',390],
+ ['BMW','R 1300 GS',560],['Suzuki','RM250',1280],
  ['Suzuki','RM250',390],['Harley-Davidson','Fat Boy',1280],
  ['Honda','CB650R',1280,'motorcycle-model-guide.html'],
  ['Yamaha','MT-09',390,'motorcycle-model-guide.html'],
