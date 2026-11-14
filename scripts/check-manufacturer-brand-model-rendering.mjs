@@ -94,7 +94,7 @@ const makes=[...new Set(catalog.models.map(x=>x.make).filter(Boolean))];
 let checked=0;
 for(const make of makes){
  const result=await verify(make);
- if(make==='BMW'||make==='Harley-Davidson'){
+ if(make==='BMW'||make==='Harley-Davidson'||make==='Indian Motorcycle'){
   assert.equal(result.redirects.length,1,make+' lost dedicated page redirect');
   continue;
  }
