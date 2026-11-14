@@ -1035,7 +1035,7 @@ async function addMyDealershipMenuIfEligible(user){
       for(const navSelector of [".public-nav",".mobile-nav"]){
         const nav=document.querySelector(navSelector);if(!nav)continue;
         if(!nav.querySelector('[data-international-available-stock="true"]')){
-          const a=document.createElement("a");a.href="/available-stock.html?vat=qualifying";
+          const a=document.createElement("a");a.href="/available-stock.html?vat=all";
           a.textContent="Available Stock";a.dataset.internationalAvailableStock="true";
           const home=nav.querySelector('a[data-page="home"],a[href="/"]');
           if(home)home.insertAdjacentElement("afterend",a);else nav.prepend(a);
