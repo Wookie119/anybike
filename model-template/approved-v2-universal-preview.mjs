@@ -76,8 +76,9 @@ function organiseUniversalFactoryResearch(body){
   if(!heading||!heading.textContent?.trim())continue;
   const details=node('details');
   details.dataset.v2FactoryCategory='1';
-  // Keep the first documented section open; the rest are available on tap.
-  details.open=index===0;
+  // All research categories start closed. The reader can expand any
+  // source-backed record without losing text, attribution or links.
+  details.open=false;
   const summary=node('summary');
   summary.append(heading);
   const evidenceCount=group.querySelectorAll('article').length;
