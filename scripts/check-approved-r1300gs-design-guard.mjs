@@ -31,6 +31,11 @@ assert(!html.includes('motorcycle-model-guide.html?make=BMW&model=R%201300%20GS'
  'Canonical approved guide must not become generic research route');
 assert(shared.includes("location.pathname==='/motorcycle-model-guide.html'"),
  'Shared fact display must remain scoped to generic model guide');
-assert(generic.includes('/model-template/public-verified-model-facts.mjs'),
- 'Generic guide should still receive separately verified model facts');
+// The generic guide imports the approved V2 renderer; that renderer owns the
+// separately verified fact-card module. The HTML must not fork it.
+assert(generic.includes('/model-template/approved-v2-universal-preview.mjs'),
+ 'Generic guide must retain the shared V2 renderer');
+const universal=readFileSync(new URL('../model-template/approved-v2-universal-preview.mjs',import.meta.url),'utf8');
+assert(universal.includes("from '/model-template/public-verified-model-facts.mjs"),
+ 'Shared V2 renderer must still receive separately verified model facts');
 console.log('PASS: BMW R 1300 GS approved hero, editorial cards, stock-first sequence, model gallery, photos and canonical protected from generic rollout');
