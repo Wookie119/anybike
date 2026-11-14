@@ -32,6 +32,19 @@ await assert.rejects(loadUniversalPublishedPage(makeClient({data:null,error:null
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],section_title:'   '}],error:null}),{type:'model',id:68}),/Empty published research section blocked/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],content:{}}],error:null}),{type:'model',id:68}),/Empty published research section blocked/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],content:null}],error:null}),{type:'model',id:68}),/Empty published research section blocked/);
+await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{
+ ...rows[0],section_number:15,section_key:'section_15',
+ content:{photography:{rights_holder:'Manufacturer',
+  display_policy:'Only licensed model-specific photography'}}
+}],error:null}),{type:'model',id:68}),/Photography metadata-only research section blocked/,
+ 'R 1300 GS photo-rights metadata must never become a public research card');
+const otherContent=await loadUniversalPublishedPage(makeClient({data:[{
+ ...rows[0],section_number:15,section_key:'section_15',
+ content:{summary:'Independently reviewed model-photo research',
+  photography:{rights_holder:'Manufacturer'}}
+}],error:null}),{type:'model',id:68});
+assert.equal(otherContent.sections.length,1,
+ 'Approved editorial prose must remain possible beside photo-rights metadata');
 
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],publication_review_reference:' '}],error:null}),{type:'model',id:68}),/Missing reviewed publication provenance/);
 await assert.rejects(loadUniversalPublishedPage(makeClient({data:[{...rows[0],source_section_id:null}],error:null}),{type:'model',id:68}),/Missing reviewed publication provenance/);
