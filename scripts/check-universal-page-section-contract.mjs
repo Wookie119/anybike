@@ -96,3 +96,22 @@ assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[published(g
 })])).length,1,
  'Reviewed public editorial copy was incorrectly blocked by photo metadata');
 console.log('PASS: shared 20-section manufacturer/model contract, strict ID segregation and draft filtering');
+
+
+// An importer can produce non-empty JSON that would render no research.
+// These must not be counted as populated slots in either direct or audit views.
+for(const metadataOnly of [
+ {photography:{rights_holder:'BMW AG'},source_blob_sha:'abc123'},
+ {source_file:'bmw-press.html',source_blob_sha:'abc123'},
+ {unrecognised_private_editorial_metadata:{draft:'not reviewed'}},
+ {title:'Heading only',source_url:'https://example.org/press-release'}
+]){
+ const slots=buildUniversalPageSections(gs,[published(gs,4,metadataOnly)]);
+ assert.equal(visibleUniversalSections(slots).length,0,
+  'Metadata-only JSON counted as populated research');
+ assert.equal(auditUniversalPage(gs,[published(gs,4,metadataOnly)]).populated,0);
+}
+assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[
+ published(gs,4,{title:'History',summary:'Reviewed source-backed history',
+  photography:{rights_holder:'BMW AG'}})
+])).length,1,'Approved text suppressed alongside photo metadata');
