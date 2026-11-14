@@ -5,8 +5,21 @@ const guide=readFileSync('motorcycle-model-guide.html','utf8');
 const shared=readFileSync('model-template/approved-r1300gs-model-design.css','utf8');
 const css=master.match(/<style>([\s\S]*?)<\/style>/)?.[1];
 assert(css,'Approved R 1300 GS master CSS must exist');
-assert.equal(shared.slice(shared.indexOf('*/')+2).trim(),css.trim(),
- 'Shared model stylesheet must exactly match approved R 1300 GS master');
+// Preserve the approved reference CSS byte-for-byte except the already
+// established AnyBike palette correction: remove burgundy/salmon accents.
+const approvedPalette=css.trim()
+ .replaceAll('#3b2023','#292929')
+ .replaceAll('#82383c','#484848')
+ .replaceAll('#352124','#292929')
+ .replaceAll('#813438','#484848')
+ .replaceAll('#ff5b62','#ed1c24');
+const sharedBody=shared.slice(shared.indexOf('*/')+2).trim();
+assert(sharedBody.startsWith(approvedPalette),
+ 'Shared stylesheet must retain the complete approved design and palette corrections');
+assert(!/#(?:3b2023|82383c|352124|813438|ff5b62)/i.test(sharedBody),
+ 'Shared design must not reintroduce burgundy or salmon accents');
+assert(sharedBody.slice(approvedPalette.length).includes('Universal approved R 1300 GS frame'),
+ 'Any additional universal CSS must follow, never replace, the approved reference');
 assert(guide.includes('/model-template/approved-r1300gs-model-design.css?v=20261112-master1'),
  'Every shared model page must load approved master design');
 for(const token of ['--red:#ed1c24','background:#000','background:var(--panel)',
