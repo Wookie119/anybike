@@ -19,8 +19,9 @@ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 try{
  for(const [make,model,width,routeName='motorcycle-v2-master.html'] of cases){
   const context=await browser.newContext({viewport:{width,height:850}});
+  let page;
   try{
-   const page=await context.newPage();
+   page=await context.newPage();
    const issues=[];
    page.on('pageerror',error=>issues.push('PAGE_ERROR '+String(error)));
    page.on('console',message=>{if(['error','warning'].includes(message.type()))issues.push(message.type()+' '+message.text());});
@@ -88,6 +89,15 @@ try{
    const runtimeErrors=issues.filter(issue=>issue.startsWith('PAGE_ERROR '));
    assert.deepEqual(runtimeErrors,[],'Live V2 JavaScript runtime errors: '+JSON.stringify(runtimeErrors));
    console.log('PASS LIVE '+make+' '+model+' '+width+'px '+routeName+' '+JSON.stringify(metrics));
+  }catch(error){
+   // Preserve a screenshot for failures after navigation, not only passes.
+   // The live test is read-only; this diagnostic never submits enquiries.
+   if(page)await page.screenshot({
+    path:'artifacts/universal-v2-live-browser/'+make.replace(/[^a-z0-9]/gi,'-')+
+     '-'+model.replace(/[^a-z0-9]/gi,'-')+'-'+width+'-'+routeName+'-FAILED.png',
+    fullPage:true
+   }).catch(()=>{});
+   throw error;
   }finally{await context.close();}
  }
 }finally{await browser.close();}
