@@ -102,6 +102,26 @@ export function modelReleaseReadiness({
      unreviewedData++;
   }
  }
+ // A reviewed outer section can contain individual draft generation, model-year
+ // and photo-dependent records. The public renderer hides them, but the release
+ // worklist must still report that they need independent editorial attention.
+ // Never mistake their verified source for section-level publication approval.
+ const pendingNestedReview=(value,depth=0,seen={count:0})=>{
+  if(depth>8||seen.count++>1000||!value||typeof value!=='object')return false;
+  if(Array.isArray(value))
+   return value.some(entry=>pendingNestedReview(entry,depth+1,seen));
+  for(const key of ['editorial_status','content_status',
+                    'verification_status','source_verification_status','review_state']){
+   if(Object.prototype.hasOwnProperty.call(value,key)&&
+      value[key]!==null&&value[key]!==undefined&&
+      !reviewStatuses.has(str(value[key]).toLowerCase()))return true;
+  }
+  if(value.publication_eligible===false)return true;
+  return Object.values(value).some(entry=>pendingNestedReview(entry,depth+1,seen));
+ };
+ if(sections.some(section=>section.content&&
+    Object.values(section.content).some(item=>pendingNestedReview(item))))
+  issues.push('nested_editorial_items_pending_review');
  if(editorialDrafts)issues.push('editorial_sections_unapproved');
  if(unreviewedData)issues.push('nested_or_empty_content_unreviewed');
  const facts= new Map();
