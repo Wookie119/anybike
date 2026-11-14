@@ -138,3 +138,17 @@ try {
 } finally {globalThis.fetch=originalFetch;}
 
 console.log('PASS: public-only universal Supabase projection and strict manufacturer/model identity checks');
+
+
+// Public releases must not accept metadata-only JSON even when it is nonempty.
+// The same 20-slot contract is used for direct rendering and public loading.
+for(const content of [
+ {source_file:'legacy.html',source_blob_sha:'abc123'},
+ {photography:{rights_holder:'BMW AG'},source_blob_sha:'abc123'},
+ {unknown_editorial_private_record:{status:'draft'}},
+ {title:'Only a heading',source_url:'https://example.org/source'}
+]){
+ await assert.rejects(loadUniversalPublishedPage(makeClient({
+  data:[{...rows[0],content}],error:null
+ }),{type:'model',id:68}),/no renderable editorial content|source-only|Photography/);
+}
