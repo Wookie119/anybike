@@ -838,8 +838,20 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    const a=node('a',item.label);a.href=item.url;nav.append(a);
   }
   if(!nav.children.length){
-   for(const type of [str(selected.category)].filter(Boolean)){
-    const a=node('a',type+' →');a.href='/motorcycle-type.html?type='+encodeURIComponent(type);nav.append(a);
+   // Public, published motorcycle-type routes are valid for every make.
+   // The V2 editorial includes these for BMW; models without released
+   // editorial still need the complete universal navigation rather than
+   // a single generic fallback link or an empty section.
+   const publishedTypes=[
+    ['Adventure','adventure'],['Touring','touring'],
+    ['Sports & Superbikes','sports'],['Naked & Roadsters','roadsters'],
+    ['Classic & Heritage','classics'],['Cruisers','cruisers'],
+    ['Scooters & Automatic','scooters'],['Off-road & Enduro','off-road']
+   ];
+   for(const [name,slug] of publishedTypes){
+    const a=node('a',name+' →');
+    a.href='/motorcycle-type-'+slug+'.html';
+    nav.append(a);
    }
   }
   const typeSection=nav.closest('section');if(typeSection)typeSection.hidden=!nav.children.length;
