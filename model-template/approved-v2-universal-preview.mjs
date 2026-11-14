@@ -652,11 +652,15 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // timestamps and nested approvals. Render its approved research into V2,
   // not a second page layout. Zero approved slots means NO draft leakage.
   let publishedCount=0;
-  if(client&&hasCanonicalId){
+  if(hasCanonicalId){
    try{
     const {loadUniversalPublishedPage}=await import('/model-template/universal-page-data.mjs');
     const {renderUniversalPage}=await import('/model-template/universal-page-renderer.mjs');
-    const publication=await loadUniversalPublishedPage(client,{type:'model',id:canonicalId});
+    // If the optional Supabase JS CDN is unavailable, use the SAME public
+    // RLS-protected published projection over REST. Never substitute drafts.
+    const publication=await loadUniversalPublishedPage(client,{
+     type:'model',id:canonicalId,restEndpoint:ENDPOINT,restKey:KEY
+    });
     if(publication){
      if(normalize(publication.entity.name)!==normalize(model)||
         publication.entity.id!==canonicalId)throw Error('Cross-model universal publication blocked');
