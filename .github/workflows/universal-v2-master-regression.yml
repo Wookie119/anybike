@@ -8,6 +8,7 @@ on:
       - 'bmw-*.html'
       - 'harley-davidson-*.html'
       - 'scripts/audit-v2-rollout-coverage.mjs'
+      - 'scripts/check-live-v2-dedicated-rollout.mjs'
       - 'scripts/check-existing-bmw-approved-shell.test.mjs'
       - 'model-template/**'
       - 'data/motorcycle-catalogue-master.json'
@@ -31,6 +32,7 @@ on:
       - 'bmw-*.html'
       - 'harley-davidson-*.html'
       - 'scripts/audit-v2-rollout-coverage.mjs'
+      - 'scripts/check-live-v2-dedicated-rollout.mjs'
       - 'scripts/check-existing-bmw-approved-shell.test.mjs'
       - 'model-template/**'
       - 'data/motorcycle-catalogue-master.json'
@@ -117,6 +119,10 @@ jobs:
         id: live_browser
         continue-on-error: true
         run: node scripts/check-universal-v2-live-browser.mjs
+      - name: Check all 44 deployed dedicated model pages and protected BMW reference
+        id: live_dedicated
+        continue-on-error: true
+        run: node scripts/check-live-v2-dedicated-rollout.mjs
       - name: Report live deployment separately from source regression
         if: always()
         shell: bash
@@ -124,8 +130,10 @@ jobs:
           echo "## AnyBike V2: source versus live" >> "$GITHUB_STEP_SUMMARY"
           echo "- Live source retrieval and renderer comparison: ${{ steps.live_source.outcome }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Live browser verification: ${{ steps.live_browser.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- All dedicated model routes live: ${{ steps.live_dedicated.outcome }}" >> "$GITHUB_STEP_SUMMARY"
           if [[ "${{ steps.live_source.outcome }}" != "success" ||
-                "${{ steps.live_browser.outcome }}" != "success" ]]; then
+                "${{ steps.live_browser.outcome }}" != "success" ||
+                "${{ steps.live_dedicated.outcome }}" != "success" ]]; then
             echo "::warning::AnyBike V2 LIVE deployment is not independently verified; source CI must not be reported as live success."
             echo "- LIVE DEPLOYMENT: NOT VERIFIED (or failed); inspect live steps and screenshots." >> "$GITHUB_STEP_SUMMARY"
           else
