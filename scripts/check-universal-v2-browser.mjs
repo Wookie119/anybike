@@ -53,7 +53,7 @@ try{
   const publicationRows=(make==='Suzuki'||make==='BMW')?Array.from(
    {length:approvedResearch?20:1},(_,i)=>({
     source_section_id:701+i,entity_type:'model',entity_id:make==='BMW'?77:202,
-    entity_name:make==='BMW'?'R 1300 GS':'RM250',manufacturer_id:make==='BMW'?5:99,section_number:i+1,
+    entity_name:make==='BMW'?'R 1300 GS':'RM250',manufacturer_id:make==='BMW'?15:99,section_number:i+1,
     section_key:'section_'+String(i+1).padStart(2,'0'),
     section_title:'Approved research section '+(i+1),
     content:{paragraphs:['Approved factory history smoke-test record '+(i+1)+'.']},
