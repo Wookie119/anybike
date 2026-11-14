@@ -658,6 +658,31 @@ async function showSellerBulkApproval(){
    }
   });
   panel.append(text,selection,button);
+  const approveOriginals=document.createElement('button');
+  approveOriginals.type='button';
+  approveOriginals.textContent='Approve all original photos';
+  approveOriginals.title='Approve photographs you have personally inspected without running cleaning';
+  approveOriginals.style.cssText='background:#ed1c24;color:#fff;border:1px solid #ed1c24;border-radius:8px;padding:12px 17px;font-weight:800;cursor:pointer';
+  approveOriginals.addEventListener('click',async()=>{
+   if(!confirm('Approve all original private-seller photographs for the advert WITHOUT automatic cleaning? Confirm you have examined every photograph for number plates, personal details, watermarks and unsuitable content. Originals cannot be automatically redacted.'))return;
+   approveOriginals.disabled=true;approveOriginals.textContent='Approving originals…';
+   try{
+    const {data:{session},error:sessionError}=await sb.auth.getSession();
+    if(sessionError||!session?.access_token)throw Error('Admin sign-in required');
+    const response=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/admin-approve-seller-originals',{
+     method:'POST',headers:{authorization:'Bearer '+session.access_token,
+      apikey:'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK','content-type':'application/json'},
+     body:JSON.stringify({submission_id:sellerReviewId,confirmed_inspected:true})
+    });
+    const result=await response.json().catch(()=>null);
+    if(!response.ok||!result)throw Error(result?.error||'Could not approve originals');
+    await loadSellerSubmissionComparisons();
+    if(result.errors?.length)alert(result.approved+' original photos approved. Remaining issues: '+result.errors.join(' | '));
+    else alert(result.approved+' original photographs approved for this motorcycle.');
+   }catch(error){alert('Could not approve originals: '+String(error.message||error));approveOriginals.disabled=false;approveOriginals.textContent='Approve all original photos';}
+  });
+  panel.append(approveOriginals);
+
   if(Number(data?.needs_attention||0)>0){
    const cleanButton=document.createElement('button');
    cleanButton.type='button';cleanButton.className='dark';
