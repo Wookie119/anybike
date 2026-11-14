@@ -307,6 +307,16 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   else paragraph(summary,str(guide?.summary)||'Explore source-verified '+title+' model years, specifications and documented manufacturer history. Individual motorcycles and markets may differ.');
   $('years').textContent=str(hero.years)||str(guide?.years)||'Source-verified specifications vary by model year and market.';
   $('source').href=enquiry;
+  // The master uses the existing approved manufacturer routes, rather
+  // than sending every brand's model page to the generic A–Z directory.
+  const manufacturerPage=make==='BMW'?'/bmw-motorcycles.html':
+   make==='Harley-Davidson'?'/harley-davidson-motorcycles.html':
+   '/motorcycle-brand.html?make='+encodeURIComponent(make);
+  const manufacturerAction=$('manufacturer');
+  if(manufacturerAction){
+   manufacturerAction.href=manufacturerPage;
+   manufacturerAction.textContent='Explore '+make+' motorcycles →';
+  }
   // Place exact-model stock before slower photography and research requests.
   // The loading text does not claim availability or bypass buyer permissions.
   const header=document.querySelector('main > .hero'),stock=$('internationalModelStock');
