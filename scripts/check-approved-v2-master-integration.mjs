@@ -29,7 +29,7 @@ assert(html.includes('name="robots" content="index,follow"'),
 assert(renderer.includes('public_anybike_manufacturer_model_routes_v1')&&
  renderer.includes('new URL(approvedDedicatedRoute,location.origin)')&&
  renderer.includes('if(!approvedDedicatedRoute&&exact.length===1)canonical='),
- 'A model's canonical must prefer its existing approved route and otherwise use the universal URL');
+ "A model\'s canonical must prefer its existing approved route and otherwise use the universal URL");
 assert(renderer.includes("'@type':'Motorcycle'")&&!renderer.includes("'@type':'Product'"),
  'Model schema must describe research without inventing a product offer');
 assert(renderer.includes("meta[property=\"og:image\"]")&&
