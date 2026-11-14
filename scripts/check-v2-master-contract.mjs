@@ -58,7 +58,8 @@ const publishedData=read('model-template/universal-page-data.mjs');
 const publishedRenderer=read('model-template/universal-page-renderer.mjs');
 for(const required of [
  "loadUniversalPublishedPage", "renderUniversalPage",
- "type:'model',id:canonicalId", "if(client&&hasCanonicalId)",
+ "type:'model',id:canonicalId", "if(hasCanonicalId)",
+ "restEndpoint:ENDPOINT", "restKey:KEY",
  "publication.entity.id!==canonicalId",
  "data-anybike-role=\"research\"",
  "approvedResearchSectionHeading",
@@ -77,7 +78,10 @@ for(const required of [
  "row.section_key!==expectedKey",
  "row.entity_name!==identity.name",
  "row.publication_review_reference",
- "if(data.length===0)return null"
+ "if(data.length===0)return null",
+ "'/rest/v1/'+UNIVERSAL_PUBLIC_SECTIONS",
+ "url.searchParams.set('publication_eligible','eq.true')",
+ "url.searchParams.set('limit','21')"
 ])assert(publishedData.includes(required),'20-slot published-only loader guard missing: '+required);
 for(const required of [
  "root.dataset?.anybikeUniversalRoot!=='true'",
