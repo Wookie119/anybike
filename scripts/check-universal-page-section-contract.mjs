@@ -83,4 +83,16 @@ assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[
  published(gs,4,{engineering:{verification_status:'verified',rows:[['Power','verified']]}})
 ])).length,1,'Verified standalone engineering was suppressed');
 
+// R 1300 GS model-photo rights metadata is not an approved research card.
+// Both the public database loader and direct 20-slot contract must fail closed.
+const photosOnly=buildUniversalPageSections(gs,[published(gs,15,{
+ photography:{rights_holder:'BMW AG',display_policy:'Separately approved model imagery only'}
+})]);
+assert.equal(visibleUniversalSections(photosOnly).length,0,
+ 'Photography-only metadata leaked through direct section contract');
+assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[published(gs,15,{
+ summary:'Editorially approved history of model photography',
+ photography:{rights_holder:'BMW AG'}
+})])).length,1,
+ 'Reviewed public editorial copy was incorrectly blocked by photo metadata');
 console.log('PASS: shared 20-section manufacturer/model contract, strict ID segregation and draft filtering');
