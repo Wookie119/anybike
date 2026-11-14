@@ -646,9 +646,9 @@ function render(){
           '<div class="submission-gallery-grid"><div class="submission-photo placeholder">Loading photos…</div></div>'+
           '<div class="admin-photo-upload">'+
           '<div class="admin-photo-drop" data-admin-photo-id="'+Number(r.submission_id)+'" data-admin-photo-ref="'+esc(r.reference)+'" tabindex="0" role="button" aria-label="Add emailed motorcycle photographs">'+
-          '<strong>+ Drag &amp; drop emailed photos here</strong><span>or click to choose photographs</span><small>JPEG, PNG, WEBP, HEIC or AVIF · 12 at once · 10 MB each</small></div>'+
+          '<strong>+ Drag &amp; drop emailed photos here</strong><span>or click to choose photographs</span><small>JPEG, PNG, WEBP, HEIC or AVIF · large photos resized automatically</small></div>'+
           '<input type="file" id="admin-photo-input-'+Number(r.submission_id)+'" data-admin-photo-id="'+Number(r.submission_id)+'" data-admin-photo-ref="'+esc(r.reference)+'" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,.jpg,.jpeg,.jpe,.jfif,.png,.webp,.heic,.heif,.avif" multiple hidden>'+
-          '<span class="sub" id="admin-photo-status-'+Number(r.submission_id)+'" role="status" aria-live="polite">Photos remain private until reviewed.</span></div>'+
+          '<span class="sub" id="admin-photo-status-'+Number(r.submission_id)+'" role="status" aria-live="polite">Photos remain private until reviewed. Large photos resized automatically.</span></div>'+
           (Number(r.submission_id)===34?'<button type="button" class="btn" style="margin-top:10px" onclick="recoverSuzukiPhotos(this)">Recover 3 Suzuki advert photos →</button>':'')+
         '</div>'+
         (hasComps
@@ -755,6 +755,38 @@ document.addEventListener('drop',event=>{
  const id=Number(zone.dataset.adminPhotoId);
  adminAddSellerPhotos(id,zone.dataset.adminPhotoRef,files,document.getElementById('admin-photo-input-'+id));
 });
+// Keep original emailed photographs on the administrator's computer.
+ // Large browser-decodable images are resized to a review-quality JPEG copy,
+ // under the existing 10 MB server-side image limit.
+async function prepareAdminSellerPhoto(file,mime){
+ const maxBytes=10485760;
+ if(file.size<=maxBytes)return {file,mime,compressed:false};
+ if(file.size>52428800)throw Error(file.name+' is over 50 MB; please resize it first');
+ let bitmap;
+ try{bitmap=await createImageBitmap(file,{imageOrientation:'from-image'});}
+ catch{throw Error(file.name+' cannot be resized by this browser. Please save it as a smaller JPEG (under 10 MB) first');}
+ try{
+  for(const maxSide of [3000,2400,1900,1500]){
+   const ratio=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
+   const width=Math.max(1,Math.round(bitmap.width*ratio));
+   const height=Math.max(1,Math.round(bitmap.height*ratio));
+   const canvas=document.createElement('canvas');
+   canvas.width=width;canvas.height=height;
+   const ctx=canvas.getContext('2d');
+   if(!ctx)throw Error('Image resizing is not available in this browser');
+   ctx.drawImage(bitmap,0,0,width,height);
+   for(const quality of [0.85,0.72,0.6]){
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
+    if(blob&&blob.size>0&&blob.size<=maxBytes){
+     const name=file.name.replace(/\.[^.]+$/,'')+'-anybike.jpg';
+     return {file:new File([blob],name,{type:'image/jpeg',lastModified:file.lastModified}),
+      mime:'image/jpeg',compressed:true};
+    }
+   }
+  }
+  throw Error(file.name+' could not be reduced to 10 MB; please resize it manually');
+ }finally{bitmap.close?.();}
+}
 async function adminAddSellerPhotos(submissionId,reference,files,input){
  const id=Number(submissionId),status=document.getElementById('admin-photo-status-'+id);
  input=input||document.getElementById('admin-photo-input-'+id);files=[...files];
@@ -773,7 +805,7 @@ async function adminAddSellerPhotos(submissionId,reference,files,input){
    (reported==='image/jfif'||reported==='image/pjpeg'?'image/jpeg':reported);
   let problem='';
   if(file.size===0)problem='empty file';
-  else if(file.size>10485760)problem='over 10 MB ('+(file.size/1048576).toFixed(1)+' MB)';
+  else if(file.size>52428800)problem='over 50 MB ('+(file.size/1048576).toFixed(1)+' MB)';
   else if(!Object.values(imageTypes).includes(mime))problem='unsupported format ('+(reported||suffix||'unknown')+')';
   return {file,mime,problem};
  });
@@ -786,12 +818,21 @@ async function adminAddSellerPhotos(submissionId,reference,files,input){
  }
  const drop=document.querySelector('.admin-photo-drop[data-admin-photo-id="'+id+'"]');
  input.disabled=true;if(drop)drop.classList.add('upload-busy');
- say('Uploading '+files.length+' image(s) privately for review…',null);
+ say('Preparing '+files.length+' image(s), resizing large photos where needed…',null);
  try{
+  const prepared=[];
+  for(let i=0;i<checked.length;i++){
+   const item=checked[i];
+   say('Preparing photo '+(i+1)+' of '+checked.length+
+    (item.file.size>10485760?' · reducing '+(item.file.size/1048576).toFixed(1)+' MB':'')+'…',null);
+   prepared.push(await prepareAdminSellerPhoto(item.file,item.mime));
+  }
+  const reduced=prepared.filter(item=>item.compressed).length;
+  say('Uploading '+prepared.length+' photo(s)'+(reduced?' · '+reduced+' automatically resized':'')+'…',null);
   const {data:{session},error:sessionError}=await sb.auth.getSession();
   if(sessionError||!session?.access_token)throw Error('Admin sign-in required.');
   const form=new FormData();form.set('reference',reference);
-  for(const {file,mime} of checked){
+  for(const {file,mime} of prepared){
    form.append('photos',file.type===mime?file:
     new File([file],file.name,{type:mime,lastModified:file.lastModified}));
   }
@@ -809,7 +850,7 @@ async function adminAddSellerPhotos(submissionId,reference,files,input){
   const gallery=document.getElementById('submission-gallery-'+id);
   if(gallery){const counter=gallery.querySelector('.submission-gallery-head strong');if(counter)counter.textContent='Motorcycle photos · '+(refreshed?.image_total??result.added);}
   await loadSubmissionImages(id);
-  say(result.added+' photograph(s) attached to '+reference+'. Awaiting private Admin review.',true);
+  say(result.added+' photograph(s) attached to '+reference+(reduced?' · '+reduced+' resized for upload':'')+'. Awaiting private Admin review.',true);
  }catch(e){say('Could not attach photos: '+String(e.message||e),false)}
  finally{input.disabled=false;input.value='';if(drop)drop.classList.remove('upload-busy')}
 }
