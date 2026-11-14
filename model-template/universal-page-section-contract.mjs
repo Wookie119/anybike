@@ -8,6 +8,35 @@ const safeText=v=>typeof v==='string'?v.trim():'';
 const populated=v=>typeof v==='string'?v.trim().length>0:Array.isArray(v)?v.length>0:
  v!==null&&typeof v==='object'&&Object.keys(v).length>0;
 const safeRecord=r=>r&&typeof r==='object'&&!Array.isArray(r);
+// A JSON object can be nonempty but consist only of source, image-rights
+// or bookkeeping fields. Count it as a research slot only when its keys
+// correspond to content the shared 20-section renderer actually understands.
+// The DOM renderer still applies nested review rules and suppresses empty cards.
+const RENDERED_RESEARCH_FIELDS=new Set([
+ 'summary','description','text','body','years','subtitle','period','date',
+ 'year','event','change','evidence','title','heading','label','name',
+ 'rows','link','url','source','source_url','customer_copy',
+ 'items','paragraphs','entries','cards','links','hero','production',
+ 'timeline','production_evidence','generations','milestones','specifications',
+ 'colours','types','related_model_links','global_stories','deep_dive',
+ 'development_cards','actions','engineering','development','editions',
+ 'technical_specifications','motorcycle_types','country_markets',
+ 'verified_catalogue_facts'
+]);
+const SUBSTANTIVE_RESEARCH_FIELDS=new Set([...RENDERED_RESEARCH_FIELDS].filter(k=>
+ !['title','heading','label','name','url','source','source_url','link'].includes(k)));
+export function hasRenderableUniversalResearch(content){
+ if(typeof content==='string')return !!content.trim();
+ if(typeof content==='number')return Number.isFinite(content);
+ if(Array.isArray(content))return content.length>0;
+ if(!safeRecord(content))return false;
+ return Object.entries(content).some(([key,value])=>
+  SUBSTANTIVE_RESEARCH_FIELDS.has(key)&&
+  (typeof value==='string'?!!value.trim():
+   typeof value==='number'?Number.isFinite(value):
+   Array.isArray(value)?value.length>0:
+   safeRecord(value)?Object.keys(value).length>0:false));
+}
 export function canonicalPageEntity(entity){
  if(!safeRecord(entity)||!['manufacturer','model'].includes(entity.type)||!validId(entity.id))
   throw Error('Canonical manufacturer/model ID and entity type required');
@@ -47,7 +76,7 @@ export function buildUniversalPageSections(entity,sections){
   // Scheduled or malformed publication timestamps may not be shown early.
   const publicationTime=Date.parse(s.published_at);
   if(!Number.isFinite(publicationTime)||publicationTime>Date.now())continue;
-  if(!populated(s.content))continue;
+  if(!populated(s.content)||!hasRenderableUniversalResearch(s.content))continue;
   // The stage renderer can also be called directly by internal callers.
   // Never let that route bypass the public loader's root-level documentary
   // review, denied-publication or nested release-date checks.
