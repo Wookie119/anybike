@@ -935,7 +935,7 @@ async function addMyDealershipMenuIfEligible(user){
     const isInternationalDealer=["international_dealer","international_distributor","international_motorcycle_dealer","european_dealer","european_distributor","intl_dealer","intl_distributor","eu_dealer","eu_distributor"].includes(customerType);
     if(!dealership && !isUkDealer && !isInternationalDealer)return;
     const href="/my-dealership.html";
-    if(dealership || isUkDealer)for(const menuId of ["loggedInMenu","mobileLoggedInMenu"]){
+    if(isUkDealer || (dealership && !isInternationalDealer))for(const menuId of ["loggedInMenu","mobileLoggedInMenu"]){
       const menu=document.getElementById(menuId);
       if(!menu)continue;
       let link=menu.querySelector('[data-dealer-menu-link="true"]');
@@ -1020,7 +1020,7 @@ async function addMyDealershipMenuIfEligible(user){
       document.documentElement.classList.add("anybike-international-dealer");
       for(const menuId of ["loggedInMenu","mobileLoggedInMenu"]){
         const menu=document.getElementById(menuId);if(!menu)continue;
-        menu.querySelectorAll('a[href="/my-selling.html"],a[href="/sell-your-motorcycle.html"],a[data-international-stock-menu="true"]').forEach(a=>a.remove());
+        menu.querySelectorAll('a[href="/my-selling.html"],a[href="/sell-your-motorcycle.html"],a[href="/my-dealership.html"],a[data-dealer-menu-link="true"],a[data-international-stock-menu="true"]').forEach(a=>a.remove());
       }
       document.querySelectorAll('.public-nav a[href="/sell-your-motorcycle.html"],.mobile-nav a[href="/sell-your-motorcycle.html"]').forEach(a=>a.style.display="none");
       for(const navSelector of [".public-nav",".mobile-nav"]){
