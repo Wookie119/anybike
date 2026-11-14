@@ -510,3 +510,48 @@ console.log('PASS: approved nested factory sources retain citations without draf
 console.log('PASS: source-verified facts retain numeric units and announcement dates');
 
 
+
+// R 1300 GS V2 publication-edge regression: its photography-reference draft
+// is metadata, not public research or permission to load an image. A reviewed
+// chronology may coexist with a pending model-year image/card without leaking
+// the pending entry, and it must keep the approved documentary source.
+const r1300EdgeRoot=new FakeElement('main',documentFake);
+r1300EdgeRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(r1300EdgeRoot,{entity:gs,sections:[
+ mk(gs,3,{timeline:[{
+  period:'September 2023',description:'BMW factory launch history',
+  source:'https://www.press.bmwgroup.com/global/article/detail/T0437059EN/'
+ }],development:[{
+  period:'2024 model year',description:'PENDING MODEL YEAR PHOTO',
+  content_status:'pending_editorial_review',
+  image_status:'awaiting_approved_model_year_photo'
+ }]}),
+ mk(gs,13,{colours:[{
+  label:'Reviewed colour',description:'Factory documented finish',
+  editorial_status:'approved'
+ }],editions:[{
+  period:'Original R 1300 GS',description:'PENDING EDITION PHOTO',
+  content_status:'pending_editorial_review',
+  image_status:'awaiting_approved_model_year_photo'
+ }]}),
+ mk(gs,15,{photography:{
+  rights_holder:'BMW AG or applicable photographer',
+  display_policy:'Use only separately approved exact-model images'
+ }})
+]});
+const r1300Research=r1300EdgeRoot.childNodes[0].childNodes[2];
+assert.deepEqual(r1300Research.childNodes.map(x=>x.dataset.sectionKey),
+ ['section_03','section_13'],
+ 'Photography-only references must not produce a blank public section');
+const r1300Nodes=collect(r1300EdgeRoot);
+const r1300Text=r1300Nodes.map(x=>x.textContent||'').join(' | ');
+assert(r1300Text.includes('BMW factory launch history'),
+ 'Approved model history lost when a nested image remained pending');
+assert(!r1300Text.includes('PENDING MODEL YEAR PHOTO')&&
+ !r1300Text.includes('PENDING EDITION PHOTO'),
+ 'Pending model-year content leaked through an otherwise reviewed section');
+assert(r1300Nodes.some(x=>x.href==='https://www.press.bmwgroup.com/global/article/detail/T0437059EN/'),
+ 'Reviewed factory history lost its documented source');
+assert(!r1300Nodes.some(x=>x.tagName==='img'),
+ 'Photography metadata must not generate unlicensed model imagery');
+console.log('PASS: R 1300 GS reviewed history, pending image isolation, and no metadata-only cards');
