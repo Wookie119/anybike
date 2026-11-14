@@ -117,33 +117,43 @@ FROM public.motorcycle_universal_page_sections_v1 s
 WHERE s.entity_type='model' AND s.model_id=77
 ORDER BY s.section_number;
 
--- 5. Canonical manufacturer registry and STAGING constraint audit.
--- Model drafts MUST have model_id set and manufacturer_id NULL, as required by
--- the existing universal_section_exact_entity check constraint. Resolve BMW's
--- manufacturer ID (15) from the registry only at an independently reviewed
--- publication step. Do NOT set the draft manufacturer_id; that would violate
--- the schema. BMW registry status currently requires editorial review, but
--- registry 'review' does not change the validity of a model draft.
+-- 5. Authoritative model-parent identity release gate.
+-- The universal_section_release_identity_guard trigger accepts model
+-- publications only when motorcycle_catalog_model_parent_identity_v1 has
+-- review_status='verified' for the exact model and manufacturer ID.
+-- Model source drafts intentionally have manufacturer_id NULL. A general
+-- motorcycle_catalog_manufacturers.status='review' does NOT by itself
+-- fail the database publication trigger; never conflate the two checks.
 SELECT m.id AS canonical_model_id,m.manufacturer,m.model,
-       reg.id AS canonical_manufacturer_id,reg.status AS manufacturer_registry_status,
+       reg.id AS registry_manufacturer_id,reg.status AS registry_status,
+       parent.manufacturer_id AS verified_parent_manufacturer_id,
+       parent.review_status AS parent_review_status,
        COUNT(s.id) AS staged_sections,
-       COUNT(s.id) FILTER (WHERE s.model_id=m.id AND s.manufacturer_id IS NULL)
-          AS correctly_shaped_model_drafts,
-       COUNT(s.id) FILTER (WHERE s.model_id IS DISTINCT FROM m.id
-                           OR s.manufacturer_id IS NOT NULL)
-          AS staging_identity_violations,
+       COUNT(s.id) FILTER (
+         WHERE s.model_id=m.id AND s.manufacturer_id IS NULL
+       ) AS correctly_shaped_model_drafts,
+       COUNT(s.id) FILTER (
+         WHERE s.model_id IS DISTINCT FROM m.id OR s.manufacturer_id IS NOT NULL
+       ) AS staging_identity_violations,
        CASE
-         WHEN reg.id IS NULL THEN 'BLOCKED: manufacturer registry identity missing'
+         WHEN parent.review_status IS DISTINCT FROM 'verified'
+             OR parent.manufacturer_id IS NULL
+           THEN 'BLOCKED: canonical model-parent review not verified'
+         WHEN reg.id IS DISTINCT FROM parent.manufacturer_id
+           THEN 'BLOCKED: canonical parent does not match manufacturer registry'
          WHEN COUNT(s.id) FILTER (
-              WHERE s.model_id IS DISTINCT FROM m.id OR s.manufacturer_id IS NOT NULL
+              WHERE s.model_id IS DISTINCT FROM m.id
+                 OR s.manufacturer_id IS NOT NULL
             )>0 THEN 'BLOCKED: incorrect model-draft identity'
-         WHEN reg.status<>'approved' THEN 'REVIEW: manufacturer registry awaits approval'
-         ELSE 'STAGING_AND_REGISTRY_CHECK_PASSED: publication needs separate editorial signoff'
+         ELSE 'MODEL_IDENTITY_GATE_PASSED: draft editorial signoff still required'
        END AS release_gate
 FROM public.motorcycle_catalog_models m
 LEFT JOIN public.motorcycle_catalog_manufacturers reg
   ON reg.display_name=m.manufacturer
+LEFT JOIN public.motorcycle_catalog_model_parent_identity_v1 parent
+  ON parent.catalog_model_id=m.id
 LEFT JOIN public.motorcycle_universal_page_sections_v1 s
   ON s.entity_type='model' AND s.model_id=m.id
 WHERE m.id=77
-GROUP BY m.id,m.manufacturer,m.model,reg.id,reg.status;
+GROUP BY m.id,m.manufacturer,m.model,reg.id,reg.status,
+         parent.manufacturer_id,parent.review_status;
