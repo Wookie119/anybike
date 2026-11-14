@@ -105,7 +105,10 @@ for(const make of makes){
  assert(!result.summaryHtml.includes('Loading catalogue information'),
   make+' catalogue summary stuck loading');
  assert(result.summaryHtml.includes('Motorcycle model records currently'),
-  make+' failed to display loaded catalogue totals');
+  make+' failed to display loaded catalogue totals: '+JSON.stringify({
+   fetches:result.fetches,warnings:result.warnings,summary:result.summaryHtml.slice(0,350),
+   cards:(result.groupHtml.match(/manufacturer-model-card/g)||[]).length
+  }));
  assert(!result.warnings.some(x=>x.includes('model rendering')),
   make+' rendering failed');
  checked++;
