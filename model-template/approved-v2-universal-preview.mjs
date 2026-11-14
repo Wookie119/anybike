@@ -171,6 +171,33 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     }
    }catch(e){console.warn('V2 editorial lookup unavailable',e);}
   }
+  // The published V2 editorial is also readable through the public RLS
+  // projection when the optional Supabase JS browser library is unavailable.
+  // The database decides which models' editorial is public; this never
+  // falls back to private drafts, admin credentials or preview-only flags.
+  if(!guide&&hasCanonicalId){
+   try{
+    const url=new URL('/rest/v1/motorcycle_model_v2_editorial',ENDPOINT);
+    url.searchParams.set('select','model_id,slug,editorial');
+    url.searchParams.set('preview_visible','eq.true');
+    url.searchParams.set('model_id','eq.'+canonicalId);
+    url.searchParams.set('editorial->>make','eq.'+make);
+    url.searchParams.set('editorial->>model','eq.'+model);
+    url.searchParams.set('limit','2');
+    const response=await fetch(url,{headers:{apikey:KEY},cache:'no-store'});
+    if(response.ok){
+     const rows=await response.json();
+     if(Array.isArray(rows)&&rows.length===1&&
+        Number(rows[0].model_id)===canonicalId&&
+        normalize(rows[0].editorial?.make)===normalize(make)&&
+        normalize(rows[0].editorial?.model)===normalize(model)){
+      guide=rows[0].editorial;publishedV2Editorial=true;
+     }
+    }
+   }catch(error){
+    console.warn('Public RLS-approved V2 editorial REST fallback unavailable',error);
+   }
+  }
   // The public legacy guide is identity-filtered before use. If a reviewed V2
   // editorial already exists, source-backed historical rows only fill empty
   // facts slots; the approved V2 narrative and model identity win.
