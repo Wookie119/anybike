@@ -166,6 +166,13 @@ try{
     document.querySelector('#internationalModelStock')?.dataset.stockFeedState===expected,
     permitted?'checked':'restricted',{timeout:15000});
    assert.equal(await page.locator('#heading').innerText(),make+' '+model);
+   const manufacturerLink=page.locator('#manufacturer');
+   assert.equal(await manufacturerLink.isVisible(),true,'Manufacturer action absent from approved V2 hero');
+   const expectedManufacturerPath=make==='BMW'?'/bmw-motorcycles.html':
+     make==='Harley-Davidson'?'/harley-davidson-motorcycles.html':
+     '/motorcycle-brand.html?make='+encodeURIComponent(make);
+   assert.equal(await manufacturerLink.getAttribute('href'),expectedManufacturerPath,
+    'Hero must link to this model’s actual manufacturer page');
    assert.equal(await page.locator('meta[name=robots]').getAttribute('content'),'index,follow');
    if(permitted){
     assert.equal(await page.locator('#internationalModelCards > a').count(),1,
@@ -176,6 +183,11 @@ try{
    assert.equal(await page.locator('#internationalGuestRequestForm').isVisible(),true);
    const order=await page.locator('main > *').evaluateAll(nodes=>nodes.map(n=>n.id||n.className));
    assert.equal(order.indexOf('internationalModelStock'),order.indexOf('hero')+1);
+   assert(order.indexOf('ukR1300ModelGallery')>order.indexOf('internationalModelStock')&&
+    order.indexOf('ukR1300ModelGallery')<order.indexOf('body'),
+    'Approved model gallery must precede model research as in BMW R 1300 GS master');
+   assert.equal(await page.locator('#v2ApprovedGallery').count(),0,
+    'The universal template must not create a duplicate gallery');
    const specificationPlacement=await page.locator('#v2DocumentedSpecifications').count();
    if(make==='Honda'){
     assert.equal(specificationPlacement,1,
@@ -213,7 +225,8 @@ try{
    assert.match(await page.locator('#r1300CountryMarkets').innerText(),/View all 1 international markets/);
    if(make==='BMW'){
     assert.equal(await page.locator('#databaseHeroPhoto').isVisible(),true);
-    assert.equal(await page.locator('#v2ApprovedGallery article').count(),1);
+    assert.equal(await page.locator('#ukR1300ModelGallery article').count(),1,
+     'Approved BMW model gallery must use the shared master slot');
     assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),origin+'/bmw-r1300gs.html');
    }else assert.equal(await page.locator('#databaseHeroPhoto').isVisible(),false);
    if(make==='Suzuki'||make==='BMW'){
