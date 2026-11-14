@@ -50,4 +50,41 @@ assert(stockIdentity.includes("item.catalogue_identity_status !== 'verified'"),'
 assert(stockIdentity.includes('item.publication_eligible !== true'),'Stock publication eligibility check missing');
 assert(stockIdentity.includes('Number(item.catalog_model_id) !== Number(page.catalog_model_id)'),'Stock exact catalogue ID check missing');
 assert(stockIdentity.includes('if (seen.has(id)) return false'),'Stock deduplication missing');
+
+// The approved 20-slot published editorial projection is already connected
+// to the shared V2 renderer. Prevent regressions that silently disconnect it
+// or accidentally replace it with draft/editor-only data.
+const publishedData=read('model-template/universal-page-data.mjs');
+const publishedRenderer=read('model-template/universal-page-renderer.mjs');
+for(const required of [
+ "loadUniversalPublishedPage", "renderUniversalPage",
+ "type:'model',id:canonicalId", "if(client&&hasCanonicalId)",
+ "publication.entity.id!==canonicalId",
+ "data-anybike-role=\"research\"",
+ "approvedResearchSectionHeading",
+ "data-anybike-research-category",
+ "Reviewed 20-slot editorial projection unavailable or rejected"
+]){
+ // The selector is constructed as a JS string in the renderer, not literal HTML.
+ const needle=required==='data-anybike-role="research"'?'[data-anybike-role="research"]':
+  required==='data-anybike-research-category'?'[data-anybike-research-category]':required;
+ assert(renderer.includes(needle),'V2 published editorial integration missing: '+required);
+}
+for(const required of [
+ "motorcycle_universal_published_sections_v1",
+ ".eq('publication_eligible',true)",
+ "row.editorial_status!=='published'",
+ "row.section_key!==expectedKey",
+ "row.entity_name!==identity.name",
+ "row.publication_review_reference",
+ "if(data.length===0)return null"
+])assert(publishedData.includes(required),'20-slot published-only loader guard missing: '+required);
+for(const required of [
+ "root.dataset?.anybikeUniversalRoot!=='true'",
+ "buildUniversalPageSections",
+ "visibleUniversalSections",
+ "appendContent(doc,section,slot.content)",
+ "if(section.childNodes.length>1)research.append(section)"
+])assert(publishedRenderer.includes(required),'Approved universal research renderer guard missing: '+required);
+
 console.log('PASS: shared V2 structure, unique IDs, public RPC and '+categories.length+' research categories.');
