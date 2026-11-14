@@ -116,3 +116,29 @@ SELECT s.section_number,s.section_title,
 FROM public.motorcycle_universal_page_sections_v1 s
 WHERE s.entity_type='model' AND s.model_id=77
 ORDER BY s.section_number;
+
+-- 5. Canonical manufacturer registry must approve the BMW identity before
+-- R 1300 GS universal publication. The source drafts currently have NULL
+-- manufacturer_id; never substitute a mock ID or automatically mark 'review'
+-- as approved. This query reports the exact blocker without changing data.
+SELECT m.id AS canonical_model_id,m.manufacturer,m.model,
+       reg.id AS canonical_manufacturer_id,reg.status AS manufacturer_registry_status,
+       COUNT(s.id) AS staged_sections,
+       COUNT(s.id) FILTER (WHERE s.manufacturer_id IS NULL) AS missing_manufacturer_ids,
+       COUNT(s.id) FILTER (WHERE s.manufacturer_id IS NOT NULL
+         AND s.manufacturer_id<>reg.id) AS conflicting_manufacturer_ids,
+       CASE
+         WHEN reg.id IS NULL THEN 'BLOCKED: manufacturer registry identity missing'
+         WHEN reg.status<>'approved' THEN 'BLOCKED: manufacturer registry not approved'
+         WHEN COUNT(s.id) FILTER (WHERE s.manufacturer_id IS NOT NULL
+             AND s.manufacturer_id<>reg.id)>0 THEN 'BLOCKED: conflicting manufacturer ID'
+         WHEN COUNT(s.id) FILTER (WHERE s.manufacturer_id IS NULL)>0
+           THEN 'REVIEW: fill manufacturer IDs through controlled staging workflow'
+         ELSE 'REGISTRY_IDENTITY_CHECK_PASSED: editorial publication still requires approval'
+       END AS release_gate
+FROM public.motorcycle_catalog_models m
+LEFT JOIN public.motorcycle_catalog_manufacturers reg ON reg.display_name=m.manufacturer
+LEFT JOIN public.motorcycle_universal_page_sections_v1 s
+  ON s.entity_type='model' AND s.model_id=m.id
+WHERE m.id=77
+GROUP BY m.id,m.manufacturer,m.model,reg.id,reg.status;
