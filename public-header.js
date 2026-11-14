@@ -932,7 +932,7 @@ async function addMyDealershipMenuIfEligible(user){
     const dealership=Array.isArray(dealerResult.data)?dealerResult.data[0]:dealerResult.data;
     const customerType=String(profileResult.data?.customer_type||user.user_metadata?.customer_type||"");
     const isUkDealer=["uk_dealer","uk_distributor"].includes(customerType);
-    const isInternationalDealer=["intl_dealer","intl_distributor","eu_dealer","eu_distributor"].includes(customerType);
+    const isInternationalDealer=["international_dealer","international_distributor","international_motorcycle_dealer","european_dealer","european_distributor","intl_dealer","intl_distributor","eu_dealer","eu_distributor"].includes(customerType);
     if(!dealership && !isUkDealer && !isInternationalDealer)return;
     const href="/my-dealership.html";
     if(dealership || isUkDealer)for(const menuId of ["loggedInMenu","mobileLoggedInMenu"]){
