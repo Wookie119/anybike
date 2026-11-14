@@ -6,6 +6,8 @@ import {chromium} from 'playwright';
 const base='https://www.anybike.co.uk';
 const cases=[
  ['BMW','R 1300 GS',1280],
+ ['BMW','R 1300 GS',390],
+ ['BMW','R 1300 GS',320],
  ['Suzuki','RM250',1280],
  ['Suzuki','RM250',390],
  ['Harley-Davidson','Fat Boy',1280],
@@ -81,6 +83,10 @@ try{
    assert(metrics.scrollWidth<=metrics.width+3,'Live master horizontal overflow: '+JSON.stringify(metrics));
    await page.screenshot({path:'artifacts/universal-v2-live-browser/'+make.replace(/[^a-z0-9]/gi,'-')+
     '-'+model.replace(/[^a-z0-9]/gi,'-')+'-'+width+'-'+routeName+'.png',fullPage:true});
+   // A visual smoke test may observe benign denied public stock, but any
+   // uncaught page exception means the master has not passed browser QA.
+   const runtimeErrors=issues.filter(issue=>issue.startsWith('PAGE_ERROR '));
+   assert.deepEqual(runtimeErrors,[],'Live V2 JavaScript runtime errors: '+JSON.stringify(runtimeErrors));
    console.log('PASS LIVE '+make+' '+model+' '+width+'px '+routeName+' '+JSON.stringify(metrics));
   }finally{await context.close();}
  }
