@@ -645,7 +645,7 @@ function render(){
           '<div class="submission-gallery-head"><strong>Motorcycle photos · '+Number(r.image_total||0)+'</strong><span class="sub">Loading all images…</span></div>'+
           '<div class="submission-gallery-grid"><div class="submission-photo placeholder">Loading photos…</div></div>'+
           '<div class="admin-photo-upload"><button type="button" class="btn" onclick="document.getElementById(\'admin-photo-input-'+Number(r.submission_id)+'\').click()">+ Add emailed photos</button>'+
-          '<input type="file" id="admin-photo-input-'+Number(r.submission_id)+'" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" multiple hidden onchange="adminAddSellerPhotos('+Number(r.submission_id)+',\''+esc(r.reference)+'\',this)">'+
+          '<input type="file" id="admin-photo-input-'+Number(r.submission_id)+'" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,.jpg,.jpeg,.jpe,.jfif,.png,.webp,.heic,.heif,.avif" multiple hidden onchange="adminAddSellerPhotos('+Number(r.submission_id)+',\''+esc(r.reference)+'\',this)">'+
           '<span class="sub" id="admin-photo-status-'+Number(r.submission_id)+'">Photos remain private until reviewed · up to 12 images, 10 MB each</span></div>'+
           (Number(r.submission_id)===34?'<button type="button" class="btn" style="margin-top:10px" onclick="recoverSuzukiPhotos(this)">Recover 3 Suzuki advert photos →</button>':'')+
         '</div>'+
@@ -711,16 +711,37 @@ async function adminAddSellerPhotos(submissionId,reference,input){
  if(!status)return;
  const say=(message,ok)=>{status.textContent=message;status.classList.toggle('upload-ok',ok===true);status.classList.toggle('upload-error',ok===false)};
  if(!files.length)return;
- if(files.length>12||files.some(file=>file.size===0||file.size>10485760||
-   !['image/jpeg','image/png','image/webp','image/heic','image/heif'].includes(file.type.toLowerCase()))){
-  say('Choose 1–12 JPEG, PNG, WEBP or HEIC images, each 10 MB or less.',false);input.value='';return;
+ const imageTypes={jpg:'image/jpeg',jpeg:'image/jpeg',jpe:'image/jpeg',jfif:'image/jpeg',
+  png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif',avif:'image/avif'};
+ const checked=files.map(file=>{
+  const suffix=file.name.split('.').pop()?.toLowerCase()||'';
+  const reported=(file.type||'').toLowerCase();
+  const inferred=imageTypes[suffix]||'';
+  // Email download tools often provide no MIME type or a generic binary type.
+  // Accept the image suffix only in this case; server validates file signature.
+  const mime=(!reported||reported==='application/octet-stream')?inferred:reported;
+  let problem='';
+  if(file.size===0)problem='empty file';
+  else if(file.size>10485760)problem='over 10 MB ('+(file.size/1048576).toFixed(1)+' MB)';
+  else if(!Object.values(imageTypes).includes(mime))problem='unsupported format ('+(reported||suffix||'unknown')+')';
+  return {file,mime,problem};
+ });
+ if(files.length>12){say('Selected '+files.length+' files. Please select no more than 12 photos at once.',false);input.value='';return}
+ const invalid=checked.filter(item=>item.problem);
+ if(invalid.length){
+  say('Cannot upload: '+invalid.slice(0,4).map(item=>item.file.name+' — '+item.problem).join(' · ')+
+   (invalid.length>4?' · and '+(invalid.length-4)+' more':'')+'.',false);
+  input.value='';return;
  }
  input.disabled=true;say('Uploading '+files.length+' image(s) privately for review…',null);
  try{
   const {data:{session},error:sessionError}=await sb.auth.getSession();
   if(sessionError||!session?.access_token)throw Error('Admin sign-in required.');
   const form=new FormData();form.set('reference',reference);
-  for(const file of files)form.append('photos',file);
+  for(const {file,mime} of checked){
+   form.append('photos',file.type===mime?file:
+    new File([file],file.name,{type:mime,lastModified:file.lastModified}));
+  }
   const response=await fetch(SUPABASE_URL+'/functions/v1/admin-add-seller-photos',{
    method:'POST',headers:{authorization:'Bearer '+session.access_token,apikey:SUPABASE_ANON_KEY},body:form
   });
