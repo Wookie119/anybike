@@ -780,7 +780,19 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    // precede model-year development and research, rather than sit in #body
    // after the generation timeline. One shared placement for every make.
    const firstDevelopment=$('generationPanel');
-   if(firstDevelopment)firstDevelopment.before(section);
+   // The two approved UK actions work better as a balanced information /
+   // selling pair. This is the same universal template for every make:
+   // never duplicate the stock panel, research or seller form.
+   const sellerPanel=$('v2UkSelling');
+   if(firstDevelopment&&sellerPanel){
+    let pair=$('anybikeV2SpecSellPair');
+    if(!pair){
+     pair=node('div',undefined,'anybike-v2-spec-sell-pair');
+     pair.id='anybikeV2SpecSellPair';
+    }
+    firstDevelopment.before(pair);
+    pair.append(section,sellerPanel);
+   }else if(firstDevelopment)firstDevelopment.before(section);
   }
   // Long-form source-linked editorial fields: open-ended section registry.
   // New category keys render only when they contain approved paragraphs and
