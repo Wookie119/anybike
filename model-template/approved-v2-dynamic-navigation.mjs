@@ -134,10 +134,18 @@ async function modelNavigation(){
    '/motorcycle-v2-master.html':'/motorcycle-model-guide.html')+
    '?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(name)
  });
- // Approved dedicated model URLs remain primary destinations during rollout.
- // Never send a visitor from a published BMW/Harley URL to a parallel master
- // URL merely because they browsed the universal model directory.
- for(const [key,item] of approved)combined.set(key,item);
+ // Universal rollout: all catalogue navigation goes through the SAME
+ // approved V2 renderer. Existing BMW/Harley dedicated routes stay online,
+ // with their canonical metadata intact; none are deleted or overwritten.
+ // The dedicated route map is still used by the master to preserve approved
+ // legacy SEO canonicals and historical research.
+ for(const [key,item] of approved){
+  if(combined.has(key))continue;
+  const exact=String(item.label||'').trim();
+  if(!exact)continue;
+  combined.set(key,{label:exact,url:'/motorcycle-model-guide.html?make='+
+   encodeURIComponent(make)+'&model='+encodeURIComponent(exact)});
+ }
  // If public navigation is temporarily unavailable, preserve the existing
  // V2 pills rather than replace them with an empty list.
  const links=[...combined.values()].sort((a,b)=>a.label.localeCompare(b.label,'en-GB',{numeric:true}))
