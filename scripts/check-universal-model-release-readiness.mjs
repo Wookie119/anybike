@@ -150,3 +150,38 @@ const finance=modelReleaseReadiness({model:{
 assert(finance.issueCodes.includes('promotional_model_name'),
  'Finance promotion must not become customer research');
 console.log('PASS: one all-brand release readiness tool preserves exact models, editorial approval, photo rights and buyer stock safety');
+
+// R 1300 GS editorial worklist must flag separately pending model-year
+// photography inside otherwise approved history and colour sections.
+const pendingModelYear=modelReleaseReadiness({
+ model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
+ sections:[
+  modelSection(3,{timeline:[{period:'September 2023',
+   description:'Reviewed BMW factory history'}],
+   development:[{period:'2024 model year',
+    description:'Documented generation, image not yet approved',
+    content_status:'pending_editorial_review',
+    image_status:'awaiting_approved_model_year_photo'}]}),
+  modelSection(13,{colours:[{name:'Lightwhite',
+   source:'https://www.press.bmwgroup.com/global/article/detail/T0437059EN/'}],
+   editions:[{description:'Awaiting photo review',
+    content_status:'pending_editorial_review'}]})
+ ],
+ approvedPhotographs:[photo],stockContractVerified:true,
+ visualParityVerified:true,editorialSignoffReference:'TEST-ONLY'
+});
+assert(pendingModelYear.issueCodes.includes('nested_editorial_items_pending_review'),
+ 'Master release worklist hid pending model-year photography and editions');
+assert.equal(pendingModelYear.publicationAuthorized,false,
+ 'Release analyzer must not authorize publication');
+const approvedNested=modelReleaseReadiness({
+ model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'approved',
+ sections:[modelSection(3,{timeline:[
+  {description:'Approved independently reviewed timeline',
+   content_status:'approved'}]})],
+ approvedPhotographs:[photo],stockContractVerified:true,
+ visualParityVerified:true,editorialSignoffReference:'TEST-ONLY'
+});
+assert(!approvedNested.issueCodes.includes('nested_editorial_items_pending_review'),
+ 'Approved nested content was incorrectly classified pending');
+console.log('PASS: R 1300 GS nested model-year and edition review gate');
