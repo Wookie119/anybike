@@ -24,7 +24,7 @@ assert(guide.includes('/model-template/approved-v2-preview-style.css?v='),
  'Shared model guide must load the approved V2 master stylesheet');
 const approvedV2=readFileSync('model-template/approved-v2-preview-style.css','utf8');
 const originalReference=readFileSync('bmw-r1300gs-v2-approved-20261102.html','utf8');
-const referenceStyleBlocks=[...originalReference.matchAll(/<style\\b[^>]*>([\\s\\S]*?)<\\/style>/g)].map(x=>x[1]);
+const referenceStyleBlocks=[...originalReference.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map(x=>x[1]);
 assert(referenceStyleBlocks.length>=30,'Approved V2 reference styles must exist');
 for(const block of referenceStyleBlocks)assert(approvedV2.includes(block),
  'Universal stylesheet is missing an approved BMW R 1300 GS reference style');
