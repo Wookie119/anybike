@@ -68,6 +68,16 @@ function appendContent(doc,parent,value,depth=0){
     parent.append(node(doc,'p',value.years,'anybike-universal-model-years'));
   if(safeText(value.subtitle))
     parent.append(node(doc,'p',value.subtitle,'anybike-universal-subtitle'));
+  // The approved R 1300 GS introduction carries a plain-text production and
+  // model-year distinction. Preserve this source-reviewed text on the shared
+  // renderer rather than leaving a populated 'years' research card empty.
+  for(const key of ['subtitle','years']){
+   if(typeof value[key]==='string'&&value[key].trim())
+    parent.append(node(doc,'p',value[key],key==='years'?
+      'anybike-universal-years':'anybike-universal-subtitle'));
+  }
+  if(Array.isArray(value.years)||value.years&&typeof value.years==='object')
+   appendContent(doc,parent,value.years,depth+1);
   for(const key of ['summary','description','text','body']){
     if(typeof value[key]==='string'&&value[key].trim())parent.append(node(doc,'p',value[key]));
   }
