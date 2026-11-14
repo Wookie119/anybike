@@ -1,7 +1,7 @@
 // One public Supabase projection for manufacturers AND models.
 // Never read the private editorial store from a public browser or assume
 // preview_visible means approved publication.
-import {canonicalPageEntity,hasRenderableUniversalResearch} from './universal-page-section-contract.mjs';
+import {canonicalPageEntity,hasRenderableUniversalResearch,reviewedStandaloneEngineering} from './universal-page-section-contract.mjs';
 
 export const UNIVERSAL_PUBLIC_SECTIONS='motorcycle_universal_published_sections_v1';
 const PUBLIC_FIELDS='source_section_id,entity_type,entity_id,entity_name,manufacturer_id,section_number,section_key,section_title,content,editorial_status,publication_eligible,published_at,publication_review_reference';
@@ -122,8 +122,7 @@ export async function loadUniversalPublishedPage(client,{type,id,restEndpoint,re
   if(row.content&&typeof row.content==='object'&&!Array.isArray(row.content)&&
      Object.keys(row.content).length===1&&
      row.content.engineering&&typeof row.content.engineering==='object'&&
-     !['verified','approved','published'].includes(
-       String(row.content.engineering.verification_status||'').toLowerCase()))
+     !reviewedStandaloneEngineering(row))
    throw Error('Unverified engineering-only section blocked');
   // Keep public-loader validation in line with the direct 20-slot contract.
   // Unreviewed metadata and arbitrary importer JSON must never be mistaken
