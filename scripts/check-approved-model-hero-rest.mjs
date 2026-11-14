@@ -7,7 +7,14 @@ assert(source.includes("'/rest/v1/rpc/public_anybike_model_hero_v1'"),'Approved 
 assert(source.includes('timer=setTimeout(next,8000)'),'Unresponsive licensed photo hosts must not hang hero publication');
 assert(source.includes("hero.querySelector('[data-anybike-approved-model-hero],.licensed-photo,.recovered-hero-photo')"),'Late image loads must not create duplicate hero figures');
 assert(source.includes('if(!data){'),'Failed optional client must fall back to REST');
-assert(guide.includes('public-approved-model-hero.mjs?v=20261112-hero-timeout4'),'Shared guide must load current approved hero');
+const universal=readFileSync(new URL('../model-template/approved-v2-universal-preview.mjs',import.meta.url),'utf8');
+assert(guide.includes('/model-template/approved-v2-universal-preview.mjs?v='),
+ 'Shared model guide must use the same V2 hero renderer as the approved master');
+assert(universal.includes("photoData('public_anybike_model_hero_v1')")&&
+ universal.includes("publicMedia('public_anybike_model_hero_v1')")===false&&
+ universal.includes("const safePhoto=x=>x&&normalize(x.make)===normalize(make)")&&
+ universal.includes("if(fig&&safePhoto(approvedHero))"),
+ 'Shared V2 renderer must load only licensed exact-model hero photos through the public RPC');
 const safe={make:'BMW',model:'R 1250 GS',image_url:'https://example.org/approved.jpg',source_page_url:'https://example.org/source',licence_url:'https://example.org/licence',licence:'CC BY',attribution:'Author'};
 assert(approvedHeroCandidate(safe,'BMW','R 1250 GS'));
 assert(!approvedHeroCandidate({...safe,model:'R 1300 GS'},'BMW','R 1250 GS'));
