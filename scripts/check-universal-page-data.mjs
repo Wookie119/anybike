@@ -152,3 +152,28 @@ for(const content of [
   data:[{...rows[0],content}],error:null
  }),{type:'model',id:68}),/no renderable editorial content|source-only|Photography/);
 }
+
+
+// A section-level reviewed, source-linked BMW engineering record must pass
+// through the public loader before the renderer can display the factory rows.
+// Neither missing signoff nor explicitly pending engineering may pass.
+const reviewedBMWEngineering={...rows[0],section_number:5,section_key:'section_05',
+ publication_review_reference:'EDITORIAL-REVIEW-REFERENCE',
+ content:{engineering:{model_year:2024,
+ source:'https://www.press.bmwgroup.com/global/article/detail/T0437059EN/',
+ rows:[['Frame','Sheet-steel main frame'],['Front suspension','EVO Telelever']]}}};
+const bmweng=await loadUniversalPublishedPage(makeClient({
+ data:[reviewedBMWEngineering],error:null}),{type:'model',id:68});
+assert.equal(bmweng.sections.length,1,
+ 'The reviewed BMW factory engineering vanished in the published-only loader');
+for(const mutation of [
+ {publication_review_reference:''},
+ {content:{engineering:{...reviewedBMWEngineering.content.engineering,
+  verification_status:'pending_editorial_review'}}},
+ {content:{engineering:{rows:[['Frame','No documented source']]}}}
+]){
+ await assert.rejects(loadUniversalPublishedPage(makeClient({
+  data:[{...reviewedBMWEngineering,...mutation}],error:null
+ }),{type:'model',id:68}),/Unverified engineering-only section blocked|Missing reviewed publication provenance/,
+ 'Unapproved engineering must never cross the public loader');
+}
