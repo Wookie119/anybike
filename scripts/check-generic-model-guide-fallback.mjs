@@ -23,7 +23,10 @@ assert.match(renderer,/if\(!liveCatalogueLoaded\)/);
 assert.match(renderer,/fetch\('\/data\/motorcycle-catalogue-master.json'/);
 assert.match(renderer,/found\.length!==1/,'Ambiguous catalogue names must fail closed');
 assert.match(renderer,/fetch\('\/data\/motorcycle-model-guides.json'/);
-assert.match(renderer,/if\(exact.length===1\)guide=exact\[0\]/);
+assert.match(renderer,/if\(exact.length===1\)\{/);
+assert.match(renderer,/if\(!guide\)guide=exact\[0\]/);
+assert.match(renderer,/supplementPublishedV2Guide\(guide,exact\[0\],\{make,model\}\)/,
+ 'An existing approved guide must be supplemented with matching published facts, not overwritten');
 assert.match(renderer,/const canonicalPath=/);
 assert.match(renderer,/\/motorcycle-model-guide\.html/);
 assert.match(renderer,/sourceBottom/);
