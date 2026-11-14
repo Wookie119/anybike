@@ -104,6 +104,21 @@ function organiseUniversalFactoryResearch(body){
   section.classList.add('anybike-v2-compact-supplement');
  }
 }
+// The site's existing visitor-country service is a presentation hint only.
+// Stock authorisation stays with the international-public-stock endpoint.
+// Missing geography must never be interpreted as a verified UK location.
+async function isConfirmedUkVisitor(){
+ try{
+  const response=await fetch(ENDPOINT+'/functions/v1/visitor-market-country',
+   {method:'GET',cache:'no-store'});
+  if(!response.ok)return false;
+  const result=await response.json();
+  return String(result?.country_code||'').toUpperCase()==='GB';
+ }catch(error){
+  console.warn('Visitor-country presentation lookup unavailable',error);
+  return false;
+ }
+}
 function makeSection(id,title,after){
  let el=$(id);
  if(!el){
@@ -399,6 +414,9 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    manufacturerAction.href=manufacturer;
    manufacturerAction.textContent='Explore '+make+' motorcycles →';
   }
+  // A UK visitor does not need an international export-stock message.
+  // Resolve once, in parallel with the existing model and stock requests.
+  const ukPresentationPromise=isConfirmedUkVisitor();
   // Place exact-model stock before slower photography and research requests.
   // The loading text does not claim availability or bypass buyer permissions.
   const header=document.querySelector('main > .hero'),stock=$('internationalModelStock');
@@ -886,7 +904,11 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    note.className='anybike-stock-status';cards.append(note);
   }
   stock.dataset.stockFeedState=feedState;
-  stock.hidden=false;
+  // UK view: keep the actual model research and sourcing CTAs, without
+  // an inappropriate "available internationally / access restricted" card.
+  // International view: retain stock, VAT-eligible inventory and the
+  // existing access state exactly as the stock service returned it.
+  stock.hidden=await ukPresentationPromise;
   const related=$('databaseRelatedModels');
   // The shared navigation renderer owns the related pills and 217 markets;
   // never hardcode a second manufacturer or model directory.
