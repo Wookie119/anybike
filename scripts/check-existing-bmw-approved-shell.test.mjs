@@ -74,8 +74,16 @@ test('stock is independent, development follows specifications, R1250 gallery st
  const css=fs.readFileSync('public-header.css','utf8');
  assert.ok(css.includes('APPROVED R1300 MODEL SHELL FOR EXISTING BMW GUIDES'));
  const r1250=fs.readFileSync('bmw-r1250gs.html','utf8');
- assert.ok(r1250.includes('id="r1250LiveStock"'));
- assert.ok(r1250.includes('id="ukR1250ModelGallery"'));
+ assert.ok(r1250.includes('id="internationalModelStock"'),
+  'R 1250 GS must retain exact-model stock');
+ assert.ok(r1250.indexOf('id="internationalModelStock"')<r1250.indexOf('id="generationPanel"'),
+  'R 1250 GS stock must remain ahead of research');
+ const archivedR1250=JSON.parse(fs.readFileSync('data/bmw-r1250gs-v2-preservation.json','utf8'));
+ assert.equal(archivedR1250.model_year_gallery.model_year_cards.length,5,
+  'Five approved R 1250 GS year cards must remain preserved');
+ const preservationBridge=fs.readFileSync('model-template/approved-v2-dedicated-preservation.mjs','utf8');
+ assert.ok(preservationBridge.includes('model_year_cards=cards'),
+  'Approved R 1250 GS year cards must hydrate the universal model-year panel');
  const r1300=fs.readFileSync('bmw-r1300gs.html','utf8');
  assert.ok(!r1300.includes('approved-bmw-page-shell.mjs'));
  assert.ok(r1300.includes('id="internationalModelStock"'));
@@ -87,7 +95,12 @@ test('dedicated BMW stock keeps authenticated ownership but displays above resea
  assert.ok(!shell.includes('dedicatedStock.hidden=false'),'Only original protected stock feed controls visibility');
  const guide=fs.readFileSync('bmw-s1000rr.html','utf8');
  assert.ok(guide.includes('id="internationalModelStock" hidden'),'Original gallery permission gate stays intact');
- assert.ok(guide.includes('international-public-stock'),'Original authenticated international stock endpoint remains');
+ const universal=fs.readFileSync('model-template/approved-v2-universal-preview.mjs','utf8');
+ assert.ok(guide.includes('approved-v2-universal-preview.mjs')&&
+  universal.includes('international-public-stock')&&
+  universal.includes('res.status===401||res.status===403')&&
+  universal.includes('stockForCanonicalModel(data.items,pageIdentity,6)'),
+  'Authenticated exact-model stock must remain protected by the V2 renderer');
  const css=fs.readFileSync('public-header.css','utf8');
  assert.ok(css.includes('#body [data-anybike-db-section="country_markets"]'),'Market layout is compact on model pages');
 });
