@@ -185,3 +185,34 @@ const approvedNested=modelReleaseReadiness({
 assert(!approvedNested.issueCodes.includes('nested_editorial_items_pending_review'),
  'Approved nested content was incorrectly classified pending');
 console.log('PASS: R 1300 GS nested model-year and edition review gate');
+
+// Real R 1300 GS model-parent identity is independently verified in the
+// public parent review table (model 77 -> BMW manufacturer 15). The generic
+// manufacturer registry can remain 'review' without overriding that separate
+// database release trigger. This analyzer still cannot authorize publication.
+const exactParentVerified=modelReleaseReadiness({
+ model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'review',
+ registryManufacturerId:15,verifiedParentManufacturerId:15,
+ parentIdentityReviewStatus:'verified',
+ sections:[modelSection(3)],
+ approvedPhotographs:[photo],stockContractVerified:true,visualParityVerified:true,
+ editorialSignoffReference:'MOCK-ONLY'
+});
+assert(!exactParentVerified.issueCodes.includes('manufacturer_registry_approval_missing'),
+ 'Verified model-parent record must take precedence over generic registry status');
+assert(!exactParentVerified.issueCodes.includes('canonical_parent_identity_unverified'),
+ 'Exact independently verified model-parent identity rejected');
+assert.equal(exactParentVerified.publicationAuthorized,false);
+for(const mismatched of [
+ {registryManufacturerId:15,verifiedParentManufacturerId:68,parentIdentityReviewStatus:'verified'},
+ {registryManufacturerId:15,verifiedParentManufacturerId:15,parentIdentityReviewStatus:'review'}
+]){
+ const rejectedParent=modelReleaseReadiness({
+  model,manufacturerRegistryName:'BMW',manufacturerRegistryStatus:'review',
+  ...mismatched,sections:[modelSection(3)]
+ });
+ assert(rejectedParent.issueCodes.includes('canonical_parent_identity_unverified'),
+  'Unverified or cross-manufacturer parent must fail release preflight');
+ assert.equal(rejectedParent.publicationAuthorized,false);
+}
+console.log('PASS: exact verified R 1300 GS parent identity passes without overriding editorial release');
