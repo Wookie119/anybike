@@ -264,8 +264,11 @@ async function manufacturerNavigation(){
    entries.set(key,{label:label.length<60?label:name,url});
   }
   if(!entries.size)return;
-  const panel=makePanel('approvedV2Manufacturers','Explore other motorcycle manufacturers',
-   'Browse published AnyBike manufacturer pages. Newly published names appear as the manufacturer directory is updated.',after);
+  const panel=makePanel('approvedV2Manufacturers','Explore other motorcycle manufacturers','',after);
+  // This is public customer navigation, not an internal directory update
+  // message. Display all available manufacturer links immediately.
+  const editorialNote=panel.querySelector(':scope > p');
+  if(editorialNote)editorialNote.remove();
   const nav=panel.querySelector('nav');
   safeNav(nav,[...entries.values()].sort((a,b)=>a.label.localeCompare(b.label,'en-GB')));
   // The full published directory and its internal links stay in the DOM,
@@ -280,8 +283,9 @@ async function manufacturerNavigation(){
    nav.before(directory);
    directory.append(nav);
   }
+  directory.open=true;
   directory.querySelector('summary').textContent=
-   'View all '+entries.size+' other motorcycle manufacturers';
+   'All '+entries.size+' other motorcycle manufacturers';
   panel.dataset.anybikeV2Source='published-manufacturer-directory';
  }catch(error){console.warn('V2 manufacturer directory unavailable',error);}
 }
