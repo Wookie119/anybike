@@ -80,13 +80,19 @@ const models=[
  'bmw-s1000rr.html','bmw-r1250gs.html',
  'motorcycle-model-guide.html','motorcycle-model.html','motorcycle-variant.html'
 ];
-const version='public-header.js?v=20261107modelstockexact1';
+const legacyHeader='public-header.js?v=20261107modelstockexact1';
+const currentV2Header='public-header.js?v=20261113-v2-early-dom2';
 for(const file of models){
  const html=fs.readFileSync(file,'utf8');
- const accepted=file==='motorcycle-model-guide.html'?
-  html.includes('public-header.js?v=20261111modelresearch2'):
-  html.includes(version);
- assert(accepted,'Model guide still using stale stock script: '+file);
+ const migrated=html.includes('/model-template/approved-v2-universal-preview.mjs');
+ const accepted=migrated?html.includes(currentV2Header):html.includes(legacyHeader);
+ assert(accepted,'Model guide does not load its correct shared public header: '+file);
+ if(migrated){
+  assert(html.includes('id="internationalModelStock"'),
+   'Migrated model must preserve stock-first universal section: '+file);
+  assert(html.indexOf('id="internationalModelStock"')<html.indexOf('id="generationPanel"'),
+   'Migrated model stock must precede research: '+file);
+ }
  assert(html.includes('<h1')||file==='motorcycle-variant.html','Model heading missing: '+file);
 }
 const protectedLegacyV2=fs.readFileSync('bmw-r1300gs-v2.html','utf8');
