@@ -21,6 +21,7 @@ const approvedHttps=x=>{
 export function modelReleaseReadiness({
  model,sections=[],factReview=[],pendingHistory=0,approvedPhotographs=[],
  manufacturerRegistryName='',manufacturerRegistryStatus='',pendingAlias=false,collision=false,
+ registryManufacturerId=null,verifiedParentManufacturerId=null,parentIdentityReviewStatus='',
  stockContractVerified=false,visualParityVerified=false,
  editorialSignoffReference=''
 }={}){
@@ -33,7 +34,18 @@ export function modelReleaseReadiness({
   issues.push('registry_identity_review');
  // A catalogue's presence is not an editorial approval. An explicit
  // manufacturer registry decision is required for universal publication.
- if(str(manufacturerRegistryStatus).toLowerCase()!=='approved')
+ // The database release trigger verifies the canonical MODEL-PARENT relation.
+ // The manufacturer's general registry status may remain 'review' even when
+ // that exact model-parent relationship has been independently verified.
+ const parentEvidenceProvided=registryManufacturerId!==null||
+  verifiedParentManufacturerId!==null||str(parentIdentityReviewStatus)!=='';
+ const canonicalParentVerified=validId(registryManufacturerId)&&
+  validId(verifiedParentManufacturerId)&&
+  Number(registryManufacturerId)===Number(verifiedParentManufacturerId)&&
+  str(parentIdentityReviewStatus).toLowerCase()==='verified';
+ if(parentEvidenceProvided&&!canonicalParentVerified)
+  issues.push('canonical_parent_identity_unverified');
+ if(!canonicalParentVerified&&str(manufacturerRegistryStatus).toLowerCase()!=='approved')
   issues.push('manufacturer_registry_approval_missing');
  if(pendingAlias)issues.push('model_alias_review');
  if(collision)issues.push('canonical_name_collision_review');
