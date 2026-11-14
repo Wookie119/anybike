@@ -53,9 +53,9 @@ function organiseUniversalFactoryResearch(body){
  const panel=body?.querySelector('[data-anybike-verified-model-facts]');
  if(!panel)return;
  const groups=[...panel.querySelectorAll(':scope > [data-anybike-research-category]')];
- if(groups.length<3)return;
+ if(!groups.length)return;
  panel.classList.add('anybike-v2-organised-research');
- if(!panel.querySelector('[data-v2-research-controls]')){
+ if(groups.length>=3&&!panel.querySelector('[data-v2-research-controls]')){
   const controls=node('div',undefined,'anybike-v2-research-controls');
   controls.dataset.v2ResearchControls='1';
   const expand=node('button','Expand all research');
@@ -102,6 +102,23 @@ function organiseUniversalFactoryResearch(body){
   for(const child of [...section.children])detail.append(child);
   section.append(detail);
   section.classList.add('anybike-v2-compact-supplement');
+  // Model-specific factory colour and engineering references belong WITH
+  // their corresponding source-verified research, not as repeated standalone
+  // panels hundreds of pixels below. The unique records stay in the document.
+  const categories=id==='v2FactoryColours'?['factory_colours']:
+   ['engineering','engine','specification','chassis'];
+  const group=categories.map(category=>
+   groups.find(item=>item.dataset.anybikeResearchCategory===category))
+   .find(Boolean);
+  const destination=group?.querySelector(':scope > details[data-v2-factory-category]');
+  if(destination){
+   const supplementalHeading=section.querySelector('summary > h2');
+   if(supplementalHeading)supplementalHeading.textContent=
+    id==='v2FactoryColours'?'Additional factory colours by model year':
+     'Additional documented engineering details';
+   destination.append(section);
+   section.classList.add('anybike-v2-nested-supplement');
+  }
  }
 }
 // The site's existing visitor-country service is a presentation hint only.
@@ -636,7 +653,14 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    const container=node('div',undefined,'v2-model-year-cards');
    for(const c of yearCards){
     const article=node('article');
-    article.append(node('h4',c.period));paragraph(article,c.description);
+    article.append(node('h4',c.period));
+    // A generation can also be listed in model-year cards. When both carry
+    // exactly the same documentary paragraph, publish that paragraph once
+    // in the detailed generation panel; retain the dated card and source.
+    const repeatedByGeneration=generations.some(g=>
+      normalize(g.description)===normalize(c.description)&&
+      normalize(g.label)===normalize(c.period));
+    if(!repeatedByGeneration)paragraph(article,c.description);
     sourceLink(article,c.source,'Manufacturer reference ↗');container.append(article);
    }
    if(container.children.length)years.append(container);else years.remove();
