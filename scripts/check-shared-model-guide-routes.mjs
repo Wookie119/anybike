@@ -122,7 +122,10 @@ const universalHero=fs.readFileSync('model-template/public-approved-model-hero.m
 const universalGuide=fs.readFileSync('motorcycle-model-guide.html','utf8');
 assert(v2Renderer.includes('public_anybike_model_hero_v1'),'Universal V2 renderer must call rights-approved hero RPC');
 assert(universalHero.includes("public_anybike_model_hero_v1"),'Approved Supabase photo RPC missing');
-assert(universalHero.includes('data.make===make&&data.model===model'),'Exact model identity guard missing');
+assert(universalHero.includes('approvedHeroCandidate(data,make,model)')&&
+ universalHero.includes('data.make.trim().toLowerCase()===make.trim().toLowerCase()')&&
+ universalHero.includes('data.model.trim().toLowerCase()===model.trim().toLowerCase()'),
+ 'Exact manufacturer and model photo identity guard missing');
 assert(universalHero.includes('img.onload=()=>')&&universalHero.includes('img.onerror=next'),'Broken external image must not replace readable hero');
 assert(!universalHero.includes('new MutationObserver('),'Photo renderer must not introduce another DOM observer loop');
 
