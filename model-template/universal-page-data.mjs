@@ -110,6 +110,14 @@ export async function loadUniversalPublishedPage(client,{type,id,restEndpoint,re
        key==='source_file'||key==='source_blob_sha')&&
      Array.isArray(row.content.source_blocks))
    throw Error('Unreviewed source-only research section blocked');
+  // Photography references are asset-rights metadata, not renderable model
+  // research. A faulty publisher must not turn them into a public section
+  // merely because the JSON is nonempty. Images follow the independent
+  // approved exact-model hero/gallery pathway.
+  if(row.content&&typeof row.content==='object'&&!Array.isArray(row.content)&&
+     Object.keys(row.content).length===1&&
+     Object.prototype.hasOwnProperty.call(row.content,'photography'))
+   throw Error('Photography metadata-only research section blocked');
   // Pending technical evidence cannot be the sole customer-facing payload.
   if(row.content&&typeof row.content==='object'&&!Array.isArray(row.content)&&
      Object.keys(row.content).length===1&&
