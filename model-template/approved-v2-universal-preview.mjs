@@ -598,6 +598,19 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   $('v2UkSelling').querySelector('h2').textContent='UK owners: Sell My '+title;
   $('v2UkSelling').querySelectorAll('p')[0].textContent='Tell AnyBike about your motorcycle and submit photographs for review.';
   $('v2UkSelling').querySelectorAll('p')[1].textContent='There is no guaranteed offer or obligation to sell.';
+  // Pair the two buyer/seller calls to action near the enquiry, not the
+  // specifications. Reuse the existing panels and their working links.
+  const sellPanel=$('v2UkSelling'),buyPanel=$('nextAction');
+  const enquiryPanel=$('internationalGuestRequest');
+  if(sellPanel&&buyPanel&&enquiryPanel){
+   let pair=$('anybikeV2BuySellPair');
+   if(!pair){
+    pair=node('div',undefined,'anybike-v2-buy-sell-pair');
+    pair.id='anybikeV2BuySellPair';
+   }
+   enquiryPanel.before(pair);
+   pair.append(buyPanel,sellPanel);
+  }
   $('r1300CountryMarkets').querySelector('h2').textContent='Explore the '+title+' worldwide';
   $('r1300CountryMarkets').querySelector('p:not(.eyebrow)').textContent='Explore international motorcycle markets. A country link does not indicate exact-model stock.';
   // Optional editorial sections: no empty cards.
@@ -780,19 +793,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    // precede model-year development and research, rather than sit in #body
    // after the generation timeline. One shared placement for every make.
    const firstDevelopment=$('generationPanel');
-   // The two approved UK actions work better as a balanced information /
-   // selling pair. This is the same universal template for every make:
-   // never duplicate the stock panel, research or seller form.
-   const sellerPanel=$('v2UkSelling');
-   if(firstDevelopment&&sellerPanel){
-    let pair=$('anybikeV2SpecSellPair');
-    if(!pair){
-     pair=node('div',undefined,'anybike-v2-spec-sell-pair');
-     pair.id='anybikeV2SpecSellPair';
-    }
-    firstDevelopment.before(pair);
-    pair.append(section,sellerPanel);
-   }else if(firstDevelopment)firstDevelopment.before(section);
+   if(firstDevelopment)firstDevelopment.before(section);
   }
   // Long-form source-linked editorial fields: open-ended section registry.
   // New category keys render only when they contain approved paragraphs and
