@@ -73,11 +73,15 @@ async function verify(make,{catalogueAvailable=true,databaseRows=null,databaseEr
  // The canonical RPC, published snapshot and static fallback are separate
  // asynchronous stages. Wait for the final cards instead of 12 microtasks.
  for(let i=0;i<40;i++){
-  if(redirects.length||
-     (get('manufacturer-data-summary').innerHTML.includes('Motorcycle model records currently')&&
-      get('modelGroups').innerHTML.includes('manufacturer-model-card'))||
-     (get('manufacturer-data-summary').innerHTML.includes('Catalogue update pending')&&
-      get('modelGroups').innerHTML.includes('manufacturer-model-card')))break;
+  const summary=get('manufacturer-data-summary').innerHTML;
+  const hasCards=get('modelGroups').innerHTML.includes('manufacturer-model-card');
+  const publishedFinished=summary.includes('Motorcycle model records currently')&&hasCards;
+  const fallbackFinished=!catalogueAvailable&&
+    fetches.includes('/data/motorcycle-catalogue-master.json')&&
+    summary.includes('Catalogue update pending')&&hasCards;
+  // The initial curated placeholders are intentionally visible while loading:
+  // never mistake their presence for a completed canonical catalogue request.
+  if(redirects.length||publishedFinished||fallbackFinished)break;
   await new Promise(resolve=>setImmediate(resolve));
  }
  return {make,groupHtml:get('modelGroups').innerHTML,
