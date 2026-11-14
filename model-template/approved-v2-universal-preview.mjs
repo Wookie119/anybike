@@ -451,10 +451,10 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    }
    gallerySection.append(holder);
   }
-  // Exactly one shared V2 layout. Move its approved sections into their
-  // approved reading order rather than creating new make-specific templates.
+  // The approved V2 shell now places development as a real main-level
+  // section outside Available Stock. Model years are inserted before it.
+  // Keep this one layout for BMW, Harley and every other manufacturer.
   const development=$('r1300gsModelHistory'),timeline=$('r1300V2VerifiedExtras');
-  if(development&&timeline)timeline.after(development);
   if(development){
    development.hidden=true;
    development.querySelector('h3').textContent=title+' — development and ownership';
