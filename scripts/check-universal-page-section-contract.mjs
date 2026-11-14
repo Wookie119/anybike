@@ -115,3 +115,35 @@ assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[
  published(gs,4,{title:'History',summary:'Reviewed source-backed history',
   photography:{rights_holder:'BMW AG'}})
 ])).length,1,'Approved text suppressed alongside photo metadata');
+
+
+// Legacy BMW R 1300 GS technical rows are primary-source referenced but do
+// not carry a nested verification-status key. A section-level editorial review
+// may approve those exact two-column rows without rewriting their content.
+// Unreviewed wrappers, bad sources and explicitly pending cards stay hidden.
+const factoryRows={engineering:{
+ rows:[['Transmission','6-speed manual'],['Frame','Sheet-steel main frame']],
+ source:'https://www.press.bmwgroup.com/global/article/detail/T0437059EN/',
+ model_year:2024
+}};
+for(const patch of [
+ {publication_review_reference:undefined},
+ {publication_review_reference:''}
+]){
+ const slot={...published(gs,5,factoryRows),...patch};
+ assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[slot])).length,0,
+  'Source-linked engineering leaked without section editorial signoff');
+}
+assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[{
+ ...published(gs,5,factoryRows),publication_review_reference:'REVIEWED-2026-11-14'
+}])).length,1,'Documented BMW factory technical rows lost after review');
+for(const engineering of [
+ {...factoryRows.engineering,source:'http://unsafe.example/specs'},
+ {...factoryRows.engineering,verification_status:'pending_editorial_review'},
+ {...factoryRows.engineering,rows:[['Unreviewed incomplete claim']]}
+]){
+ assert.equal(visibleUniversalSections(buildUniversalPageSections(gs,[{
+  ...published(gs,5,{engineering}),
+  publication_review_reference:'REVIEWED-2026-11-14'
+ }])).length,0,'Unreviewed or malformed engineering exposed');
+}
