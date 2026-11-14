@@ -561,9 +561,16 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     image.decoding='async';image.alt=str(picture.title)||title+' documented motorcycle detail';
     image.style.cssText='width:100%;height:190px;object-fit:contain;background:#1a1a1a;border-radius:8px';
     article.append(image,node('h4',str(picture.title)||title+' photograph'));
-    paragraph(article,[picture.model_year_start,picture.model_year_end]
-      .filter(x=>x!==null&&x!==undefined).join('–'));
-    paragraph(article,picture.attribution+' · '+picture.licence);
+    const from=picture.model_year_start,to=picture.model_year_end;
+    const startYear=from!==null&&from!==undefined?String(from).trim():'';
+    const endYear=to!==null&&to!==undefined?String(to).trim():'';
+    const period=startYear&&endYear&&startYear!==endYear?
+     startYear+'–'+endYear:(startYear||endYear);
+    paragraph(article,period);
+    const attribution=str(picture.attribution),licence=str(picture.licence);
+    paragraph(article,[attribution,
+      licence&&!attribution.toLowerCase().includes(licence.toLowerCase())?licence:''
+    ].filter(Boolean).join(' · '));
     sourceLink(article,picture.source_page_url,'Original photograph ↗');
     holder.append(article);
    }
