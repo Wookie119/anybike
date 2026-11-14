@@ -309,12 +309,9 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   $('source').href=enquiry;
   // The master uses the existing approved manufacturer routes, rather
   // than sending every brand's model page to the generic A–Z directory.
-  const manufacturerPage=make==='BMW'?'/bmw-motorcycles.html':
-   make==='Harley-Davidson'?'/harley-davidson-motorcycles.html':
-   '/motorcycle-brand.html?make='+encodeURIComponent(make);
   const manufacturerAction=$('manufacturer');
   if(manufacturerAction){
-   manufacturerAction.href=manufacturerPage;
+   manufacturerAction.href=manufacturer;
    manufacturerAction.textContent='Explore '+make+' motorcycles →';
   }
   // Place exact-model stock before slower photography and research requests.
