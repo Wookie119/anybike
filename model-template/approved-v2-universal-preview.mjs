@@ -421,7 +421,11 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    galleryUrls.add(photo.image_url);return true;
   });
   if(galleryItems.length){
-   const gallerySection=makeSection('v2ApprovedGallery','Approved '+title+' photographs',stock);
+   // Use the same approved BMW model-gallery position on every manufacturer.
+   // Never add a second gallery after stock or display rights-only metadata.
+   const gallerySection=$('ukR1300ModelGallery');
+   gallerySection.hidden=false;
+   gallerySection.replaceChildren(node('h2','Approved '+title+' photographs'));
    const holder=node('div',undefined,'v2-documentary-grid');
    for(const picture of galleryItems){
     const article=node('article');
