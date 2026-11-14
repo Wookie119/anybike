@@ -704,6 +704,30 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    // Preserve chronological year cards even when no separate development cards exist.
    if(!devCards.length&&!yearCards.length)development.hidden=true;
   }
+  // The dated timeline is reference material, not a second prominent
+  // research chapter. Keep every source-linked event in the DOM, but place
+  // its closed disclosure with model years / development instead of above
+  // the six-card ownership overview.
+  if(timeline&&!timeline.hidden){
+   const timelineDetails=timeline.querySelector('.r1300-v2-extra-grid > details');
+   if(timelineDetails){
+    timelineDetails.open=false;
+    const summary=timelineDetails.querySelector('summary');
+    if(summary){
+     summary.replaceChildren(node('span','Explore the documented model-year timeline'));
+    }
+   }
+   timeline.classList.add('anybike-v2-timeline-compact');
+   const yearSection=$('v2GenericModelYears');
+   if(yearSection){
+    yearSection.append(timeline);
+   }else if(development&&!development.hidden){
+    development.append(timeline);
+   }else{
+    const generationsPanel=$('generationPanel');
+    if(generationsPanel)generationsPanel.after(timeline);
+   }
+  }
   const dive=arr(guide?.deep_dive).filter(x=>str(x.title)&&arr(x.paragraphs).some(p=>str(p.text)||validURL(p.link?.[0])));
   if(dive.length){
    const section=$('r1300DeepDive');section.hidden=false;
