@@ -48,11 +48,12 @@ try{
   const context=await browser.newContext({viewport:{width,height:850}});
   // One positive and one negative publication test: client-side projection
   // must display reviewed sections and suppress draft sections on the SAME V2.
-  const approvedResearch=make==='Suzuki'&&(width===1280||width===1024);
-  const publicationRows=make==='Suzuki'?Array.from(
+  const approvedResearch=(make==='Suzuki'&&(width===1280||width===1024))||
+   (make==='BMW'&&(width===1280||width===390));
+  const publicationRows=(make==='Suzuki'||make==='BMW')?Array.from(
    {length:approvedResearch?20:1},(_,i)=>({
-    source_section_id:701+i,entity_type:'model',entity_id:202,
-    entity_name:'RM250',manufacturer_id:99,section_number:i+1,
+    source_section_id:701+i,entity_type:'model',entity_id:make==='BMW'?77:202,
+    entity_name:make==='BMW'?'R 1300 GS':'RM250',manufacturer_id:make==='BMW'?5:99,section_number:i+1,
     section_key:'section_'+String(i+1).padStart(2,'0'),
     section_title:'Approved research section '+(i+1),
     content:{paragraphs:['Approved factory history smoke-test record '+(i+1)+'.']},
@@ -118,8 +119,9 @@ try{
      // OPTIONS preflight is not a research read. Count actual GETs only.
      if(route.request().method()==='GET')
       publishedRestRequests.push({method:route.request().method(),query});
-     if(make==='Suzuki'&&width!==560&&query.get('entity_type')==='eq.model'&&
-        query.get('entity_id')==='eq.202'&&
+     if((make==='BMW'||make==='Suzuki'&&width!==560)&&
+        query.get('entity_type')==='eq.model'&&
+        query.get('entity_id')==='eq.'+(make==='BMW'?'77':'202')&&
         query.get('publication_eligible')==='eq.true'&&
         query.get('order')==='section_number.asc'&&
         query.get('limit')==='21')body=publicationRows;
@@ -213,7 +215,7 @@ try{
     assert.equal(await page.locator('#v2ApprovedGallery article').count(),1);
     assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),origin+'/bmw-r1300gs.html');
    }else assert.equal(await page.locator('#databaseHeroPhoto').isVisible(),false);
-   if(make==='Suzuki'){
+   if(make==='Suzuki'||make==='BMW'){
     const visible=page.locator('.anybike-v2-reviewed-universal-section');
     if(approvedResearch){
      assert.equal(await visible.count(),20,'All 20 approved research slots must render on the master');
@@ -224,7 +226,7 @@ try{
      assert.equal((await page.locator('#body').innerText()).includes('Approved factory history smoke-test record'),false);
     }
    }
-   if(make==='Suzuki'){
+   if(make==='Suzuki'||make==='BMW'){
     if(!useInjectedClient){
      assert.equal(publishedRestRequests.length,1,'CDN-free research should read published-only table once');
      assert.equal(publishedRestRequests[0].method,'GET');
