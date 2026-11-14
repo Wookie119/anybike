@@ -751,7 +751,11 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    const grid=node('div',undefined,'v2-documentary-grid');
    for(const spec of documentedSpecs){
     const article=node('article');
+    article.classList.add('anybike-v2-spec-record');
     article.append(node('h4',[spec.model_year,str(spec.market)].filter(Boolean).join(' · ')));
+    // Present manufacturer-documented figures as individual scan-friendly
+    // specification tiles, preserving the exact model-year/market source.
+    const metrics=node('dl',undefined,'anybike-v2-spec-metrics');
     const values=[
      ['Engine',spec.engine_cc,'cc'],['Power',spec.power_hp,'hp'],
      ['Torque',spec.torque_nm,'Nm'],['Transmission',str(spec.transmission),'']
@@ -759,9 +763,16 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     for(const [label,value,unit] of values){
      if(value===null||value===undefined||String(value).trim()==='')continue;
      if(typeof value==='number'&&(!Number.isFinite(value)||value<=0))continue;
-     paragraph(article,label+': '+value+(unit?' '+unit:''));
+     const tile=node('div',undefined,'anybike-v2-spec-metric');
+     tile.append(node('dt',label));
+     const shown=typeof value==='number'?value.toLocaleString('en-GB'):String(value);
+     tile.append(node('dd',shown+(unit?' '+unit:'')));
+     metrics.append(tile);
     }
-    sourceLink(article,spec.source,'Factory specification source ↗');
+    article.append(metrics);
+    const source=node('div',undefined,'anybike-v2-spec-source');
+    sourceLink(source,spec.source,'Factory specification source ↗');
+    article.append(source);
     grid.append(article);
    }
    section.append(grid);
