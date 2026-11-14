@@ -37,6 +37,24 @@ export function hasRenderableUniversalResearch(content){
    Array.isArray(value)?value.length>0:
    safeRecord(value)?Object.keys(value).length>0:false));
 }
+// Publication's review reference belongs to the complete factory section.
+// Where old R 1300 GS drafts omit a nested verification flag, explicitly
+// signed-off, sourced and valid factory rows can be rendered. A pending flag,
+// unknown source or missing review reference always fails closed.
+export function reviewedStandaloneEngineering(section){
+ const engineering=section?.content?.engineering;
+ if(!safeRecord(engineering))return false;
+ const nestedStatus=safeText(engineering.verification_status).toLowerCase();
+ if(['verified','approved','published'].includes(nestedStatus))return true;
+ if(nestedStatus)return false;
+ return Boolean(safeText(section.publication_review_reference))&&
+  /^https:\/\//i.test(safeText(engineering.source))&&
+  Array.isArray(engineering.rows)&&engineering.rows.length>0&&
+  engineering.rows.every(pair=>Array.isArray(pair)&&pair.length===2&&
+   safeText(pair[0])&&
+   (safeText(pair[1])||
+    typeof pair[1]==='number'&&Number.isFinite(pair[1])));
+}
 export function canonicalPageEntity(entity){
  if(!safeRecord(entity)||!['manufacturer','model'].includes(entity.type)||!validId(entity.id))
   throw Error('Canonical manufacturer/model ID and entity type required');
@@ -108,25 +126,8 @@ export function buildUniversalPageSections(entity,sections){
    // A pending engineering payload on its own is not a published section.
    // Approved surrounding editorial may still display independently, with
    // nested technical claims filtered by the renderer.
-   if(keys.length===1&&safeRecord(s.content.engineering)){
-    const engineering=s.content.engineering;
-    const nestedStatus=safeText(engineering.verification_status).toLowerCase();
-    const nestedApproved=['verified','approved','published'].includes(nestedStatus);
-    // Source-linked engineering in the R 1300 GS draft predates per-card
-    // verification fields. An explicit signed-off publication of that exact
-    // section may authorise its documented two-column factory rows. Never
-    // infer approval while the section is a draft, or if the card explicitly
-    // says pending/unverified.
-    const signedOffFactoryRows=!nestedStatus&&
-      safeText(s.publication_review_reference)&&
-      /^https:\/\//i.test(safeText(engineering.source))&&
-      Array.isArray(engineering.rows)&&engineering.rows.length>0&&
-      engineering.rows.every(pair=>Array.isArray(pair)&&pair.length===2&&
-       safeText(pair[0])&&
-       (safeText(pair[1])||
-        typeof pair[1]==='number'&&Number.isFinite(pair[1])));
-    if(!nestedApproved&&!signedOffFactoryRows)continue;
-   }
+   if(keys.length===1&&safeRecord(s.content.engineering)&&
+      !reviewedStandaloneEngineering(s))continue;
   }
   bySlot.set(n,Object.freeze({number:n,key:SECTION_KEYS[n-1],title:safeText(s.section_title),
    content:s.content,entity_id:identity.id,entity_type:identity.type}));
