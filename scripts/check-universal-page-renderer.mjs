@@ -555,3 +555,26 @@ assert(r1300Nodes.some(x=>x.href==='https://www.press.bmwgroup.com/global/articl
 assert(!r1300Nodes.some(x=>x.tagName==='img'),
  'Photography metadata must not generate unlicensed model imagery');
 console.log('PASS: R 1300 GS reviewed history, pending image isolation, and no metadata-only cards');
+
+
+// The R 1300 GS approved introduction carries model-year wording separately
+// from factory-production dating. This must display as approved text without
+// generating unapproved photo assets or guessing manufacturing dates.
+const r1300YearsRoot=new FakeElement('main',documentFake);
+r1300YearsRoot.dataset.anybikeUniversalRoot='true';
+renderUniversalPage(r1300YearsRoot,{entity:gs,sections:[mk(gs,1,{
+ summary:'BMW adventure motorcycle development',
+ years:'Factory production in September 2023; 2024 model year',
+ hero:{years:'BMW publicly unveiled the R 1300 GS on 28 September 2023',
+  paragraphs:['Reviewed R 1300 GS factory model introduction']}
+})]});
+const r1300YearsNodes=collect(r1300YearsRoot);
+const r1300YearsText=r1300YearsNodes.map(x=>x.textContent||'').join(' | ');
+for(const expected of [
+ 'Factory production in September 2023; 2024 model year',
+ 'BMW publicly unveiled the R 1300 GS on 28 September 2023',
+ 'Reviewed R 1300 GS factory model introduction'
+])assert(r1300YearsText.includes(expected),'Model-year text not displayed: '+expected);
+assert(!r1300YearsNodes.some(x=>x.tagName==='img'),
+ 'Model-year copy was incorrectly turned into a photo asset');
+console.log('PASS: approved R 1300 GS model-year and announcement prose renders without imagery');
