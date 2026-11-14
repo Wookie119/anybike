@@ -548,6 +548,11 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    if(!safePhoto(photo)||galleryUrls.has(photo.image_url))return false;
    galleryUrls.add(photo.image_url);return true;
   });
+  // Prefer licensed whole-bike images; engine close-ups stay in the gallery.
+  galleryItems.sort((a,b)=>{
+   const detail=x=>/\b(?:engine|motor|detail|close.up|instrument|exhaust)\b/i.test(str(x.title));
+   return Number(detail(a))-Number(detail(b));
+  });
   if(galleryItems.length){
    // Use the same approved BMW model-gallery position on every manufacturer.
    // Never add a second gallery after stock or display rights-only metadata.
@@ -659,16 +664,17 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    years.querySelector('h2').textContent=title+' — model years and editions';
    const container=node('div',undefined,'v2-model-year-cards');
    for(const c of yearCards){
-    const article=node('article');
-    article.append(node('h4',c.period));
-    // A generation can also be listed in model-year cards. When both carry
-    // exactly the same documentary paragraph, publish that paragraph once
-    // in the detailed generation panel; retain the dated card and source.
-    const repeatedByGeneration=generations.some(g=>
+    // The generations panel already holds the identical dated account,
+    // including its source. Don't show a heading-only copy.
+    const duplicated=generations.some(g=>
       normalize(g.description)===normalize(c.description)&&
       normalize(g.label)===normalize(c.period));
-    if(!repeatedByGeneration)paragraph(article,c.description);
-    sourceLink(article,c.source,'Manufacturer reference ↗');container.append(article);
+    if(duplicated)continue;
+    const article=node('article');
+    article.append(node('h4',c.period));
+    paragraph(article,c.description);
+    sourceLink(article,c.source,'Manufacturer reference ↗');
+    container.append(article);
    }
    if(container.children.length)years.append(container);else years.remove();
    for(const group of ['engineering','buying']){
@@ -741,6 +747,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    .map(({spec})=>spec);
   if(documentedSpecs.length){
    const section=makeSection('v2DocumentedSpecifications','Documented specifications',$('v2EngineeringOverview')||$('v2FactoryColours')||$('body'));
+   section.classList.add('anybike-v2-spec-highlights');
    const grid=node('div',undefined,'v2-documentary-grid');
    for(const spec of documentedSpecs){
     const article=node('article');
