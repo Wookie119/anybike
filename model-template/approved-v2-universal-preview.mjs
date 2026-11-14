@@ -427,7 +427,8 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const cards=$('internationalModelCards');
   cards.replaceChildren(node('p','Checking permitted exact-model stock…'));
   stock.dataset.stockFeedState='checking';
-  stock.hidden=false;
+  // Keep hidden while audience and authorised stock resolve, avoiding
+  // an international-only panel flashing briefly in the UK view.
   // Forms must work even while slow research and photography are still loading.
   // Guest requests do not depend on a successful optional login check.
   const optionalVisitorToken=async()=>{
