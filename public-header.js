@@ -114,6 +114,15 @@ Changes
 
 document.addEventListener("DOMContentLoaded", loadPublicHeader);
 document.addEventListener("DOMContentLoaded", anybikeApplyPublicStockVisibility);
+// VMoto is a UK retail navigation service. Keep its pages intact but omit
+// its primary-menu shortcut in the international buyer experience.
+(function hideVmotoInInternationalNavigation(){
+  const style=document.createElement("style");
+  style.id="anybikeInternationalHideVmotoNav";
+  style.textContent='html.anybike-international-dealer .public-nav > a[href="/vmoto.html"],html.anybike-international-dealer .mobile-nav > a[href="/vmoto.html"]{display:none!important}';
+  (document.head||document.documentElement).appendChild(style);
+})();
+
 
 async function anybikeGetPublicStockVisibility(){
   try{
