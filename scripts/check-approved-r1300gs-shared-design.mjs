@@ -20,8 +20,14 @@ assert(!/#(?:3b2023|82383c|352124|813438|ff5b62)/i.test(sharedBody),
  'Shared design must not reintroduce burgundy or salmon accents');
 assert(sharedBody.slice(approvedPalette.length).includes('Universal approved R 1300 GS frame'),
  'Any additional universal CSS must follow, never replace, the approved reference');
-assert(guide.includes('/model-template/approved-r1300gs-model-design.css?v=20261112-master1'),
- 'Every shared model page must load approved master design');
+assert(guide.includes('/model-template/approved-v2-preview-style.css?v='),
+ 'Shared model guide must load the approved V2 master stylesheet');
+const approvedV2=readFileSync('model-template/approved-v2-preview-style.css','utf8');
+const originalReference=readFileSync('bmw-r1300gs-v2-approved-20261102.html','utf8');
+const referenceStyleBlocks=[...originalReference.matchAll(/<style\\b[^>]*>([\\s\\S]*?)<\\/style>/g)].map(x=>x[1]);
+assert(referenceStyleBlocks.length>=30,'Approved V2 reference styles must exist');
+for(const block of referenceStyleBlocks)assert(approvedV2.includes(block),
+ 'Universal stylesheet is missing an approved BMW R 1300 GS reference style');
 for(const token of ['--red:#ed1c24','background:#000','background:var(--panel)',
  '.generation-panel','.factory-colour-card','.grid']){
  assert(shared.includes(token),'Approved design token missing: '+token);
@@ -33,8 +39,8 @@ for(const {url} of dedicatedRoutes){
  const path=url.startsWith('/')?url.slice(1):url;
  if(path==='bmw-r1300gs.html')continue;
  const html=readFileSync(path,'utf8');
- assert(html.includes('/model-template/approved-r1300gs-model-design.css?v=20261112-master1'),
-  'Dedicated model page must load approved R 1300 GS master design: '+path);
+ assert(html.includes('/model-template/approved-v2-preview-style.css?v='),
+  'Dedicated model page must load approved universal V2 design: '+path);
  assert(html.includes('<main'),'Dedicated model page content must remain: '+path);
 }
 console.log('PASS: generic model guide uses the exact approved R 1300 GS master design stylesheet');
