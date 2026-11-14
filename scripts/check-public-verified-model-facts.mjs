@@ -907,29 +907,27 @@ assert.equal(preservedBody.children.filter(x=>x.dataset?.anybikeVerifiedModelFac
  'Temporary RPC failure must not erase the last verified research display');
 
 const html=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
-assert(html.includes('/model-template/public-verified-model-facts.mjs?v=20261112-research-rest-throw11'));
-assert(html.indexOf('id="body"')>html.indexOf('id="generationPanel"'));
-assert(html.includes('catalogue.models.find(x=>x&&typeof x.make==="string"&&typeof x.model==="string"'),
- 'Malformed catalogue entries must not crash public model guides');
-assert(html.includes('Object.values(guides.models).find(g=>g&&typeof g.make==="string"&&typeof g.model==="string"'),
- 'Malformed optional research entries must not blank the model and enquiry cards');
-assert(html.includes('el("sourceBottom").href=request'),
- 'Unavailable model research must retain the customer sourcing enquiry route');
-
-assert(html.includes('Array.isArray(x)&&typeof x[0]==="string"&&typeof x[1]==="string"'),
- 'Deep-dive topic filters must ignore malformed optional section rows');
-assert(html.includes('Array.isArray(guide.production?.documented_production_evidence)'),
- 'Optional factory evidence must not break model and stock content');
-assert(html.includes('Array.isArray(guide.production?.generation_milestones)'),
- 'Optional generation milestones must not break customer enquiries');
-
-
-const relatedScript=readFileSync(new URL('../shared-model-catalogue.js',import.meta.url),'utf8');
-assert(relatedScript.includes('.filter(x=>x&&typeof x.make==="string"&&typeof x.model==="string"'),
- 'Malformed master catalogue entries must never blank linked model research');
-assert(html.includes('/shared-model-catalogue.js?v=20261111safe1'),
- 'Generic model pages must load the validated shared catalogue script');
-
+const universalRenderer=readFileSync(new URL('../model-template/approved-v2-universal-preview.mjs',import.meta.url),'utf8');
+assert(html.includes('/model-template/approved-v2-universal-preview.mjs?v='),
+ 'Generic page must load the one approved V2 universal renderer');
+assert(universalRenderer.includes("from '/model-template/public-verified-model-facts.mjs?v="),
+ 'Shared V2 renderer must import exactly the source-verified research component');
+assert(html.indexOf('id="body"')>html.indexOf('id="generationPanel"'),
+ 'Verified research must appear after model-year research');
+assert(universalRenderer.includes('found.length!==1'),
+ 'Ambiguous canonical model names must fail closed');
+assert(universalRenderer.includes('if(!liveCatalogueLoaded)')&&
+ universalRenderer.includes("fetch('/data/motorcycle-catalogue-master.json'"),
+ 'Public fallback must survive loss of the optional Supabase catalogue client');
+assert(universalRenderer.includes('if(exact.length===1)')&&
+ universalRenderer.includes('supplementPublishedV2Guide('),
+ 'Only exact matching published legacy research may supplement the approved V2 guide');
+assert(universalRenderer.includes("sourceBottom")&&
+ html.includes('id="internationalGuestRequestForm"'),
+ 'No-login sourcing and enquiries must remain available without research');
+assert(universalRenderer.includes('stockForCanonicalModel')&&
+ universalRenderer.includes('loadUniversalPublishedPage'),
+ 'Verified exact-model stock and publication isolation must use the shared master');
 
 const harleyResearchSource=readFileSync(new URL('../model-template/public-harley-verified-research.mjs',import.meta.url),'utf8');
 assert(harleyResearchSource.includes("import {installVerifiedModelFacts} from './public-verified-model-facts.mjs'"),
