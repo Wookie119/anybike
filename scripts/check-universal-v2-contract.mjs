@@ -146,10 +146,19 @@ check('Unexpected model failures do not leave stock permanently checking',()=>{
  assert.match(renderer,/pendingStock\?\.dataset\.stockFeedState==='checking'/);
  assert.match(renderer,/pendingStock\.dataset\.stockFeedState='unavailable'/);
 });
-check('Approved model photo galleries never displace exact-model stock',()=>{
- assert.match(renderer,/makeSection\('v2ApprovedGallery','Approved '\+title\+' photographs',stock\)/);
- assert(renderer.indexOf("if(header&&stock)header.after(stock)")<
-  renderer.indexOf("makeSection('v2ApprovedGallery'"));
+check('Approved model photo galleries reuse the approved BMW shell and preserve stock order',()=>{
+ for(const route of [html,genericRouteHtml]){
+  const stock=route.indexOf('id="internationalModelStock"');
+  const gallery=route.indexOf('id="ukR1300ModelGallery"');
+  const research=route.indexOf('id="body"');
+  assert(stock>0&&gallery>stock&&research>gallery,
+   'One master shell must place stock, gallery, then research in BMW order');
+  assert.match(route,/id="manufacturer"/,
+   'BMW-style manufacturer link must be on every shared model hero');
+ }
+ assert.match(renderer,/const gallerySection=\$\('ukR1300ModelGallery'\)/);
+ assert(!renderer.includes("makeSection('v2ApprovedGallery'"),
+  'Renderer must not create a second independent gallery');
 });
 check('Shared enquiries and available stock remain available before research',()=>{
  assert.match(renderer,/international-guest-enquiry/);
