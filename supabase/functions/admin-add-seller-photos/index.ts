@@ -1,11 +1,16 @@
 import {createClient} from "npm:@supabase/supabase-js@2";
 const allowedOrigins=new Set(["https://www.anybike.co.uk","https://anybike.co.uk"]);
-const types=new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif"]);
+const types=new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif","image/avif"]);
 const safeOrigin=(value:string)=>allowedOrigins.has(value)?value:"https://www.anybike.co.uk";
 const validMagic=(mime:string,b:Uint8Array)=>{
  if(mime==="image/jpeg")return b.length>3&&b[0]===255&&b[1]===216&&b[2]===255;
  if(mime==="image/png")return b.length>8&&[137,80,78,71,13,10,26,10].every((x,i)=>b[i]===x);
  if(mime==="image/webp")return b.length>12&&new TextDecoder().decode(b.slice(0,4))==="RIFF"&&new TextDecoder().decode(b.slice(8,12))==="WEBP";
+ if(mime==="image/avif"){
+  if(b.length<12||new TextDecoder().decode(b.slice(4,8))!=="ftyp")return false;
+  const brand=new TextDecoder().decode(b.slice(8,12));
+  return ["avif","avis","mif1","msf1"].includes(brand);
+ }
  if(mime==="image/heic"||mime==="image/heif"){
   if(b.length<12||new TextDecoder().decode(b.slice(4,8))!=="ftyp")return false;
   const brand=new TextDecoder().decode(b.slice(8,12));
@@ -34,7 +39,7 @@ Deno.serve(async req=>{
   if(!/^AB-S-\d{6}$/.test(reference))return out({error:"Invalid motorcycle reference"},400);
   const files=form.getAll("photos").filter((item):item is File=>item instanceof File&&item.size>0);
   if(!files.length||files.length>12)return out({error:"Choose 1 to 12 photographs"},400);
-  if(files.some(f=>f.size>10485760||!types.has(f.type.toLowerCase())))return out({error:"Images must be JPEG, PNG, WEBP or HEIC, maximum 10 MB each"},400);
+  if(files.some(f=>f.size>10485760||!types.has(f.type.toLowerCase())))return out({error:"Images must be JPEG, PNG, WEBP, HEIC or AVIF, maximum 10 MB each"},400);
   const db=createClient(base,secret,{auth:{persistSession:false}});
   const {data:bike,error:bikeError}=await db.from("seller_motorcycle_submissions").select("id,reference,make,model,registration").eq("reference",reference).maybeSingle();
   if(bikeError||!bike)return out({error:"Motorcycle submission not found"},404);
