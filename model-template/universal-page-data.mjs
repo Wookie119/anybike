@@ -4,17 +4,38 @@
 import {canonicalPageEntity} from './universal-page-section-contract.mjs';
 
 export const UNIVERSAL_PUBLIC_SECTIONS='motorcycle_universal_published_sections_v1';
-export async function loadUniversalPublishedPage(client,{type,id}={}){
- if(!client||typeof client.from!=='function')throw Error('Supabase public client required');
+const PUBLIC_FIELDS='source_section_id,entity_type,entity_id,entity_name,manufacturer_id,section_number,section_key,section_title,content,editorial_status,publication_eligible,published_at,publication_review_reference';
+export async function loadUniversalPublishedPage(client,{type,id,restEndpoint,restKey}={}){
  const requested={type,id,name:'pending',manufacturer_id:type==='manufacturer'?id:1};
  canonicalPageEntity(requested); // validates type, numeric canonical ID
- const {data,error}=await client.from(UNIVERSAL_PUBLIC_SECTIONS)
-  .select('source_section_id,entity_type,entity_id,entity_name,manufacturer_id,section_number,section_key,section_title,content,editorial_status,publication_eligible,published_at,publication_review_reference')
-  .eq('entity_type',type)
-  .eq('entity_id',Number(id))
-  .eq('publication_eligible',true)
-  .order('section_number',{ascending:true})
-  .limit(21); // Fetch one beyond the contract so overflow cannot be hidden.
+ let data,error;
+ if(client&&typeof client.from==='function'){
+  ({data,error}=await client.from(UNIVERSAL_PUBLIC_SECTIONS)
+   .select(PUBLIC_FIELDS)
+   .eq('entity_type',type)
+   .eq('entity_id',Number(id))
+   .eq('publication_eligible',true)
+   .order('section_number',{ascending:true})
+   .limit(21)); // Fetch one beyond the contract so overflow cannot be hidden.
+ }else if(!client&&typeof restEndpoint==='string'&&
+          /^https:\/\//.test(restEndpoint)&&typeof restKey==='string'&&restKey){
+  // CDN-unavailable fallback: identical published-only PostgREST projection,
+  // never the private editorial table, privileged key or broader stock feed.
+  // Public RLS still decides which rows can be read.
+  const url=new URL('/rest/v1/'+UNIVERSAL_PUBLIC_SECTIONS,restEndpoint);
+  url.searchParams.set('select',PUBLIC_FIELDS);
+  url.searchParams.set('entity_type','eq.'+type);
+  url.searchParams.set('entity_id','eq.'+Number(id));
+  url.searchParams.set('publication_eligible','eq.true');
+  url.searchParams.set('order','section_number.asc');
+  url.searchParams.set('limit','21');
+  const response=await fetch(url.toString(),{
+   method:'GET',headers:{apikey:restKey,Accept:'application/json'},
+   cache:'no-store'
+  });
+  if(!response.ok)throw Error('Published catalogue unavailable');
+  data=await response.json();
+ }else throw Error('Supabase public client required');
  if(error)throw Error('Published catalogue unavailable');
  if(!Array.isArray(data))throw Error('Invalid published catalogue response');
  if(data.length>20)throw Error('Universal publication exceeds 20 sections');
