@@ -52,6 +52,7 @@ jobs:
       - name: Verify master on desktop and mobile with mocked public data
         run: node scripts/check-universal-v2-browser.mjs
       - name: Check public master and renderer deployment without submitting data
+        id: live_source
         continue-on-error: true
         shell: bash
         run: |
@@ -72,8 +73,23 @@ jobs:
           cmp model-template/approved-v2-universal-preview.mjs "$RUNNER_TEMP/anybike-live-renderer.mjs"
           echo 'LIVE MASTER AND RENDERER MATCH GITHUB SOURCE'
       - name: Check deployed public master in read-only browser
+        id: live_browser
         continue-on-error: true
         run: node scripts/check-universal-v2-live-browser.mjs
+      - name: Report live deployment separately from source regression
+        if: always()
+        shell: bash
+        run: |
+          echo "## AnyBike V2: source versus live" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Live source retrieval and renderer comparison: ${{ steps.live_source.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Live browser verification: ${{ steps.live_browser.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${{ steps.live_source.outcome }}" != "success" ||
+                "${{ steps.live_browser.outcome }}" != "success" ]]; then
+            echo "::warning::AnyBike V2 LIVE deployment is not independently verified; source CI must not be reported as live success."
+            echo "- LIVE DEPLOYMENT: NOT VERIFIED (or failed); inspect live steps and screenshots." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- LIVE DEPLOYMENT: both independent checks passed for this run." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Preserve live public rendering screenshots
         if: always()
         uses: actions/upload-artifact@v4
