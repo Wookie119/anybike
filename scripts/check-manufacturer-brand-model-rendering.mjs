@@ -70,7 +70,16 @@ async function verify(make,{catalogueAvailable=true,databaseRows=null,databaseEr
   URLSearchParams,fetch,
   console:{warn(...args){warnings.push(args.join(' '));}}
  },{timeout:2500});
- for(let i=0;i<12;i++)await Promise.resolve();
+ // The canonical RPC, published snapshot and static fallback are separate
+ // asynchronous stages. Wait for the final cards instead of 12 microtasks.
+ for(let i=0;i<40;i++){
+  if(redirects.length||
+     (get('manufacturer-data-summary').innerHTML.includes('Motorcycle model records currently')&&
+      get('modelGroups').innerHTML.includes('manufacturer-model-card'))||
+     (get('manufacturer-data-summary').innerHTML.includes('Catalogue update pending')&&
+      get('modelGroups').innerHTML.includes('manufacturer-model-card')))break;
+  await new Promise(resolve=>setImmediate(resolve));
+ }
  return {make,groupHtml:get('modelGroups').innerHTML,
   categoryHtml:get('categoryCards').innerHTML,
   summaryHtml:get('manufacturer-data-summary').innerHTML,
