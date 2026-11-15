@@ -24,7 +24,10 @@ const check=(label,fn)=>{
 };
 check('All model routes use one canonical 20-slot contract and shared approved research panel',()=>{
  assert.match(renderer,/SECTION_KEYS as UNIVERSAL_SLOT_KEYS,SECTION_COUNT as UNIVERSAL_SLOT_COUNT/);
- assert.match(renderer,/function integratePublishedResearch\(body\)/);
+ assert.match(renderer,/function integratePublishedResearch\(body,make,model\)/);
+ assert.match(renderer,/integratePublishedResearch\(\$\('body'\),make,model\)/);
+ assert.match(renderer,/panel\.dataset\.anybikeResearchIdentity!==identity/);
+ assert.match(renderer,/if\(seen\.has\(section\.dataset\.sectionKey\)\)continue/);
  assert.match(renderer,/if\(!panel\)\{/);
  assert.match(renderer,/panel\.dataset\.anybikeVerifiedModelFacts='1'/);
  assert.match(renderer,/group\.dataset\.anybikeV2CanonicalSlot=section\.dataset\.sectionKey/);
