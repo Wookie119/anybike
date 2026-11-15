@@ -7,7 +7,7 @@ const read=p=>fs.readFileSync(p,'utf8');
 const routes=JSON.parse(read('data/universal-v2-model-routes.json')).models;
 const master=read('motorcycle-v2-master.html');
 const names=['approved-v2-preview-style.css','approved-v2-universal-preview.mjs','approved-v2-dynamic-navigation.mjs'];
-const version=(html,name)=>html.match(new RegExp(name.replaceAll('.',String.raw`\.`)+String.raw`\\?v=([^"'<>]+)`))?.[1];
+const version=(html,name)=>html.split(name+'?v=')[1]?.split(/["'<>]/)[0];
 const target=Object.fromEntries(names.map(name=>[name,version(master,name)]));
 for(const [name,v] of Object.entries(target))assert(v,'Missing approved master asset '+name);
 let changed=0;
@@ -16,9 +16,15 @@ for(const route of routes){
  let html=read(path);
  const original=html;
  for(const name of names){
-  const re=new RegExp('('+name.replaceAll('.',String.raw`\.`)+String.raw`\\?v=)[^"'<>]+`,'g');
-  assert(re.test(html),'Missing '+name+' at '+route.url);
-  html=html.replace(re,(_,prefix)=>prefix+target[name]);
+  const marker=name+'?v=';
+  assert(html.includes(marker),'Missing '+name+' at '+route.url);
+  const pieces=html.split(marker);
+  html=pieces[0];
+  for(const piece of pieces.slice(1)){
+   const end=piece.search(/["'<>]/);
+   assert(end>=0,'Unterminated asset version '+name+' at '+route.url);
+   html+=marker+target[name]+piece.slice(end);
+  }
  }
  const identity=JSON.parse(html.match(/<script id="anybikeV2RouteIdentity" type="application\/json">([^<]+)<\/script>/)?.[1]||'null');
  assert.equal(identity?.make,route.make,route.url);
