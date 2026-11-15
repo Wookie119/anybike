@@ -39,11 +39,37 @@ assert.equal(new Set(routes.map(r=>r.url)).size,routes.length,'Duplicate permane
 const assetPattern=/(?:approved-v2-preview-style\.css|approved-v2-universal-preview\.mjs|approved-v2-dynamic-navigation\.mjs)\?v=[^"']+/g;
 const masterAssets=master.match(assetPattern)||[];
 assert.equal(masterAssets.length,3,'Master must load all three approved shared V2 assets');
+const requiredRuntimeIds=['heading','category','summary','years','databaseHeroPhoto',
+ 'internationalModelStock','internationalModelCards','generationPanel',
+ 'r1300gsModelHistory','r1300DeepDive','databaseMotorcycleTypes',
+ 'internationalGuestRequestForm','internationalGuestRequestStatus',
+ 'v2UkSellAction','nextAction','modelSources'];
+const requiredRuntimeAssets=[
+ '/model-template/approved-v2-universal-preview.mjs?v=',
+ '/model-template/approved-v2-dynamic-navigation.mjs?v=',
+ 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'];
+const renderer=read('model-template/approved-v2-universal-preview.mjs');
+assert(renderer.includes('motorcycle_model_v2_editorial')&&
+ renderer.includes('public_anybike_verified_model_gallery_v1'),
+ 'Shared renderer lost its approved database connections');
 const seenTitles=new Set();
 for(const r of routes){
  assert(/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(r.url),
   'Invalid permanent model URL: '+r.url);
  const html=read(r.url.slice(1));
+ for(const id of requiredRuntimeIds){
+  assert(html.includes('id="'+id+'"'),
+   'Required approved master component missing '+id+' at '+r.url);
+ }
+ for(const asset of requiredRuntimeAssets){
+  assert(html.includes(asset),'Shared runtime asset missing '+asset+' at '+r.url);
+ }
+ assert(!html.includes('approved-bmw-page-shell.mjs')&&
+  !html.includes('public-harley-verified-research.mjs'),
+  'Parallel legacy model renderer on '+r.url);
+ assert(html.includes('name="model_id"')||
+  html.includes('id="anybikeV2RouteIdentity"'),
+  'Model database identity unavailable at '+r.url);
  assert.deepEqual(sectionSkeleton(html),approvedSkeleton,
   'Model URL diverges from the ONE approved V2 master: '+r.url);
  assert(html.includes('id="databaseMotorcycleTypes"'),
