@@ -244,7 +244,7 @@ async function modelNavigation(){
    ranked.sort((a,b)=>score(b)-score(a)||a.label.localeCompare(b.label,'en-GB',{numeric:true}));
    // Show a useful cross-section of the same manufacturer-specific family;
    // the pills wrap naturally on wider screens. The full catalogue remains expandable.
-   const compact=ranked.slice(0,14);
+   const compact=ranked.filter(item=>score(item)>0).slice(0,6);
    safeNav(panel.querySelector('[data-v2-quick-related]'),compact);
    safeNav(panel.querySelector('[data-v2-quick-all]'),links);
    panel.querySelector('.anybike-v2-all-models summary').textContent=
@@ -288,8 +288,8 @@ async function manufacturerNavigation(){
   }
   if(!entries.size)return;
   const panel=makePanel('approvedV2Manufacturers','Explore other motorcycle manufacturers','',after);
-  // This is public customer navigation, not an internal directory update
-  // message. Display all available manufacturer links immediately.
+  // Keep the full public directory accessible without forcing a huge mobile
+  // manufacturer grid open before the motorcycle's enquiry and research.
   const editorialNote=panel.querySelector(':scope > p');
   if(editorialNote)editorialNote.remove();
   const nav=panel.querySelector('nav');
@@ -306,7 +306,7 @@ async function manufacturerNavigation(){
    nav.before(directory);
    directory.append(nav);
   }
-  directory.open=true;
+  directory.open=false;
   directory.querySelector('summary').textContent=
    'All '+entries.size+' other motorcycle manufacturers';
   panel.dataset.anybikeV2Source='published-manufacturer-directory';
