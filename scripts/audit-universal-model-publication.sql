@@ -177,3 +177,27 @@ FROM model_status
 ORDER BY CASE WHEN staged_sections>0 THEN 0 ELSE 1 END,
          staged_sections DESC,manufacturer,model
 LIMIT 200;
+
+-- 11. Empty JSON section payloads are NOT finished research. Retain the
+-- original draft rows and their provenance for remediation; never promote
+-- them simply because a section title or source_reference exists.
+SELECT s.id AS draft_section_id,m.manufacturer,m.model,s.section_number,
+       s.section_title,s.source_reference
+FROM public.motorcycle_universal_page_sections_v1 s
+JOIN public.motorcycle_catalog_models m ON m.id=s.model_id
+WHERE s.entity_type='model'
+  AND (s.content IS NULL OR s.content='{}'::jsonb
+       OR s.content='null'::jsonb)
+ORDER BY m.manufacturer,m.model,s.section_number;
+
+-- 12. A source-reference marker is not a substitute for reviewed evidence.
+-- Count structurally nonempty section payloads separately from approved
+-- published sections, and prevent misleading completion percentages.
+SELECT count(*) AS model_draft_sections,
+       count(*) FILTER (WHERE jsonb_typeof(content)='object'
+                        AND content<>'{}'::jsonb) AS nonempty_object_sections,
+       count(*) FILTER (WHERE content='{}'::jsonb) AS empty_object_sections,
+       count(*) FILTER (WHERE jsonb_typeof(content)<>'object'
+                        OR content IS NULL) AS invalid_payload_sections
+FROM public.motorcycle_universal_page_sections_v1
+WHERE entity_type='model';
