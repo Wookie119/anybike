@@ -214,6 +214,23 @@ check('The shared layout has accessible contrast, readable cards and mobile flow
  assert.match(css,/@media\(max-width:800px\)/);
  assert.match(css,/focus-visible/);
 });
+check('Universal model research is published-only and never loads draft editorial',()=>{
+ const data=read('model-template/universal-page-data.mjs');
+ const contract=read('model-template/universal-page-section-contract.mjs');
+ assert.match(renderer,/loadUniversalPublishedPage\(client,/);
+ assert.match(renderer,/type:'model',id:canonicalId/);
+ assert.match(data,/motorcycle_universal_published_sections_v1/);
+ assert.match(data,/\.eq\('publication_eligible',true\)/);
+ assert.match(data,/\.limit\(21\)/);
+ assert.match(data,/if\(data\.length>20\)throw Error/);
+ assert.match(data,/if\(data\.length===0\)return null/);
+ assert.match(data,/row\.editorial_status!=='published'/);
+ assert.match(data,/row\.publication_eligible!==true/);
+ assert.match(data,/row\.published_at/);
+ assert.doesNotMatch(data,/from\('motorcycle_universal_page_sections_v1'\)/);
+ assert.doesNotMatch(renderer,/from\('motorcycle_universal_page_sections_v1'\)/);
+ assert.match(contract,/SECTION_COUNT/);
+});
 check('V2 research, approved photography and exact-stock isolation remain in place',()=>{
  assert.match(renderer,/installVerifiedModelFacts/);
  assert.match(renderer,/public_anybike_model_hero_v1/);
