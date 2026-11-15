@@ -49,6 +49,35 @@ function sourceLink(parent,href,label){
 // The factory evidence remains in the DOM, with all original text and
 // sources. Native details shorten the page without fetching or removing
 // material on click, and are keyboard/mobile accessible.
+// The database's canonical 20 slots are the only section identities. The
+// same ordering applies to every manufacturer; empty slots stay in the DOM
+// as non-rendered anchors, never as invented motorcycle specifications.
+const UNIVERSAL_SLOT_KEYS=Object.freeze(Array.from({length:20},(_,i)=>
+ 'section_'+String(i+1).padStart(2,'0')));
+function organiseCanonicalResearchSlots(body){
+ if(!body)return;
+ let root=body.querySelector(':scope > [data-anybike-v2-section-slots]');
+ if(!root){
+  root=node('div',undefined,'anybike-v2-canonical-section-slots');
+  root.dataset.anybikeV2SectionSlots='20';
+  root.hidden=true;
+  body.prepend(root);
+ }
+ // Slot anchors are structural metadata, not twenty empty cards. Published
+ // content remains in its existing verified, accessible research groups.
+ for(const key of UNIVERSAL_SLOT_KEYS){
+  if(root.querySelector('[data-section-key="'+key+'"]'))continue;
+  const anchor=node('span');anchor.dataset.sectionKey=key;
+  anchor.dataset.anybikeV2EmptySlot='true';root.append(anchor);
+ }
+ const published=[...body.querySelectorAll(':scope > .anybike-v2-reviewed-universal-section[data-section-key]')];
+ published.sort((a,b)=>UNIVERSAL_SLOT_KEYS.indexOf(a.dataset.sectionKey)-
+  UNIVERSAL_SLOT_KEYS.indexOf(b.dataset.sectionKey));
+ // Keep the 20-slot publication sequence stable even if database response
+ // order changes. Do not reorder verified research or remove its citations.
+ for(const section of published)body.append(section);
+ body.dataset.anybikeV2SectionContract='20';
+}
 function organiseUniversalFactoryResearch(body){
  const panel=body?.querySelector('[data-anybike-verified-model-facts]');
  if(!panel)return;
@@ -1010,6 +1039,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     group.append(article);
    }
   }
+  organiseCanonicalResearchSlots($('body'));
   organiseUniversalFactoryResearch($('body'));
   // Every catalogue model gets the approved master regardless of research
   // coverage. Do not turn its hero into a research-publication status notice.
