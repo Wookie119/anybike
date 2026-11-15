@@ -39,3 +39,35 @@ JOIN public.motorcycle_catalog_models m ON m.id=s.model_id
 WHERE s.entity_type='model' AND s.editorial_status='draft'
 ORDER BY (s.source_reference ILIKE '%editorial_review_required%') DESC,
  m.manufacturer,m.model,s.section_number;
+
+-- Triage by source provenance. A source label does not confer approval.
+SELECT split_part(source_reference,':',1) AS source_kind,
+ count(*) AS draft_sections,count(distinct model_id) AS models,
+ count(*) FILTER(WHERE source_reference ILIKE '%editorial_review_required%') AS explicit_source_hold,
+ count(*) FILTER(WHERE content::text ILIKE '%pending_editorial_review%') AS pending_review_in_payload,
+ count(*) FILTER(WHERE content::text ILIKE '%not_verified%') AS not_verified_in_payload
+FROM public.motorcycle_universal_page_sections_v1
+WHERE entity_type='model' AND editorial_status='draft'
+GROUP BY 1 ORDER BY draft_sections DESC,source_kind;
+
+-- Never mistake a source URL or a 'verified' field for publication approval.
+-- Priority 1: explicit review markers; priority 2: unreviewed legacy editorial;
+-- priority 3: other source-linked drafts.
+SELECT s.model_id,m.manufacturer,m.model,s.section_number,s.section_title,
+ CASE WHEN s.source_reference ILIKE '%editorial_review_required%'
+           OR s.content::text ILIKE '%pending_editorial_review%'
+           OR s.content::text ILIKE '%not_verified%'
+      THEN 'HOLD: explicit review or verification marker'
+      WHEN s.source_reference LIKE 'motorcycle_model_v2_editorial:%'
+      THEN 'REVIEW: migrated V2 editorial draft'
+      ELSE 'REVIEW: source-linked draft' END AS review_queue,
+ s.source_reference
+FROM public.motorcycle_universal_page_sections_v1 s
+JOIN public.motorcycle_catalog_models m ON m.id=s.model_id
+WHERE s.entity_type='model' AND s.editorial_status='draft'
+ORDER BY CASE WHEN s.source_reference ILIKE '%editorial_review_required%'
+                   OR s.content::text ILIKE '%pending_editorial_review%'
+                   OR s.content::text ILIKE '%not_verified%' THEN 0
+              WHEN s.source_reference LIKE 'motorcycle_model_v2_editorial:%' THEN 1
+              ELSE 2 END,
+ m.manufacturer,m.model,s.section_number;
