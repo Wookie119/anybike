@@ -406,7 +406,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
      const matches=arr(manifest?.models).filter(row=>
       Number(row.model_id)===canonicalId&&
       normalize(row.make)===normalize(make)&&normalize(row.model)===normalize(model)&&
-      /^\\/models\\/[a-z0-9-]+\\/[a-z0-9-]+\\.html$/.test(String(row.url||'')));
+      /^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(String(row.url||'')));
      if(matches.length===1)canonical=new URL(matches[0].url,location.origin).href;
     }
    }catch(error){console.warn('Permanent model canonical unavailable',error);}
