@@ -13,6 +13,8 @@ const target=Object.fromEntries(names.map(name=>[name,version(master,name)]));
 // ONE HTML shell: model-specific identity/SEO are in <head>, never in <main>.
 const masterMain=master.match(/<main>[\s\S]*?<\/main>/)?.[0];
 assert(masterMain,'Approved master has no complete main shell');
+const masterStyle=master.match(/<style>[\s\S]*?<\/style>/)?.[0];
+assert(masterStyle,'Approved master inline styling missing');
 
 for(const [name,v] of Object.entries(target))assert(v,'Missing approved master asset '+name);
 const changes=[];
@@ -28,6 +30,9 @@ for(const route of routes){
  // The approved master is the only source of page structure. Preserve SEO
  // metadata, route identity and all model-specific database content.
  if(routeMain!==masterMain)html=html.replace(routeMain,masterMain);
+ const routeStyle=html.match(/<style>[\s\S]*?<\/style>/)?.[0];
+ assert(routeStyle,'Missing approved styling '+route.url);
+ if(routeStyle!==masterStyle)html=html.replace(routeStyle,masterStyle);
  for(const name of names){
   const marker=name+'?v=';
   assert(html.includes(marker),'Missing '+name+' at '+route.url);
