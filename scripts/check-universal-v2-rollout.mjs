@@ -93,6 +93,14 @@ check('All model routes use one canonical 20-slot contract and shared approved r
  assert.match(facts,/function mountVerifiedModelFacts\(body,rows,make,model\)/);
  assert.doesNotMatch(facts,/if\(referenceYearText\)/);
 });
+check('All generic manufacturer model cards prefer the permanent shared V2 SEO route',()=>{
+ const brand=read('motorcycle-brand.html');
+ assert.match(brand,/const permanentModelRoutes=new Map\(\)/);
+ assert.match(brand,/fetch\('\/data\/universal-v2-model-routes\.json'/);
+ assert.match(brand,/const href=permanentModelRoutes\.get\(/);
+ assert.match(brand,/loadManufacturerCatalogue\(\)\.then\(async data=>/);
+ assert.match(brand,/motorcycle-model-guide\.html\?make=/);
+});
 check('Both model routes use identical renderer and expanded manufacturer navigation',()=>{
  const revision=(html,filename)=>{
   const pattern=filename==='renderer'?/approved-v2-universal-preview\.mjs\?v=([^"'<>]+)/:/approved-v2-dynamic-navigation\.mjs\?v=([^"'<>]+)/;
