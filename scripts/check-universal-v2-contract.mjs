@@ -22,8 +22,13 @@ const normalize=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()
 check('All approved V2 reference styles are present verbatim in the shared stylesheet',()=>{
  const approved=[...referenceHtml.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map(match=>match[1]);
  assert(approved.length>=30,'Expected approved V2 style reference');
+ // Keep the approved design verbatim apart from the already-approved
+ // charcoal replacements for legacy burgundy accents.
+ const approvedPalette=style=>style.replaceAll('#352124','#282828')
+  .replaceAll('#813438','#4b4b4b');
  for(const [index,style] of approved.entries())
-  assert(approvedCss.includes(style),'Approved reference style block missing: '+index);
+  assert(approvedCss.includes(approvedPalette(style)),
+   'Approved reference style block or palette correction missing: '+index);
 });
 check('Approved V2 model-section structure matches the exact reference',()=>{
  const sectionClasses=source=>[...source.matchAll(/<section\b([^>]*)>/g)].map(match=>
