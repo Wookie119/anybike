@@ -1,7 +1,7 @@
 // One public Supabase projection for manufacturers AND models.
 // Never read the private editorial store from a public browser or assume
 // preview_visible means approved publication.
-import {canonicalPageEntity,hasRenderableUniversalResearch,reviewedStandaloneEngineering} from './universal-page-section-contract.mjs';
+import {canonicalPageEntity,hasRenderableUniversalResearch,reviewedStandaloneEngineering} from './universal-page-section-contract.mjs?v=20261115-official-review3';
 
 export const UNIVERSAL_PUBLIC_SECTIONS='motorcycle_universal_published_sections_v1';
 const PUBLIC_FIELDS='source_section_id,entity_type,entity_id,entity_name,manufacturer_id,section_number,section_key,section_title,content,editorial_status,publication_eligible,published_at,publication_review_reference';
