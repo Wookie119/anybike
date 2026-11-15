@@ -18,10 +18,21 @@ const stock=read('model-template/public-exact-model-stock.mjs');
 const gallery=read('model-template/public-approved-model-gallery.mjs');
 const hero=read('model-template/public-approved-model-hero.mjs');
 
+// Import the actual shared publication contract: this is a runtime assertion,
+// not a string-only check of twenty placeholder anchors.
+const {SECTION_COUNT,SECTION_KEYS}=await import('../model-template/universal-page-section-contract.mjs');
 const check=(label,fn)=>{
  try{fn();console.log('PASS',label);}
  catch(err){console.error('FAIL',label,err.message);process.exitCode=1;}
 };
+check('One exact canonical set of 20 section identifiers for every model',()=>{
+ assert.equal(SECTION_COUNT,20);
+ assert.equal(SECTION_KEYS.length,SECTION_COUNT);
+ assert.equal(new Set(SECTION_KEYS).size,SECTION_COUNT);
+ assert.deepEqual(SECTION_KEYS,Array.from({length:20},(_,i)=>'section_'+String(i+1).padStart(2,'0')));
+ assert.match(renderer,/UNIVERSAL_SLOT_KEYS\.includes\(section\.dataset\.sectionKey\)/);
+ assert.match(renderer,/const identity=JSON\.stringify\(\[String\(make\)\.toLowerCase\(\),String\(model\)\.toLowerCase\(\)\]\)/);
+});
 check('All model routes use one canonical 20-slot contract and shared approved research panel',()=>{
  assert.match(renderer,/SECTION_KEYS as UNIVERSAL_SLOT_KEYS,SECTION_COUNT as UNIVERSAL_SLOT_COUNT/);
  assert.match(renderer,/function integratePublishedResearch\(body,make,model\)/);
