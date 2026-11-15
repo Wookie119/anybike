@@ -70,12 +70,21 @@ function organiseCanonicalResearchSlots(body){
   const anchor=node('span');anchor.dataset.sectionKey=key;
   anchor.dataset.anybikeV2EmptySlot='true';root.append(anchor);
  }
- const published=[...body.querySelectorAll(':scope > .anybike-v2-reviewed-universal-section[data-section-key]')];
- published.sort((a,b)=>UNIVERSAL_SLOT_KEYS.indexOf(a.dataset.sectionKey)-
+ const published=[...body.querySelectorAll('.anybike-v2-reviewed-universal-section[data-section-key]')];
+ // Mark the corresponding canonical slot as populated even when the reviewed
+ // content is merged into an existing verified-facts category. This is a
+ // display-only index; it never changes publication permissions.
+ for(const anchor of root.querySelectorAll('[data-section-key]')){
+  const occupied=published.some(section=>section.dataset.sectionKey===anchor.dataset.sectionKey);
+  anchor.dataset.anybikeV2EmptySlot=occupied?'false':'true';
+ }
+ const standalone=published.filter(section=>section.parentElement===body);
+ standalone.sort((a,b)=>UNIVERSAL_SLOT_KEYS.indexOf(a.dataset.sectionKey)-
   UNIVERSAL_SLOT_KEYS.indexOf(b.dataset.sectionKey));
  // Keep the 20-slot publication sequence stable even if database response
  // order changes. Do not reorder verified research or remove its citations.
- for(const section of published)body.append(section);
+ for(const section of standalone)body.append(section);
+ body.dataset.anybikeV2PopulatedSlots=String(new Set(published.map(x=>x.dataset.sectionKey)).size);
  body.dataset.anybikeV2SectionContract='20';
 }
 function organiseUniversalFactoryResearch(body){
@@ -995,6 +1004,9 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
         const merged=node('div',undefined,'anybike-v2-reviewed-universal-section');
         merged.dataset.sectionKey=section.dataset.sectionKey||'';
         merged.dataset.anybikeReviewedPublication='true';
+        // Keep the canonical slot identity when published content is merged
+        // into a verified source category instead of shown as a duplicate.
+        merged.dataset.anybikeV2CanonicalSlot='true';
         merged.append(node('h4','Additional approved research'),...content);
         matches[0].append(merged);
        }else{
