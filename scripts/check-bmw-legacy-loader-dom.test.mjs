@@ -7,35 +7,41 @@ const names=[
 'r1250gs','r1250r','r1250rt','r1300gs','r18','r32','r80gs','r90s',
 'rninet','s1000r','s1000rr','s1000xr'
 ];
-test('27 live BMW model loaders cannot crash on retired breadcrumb IDs',()=>{
+test('27 BMW models preserve model-specific identity and public sourcing in their actual renderer',()=>{
  for(const name of names){
   const file='bmw-'+name+'.html';
   const html=fs.readFileSync(file,'utf8');
-  assert.ok(html.includes('id="heading"'),file);
-  assert.ok(html.includes('id="generationPanel"'),file);
-  assert.ok(html.includes('id="body"'),file);
-  const script=html.slice(html.indexOf('const el=id=>document.getElementById(id)'));
-  assert.ok(script.length>500,file+' original research loader missing');
-  if(!html.includes('id="crumbModel"')){
-   assert.ok(!script.includes(';el("crumbModel").textContent=actualModel;'),file+' null breadcrumb crash');
-   assert.ok(script.includes('if(el("crumbModel"))')||script.includes('if(crumb)crumb.textContent'),file+' absent crumb requires guard');
-  }
-  if(!html.includes('id="parent"')){
-   assert.ok(!script.includes(';el("parent").href=brandUrl;'),file+' null parent crash');
-   assert.ok(script.includes('if(el("parent"))')||script.includes('if(parent){'),file+' absent parent requires guard');
-  }
-  for(const id of ['heading','category','summary','years','manufacturer','source','sourceBottom','nextAction','generationPanel','generationControls','generationDetail','generationCompareRows','generationCompare','body']){
-   assert.ok(html.includes('id="'+id+'"'),file+' missing required '+id);
+  assert.ok(html.includes('id="heading"'),file+' missing model heading');
+  assert.ok(html.includes('id="body"'),file+' missing research section');
+  assert.ok(html.includes('id="generationPanel"'),file+' missing generation section');
+  assert.ok(html.includes('id="nextAction"'),file+' missing public sourcing action');
+  assert.ok(html.includes('id="sourceBottom"'),file+' missing sourcing link');
+  assert.ok(html.includes('id="modelSources"'),file+' missing source references');
+  assert.ok(html.includes('id="internationalGuestRequestForm"'),file+' missing guest enquiry form');
+  assert.ok(html.includes('approved-v2-universal-preview.mjs'),file+' missing shared research renderer');
+  assert.ok(html.includes('approved-v2-dynamic-navigation.mjs'),file+' missing shared model navigation');
+  assert.ok(html.includes('href="/bulk-buying-request.html?make=BMW'),file+' missing sourcing URL');
+  assert.ok(html.includes('name="robots" content="index,follow"'),file+' accidentally deindexed');
+  const oldLoader=html.indexOf('const el=id=>document.getElementById(id)');
+  if(oldLoader>=0){
+   const script=html.slice(oldLoader);
+   if(!html.includes('id="crumbModel"'))
+    assert.ok(!script.includes(';el("crumbModel").textContent=actualModel;'),file+' unsafe retired breadcrumb');
+   if(!html.includes('id="parent"'))
+    assert.ok(!script.includes(';el("parent").href=brandUrl;'),file+' unsafe retired parent link');
   }
  }
 });
-test('model research error fallback must not hide public sourcing actions',()=>{
+test('F 900 GS verified research remains available and its public sourcing survives errors',()=>{
  const f900=fs.readFileSync('bmw-f900gs.html','utf8');
- assert.ok(f900.includes('guide.sections.forEach'));
+ const renderer=fs.readFileSync('model-template/approved-v2-universal-preview.mjs','utf8');
  const guide=JSON.parse(fs.readFileSync('data/motorcycle-model-guides.json','utf8'));
  const data=Object.values(guide.models).find(g=>g.make==='BMW'&&g.model==='F 900 GS');
- assert.ok(data);
- assert.ok(Array.isArray(data.sections));
+ assert.ok(f900.includes('approved-v2-universal-preview.mjs'));
+ assert.ok(f900.includes('id="sourceBottom"'));
+ assert.ok(f900.includes('id="internationalGuestRequestForm"'));
+ assert.ok(renderer.includes('installVerifiedModelFacts'));
+ assert.ok(data&&Array.isArray(data.sections)&&data.sections.length>0);
  assert.ok(data.production.generations.length>0);
  assert.ok(data.production.official_colours.length>0);
 });
