@@ -137,25 +137,33 @@ function updateDynamicResearchNavigation(body){
 // audited factory facts, rather than appending a second model-page layout.
 // Only approved, already-rendered sections enter this projection.
 function integratePublishedResearch(body){
- const panel=body?.querySelector('[data-anybike-verified-model-facts]');
- if(!panel)return;
- const identity=panel.dataset.anybikeResearchIdentity;
- for(const section of [...body.querySelectorAll(':scope > .anybike-v2-reviewed-universal-section[data-section-key]')]){
-  if(!UNIVERSAL_SLOT_KEYS.includes(section.dataset.sectionKey))continue;
+ if(!body)return;
+ const approved=[...body.querySelectorAll(':scope > .anybike-v2-reviewed-universal-section[data-section-key]')]
+  .filter(section=>UNIVERSAL_SLOT_KEYS.includes(section.dataset.sectionKey)&&
+   section.querySelector(':scope > h2')&&section.children.length>1);
+ if(!approved.length)return;
+ let panel=body.querySelector('[data-anybike-verified-model-facts]');
+ // Some models have approved editorial but no verified-facts RPC rows.
+ // They still use the ONE research layout, not an orphaned second design.
+ if(!panel){
+  panel=node('section',undefined,'card feature anybike-verified-model-research');
+  panel.dataset.anybikeVerifiedModelFacts='1';
+  panel.dataset.anybikeResearchIdentity=body.dataset.anybikeModelIdentity||'';
+  panel.append(node('h2','Documented factory research'));
+  body.prepend(panel);
+ }
+ const identity=panel.dataset.anybikeResearchIdentity||'';
+ for(const section of approved.sort((a,b)=>UNIVERSAL_SLOT_KEYS.indexOf(a.dataset.sectionKey)-
+  UNIVERSAL_SLOT_KEYS.indexOf(b.dataset.sectionKey))){
   const heading=section.querySelector(':scope > h2');
-  if(!heading||section.children.length<2)continue;
   const group=node('div',undefined,'anybike-v2-reviewed-category');
   group.dataset.anybikeResearchCategory='approved_'+section.dataset.sectionKey;
   group.dataset.anybikeResearchIdentity=identity;
   group.dataset.anybikeV2CanonicalSlot=section.dataset.sectionKey;
-  const title=node('h3',heading.textContent?.trim()||'Documented motorcycle research');
-  group.append(title);
-  section.removeChild(heading);
+  group.append(node('h3',heading.textContent?.trim()||'Documented motorcycle research'));
+  heading.remove();
   section.classList.remove('card');
   group.append(section);
-  // The verified panel uses a responsive grid of collapsible categories;
-  // reviewed editorial joins that same grid, without a second standalone
-  // full-width section or a duplicate model header.
   panel.append(group);
  }
 }
