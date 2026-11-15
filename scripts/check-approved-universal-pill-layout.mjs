@@ -50,8 +50,22 @@ for(const r of routes){
  assert.equal(model.make,r.make,'Wrong manufacturer identity: '+r.url);
  assert.equal(model.model,r.model,'Wrong model identity: '+r.url);
  assert.equal(model.model_id,r.model_id,'Wrong catalogue model ID: '+r.url);
- assert(html.includes('href="https://www.anybike.co.uk'+r.url+'"'),
-  'Permanent route must have a model-specific static canonical: '+r.url);
+ const canonical=html.match(/<link id="modelCanonical" rel="canonical" href="([^"]+)"/)?.[1];
+ const isAlias=html.includes('Reviewed catalogue alias: preserve exact-model identity; navigate to canonical record.');
+ if(isAlias){
+  assert(canonical?.startsWith('https://www.anybike.co.uk/models/'),
+   'Alias must canonicalize to a permanent model URL: '+r.url);
+  assert.notEqual(canonical,'https://www.anybike.co.uk'+r.url,
+   'Alias must not canonicalize to itself: '+r.url);
+  const target=canonical.replace('https://www.anybike.co.uk','');
+  assert(routes.some(candidate=>candidate.url===target),
+   'Alias canonical target must be a registered permanent model route: '+r.url);
+  assert(html.includes('location.replace('+JSON.stringify(target)),
+   'Alias must redirect to its canonical model: '+r.url);
+ }else{
+  assert.equal(canonical,'https://www.anybike.co.uk'+r.url,
+   'Permanent route must have a model-specific static canonical: '+r.url);
+ }
  const title=html.match(/<title>([^<]+)<\/title>/)?.[1];
  assert(title&&!seenTitles.has(title),'Missing or duplicate SEO title: '+r.url);
  seenTitles.add(title);
