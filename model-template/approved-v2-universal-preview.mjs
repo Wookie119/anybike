@@ -160,7 +160,19 @@ function integratePublishedResearch(body,make,model){
  const seen=new Set();
  for(const section of approved.sort((a,b)=>UNIVERSAL_SLOT_KEYS.indexOf(a.dataset.sectionKey)-
   UNIVERSAL_SLOT_KEYS.indexOf(b.dataset.sectionKey))){
-  if(seen.has(section.dataset.sectionKey))continue;
+  if(seen.has(section.dataset.sectionKey)){
+   // Do not discard a second already-approved record for the same slot.
+   // Retain its sourced body inside the existing canonical category.
+   const existing=[...panel.querySelectorAll(':scope > [data-anybike-v2-canonical-slot]')]
+    .find(group=>group.dataset.anybikeV2CanonicalSlot===section.dataset.sectionKey);
+   if(existing){
+    const duplicateHeading=section.querySelector(':scope > h2');
+    duplicateHeading?.remove();
+    section.classList.remove('card');
+    existing.append(section);
+   }
+   continue;
+  }
   seen.add(section.dataset.sectionKey);
   const heading=section.querySelector(':scope > h2');
   const group=node('div',undefined,'anybike-v2-reviewed-category');
