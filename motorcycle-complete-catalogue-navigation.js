@@ -95,7 +95,22 @@ async function mount(){
    }
   }catch(error){console.warn('Verified dedicated model route fallback unavailable',error)}
  }
- const byModel=new Map(routes.map(x=>[normalize(x.model),x.url]));
+ // Use the complete permanent V2 route manifest for all makes, while
+ // preserving verified dedicated BMW/Harley links as the preferred route.
+ const permanentRoutes=new Map();
+ try{
+  const response=await fetch('/data/universal-v2-model-routes.json',{cache:'no-cache'});
+  if(response.ok){
+   const manifest=await response.json();
+   for(const row of (Array.isArray(manifest.models)?manifest.models:[])){
+    if(normalize(row.make)===normalize(make)&&typeof row.url==='string'&&
+       row.url.startsWith('/models/')&&row.url.endsWith('.html')&&row.url.split('/').length===4)
+     permanentRoutes.set(normalize(row.model),row.url);
+   }
+  }
+ }catch(error){console.warn('Permanent model routes unavailable; keeping existing guide links',error)}
+ const byModel=new Map(permanentRoutes);
+ for(const route of routes)byModel.set(normalize(route.model),route.url);
  // The public catalogue is the reviewed directory. Existing verified BMW
  // and Harley guide routes may also appear even before a catalogue refresh.
  const models=[...new Map([...(databaseModels.length?databaseModels:publicModels).map(x=>x.model),...routes.map(x=>x.model)]
