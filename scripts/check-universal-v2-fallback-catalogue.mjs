@@ -28,4 +28,14 @@ for(const entry of fallback){
 const renderer=fs.readFileSync('model-template/approved-v2-universal-preview.mjs','utf8');
 assert(renderer.includes("const categoryCandidates=[str(selected.motorcycle_type),str(selected.category),str(guide?.page_metadata?.category)]"),'Catalogue category no longer first');
 assert(renderer.includes('const canonicalId=Number(selected.model_id||selected.catalogue_model_id)'), 'Canonical ID lookup changed');
+const manufacturer=fs.readFileSync('motorcycle-brand.html','utf8');
+const mapDeclaration=manufacturer.indexOf('const permanentModelRoutes=new Map();');
+const loader=manufacturer.indexOf('loadManufacturerCatalogue().then(async data=>');
+const cardRenderer=manufacturer.indexOf('function renderManufacturerModels(){');
+assert(mapDeclaration>=0&&loader>mapDeclaration&&cardRenderer>loader,
+ 'Permanent model route map must be declared in the shared manufacturer renderer scope');
+assert(manufacturer.includes('permanentModelRoutes.get('),
+ 'Manufacturer cards must use permanent model routes');
+assert(manufacturer.includes("fetch('/data/motorcycle-catalogue-master.json'"),
+ 'Manufacturer cards must merge complete published fallback identities');
 console.log('PASS 978/978 route IDs, fallback model identities and categories match the one universal renderer');
