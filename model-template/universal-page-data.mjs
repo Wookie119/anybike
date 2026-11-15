@@ -53,6 +53,22 @@ export async function loadUniversalPublishedPage(client,{type,id,restEndpoint,re
   if(!response.ok)throw Error('Published catalogue unavailable: REST HTTP '+response.status);
   data=await response.json();error=null;
  }
+ // An empty browser-client response can reflect a stale session or cached
+ // publication query. Cross-check via the same public read-only projection.
+ if(!error&&Array.isArray(data)&&data.length===0&&client&&
+    typeof restEndpoint==='string'&&/^https:\/\//.test(restEndpoint)&&restKey){
+  const url=new URL('/rest/v1/'+UNIVERSAL_PUBLIC_SECTIONS,restEndpoint);
+  url.searchParams.set('select',PUBLIC_FIELDS);
+  url.searchParams.set('entity_type','eq.'+type);
+  url.searchParams.set('entity_id','eq.'+Number(id));
+  url.searchParams.set('publication_eligible','eq.true');
+  url.searchParams.set('order','section_number.asc');
+  url.searchParams.set('limit','21');
+  const response=await fetch(url.toString(),{
+   method:'GET',headers:{apikey:restKey,Accept:'application/json'},cache:'no-store'
+  });
+  if(response.ok){const restData=await response.json();if(Array.isArray(restData)&&restData.length)data=restData;}
+ }
  if(error)throw Error('Published catalogue unavailable');
  if(!Array.isArray(data))throw Error('Invalid published catalogue response');
  if(data.length>20)throw Error('Universal publication exceeds 20 sections');
