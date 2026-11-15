@@ -71,3 +71,43 @@ ORDER BY CASE WHEN s.source_reference ILIKE '%editorial_review_required%'
               WHEN s.source_reference LIKE 'motorcycle_model_v2_editorial:%' THEN 1
               ELSE 2 END,
  m.manufacturer,m.model,s.section_number;
+
+-- Source-linked batch: classify provenance without pretending URLs have been
+-- fetched or factual claims approved. HTTPS syntax is not link validity.
+WITH queued AS (
+ SELECT s.*,
+ CASE WHEN s.source_reference ILIKE '%editorial_review_required%'
+           OR s.content::text ILIKE '%pending_editorial_review%'
+           OR s.content::text ILIKE '%not_verified%' THEN 'hold'
+      WHEN s.source_reference LIKE 'motorcycle_model_v2_editorial:%' THEN 'legacy'
+      ELSE 'source' END AS bucket
+ FROM public.motorcycle_universal_page_sections_v1 s
+ WHERE s.entity_type='model' AND s.editorial_status='draft'
+)
+SELECT count(*) AS source_linked_sections,
+ count(*) FILTER(WHERE content ? 'source_url') AS direct_source_urls,
+ count(*) FILTER(WHERE content ? 'source_url' AND (content->>'source_url') ~ '^https://') AS https_source_urls,
+ count(*) FILTER(WHERE content ? 'source_url' AND (content->>'source_url') !~ '^https://') AS non_https_source_urls,
+ count(*) FILTER(WHERE source_reference LIKE 'harley-davidson-%@%') AS versioned_harley_page_sources,
+ count(*) FILTER(WHERE source_reference LIKE 'motorcycle_catalog_facts:%') AS catalogue_fact_sources,
+ count(*) FILTER(WHERE source_reference LIKE 'motorcycle_catalog_models.overview%') AS catalogue_overview_sources
+FROM queued WHERE bucket='source';
+
+-- Review the exact claim alongside its URL, year and canonical identity.
+WITH queued AS (
+ SELECT s.*,m.manufacturer,m.model,
+ CASE WHEN s.source_reference ILIKE '%editorial_review_required%'
+           OR s.content::text ILIKE '%pending_editorial_review%'
+           OR s.content::text ILIKE '%not_verified%' THEN 'hold'
+      WHEN s.source_reference LIKE 'motorcycle_model_v2_editorial:%' THEN 'legacy'
+      ELSE 'source' END AS bucket
+ FROM public.motorcycle_universal_page_sections_v1 s
+ JOIN public.motorcycle_catalog_models m ON m.id=s.model_id
+ WHERE s.entity_type='model' AND s.editorial_status='draft'
+)
+SELECT model_id,manufacturer,model,section_number,section_title,
+ content->>'source_url' AS exact_source_url,
+ content->>'summary' AS claim_summary,source_reference
+FROM queued
+WHERE bucket='source' AND content ? 'source_url'
+ORDER BY manufacturer,model,section_number;
