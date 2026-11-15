@@ -1,0 +1,32 @@
+name: Diagnose live universal V2 research
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/diagnose-ktm-v2-live.mjs'
+      - '.github/workflows/diagnose-ktm-v2-live.yml'
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test dependencies
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Inspect live shared renderer and approved research
+        run: node scripts/diagnose-ktm-v2-live.mjs
+      - name: Upload browser console, network and screenshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ktm-v2-research-diagnostic
+          path: artifacts/ktm-v2-diagnostic/
+          if-no-files-found: warn
