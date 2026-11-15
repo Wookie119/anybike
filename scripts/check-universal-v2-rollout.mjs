@@ -32,19 +32,19 @@ check('Every published permanent model route uses the ONE approved dynamic rende
  assert.equal(manifest.count,manifest.models.length,'Manifest count mismatch');
  const urls=new Set();
  for(const model of manifest.models){
-  assert.match(model.url,/^\\/models\\/[a-z0-9-]+\\/[a-z0-9-]+\\.html$/);
+  assert.match(model.url,/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/);
   assert(!urls.has(model.url),'Duplicate permanent URL '+model.url);
   urls.add(model.url);
   const html=read(model.url.slice(1));
   assert.match(html,/id="anybikeV2RouteIdentity"/,'Identity missing '+model.url);
-  const identityText=html.match(/<script id="anybikeV2RouteIdentity" type="application\\/json">([^<]+)<\\/script>/)?.[1];
+  const identityText=html.match(/<script id="anybikeV2RouteIdentity" type="application\/json">([^<]+)<\/script>/)?.[1];
   assert(identityText,'Missing identity payload '+model.url);
   const identity=JSON.parse(identityText);
   assert.equal(identity.make,model.make,model.url);
   assert.equal(identity.model,model.model,model.url);
   assert.equal(identity.model_id,model.model_id,model.url);
-  assert.match(html,/approved-v2-universal-preview\\.mjs\\?v=/,model.url);
-  assert.match(html,/approved-v2-dynamic-navigation\\.mjs\\?v=/,model.url);
+  assert.match(html,/approved-v2-universal-preview\.mjs\?v=/,model.url);
+  assert.match(html,/approved-v2-dynamic-navigation\.mjs\?v=/,model.url);
   assert.match(html,/id="generationPanel"/,model.url);
   assert.match(html,/id="body"/,model.url);
   assert.match(html,/name="robots" content="index,follow"/,model.url);
