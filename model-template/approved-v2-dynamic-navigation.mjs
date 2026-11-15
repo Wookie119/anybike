@@ -298,8 +298,9 @@ async function manufacturerNavigation(){
   if(editorialNote)editorialNote.remove();
   const nav=panel.querySelector('nav');
   safeNav(nav,[...entries.values()].sort((a,b)=>a.label.localeCompare(b.label,'en-GB')));
-  // The full published directory and its internal links stay in the DOM,
-  // but do not force a buyer past a giant alphabetic grid before enquiry.
+  // The approved V2 keeps the full manufacturer directory expanded.
+  // Visitors should see and follow all published manufacturer links without
+  // needing to discover a collapsed disclosure on any model page.
   let directory=panel.querySelector('details[data-v2-full-manufacturer-directory]');
   if(!directory){
    directory=document.createElement('details');
@@ -310,7 +311,7 @@ async function manufacturerNavigation(){
    nav.before(directory);
    directory.append(nav);
   }
-  directory.open=false;
+  directory.open=true;
   directory.querySelector('summary').textContent=
    'All '+entries.size+' other motorcycle manufacturers';
   panel.dataset.anybikeV2Source='published-manufacturer-directory';
