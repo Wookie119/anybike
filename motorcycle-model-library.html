@@ -4,6 +4,8 @@ const esc=t=>String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"
 const $=id=>document.getElementById(id);
 
 let catalogue=[],visibleLimit=150;
+const permanentModelRoutes=new Map();
+const routeKey=(make,model)=>String(make||'').toLowerCase().replace(/[^a-z0-9]/g,'')+'|'+String(model||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 function update(reset=false){
  if(reset)visibleLimit=150;
  const query=$("search").value.trim().toLowerCase(),make=$("make").value,cat=$("category").value;
@@ -11,7 +13,7 @@ function update(reset=false){
  $("count").textContent=matches.length.toLocaleString("en-GB")+" model entries";
  $("results").innerHTML=matches.slice(0,visibleLimit).map(m=>{
 
-  const guide="/motorcycle-model-guide.html?make="+encodeURIComponent(m.make)+"&model="+encodeURIComponent(m.model);
+  const guide=permanentModelRoutes.get(routeKey(m.make,m.model))||"/motorcycle-model-guide.html?make="+encodeURIComponent(m.make)+"&model="+encodeURIComponent(m.model);
   const sourcing="/bulk-buying-request.html?make="+encodeURIComponent(m.make)+"&model="+encodeURIComponent(m.model);
   return '<article class="bike"><span class="category">'+esc(m.category)+'</span><h2>'+esc(m.make+" "+m.model)+'</h2><div class="actions">'+'<a href="'+esc(guide)+'">View model guide →</a>'+'<a href="'+esc(sourcing)+'">Check UK sourcing →</a></div></article>';
  }).join("")+(matches.length>visibleLimit?'<div class="message"><button id="loadMoreModels" type="button" class="button">Show more models ('+Math.min(150,matches.length-visibleLimit).toLocaleString("en-GB")+' next)</button></div>':"")||'<div class="message">No matching model found. You can still send AnyBike a sourcing enquiry.</div>';
@@ -38,6 +40,17 @@ try{
   if(data.schema_version!==1||!Array.isArray(data.models))throw Error("Invalid catalogue");
   catalogue=data.models;
  }
+ try{
+  const routesResponse=await fetch('/data/universal-v2-model-routes.json',{cache:'no-cache'});
+  if(routesResponse.ok){
+   const manifest=await routesResponse.json();
+   for(const route of (Array.isArray(manifest.models)?manifest.models:[])){
+    if(typeof route.make==='string'&&typeof route.model==='string'&&
+       /^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(route.url||''))
+     permanentModelRoutes.set(routeKey(route.make,route.model),route.url);
+   }
+  }
+ }catch(error){console.warn('Permanent model URL directory unavailable; keeping universal guide fallback',error)}
  for(const field of ["make","category"]){const vals=[...new Set(catalogue.map(x=>x[field]))].sort((a,b)=>a.localeCompare(b));$(""+field).insertAdjacentHTML("beforeend",vals.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join(""));}
  const p=new URLSearchParams(location.search),m=p.get("make");if(m&&[...$("make").options].some(x=>x.value.toLowerCase()===m.toLowerCase()))$("make").value=[...$("make").options].find(x=>x.value.toLowerCase()===m.toLowerCase()).value;
  update();$("search").addEventListener("input",()=>update(true));$("make").addEventListener("change",()=>update(true));$("category").addEventListener("change",()=>update(true));
