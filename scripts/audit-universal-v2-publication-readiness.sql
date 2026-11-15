@@ -129,3 +129,40 @@ SELECT manufacturer,count(*) AS source_linked_sections,
  count(*) FILTER(WHERE content ? 'source_url') AS direct_urls
 FROM queued WHERE bucket='source'
 GROUP BY manufacturer ORDER BY source_linked_sections DESC,manufacturer;
+
+-- Source-reference completeness, all manufacturer batches. A valid URL
+-- is not a fetched source, factual verification, or publication permission.
+WITH queued AS (
+ SELECT s.*,m.manufacturer,m.model,
+ CASE WHEN s.source_reference ILIKE '%editorial_review_required%'
+           OR s.content::text ILIKE '%pending_editorial_review%'
+           OR s.content::text ILIKE '%not_verified%' THEN 'hold'
+      WHEN s.source_reference LIKE 'motorcycle_model_v2_editorial:%' THEN 'legacy'
+      ELSE 'source' END AS bucket
+ FROM public.motorcycle_universal_page_sections_v1 s
+ JOIN public.motorcycle_catalog_models m ON m.id=s.model_id
+ WHERE s.entity_type='model' AND s.editorial_status='draft'
+)
+SELECT manufacturer,count(*) AS source_queue_sections,
+ count(*) FILTER(WHERE content ? 'source_url') AS explicit_url_sections,
+ count(*) FILTER(WHERE content ? 'source_url'
+   AND nullif(btrim(content->>'summary'),'') IS NULL) AS missing_summary,
+ count(*) FILTER(WHERE content ? 'source_url'
+   AND nullif(btrim(content->>'source_name'),'') IS NULL) AS missing_source_name,
+ count(*) FILTER(WHERE content ? 'source_url'
+   AND (content->>'source_url') !~ '^https://') AS invalid_https_syntax
+FROM queued WHERE bucket='source'
+GROUP BY manufacturer ORDER BY source_queue_sections DESC,manufacturer;
+
+-- KTM-specific editorial queue: keep distinct variants, source dates,
+-- optional equipment, and year-scoped specifications under review.
+SELECT s.model_id,m.model,s.section_number,s.section_title,
+ s.content->>'source_url' AS source_url,
+ s.content->>'summary' AS summary,
+ s.source_reference
+FROM public.motorcycle_universal_page_sections_v1 s
+JOIN public.motorcycle_catalog_models m ON m.id=s.model_id
+WHERE s.entity_type='model' AND s.editorial_status='draft'
+ AND m.manufacturer='KTM'
+ AND s.source_reference NOT LIKE 'motorcycle_model_v2_editorial:%'
+ORDER BY m.model,s.section_number;
