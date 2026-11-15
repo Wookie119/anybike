@@ -648,6 +648,77 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
   });
 })();
 </script>
+<script>
+/* Shared manufacturer category recovery: independent of the optional RPC.
+   This runs only if the category renderer has left its loading placeholder. */
+(function(){
+ const make=new URLSearchParams(location.search).get('make');
+ if(!make)return;
+ const key=x=>String(x||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+ const modelUrl=(name,routes)=>routes.get(key(name))||'/motorcycle-model-guide.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(name);
+ async function recover(){
+  const host=document.getElementById('modelGroups');
+  if(!host||!host.textContent.includes('Loading manufacturer models'))return;
+  try{
+   const [catalogueResponse,routesResponse]=await Promise.all([
+    fetch('/data/motorcycle-catalogue-master.json',{cache:'no-cache'}),
+    fetch('/data/universal-v2-model-routes.json',{cache:'no-cache'})
+   ]);
+   if(!catalogueResponse.ok||!routesResponse.ok)throw Error('Public catalogue unavailable');
+   const catalogue=await catalogueResponse.json(),manifest=await routesResponse.json();
+   const routes=new Map((manifest.models||[]).filter(x=>key(x.make)===key(make)).map(x=>[key(x.model),x.url]));
+   const approved=new Set(routes.keys());
+   const groups=new Map();
+   for(const row of (catalogue.models||[])){
+    if(key(row.make)!==key(make)||!approved.has(key(row.model)))continue;
+    const category=String(row.category||'Other models').trim();
+    if(!groups.has(category))groups.set(category,[]);
+    if(!groups.get(category).some(x=>key(x)===key(row.model)))groups.get(category).push(row.model);
+   }
+   // Include approved permanent routes absent from the older catalogue snapshot.
+   for(const row of (manifest.models||[])){
+    if(key(row.make)!==key(make))continue;
+    if([...groups.values()].some(names=>names.some(n=>key(n)===key(row.model))))continue;
+    if(!groups.has('Other models'))groups.set('Other models',[]);
+    groups.get('Other models').push(row.model);
+   }
+   if(!groups.size)throw Error('No published model routes');
+   const cards=document.getElementById('categoryCards');
+   const pills=document.getElementById('categoryNavigation');
+   host.replaceChildren();cards.replaceChildren();pills.replaceChildren();
+   const selected=new URLSearchParams(location.search).get('category');
+   let selectedNode=null;
+   for(const [category,names] of groups){
+    const id='category-'+key(category);
+    const section=document.createElement('section');section.className='family';section.id=id;
+    const heading=document.createElement('h3');heading.textContent=category;
+    const grid=document.createElement('div');grid.className='grid';
+    names.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+    for(const name of names){
+     const a=document.createElement('a');a.className='card manufacturer-model-card';a.href=modelUrl(name,routes);
+     const title=document.createElement('strong');title.textContent=make+' '+name;
+     const action=document.createElement('span');action.textContent='Explore model guide →';
+     a.append(title,action);grid.append(a);
+    }
+    section.append(heading,grid);host.append(section);
+    const href='#'+id;
+    const pill=document.createElement('a');pill.href=href;pill.textContent=category;pills.append(pill);
+    const card=document.createElement('a');card.href=href;card.className='category-card';
+    const strong=document.createElement('strong');strong.textContent=category;
+    const preview=document.createElement('span');preview.textContent=names.slice(0,3).join(', ');
+    const action=document.createElement('em');action.textContent='Explore '+category.toLowerCase()+' motorcycles →';
+    card.append(strong,preview,action);cards.append(card);
+    if(key(selected)===key(category))selectedNode=section;
+   }
+   if(selectedNode)requestAnimationFrame(()=>selectedNode.scrollIntoView({block:'start',behavior:'auto'}));
+  }catch(error){
+   console.warn('Manufacturer category recovery failed',error);
+   host.textContent='Category lists are temporarily unavailable. Use the complete motorcycle model directory below.';
+  }
+ }
+ window.addEventListener('load',()=>setTimeout(recover,1200),{once:true});
+})();
+</script>
 <script src="/public-header.js?v=202610112205"></script>
 <script type="module" src="/model-template/public-country-market-navigation.mjs?v=20261109-2"></script>
 <script type="module" src="/model-template/public-manufacturer-model-index.mjs?v=20261109-1"></script>
