@@ -24,7 +24,7 @@ export function preservedExistingHero(data,{make,model,url}={}){
   attribution,title:make+' '+model+' (previously published reference photograph)'};
 }
 const historySection=(title,text,refs=[])=>({
- title,subtitle:'Previously published model guide — verify the exact motorcycle and year',
+ title,subtitle:'Archived model guide · historical information; confirm year and specification',
  paragraphs:[
   {text},
   ...refs.filter(secure).slice(0,12).map(ref=>({link:[ref,'Original reference ↗']}))
