@@ -63,7 +63,7 @@ check('All model routes use one canonical 20-slot contract and shared approved r
 });
 check('Both model routes use identical renderer and expanded manufacturer navigation',()=>{
  const revision=(html,filename)=>{
-  const pattern=filename==='renderer'?/approved-v2-universal-preview\.mjs\\?v=([^"'<>]+)/:/approved-v2-dynamic-navigation\.mjs\\?v=([^"'<>]+)/;
+  const pattern=filename==='renderer'?/approved-v2-universal-preview\.mjs\?v=([^"'<>]+)/:/approved-v2-dynamic-navigation\.mjs\?v=([^"'<>]+)/;
   const match=html.match(pattern);
   assert(match,'Missing versioned '+filename);
   return match[1];
