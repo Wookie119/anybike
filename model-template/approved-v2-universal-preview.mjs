@@ -553,7 +553,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // draft's unapproved canonical metadata or cross-model URLs.
   const pageTitle=title+' | Motorcycle History & Specifications | AnyBike';
   const description=str(guide?.page_metadata?.description)||
-   'Explore source-verified '+title+' model history, specifications, model years and UK motorcycle sourcing with AnyBike.';
+   'Explore '+title+' motorcycle model information, available verified research and UK sourcing options with AnyBike.';
   // Keep the existing indexed generic URL when rendering the SAME V2 master
   // at its established route; retain approved dedicated BMW/Harley canonicals.
   const canonicalPath=approvedDedicatedRoute||
@@ -650,7 +650,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const summary=$('summary');summary.replaceChildren();
   const hero=guide?.hero||{};
   if(arr(hero.paragraphs).length)arr(hero.paragraphs).forEach(x=>paragraph(summary,x));
-  else paragraph(summary,str(guide?.summary)||'Explore source-verified '+title+' model years, specifications and documented manufacturer history. Individual motorcycles and markets may differ.');
+  else paragraph(summary,str(guide?.summary)||'Explore '+title+' motorcycle information and any verified model-year research available. Specifications and availability vary by year and market.');
   $('years').textContent=str(hero.years)||str(guide?.years)||'Source-verified specifications vary by model year and market.';
   $('source').href=enquiry;
   // The master uses the existing approved manufacturer routes, rather
