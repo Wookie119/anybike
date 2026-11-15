@@ -20,14 +20,14 @@ const origin='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 const inventory={
  BMW:[{make:'BMW',model:'R 1300 GS',model_id:77,category:'Adventure'},{make:'BMW',model:'R 1250 GS',model_id:68,category:'Adventure'}],
- Suzuki:[{make:'Suzuki',model:'RM250',model_id:202,category:'Motocross'}],
- 'Harley-Davidson':[{make:'Harley-Davidson',model:'Fat Boy',model_id:301,category:'Cruiser'}],
- Honda:[{make:'Honda',model:'CB650R',model_id:401,category:'Naked'}],
- Yamaha:[{make:'Yamaha',model:'MT-09',model_id:402,category:'Naked'}],
- Kawasaki:[{make:'Kawasaki',model:'Z900',model_id:403,category:'Naked'}],
+ Suzuki:[{make:'Suzuki',model:'RM250',model_id:1054,category:'Motocross'}],
+ 'Harley-Davidson':[{make:'Harley-Davidson',model:'Fat Boy',model_id:127,category:'Cruiser'}],
+ Honda:[{make:'Honda',model:'CB650R',model_id:446,category:'Naked'}],
+ Yamaha:[{make:'Yamaha',model:'MT-09',model_id:275,category:'Naked'}],
+ Kawasaki:[{make:'Kawasaki',model:'Z900',model_id:203,category:'Naked'}],
  Ducati:[{make:'Ducati',model:'Monster',model_id:404,category:'Naked'}],
  Triumph:[{make:'Triumph',model:'Street Triple',model_id:405,category:'Naked'}],
- KTM:[{make:'KTM',model:'390 Duke',model_id:406,category:'Naked'}]};
+ KTM:[{make:'KTM',model:'390 Duke',model_id:524,category:'Naked'}]};
 const photo={make:'BMW',model:'R 1300 GS',title:'Verified hero',image_url:'https://photos.example.invalid/hero.jpg',
  attribution:'Licensed photographer',licence:'CC BY-SA 4.0',source_page_url:'https://example.org/source',
  licence_url:'https://creativecommons.org/licenses/by-sa/4.0/'};
