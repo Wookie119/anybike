@@ -646,9 +646,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // catalogue classification with a stale legacy value.
   const categoryCandidates=[str(selected.motorcycle_type),str(selected.category),str(guide?.page_metadata?.category)];
   const approvedCategory=categoryCandidates.find(value=>value&&!/^(other|unknown|uncategorised|uncategorized|n\/a)$/i.test(value));
-  $('category').textContent=approvedCategory||
-   (((normalize(make)==='yamaha'&&/^MT[- ](?:03|07|09|10|125)(?:\b|$)/i.test(model))||(normalize(make)==='kawasaki'&&/^Z900$/i.test(model)))?
-    'Naked & Roadsters':'Motorcycle model');
+  $('category').textContent=approvedCategory||'Motorcycle model';
   const summary=$('summary');summary.replaceChildren();
   const hero=guide?.hero||{};
   if(arr(hero.paragraphs).length)arr(hero.paragraphs).forEach(x=>paragraph(summary,x));
