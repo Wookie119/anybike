@@ -80,6 +80,12 @@ check('Universal research navigation remains visible even before verified record
  assert.match(renderer,/if\(!entries\.length&&verified\)entries\.push\(\[verified,'Documented factory research'\]\)/);
  assert.match(renderer,/ensureUniversalResearchPanel\(\$\('body'\),make,model\);\s*updateDynamicResearchNavigation\(\$\('body'\)\)/);
 });
+check('Empty existing research containers retain an honest universal empty state',()=>{
+ assert.match(renderer,/const hasPublishedResearch=Boolean\(panel\.querySelector/);
+ assert.match(renderer,/if\(hasPublishedResearch\)\{awaiting\?\.remove\(\);\}/);
+ assert.match(renderer,/else if\(!awaiting\)\{/);
+ assert.match(renderer,/status\.dataset\.anybikeResearchAwaitingPublication='1'/);
+});
 check('Every model retains the same factory research panel without invented facts',()=>{
  assert.match(renderer,/function ensureUniversalResearchPanel\(body,make,model\)/);
  assert.match(renderer,/ensureUniversalResearchPanel\(\$\('body'\),make,model\)/);
