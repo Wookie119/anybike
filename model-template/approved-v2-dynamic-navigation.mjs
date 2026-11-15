@@ -128,11 +128,24 @@ async function modelNavigation(){
   const published=JSON.parse(await fetchPublished('/data/motorcycle-catalogue-master.json'));
   collect(published.models);
  }catch(error){console.warn('Offline manufacturer catalogue unavailable',error)}
+ // The published permanent-route manifest is the single source of SEO URLs.
+ // Only exact catalogue make/model pairs can receive a permanent link.
+ let permanentRoutes=new Map();
+ try{
+  const response=await fetch('/data/universal-v2-model-routes.json',{cache:'no-cache'});
+  if(response.ok){
+   const manifest=await response.json();
+   for(const row of (Array.isArray(manifest?.models)?manifest.models:[])){
+    if(normalize(row.make)!==normalize(make)||!String(row.model||'').trim()||
+       !/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(String(row.url||'')))continue;
+    permanentRoutes.set(normalize(row.model),row.url);
+   }
+  }
+ }catch(error){console.warn('Permanent model navigation unavailable',error);}
  const combined=new Map();
  for(const name of models)combined.set(normalize(name),{
-  label:name,url:(location.pathname==='/motorcycle-v2-master.html'?
-   '/motorcycle-v2-master.html':'/motorcycle-model-guide.html')+
-   '?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(name)
+  label:name,url:permanentRoutes.get(normalize(name))||
+   '/motorcycle-model-guide.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(name)
  });
  // Universal rollout: all catalogue navigation goes through the SAME
  // approved V2 renderer. Existing BMW/Harley dedicated routes stay online,
