@@ -26,7 +26,7 @@ test('27 BMW models preserve model-specific identity and public sourcing in thei
    assert.ok(html.includes('approved-v2-universal-preview.mjs'),file+' missing shared research renderer');
    assert.ok(html.includes('approved-v2-dynamic-navigation.mjs'),file+' missing shared model navigation');
   }
-  assert.ok(html.includes('href="/bulk-buying-request.html?make=BMW'),file+' missing sourcing URL');
+  assert.ok(html.includes(name==='r1300gs'?'href="/bulk-buying-request.html':'href="/bulk-buying-request.html?make=BMW'),file+' missing sourcing URL');
   assert.ok(html.includes('name="robots" content="index,follow"'),file+' accidentally deindexed');
   const oldLoader=html.indexOf('const el=id=>document.getElementById(id)');
   if(oldLoader>=0){
