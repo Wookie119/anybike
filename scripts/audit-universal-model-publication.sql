@@ -102,3 +102,46 @@ JOIN public.motorcycle_catalog_models b
  AND regexp_replace(lower(a.model),'[^a-z0-9]','','g')
      =regexp_replace(lower(b.model),'[^a-z0-9]','','g')
 ORDER BY a.manufacturer,a.model,b.model;
+
+-- 6. Editorial backlog: separate staged research from reviewed, publicly
+-- eligible content. Never count draft presence as a completed model rollout.
+SELECT count(*) AS catalogue_models,
+       count(*) FILTER (WHERE staged_sections > 0) AS models_with_staged_research,
+       count(*) FILTER (WHERE staged_sections = 0) AS models_without_staged_research,
+       sum(staged_sections) AS staged_research_sections,
+       sum(published_sections) AS published_research_sections,
+       count(*) FILTER (WHERE published_sections > 0) AS models_with_published_research
+FROM (
+ SELECT m.id,
+   (SELECT count(*) FROM public.motorcycle_universal_page_sections_v1 s
+    WHERE s.entity_type='model' AND s.model_id=m.id) AS staged_sections,
+   (SELECT count(*) FROM public.motorcycle_universal_published_sections_v1 p
+    WHERE p.entity_type='model' AND p.entity_id=m.id
+      AND p.editorial_status='published' AND p.publication_eligible IS TRUE
+      AND p.published_at<=now()) AS published_sections
+ FROM public.motorcycle_catalog_models m
+) coverage;
+
+-- 7. Internal editorial language is a REVIEW signal, not an automatic delete.
+-- A match may be a legitimate historical quotation or editorial context.
+-- Inspect the exact JSON path before publishing; do not expose operational
+-- notes, draft status, test instructions or template-development language.
+SELECT s.id AS section_id,m.manufacturer,m.model,s.section_number,
+       s.section_title,s.editorial_status,s.source_reference
+FROM public.motorcycle_universal_page_sections_v1 s
+JOIN public.motorcycle_catalog_models m ON m.id=s.model_id
+WHERE s.entity_type='model'
+  AND s.content::text ~* '(development rollout|internal note|placeholder|work in progress|do not publish|test only)'
+ORDER BY m.manufacturer,m.model,s.section_number;
+
+-- 8. Source records should be preserved when publishing: investigate each
+-- manufacturer backlog rather than overwriting researched model sections.
+SELECT m.manufacturer,
+       count(DISTINCT m.id) AS catalogue_models,
+       count(DISTINCT m.id) FILTER (WHERE s.id IS NOT NULL) AS models_with_drafts,
+       count(s.id) AS staged_sections
+FROM public.motorcycle_catalog_models m
+LEFT JOIN public.motorcycle_universal_page_sections_v1 s
+  ON s.entity_type='model' AND s.model_id=m.id
+GROUP BY m.manufacturer
+ORDER BY catalogue_models DESC,m.manufacturer;
