@@ -1,7 +1,7 @@
 // AnyBike: one canonical manufacturer/model layout renderer.
 // Stage-only until the approved BMW/Harley visual baseline and public projection pass QA.
 // No network requests, no direct privileged database reads, no HTML injection.
-import {canonicalPageEntity,buildUniversalPageSections,visibleUniversalSections} from './universal-page-section-contract.mjs';
+import {canonicalPageEntity,buildUniversalPageSections,visibleUniversalSections} from './universal-page-section-contract.mjs?v=20261115-official-review3';
 import {stockForCanonicalModel} from './canonical-public-stock-identity.mjs';
 
 const safeText = x => typeof x === 'string' ? x.trim() : '';
