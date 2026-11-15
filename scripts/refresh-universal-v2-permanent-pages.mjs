@@ -31,7 +31,13 @@ for(const route of routes){
  assert.equal(identity?.make,route.make,route.url);
  assert.equal(identity?.model,route.model,route.url);
  assert.equal(identity?.model_id,route.model_id,route.url);
- assert(html.includes('href="https://www.anybike.co.uk'+route.url+'"'),'Canonical changed '+route.url);
+ const canonical=html.match(/<link id="modelCanonical" rel="canonical" href="([^"]+)"/)?.[1];
+ const expected='https://www.anybike.co.uk'+route.url;
+ if(canonical!==expected){
+  const target=canonical?.replace('https://www.anybike.co.uk','');
+  assert(html.includes('location.replace(')&&routes.some(row=>row.url===target),
+   'Invalid canonical alias '+route.url);
+ }
  if(html!==original){fs.writeFileSync(path,html);changed++;}
 }
 console.log('Updated',changed,'of',routes.length,'permanent model pages to shared master asset revisions',target);
