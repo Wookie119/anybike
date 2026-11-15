@@ -18,8 +18,14 @@ test('27 BMW models preserve model-specific identity and public sourcing in thei
   assert.ok(html.includes('id="sourceBottom"'),file+' missing sourcing link');
   assert.ok(html.includes('id="modelSources"'),file+' missing source references');
   assert.ok(html.includes('id="internationalGuestRequestForm"'),file+' missing guest enquiry form');
-  assert.ok(html.includes('approved-v2-universal-preview.mjs'),file+' missing shared research renderer');
-  assert.ok(html.includes('approved-v2-dynamic-navigation.mjs'),file+' missing shared model navigation');
+  if(name==='r1300gs'){
+   // The approved BMW reference is deliberately not a generic model shell.
+   assert.ok(html.includes('id="r1300gsModelHistory"'),file+' original model history removed');
+   assert.ok(html.includes('id="ukR1300ModelGallery"'),file+' original gallery removed');
+  }else{
+   assert.ok(html.includes('approved-v2-universal-preview.mjs'),file+' missing shared research renderer');
+   assert.ok(html.includes('approved-v2-dynamic-navigation.mjs'),file+' missing shared model navigation');
+  }
   assert.ok(html.includes('href="/bulk-buying-request.html?make=BMW'),file+' missing sourcing URL');
   assert.ok(html.includes('name="robots" content="index,follow"'),file+' accidentally deindexed');
   const oldLoader=html.indexOf('const el=id=>document.getElementById(id)');
