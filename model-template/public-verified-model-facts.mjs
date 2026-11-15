@@ -400,29 +400,12 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   if(!refreshGroups.has(category))refreshGroups.set(category,[]);
   refreshGroups.get(category).push(group);
  }
- // The reference-year introduction describes the current complete audited
- // snapshot, not just newly added categories. Refresh it even when no category
- // group needs rerendering, so withdrawn years never remain in the heading.
- const referenceYears=[...new Set(allFacts.filter(x=>
-  x.category==='model_year'&&x.start_year!==null&&x.start_year!==''&&
-  Number.isInteger(Number(x.start_year))&&Number(x.start_year)>=1885&&
-  Number(x.start_year)<=2100).map(x=>Number(x.start_year)))].sort((a,b)=>a-b);
- const referenceYearText=referenceYears.length?
-  'Factory-source model-year specification records cover '+referenceYears.length+' reference year'+
-  (referenceYears.length===1?'':'s')+' for the '+make+' '+model+
-  ': '+referenceYears.join(', ')+
-  '. Other documented history and technical records may cover additional years. This does not imply continuous production.':'';
- const previousYearIntro=[...(existingPanel?.children||[])]
-  .find(child=>child.dataset?.anybikeResearchYearsIntro==='1');
- if(previousYearIntro){
-  if(referenceYearText)previousYearIntro.textContent=referenceYearText;
-  else previousYearIntro.remove?.();
- }else if(existingPanel&&referenceYearText){
-  const intro=node(body.ownerDocument||document,'p',referenceYearText);
-  intro.dataset.anybikeResearchYearsIntro='1';
-  intro.style.cssText='font-size:16px;line-height:1.65;color:inherit';
-  existingPanel.insertBefore(intro,existingPanel.children?.[1]||null);
- }
+ // Model-year evidence remains in its own source-linked category. Avoid a
+ // database-style count of reference years above the motorcycle research:
+ // history, special editions and technical facts can cover different years.
+ // Remove the obsolete introduction on refreshed pages as well.
+ for(const intro of [...(existingPanel?.children||[])].filter(child=>
+  child.dataset?.anybikeResearchYearsIntro==='1'))intro.remove?.();
  const facts=allFacts.filter(fact=>{
   const existing=refreshGroups.get(fact.category);
   return !existing?.length||existing.some(group=>
