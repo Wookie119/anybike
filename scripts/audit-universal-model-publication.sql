@@ -145,3 +145,35 @@ LEFT JOIN public.motorcycle_universal_page_sections_v1 s
   ON s.entity_type='model' AND s.model_id=m.id
 GROUP BY m.manufacturer
 ORDER BY catalogue_models DESC,m.manufacturer;
+
+-- 9. Reviewable research-source coverage by section. A source_reference
+-- records provenance of the import; it is NOT proof that every claim has
+-- a linked, reviewed documentary source. Count explicit links separately.
+SELECT s.section_number,s.section_title,
+       count(*) AS staged_rows,
+       count(*) FILTER (WHERE s.content::text ~* 'https?://') AS rows_with_embedded_source_urls,
+       count(*) FILTER (WHERE s.content::text !~* 'https?://') AS rows_without_embedded_source_urls
+FROM public.motorcycle_universal_page_sections_v1 s
+WHERE s.entity_type='model'
+GROUP BY s.section_number,s.section_title
+ORDER BY s.section_number,s.section_title;
+
+-- 10. Prioritised editorial intake, retaining the original model identity.
+-- This is an internal queue only; never render it as customer-facing copy.
+WITH model_status AS (
+ SELECT m.id,m.manufacturer,m.model,m.slug,
+        count(s.id) AS staged_sections,
+        count(s.id) FILTER (WHERE s.content::text ~* 'https?://') AS sourced_sections
+ FROM public.motorcycle_catalog_models m
+ LEFT JOIN public.motorcycle_universal_page_sections_v1 s
+   ON s.entity_type='model' AND s.model_id=m.id
+ GROUP BY m.id
+)
+SELECT manufacturer,model,slug,staged_sections,sourced_sections,
+       CASE WHEN staged_sections=0 THEN 'research intake'
+            WHEN sourced_sections=0 THEN 'documentary source review'
+            ELSE 'section-by-section editorial verification' END AS next_review
+FROM model_status
+ORDER BY CASE WHEN staged_sections>0 THEN 0 ELSE 1 END,
+         staged_sections DESC,manufacturer,model
+LIMIT 200;
