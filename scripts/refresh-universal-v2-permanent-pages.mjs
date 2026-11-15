@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Reconcile every permanent model URL with the ONE approved dynamic V2 assets.
 // Does not alter approved HTML layout, identity, canonical, research or content.
+// DealerWebs readiness: refresh all permanent model URLs in one audited batch.
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const read=p=>fs.readFileSync(p,'utf8');
