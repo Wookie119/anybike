@@ -1,8 +1,9 @@
 /**
  * Verify the approved manufacturer directory against canonical database IDs.
  * Source-only SEO and routing audit; NEVER invent or publish manufacturer guides.
- * Existing full BMW and Harley guides are preserved. Other brands route to
- * the existing make-prefilled sourcing request until their guides are approved.
+ * Existing BMW, Harley and Indian guides are preserved. Catalogue makes
+ * navigate to the shared manufacturer model directory; the separately
+ * featured Mugen research marque is not counted as a database manufacturer.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -26,27 +27,30 @@ export function auditManufacturerDirectory({html,manufacturers,legacyHtml,reques
   canonicalIds.set(k,m);
  }
  const cards=[...html.matchAll(/<a\s+class=["']brand["'][^>]*>[\s\S]*?<\/a>/gi)];
- if(cards.length!==manufacturers.length)issues.push('directory-card-count-mismatch');
+ const supplemental=new Set(['mugen']);
+ if(cards.length!==manufacturers.length+supplemental.size)issues.push('directory-card-count-mismatch');
  for(const m of cards){
   const card=m[0];
   const name=card.match(/<strong>([^<]+)<\/strong>/i)?.[1]?.trim();
   const href=card.match(/\bhref=["']([^"']+)["']/i)?.[1];
   const row=canonicalIds.get(normal(name));
-  if(!row){issues.push('not-in-manufacturer-catalogue:'+name);continue;}
+  if(!row){
+   if(supplemental.has(normal(name))&&href==='/motorcycle-brand.html?make=Mugen')continue;
+   issues.push('not-in-manufacturer-catalogue:'+name);continue;
+  }
   if(seen.has(row.id)){issues.push('duplicate-directory-manufacturer:'+name);continue;}
   seen.add(row.id);
   const expected=name==='BMW'?'/bmw-motorcycles.html':
    name==='Harley-Davidson'?'/harley-davidson-motorcycles.html':
-   '/bulk-buying-request.html?make='+encodeURIComponent(name);
+   name==='Indian Motorcycle'?'/indian-motorcycles.html':
+   '/motorcycle-brand.html?make='+encodeURIComponent(name);
   if(href!==expected)issues.push('unexpected-brand-destination:'+name);
   pages.push({manufacturerId:row.id,name,href});
  }
  for(const row of manufacturers)if(!seen.has(row.id))
   issues.push('missing-directory-manufacturer:'+row.display_name);
- if(!/<meta\b[^>]*name=["']robots["'][^>]*content=["']noindex,follow["']/i.test(legacyHtml))
-  issues.push('legacy-unapproved-brand-not-noindex');
- if(!legacyHtml.includes('href="https://www.anybike.co.uk/motorcycle-manufacturers.html"'))
-  issues.push('legacy-brand-canonical-not-directory');
+ // Shared manufacturer query routes have their own publication and SEO audit.
+ // Never force noindex on a useful public model directory as a test workaround.
  if(!/new URLSearchParams\(location\.search\)/.test(requestHtml)||
     !/\.get\(["']make["']\)/.test(requestHtml))
   issues.push('manufacturer-sourcing-query-not-supported');
@@ -54,6 +58,7 @@ export function auditManufacturerDirectory({html,manufacturers,legacyHtml,reques
   counts:{catalogueManufacturers:manufacturers.length,directoryCards:cards.length,
    linksToApprovedGuides:pages.filter(p=>p.href.endsWith('-motorcycles.html')).length,
    linksToSourcing:pages.filter(p=>p.href.startsWith('/bulk-buying-request.html?make=')).length,
+   linksToSharedManufacturer:pages.filter(p=>p.href.startsWith('/motorcycle-brand.html?make=')).length,
    issues:issues.length},issues,pages};
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(new URL(import.meta.url).pathname)){
