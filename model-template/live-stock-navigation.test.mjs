@@ -58,10 +58,17 @@ test('universal, BMW approved galleries and shared model guide use the same live
  assert.match(details,/\/public-header\.css\?v=20261107-live-stock-browse/);
  const shared=fs.readFileSync('public-header.js','utf8');
  const listing=fs.readFileSync('available-stock.html','utf8');
- for(const [name,source] of [['R1300',r1300],['R1250',r1250],['V2',preview]]){
+ for(const [name,source] of [['R1300',r1300],['V2',preview]]){
   assert.match(source,/id="internationalLiveBrowse"[^>]*hidden/,name+' must hide links until stock fetch succeeds');
   assert.match(source,/renderLiveStockBrowse\(/,name+' must render live links from stock response');
  }
+ // R1250 now uses the shared exact-model stock renderer rather than the
+ // retired independent live-browse widget; stock stays hidden until authorised.
+ assert.match(r1250,/id="internationalModelStock" hidden/);
+ assert.match(r1250,/approved-v2-universal-preview\.mjs/);
+ const v2Renderer=fs.readFileSync('model-template/approved-v2-universal-preview.mjs','utf8');
+ assert.match(v2Renderer,/stockForCanonicalModel\(/);
+ assert.match(v2Renderer,/stock\.dataset\.stockFeedState='checking'/);
  assert.match(shared,/renderLiveStockBrowse\(liveBrowse,data\.items/);
  assert.match(listing,/const requestedModel=requestedParams\.get\('model'\)/);
  assert.match(listing,/modelFilter\.value=requestedModel/);
