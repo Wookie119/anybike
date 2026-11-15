@@ -18,7 +18,7 @@ for(const archived of harley.models){
  assert.equal(result.summary,'Approved V2 summary');
  assert.equal(result.deep_dive.length,row.sections.length,'Lost previously published history: '+row.url);
  for(const section of result.deep_dive){
-  assert(section.subtitle.includes('Previously published'),'Archived editorial must never claim factory verification');
+  assert(section.subtitle.includes('Archived model guide'),'Archived editorial must never claim factory verification');
   assert(section.paragraphs.some(x=>x.text),'Archived section lost text');
  }
  retained+=result.deep_dive.length;
