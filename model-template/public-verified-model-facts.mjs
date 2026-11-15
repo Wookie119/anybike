@@ -408,10 +408,10 @@ export function mountVerifiedModelFacts(body,rows,make,model){
   Number.isInteger(Number(x.start_year))&&Number(x.start_year)>=1885&&
   Number(x.start_year)<=2100).map(x=>Number(x.start_year)))].sort((a,b)=>a-b);
  const referenceYearText=referenceYears.length?
-  'Factory-source records document '+referenceYears.length+' individual reference year'+
+  'Factory-source model-year specification records cover '+referenceYears.length+' reference year'+
   (referenceYears.length===1?'':'s')+' for the '+make+' '+model+
   ': '+referenceYears.join(', ')+
-  '. These are documented versions, not a claim of continuous production.':'';
+  '. Other documented history and technical records may cover additional years. This does not imply continuous production.':'';
  const previousYearIntro=[...(existingPanel?.children||[])]
   .find(child=>child.dataset?.anybikeResearchYearsIntro==='1');
  if(previousYearIntro){
