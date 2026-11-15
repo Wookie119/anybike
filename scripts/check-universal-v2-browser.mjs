@@ -47,7 +47,15 @@ const tests=[['BMW','R 1300 GS',1280],['BMW','R 1300 GS',390],
  ['Yamaha','MT-09',390,'models/yamaha/mt-09.html'],
  ['Yamaha','MT-09',1280,'models/yamaha/mt-09.html'],
  ['KTM','390 Duke',390,'models/ktm/390-duke.html'],
- ['KTM','390 Duke',1280,'models/ktm/390-duke.html']];
+ ['KTM','390 Duke',1280,'models/ktm/390-duke.html'],
+ ['Honda','CB650R',390,'models/honda/cb650r.html'],
+ ['Honda','CB650R',1280,'models/honda/cb650r.html'],
+ ['Kawasaki','Z900',390,'models/kawasaki/z900.html'],
+ ['Kawasaki','Z900',1280,'models/kawasaki/z900.html'],
+ ['Ducati','Monster',390,'models/ducati/monster.html'],
+ ['Ducati','Monster',1280,'models/ducati/monster.html'],
+ ['Harley-Davidson','Fat Boy',390,'models/harley-davidson/fat-boy.html'],
+ ['Harley-Davidson','Fat Boy',1280,'models/harley-davidson/fat-boy.html']];
 let passed=0;
 try{
  for(const [make,model,width,routeName='motorcycle-v2-master.html'] of tests){
