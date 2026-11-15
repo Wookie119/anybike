@@ -26,6 +26,18 @@ const check=(label,fn)=>{
  try{fn();console.log('PASS',label);}
  catch(err){console.error('FAIL',label,err.message);process.exitCode=1;}
 };
+check('Every permanent model page has the exact approved master HTML and style',()=>{
+ const master=read('motorcycle-v2-master.html');
+ const masterMain=master.match(/<main>[\s\S]*?<\/main>/)?.[0];
+ const masterStyle=master.match(/<style>[\s\S]*?<\/style>/)?.[0];
+ assert(masterMain&&masterStyle,'Approved master layout missing');
+ const manifest=JSON.parse(read('data/universal-v2-model-routes.json'));
+ for(const model of manifest.models){
+  const page=read(model.url.slice(1));
+  assert.equal(page.match(/<main>[\s\S]*?<\/main>/)?.[0],masterMain,'Different template '+model.url);
+  assert.equal(page.match(/<style>[\s\S]*?<\/style>/)?.[0],masterStyle,'Different styling '+model.url);
+ }
+});
 check('Every published permanent model route uses the ONE approved dynamic renderer',()=>{
  const manifest=JSON.parse(read('data/universal-v2-model-routes.json'));
  assert(Array.isArray(manifest.models)&&manifest.models.length>=900,'Permanent route catalogue unexpectedly incomplete');
