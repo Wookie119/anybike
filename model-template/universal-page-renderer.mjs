@@ -44,7 +44,7 @@ function appendContent(doc,parent,value,depth=0){
   const sourceReview=safeText(value.source_verification_status).toLowerCase();
   const contentStatus=safeText(value.content_status).toLowerCase();
   const editorialStatus=safeText(value.editorial_status).toLowerCase();
-  const allowed=new Set(['verified','approved','published']);
+  const allowed=new Set(['verified','approved','published','verified_official_manufacturer_source']);
   if((review&&!allowed.has(review))||
      (sourceReview&&!allowed.has(sourceReview))||
      (contentStatus&&!allowed.has(contentStatus))||
