@@ -140,11 +140,13 @@ async function modelNavigation(){
  // The dedicated route map is still used by the master to preserve approved
  // legacy SEO canonicals and historical research.
  for(const [key,item] of approved){
-  if(combined.has(key))continue;
   const exact=String(item.label||'').trim();
   if(!exact)continue;
-  combined.set(key,{label:exact,url:'/motorcycle-model-guide.html?make='+
-   encodeURIComponent(make)+'&model='+encodeURIComponent(exact)});
+  // A published, validated dedicated model URL is the SEO destination.
+  // Do not link to a duplicate query-string page when a permanent route
+  // already exists. Both destinations retain the shared V2 renderer.
+  const existing=combined.get(key);
+  combined.set(key,{label:existing?.label||exact,url:item.url});
  }
  // If public navigation is temporarily unavailable, preserve the existing
  // V2 pills rather than replace them with an empty list.
