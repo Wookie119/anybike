@@ -151,6 +151,7 @@ import {resolveApprovedV2Identity} from '/model-template/approved-v2-route-ident
 const params=new URLSearchParams(location.search);
 let wantMake=str(params.get('make')),wantModel=str(params.get('model'));
 let approvedDedicatedRoute=null;
+let permanentRouteModelId=null;
  // Static SEO routes share this exact V2 document and renderer. Identity is
  // embedded by the published catalogue build, then revalidated by Supabase.
  // Query parameters cannot override a model's permanent URL.
@@ -164,6 +165,7 @@ let approvedDedicatedRoute=null;
       (wantModel&&normalize(wantModel)!==normalize(identity.model)))
     throw Error('Permanent model route identity invalid');
    wantMake=identity.make;wantModel=identity.model;
+   permanentRouteModelId=identity.model_id;
    approvedDedicatedRoute=location.pathname;
   }catch(error){
    console.warn('Permanent model route rejected',error);
@@ -256,6 +258,8 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   if(found.length!==1)throw Error('No unique published model matches that make and model.');
   const selected=found[0],make=str(selected.make),model=str(selected.model),title=make+' '+model;
   const canonicalId=Number(selected.model_id||selected.catalogue_model_id);
+   if(permanentRouteModelId!==null&&canonicalId!==permanentRouteModelId)
+    throw Error('Permanent route catalogue ID mismatch');
   const hasCanonicalId=Number.isSafeInteger(canonicalId)&&canonicalId>0;
   const enquiry='/bulk-buying-request.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
   const manufacturer=normalize(make)==='bmw'?'/bmw-motorcycles.html':
@@ -392,6 +396,22 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    new URL(canonicalPath+'?make='+
     encodeURIComponent(make)+'&model='+encodeURIComponent(model),location.origin);
   let canonical=masterUrl.href;
+  // The permanent catalogue URL is canonical for generic/query-string
+  // routes. Existing reviewed dedicated BMW/Harley URLs still win below.
+  if(!approvedDedicatedRoute){
+   try{
+    const response=await fetch('/data/universal-v2-model-routes.json',{cache:'no-cache'});
+    if(response.ok){
+     const manifest=await response.json();
+     const matches=arr(manifest?.models).filter(row=>
+      Number(row.model_id)===canonicalId&&
+      normalize(row.make)===normalize(make)&&normalize(row.model)===normalize(model)&&
+      /^\\/models\\/[a-z0-9-]+\\/[a-z0-9-]+\\.html$/.test(String(row.url||'')));
+     if(matches.length===1)canonical=new URL(matches[0].url,location.origin).href;
+    }
+   }catch(error){console.warn('Permanent model canonical unavailable',error);}
+  }
+
   try{
    let routes=null;
    if(client){
