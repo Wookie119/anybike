@@ -133,6 +133,25 @@ function updateDynamicResearchNavigation(body){
   links.append(a);
  });
 }
+// Preserve the approved research panel position on every model, including
+// models without released facts. Never invent specifications or sources.
+function ensureUniversalResearchPanel(body,make,model){
+ if(!body)return;
+ const identity=JSON.stringify([String(make).toLowerCase(),String(model).toLowerCase()]);
+ let panel=body.querySelector('[data-anybike-verified-model-facts]');
+ if(panel){
+  panel.querySelector('[data-anybike-research-awaiting-publication]')?.remove();
+  return;
+ }
+ panel=node('section',undefined,'card feature anybike-verified-model-research');
+ panel.dataset.anybikeVerifiedModelFacts='1';
+ panel.dataset.anybikeResearchIdentity=identity;
+ panel.append(node('h2',make+' '+model+' — documented factory research'));
+ const status=node('p','Verified factory research for this exact model has not yet been published. Specifications and model-year information will appear here once source-checked and approved.');
+ status.dataset.anybikeResearchAwaitingPublication='1';
+ panel.append(status);
+ body.prepend(panel);
+}
 // Present RLS-approved editorial in the SAME documented-research panel as
 // audited factory facts, rather than appending a second model-page layout.
 // Only approved, already-rendered sections enter this projection.
@@ -1175,6 +1194,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   integratePublishedResearch($('body'),make,model);
   organiseCanonicalResearchSlots($('body'));
   organiseUniversalFactoryResearch($('body'));
+  ensureUniversalResearchPanel($('body'),make,model);
   updateDynamicResearchNavigation($('body'));
   // Every catalogue model gets the approved master regardless of research
   // coverage. Do not turn its hero into a research-publication status notice.
