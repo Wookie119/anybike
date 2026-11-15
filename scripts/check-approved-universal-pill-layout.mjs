@@ -31,7 +31,7 @@ for(const [name,html] of [['master',master],['guide',guide]]){
 assert.equal(routes.length,965,'Unexpected universal model count');
 assert.equal(new Set(routes.map(r=>r.url)).size,965,'Duplicate permanent model URLs');
 for(const r of routes){
- assert(/^\\/models\\/[a-z0-9-]+\\/[a-z0-9-]+\\.html$/.test(r.url),
+ assert(/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(r.url),
   'Invalid permanent model URL: '+r.url);
  assert(read(r.url.slice(1)).includes('id="databaseMotorcycleTypes"'),
   'Permanent model route missing shared pill navigation: '+r.url);
