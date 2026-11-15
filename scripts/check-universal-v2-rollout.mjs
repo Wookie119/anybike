@@ -44,7 +44,7 @@ check('All model routes use one canonical 20-slot contract and shared approved r
  assert.doesNotMatch(renderer,/panel=makeSection\('v2EditorialResearch'/);
  assert.match(renderer,/if\(supplied\.length&&!panel\)\{/);
  assert.match(renderer,/panel\.dataset\.anybikeResearchIdentity!==guideIdentity/);
- assert.match(renderer,/panel\.dataset\.anybikeResearchIdentity=JSON\.stringify\(\[make\.toLowerCase\(\),model\.toLowerCase\(\)\]\)/);
+ assert.match(renderer,/panel\.dataset\.anybikeResearchIdentity=guideIdentity/);
  assert.match(renderer,/group\.dataset\.anybikeV2CanonicalSlot=section\.dataset\.sectionKey/);
  assert.match(renderer,/organiseCanonicalResearchSlots\(\$\('body'\)\)/);
  assert.match(renderer,/organiseUniversalFactoryResearch\(\$\('body'\)\)/);
