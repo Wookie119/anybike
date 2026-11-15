@@ -130,7 +130,7 @@ async function mount(){
     existing.setAttribute('aria-label','All '+make+' model guides');
    }else{
     const modelGroups=main.querySelector('#modelGroups,#models');
-    if(modelGroups)modelGroups.before(nav);else main.append(nav);
+    if(modelGroups)modelGroups.after(nav);else main.append(nav);
    }
   }
   const other=makes.filter(m=>normalize(m)!==normalize(make));
