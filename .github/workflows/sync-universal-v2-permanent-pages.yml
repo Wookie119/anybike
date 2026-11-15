@@ -23,8 +23,12 @@ jobs:
         run: node --check scripts/refresh-universal-v2-permanent-pages.mjs
       - name: Synchronise all permanent model pages
         run: node scripts/refresh-universal-v2-permanent-pages.mjs
-      - name: Verify all permanent routes use the master asset revisions
-        run: node scripts/refresh-universal-v2-permanent-pages.mjs && git diff --exit-code -- models/
+      - name: Verify generated routes are stable after synchronisation
+        run: |
+          git diff -- models/ > /tmp/anybike-v2-first-pass.diff
+          node scripts/refresh-universal-v2-permanent-pages.mjs
+          git diff -- models/ > /tmp/anybike-v2-second-pass.diff
+          cmp /tmp/anybike-v2-first-pass.diff /tmp/anybike-v2-second-pass.diff
       - name: Commit only generated permanent model pages
         run: |
           if ! git diff --quiet -- models/; then
