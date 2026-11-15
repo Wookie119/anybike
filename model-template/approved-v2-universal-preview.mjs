@@ -52,14 +52,14 @@ function sourceLink(parent,href,label){
 // The database's canonical 20 slots are the only section identities. The
 // same ordering applies to every manufacturer; empty slots stay in the DOM
 // as non-rendered anchors, never as invented motorcycle specifications.
-const UNIVERSAL_SLOT_KEYS=Object.freeze(Array.from({length:20},(_,i)=>
- 'section_'+String(i+1).padStart(2,'0')));
+import {SECTION_KEYS as UNIVERSAL_SLOT_KEYS,SECTION_COUNT as UNIVERSAL_SLOT_COUNT}
+ from '/model-template/universal-page-section-contract.mjs';
 function organiseCanonicalResearchSlots(body){
  if(!body)return;
  let root=body.querySelector(':scope > [data-anybike-v2-section-slots]');
  if(!root){
   root=node('div',undefined,'anybike-v2-canonical-section-slots');
-  root.dataset.anybikeV2SectionSlots='20';
+  root.dataset.anybikeV2SectionSlots=String(UNIVERSAL_SLOT_COUNT);
   root.hidden=true;
   body.prepend(root);
  }
@@ -85,7 +85,7 @@ function organiseCanonicalResearchSlots(body){
  // order changes. Do not reorder verified research or remove its citations.
  for(const section of standalone)body.append(section);
  body.dataset.anybikeV2PopulatedSlots=String(new Set(published.map(x=>x.dataset.sectionKey)).size);
- body.dataset.anybikeV2SectionContract='20';
+ body.dataset.anybikeV2SectionContract=String(UNIVERSAL_SLOT_COUNT);
 }
 // Build the visible model-research navigation from published content, never
 // from a hard-coded make/model list or unpublished database slots. It updates
