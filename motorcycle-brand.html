@@ -536,6 +536,24 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
 
    if(!Array.isArray(data.models))throw Error("Invalid catalogue data");
    const match=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+   // The 978-route shared fallback is the complete published model set.
+   // Merge it into the optional live feed so a partial RPC or stale identity
+   // snapshot cannot silently hide approved model cards. Keep the live model
+   // record when present, but use the shared catalogue's reviewed category.
+   try{
+     const response=await fetch('/data/motorcycle-catalogue-master.json',{cache:'no-cache'});
+     if(response.ok){
+       const snapshot=await response.json();
+       const byModel=new Map(data.models.filter(x=>match(x.make)===match(make)&&x.model)
+         .map(x=>[match(x.model),x]));
+       for(const row of (Array.isArray(snapshot.models)?snapshot.models:[])){
+         if(match(row.make)!==match(make)||!row.model)continue;
+         const id=match(row.model);
+         byModel.set(id,{...byModel.get(id),...row,make:row.make,model:row.model});
+       }
+       data={...data,models:[...data.models.filter(x=>match(x.make)!==match(make)),...byModel.values()]};
+     }
+   }catch(error){console.warn('Complete manufacturer model fallback unavailable',error)}
    const matching=data.models.filter(x=>match(x.make)===match(make)&&x.model);
    if(!matching.length)throw Error("No matching catalogue models");
    // The clean database directory is authoritative: do not retain curated
