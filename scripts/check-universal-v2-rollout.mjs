@@ -26,6 +26,32 @@ const check=(label,fn)=>{
  try{fn();console.log('PASS',label);}
  catch(err){console.error('FAIL',label,err.message);process.exitCode=1;}
 };
+check('Every published permanent model route uses the ONE approved dynamic renderer',()=>{
+ const manifest=JSON.parse(read('data/universal-v2-model-routes.json'));
+ assert(Array.isArray(manifest.models)&&manifest.models.length>=900,'Permanent route catalogue unexpectedly incomplete');
+ assert.equal(manifest.count,manifest.models.length,'Manifest count mismatch');
+ const urls=new Set();
+ for(const model of manifest.models){
+  assert.match(model.url,/^\\/models\\/[a-z0-9-]+\\/[a-z0-9-]+\\.html$/);
+  assert(!urls.has(model.url),'Duplicate permanent URL '+model.url);
+  urls.add(model.url);
+  const html=read(model.url.slice(1));
+  assert.match(html,/id="anybikeV2RouteIdentity"/,'Identity missing '+model.url);
+  const identityText=html.match(/<script id="anybikeV2RouteIdentity" type="application\\/json">([^<]+)<\\/script>/)?.[1];
+  assert(identityText,'Missing identity payload '+model.url);
+  const identity=JSON.parse(identityText);
+  assert.equal(identity.make,model.make,model.url);
+  assert.equal(identity.model,model.model,model.url);
+  assert.equal(identity.model_id,model.model_id,model.url);
+  assert.match(html,/approved-v2-universal-preview\\.mjs\\?v=/,model.url);
+  assert.match(html,/approved-v2-dynamic-navigation\\.mjs\\?v=/,model.url);
+  assert.match(html,/id="generationPanel"/,model.url);
+  assert.match(html,/id="body"/,model.url);
+  assert.match(html,/name="robots" content="index,follow"/,model.url);
+  assert(html.includes('href="https://www.anybike.co.uk'+model.url+'"'),'Canonical mismatch '+model.url);
+ }
+ console.log('Audited',urls.size,'permanent model routes across',new Set(manifest.models.map(x=>x.make)).size,'manufacturers');
+});
 check('Approved publication cannot mount duplicate canonical slots',()=>{
  assert.match(renderer,/matches\[0\]\.querySelector\('\[data-anybike-reviewed-publication\]\[data-section-key=/);
  assert.match(renderer,/destination\.querySelector\('\.anybike-v2-reviewed-universal-section\[data-section-key=/);
