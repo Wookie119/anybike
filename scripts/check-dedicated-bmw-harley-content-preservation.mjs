@@ -24,8 +24,8 @@ for(const {make,model,url} of routes){
  if(url==='/bmw-r1300gs.html'){
   assert(html.includes('id="ukR1300ModelGallery"'),
    'Protected BMW R1300 GS gallery removed');
-  assert(html.includes('id="r1300DeepDive"'),
-   'Protected BMW R1300 GS research removed');
+  assert(html.includes('id="r1300gsModelHistory"'),
+   'Protected BMW R1300 GS model-development research removed');
   continue;
  }
  for(const id of ['databaseHeroPhoto','internationalModelStock','internationalGuestRequestForm',
