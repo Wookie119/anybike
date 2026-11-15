@@ -438,6 +438,20 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     if(!approvedDedicatedRoute&&exact.length===1)canonical=new URL(exact[0].url,location.origin).href;
    }
   }catch(e){console.warn('Canonical published route lookup unavailable',e)}
+  // Existing approved BMW/Harley model URLs retain SEO priority even when
+  // a new universal /models/ route also serves the same motorcycle.
+  if(permanentRouteModelId!==null){
+   try{
+    const response=await fetch('/data/approved-dedicated-model-routes.json',{cache:'no-cache'});
+    if(response.ok){
+     const dedicated=await response.json();
+     const exact=arr(dedicated?.models).filter(row=>
+      normalize(row.make)===normalize(make)&&normalize(row.model)===normalize(model)&&
+      /^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(String(row.url||'')));
+     if(exact.length===1)canonical=new URL(exact[0].url,location.origin).href;
+    }
+   }catch(error){console.warn('Existing model canonical unavailable',error);}
+  }
   document.title=pageTitle;
   const setMeta=(selector,value)=>{
    const item=document.querySelector(selector);
