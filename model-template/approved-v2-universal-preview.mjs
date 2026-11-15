@@ -641,9 +641,10 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   });
   $('heading').textContent=title;
   // "Other" is an internal catch-all, not a useful public motorcycle type.
-  // Prefer approved editorial taxonomy; otherwise identify the established
-  // Yamaha MT roadster family and use a neutral label for uncategorised bikes.
-  const categoryCandidates=[str(guide?.page_metadata?.category),str(selected.motorcycle_type),str(selected.category)];
+  // The single canonical catalogue taxonomy is authoritative for every model.
+  // Editorial may fill a missing category but must never override the shared
+  // catalogue classification with a stale legacy value.
+  const categoryCandidates=[str(selected.motorcycle_type),str(selected.category),str(guide?.page_metadata?.category)];
   const approvedCategory=categoryCandidates.find(value=>value&&!/^(other|unknown|uncategorised|uncategorized|n\/a)$/i.test(value));
   $('category').textContent=approvedCategory||
    (((normalize(make)==='yamaha'&&/^MT[- ](?:03|07|09|10|125)(?:\b|$)/i.test(model))||(normalize(make)==='kawasaki'&&/^Z900$/i.test(model)))?
