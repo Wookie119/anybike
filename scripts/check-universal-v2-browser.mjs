@@ -214,8 +214,11 @@ try{
    }
    assert.equal(await page.locator('#r1300gsModelHistory').evaluate(el=>el.parentElement?.id), '',
     'Development and ownership must be a standalone main-level panel, not nested in stock');
-   assert.equal(await page.locator('#r1300gsModelHistory').evaluate(el=>el.previousElementSibling?.id),
-    'r1300V2VerifiedExtras','Development panel must follow the model-year timeline');
+   assert.equal(await page.locator('#r1300gsModelHistory').evaluate(el=>{
+     const previous=el.previousElementSibling;
+     return previous?.id==='v2GenericModelYears' ? previous.previousElementSibling?.id : previous?.id;
+    }), 'r1300V2VerifiedExtras',
+    'Development panel must follow the model-year timeline, allowing documented model-year cards between them');
    if(routeName==='motorcycle-model-guide.html'){
     const canonical=await page.locator('link[rel=canonical]').getAttribute('href');
     assert.equal(canonical,origin+'/motorcycle-model-guide.html?make='+
