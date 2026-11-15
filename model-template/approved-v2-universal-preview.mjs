@@ -124,6 +124,12 @@ function updateDynamicResearchNavigation(body){
   const id='anybike-v2-research-'+String(i+1);
   section.id=id;
   const a=node('a',title);a.href='#'+id;
+  a.addEventListener('click',()=>{
+   // Research cards are intentionally collapsed by default. Opening the
+   // selected card makes a section jump useful on mobile and desktop.
+   const details=section.querySelector(':scope > details[data-v2-factory-category]');
+   if(details)details.open=true;
+  });
   links.append(a);
  });
 }
