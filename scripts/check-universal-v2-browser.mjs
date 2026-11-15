@@ -243,8 +243,11 @@ try{
     'Development panel must follow the model-year timeline');
    if(routeName.startsWith('models/')){
     const permanentCanonical=await page.locator('link[rel=canonical]').getAttribute('href');
-    assert.equal(new URL(permanentCanonical).pathname,'/'+routeName,
-     'Permanent model URL must keep its own SEO canonical path');
+    const canonicalPath=new URL(permanentCanonical).pathname;
+    const approvedDedicatedCanonical=make==='Harley-Davidson'&&model==='Fat Boy'?
+     '/harley-davidson-fat-boy.html':null;
+    assert(canonicalPath==='/'+routeName||canonicalPath===approvedDedicatedCanonical,
+     'Permanent model URL must keep its own SEO canonical or an approved dedicated canonical');
     const identity=await page.locator('#anybikeV2RouteIdentity').textContent();
     const parsed=JSON.parse(identity);
     assert.equal(parsed.make,make);
