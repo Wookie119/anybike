@@ -11,7 +11,7 @@ const sitemap=read('sitemap-motorcycle-models.xml');
 // The approved 20-part reading experience uses 14 fixed top-level sections
 // plus shared renderer-owned sections. Every permanent URL must retain the
 // identical HTML section skeleton; research availability must not alter it.
-const sectionSkeleton=html=>[...html.matchAll(/<section\\b([^>]*)>/g)].map(m=>m[1]);
+const sectionSkeleton=html=>[...html.matchAll(/<section\b([^>]*)>/g)].map(m=>m[1]);
 const approvedSkeleton=sectionSkeleton(master);
 assert.equal(approvedSkeleton.length,14,'Unexpected approved master top-level structure');
 const exact='main > section.bmw-explore[aria-label="Browse motorcycle types"] > nav#databaseMotorcycleTypes';
