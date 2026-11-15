@@ -5,7 +5,7 @@
    RLS-approved V2 editorial optionally enriches the SAME sections.
    Missing research produces no empty box. Existing live routes are untouched.
 */
-import {installVerifiedModelFacts,approvedResearchSectionHeading} from '/model-template/public-verified-model-facts.mjs?v=20261115-model-research18';
+import {installVerifiedModelFacts,approvedResearchSectionHeading} from '/model-template/public-verified-model-facts.mjs?v=20261115-research-runtime20';
 const ENDPOINT='https://tuehtnezhdnkqbbhttgp.supabase.co';
 const KEY='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
 const $=id=>document.getElementById(id);
