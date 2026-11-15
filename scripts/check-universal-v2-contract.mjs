@@ -120,9 +120,9 @@ check('All 217 published country markets use the safe public RPC fallback',()=>{
 });
 check('Established published canonical model URLs are preserved',()=>{
  assert.match(renderer,/public_anybike_manufacturer_model_routes_v1/);
- assert.match(nav,/for\\(const \\[key,item\\] of approved\\)\\{/);
- assert.match(nav,/combined\\.set\\(key,\\{label:existing\\?\\.label\\|\\|exact,url:item\\.url\\}\\)/);
- assert.match(nav,/url:permanentRoutes\\.get\\(normalize\\(name\\)\\)/);
+ assert.match(nav,/for\(const \[key,item\] of approved\)\{/);
+ assert.match(nav,/combined\.set\(key,\{label:existing\?\.label\|\|exact,url:item\.url\}\)/);
+ assert.match(nav,/url:permanentRoutes\.get\(normalize\(name\)\)/);
 });
 check('Verified facts and authorised photos only',()=>{
  assert.match(renderer,/installVerifiedModelFacts/);
