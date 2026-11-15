@@ -1088,6 +1088,10 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
          approvedResearchSectionHeading(group.dataset.anybikeResearchCategory,heading));
        const content=[...section.children].filter(child=>child.tagName!=='H2');
        if(matches.length===1&&content.length){
+        // One canonical slot can be mounted only once per model. Preserve
+        // the first approved projection; never duplicate research on reruns.
+        const slot=section.dataset.sectionKey||'';
+        if(matches[0].querySelector('[data-anybike-reviewed-publication][data-section-key="'+slot+'"]'))continue;
         const merged=node('div',undefined,'anybike-v2-reviewed-universal-section');
         merged.dataset.sectionKey=section.dataset.sectionKey||'';
         merged.dataset.anybikeReviewedPublication='true';
@@ -1097,6 +1101,10 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
         merged.append(node('h4','Additional approved research'),...content);
         matches[0].append(merged);
        }else{
+        // A canonical slot already rendered in a previous pass must not
+        // produce a second full-width editorial panel.
+        const slot=section.dataset.sectionKey||'';
+        if(destination.querySelector('.anybike-v2-reviewed-universal-section[data-section-key="'+slot+'"]'))continue;
         section.classList.add('anybike-v2-reviewed-universal-section');
         destination.append(section);
        }
