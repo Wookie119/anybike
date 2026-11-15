@@ -45,13 +45,17 @@ const checks=[
   },
   {
     route:'International model example',file:'bmw-s1000rr.html',
-    required:['international-guest-enquiry','internationalGuestRequestForm']
+    required:['internationalGuestRequestForm','approved-v2-universal-preview.mjs']
   },
   {
     route:'International stock',file:'international-vq-motorcycle.html',
     required:['international-guest-enquiry']
   }
 ];
+// The shared V2 renderer owns the guest-enquiry action for dedicated model pages.
+const sharedV2=read('model-template/approved-v2-universal-preview.mjs');
+assert(sharedV2.includes('international-guest-enquiry'),
+ 'Shared V2 model renderer must retain the international guest-enquiry action');
 let failures=0;
 for(const {route,file,required,forbidden=[]} of checks){
   try{
