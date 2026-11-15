@@ -147,6 +147,9 @@ function integratePublishedResearch(body){
   section.removeChild(heading);
   section.classList.remove('card');
   group.append(section);
+  // The verified panel uses a responsive grid of collapsible categories;
+  // reviewed editorial joins that same grid, without a second standalone
+  // full-width section or a duplicate model header.
   panel.append(group);
  }
 }
