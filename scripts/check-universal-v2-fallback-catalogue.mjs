@@ -28,6 +28,10 @@ for(const entry of fallback){
 const renderer=fs.readFileSync('model-template/approved-v2-universal-preview.mjs','utf8');
 assert(renderer.includes("const categoryCandidates=[str(selected.motorcycle_type),str(selected.category),str(guide?.page_metadata?.category)]"),'Catalogue category no longer first');
 assert(renderer.includes('const canonicalId=Number(selected.model_id||selected.catalogue_model_id)'), 'Canonical ID lookup changed');
+assert(!renderer.includes("'Explore source-verified '+title+' model years, specifications and documented manufacturer history."),
+ 'Universal fallback must not claim unpublished research is verified');
+assert(renderer.includes('any verified model-year research available'),
+ 'Honest universal research fallback missing');
 const manufacturer=fs.readFileSync('motorcycle-brand.html','utf8');
 const mapDeclaration=manufacturer.indexOf('const permanentModelRoutes=new Map();');
 const loader=manufacturer.indexOf('loadManufacturerCatalogue().then(async data=>');
