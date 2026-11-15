@@ -17,6 +17,7 @@ const facts=read('model-template/public-verified-model-facts.mjs');
 const stock=read('model-template/public-exact-model-stock.mjs');
 const gallery=read('model-template/public-approved-model-gallery.mjs');
 const hero=read('model-template/public-approved-model-hero.mjs');
+const navigation=read('model-template/approved-v2-dynamic-navigation.mjs');
 
 // Import the actual shared publication contract: this is a runtime assertion,
 // not a string-only check of twenty placeholder anchors.
@@ -59,6 +60,18 @@ check('All model routes use one canonical 20-slot contract and shared approved r
  assert.match(renderer,/const details=section\.querySelector/);
  assert.match(facts,/function mountVerifiedModelFacts\(body,rows,make,model\)/);
  assert.doesNotMatch(facts,/if\(referenceYearText\)/);
+});
+check('Both model routes use identical renderer and expanded manufacturer navigation',()=>{
+ const revision=(html,filename)=>{
+  const pattern=filename==='renderer'?/approved-v2-universal-preview\.mjs\\?v=([^"'<>]+)/:/approved-v2-dynamic-navigation\.mjs\\?v=([^"'<>]+)/;
+  const match=html.match(pattern);
+  assert(match,'Missing versioned '+filename);
+  return match[1];
+ };
+ for(const filename of ['renderer','navigation'])
+  assert.equal(revision(shared,filename),revision(sourceMaster,filename),filename+' routes diverged');
+ assert.match(navigation,/directory\.open=true/);
+ assert.doesNotMatch(navigation,/directory\.open=false/);
 });
 check('Generic model route uses the exact shared V2 renderer and section layout',()=>{
  assert.match(shared,/approved-v2-preview-style\.css\?v=/);
