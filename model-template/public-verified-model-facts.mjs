@@ -465,12 +465,6 @@ export function mountVerifiedModelFacts(body,rows,make,model){
  const heading=node(doc,'h2',make+' '+model+' — documented factory research');
  heading.style.cssText='color:#fff;line-height:1.3;overflow-wrap:anywhere';
  panel.append(heading);
- if(referenceYearText){
-  const intro=node(doc,'p',referenceYearText);
-  intro.dataset.anybikeResearchYearsIntro='1';
-  intro.style.cssText='font-size:16px;line-height:1.65;color:#ddd';
-  panel.append(intro);
- }
  const caveat=node(doc,'p','Specifications and equipment may vary by model year and market. AnyBike uses documented manufacturer information wherever available.');
  caveat.style.cssText='color:#ddd;line-height:1.65';
  panel.append(caveat);
