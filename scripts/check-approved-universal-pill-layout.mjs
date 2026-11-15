@@ -51,7 +51,7 @@ for(const r of routes){
  assert.equal(model.model,r.model,'Wrong model identity: '+r.url);
  assert.equal(model.model_id,r.model_id,'Wrong catalogue model ID: '+r.url);
  const canonical=html.match(/<link id="modelCanonical" rel="canonical" href="([^"]+)"/)?.[1];
- const isAlias=html.includes('Reviewed catalogue alias: preserve exact-model identity; navigate to canonical record.');
+ const isAlias=html.includes('location.replace(') && canonical!=='https://www.anybike.co.uk'+r.url;
  if(isAlias){
   assert(canonical?.startsWith('https://www.anybike.co.uk/models/'),
    'Alias must canonicalize to a permanent model URL: '+r.url);
