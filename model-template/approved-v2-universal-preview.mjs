@@ -1116,7 +1116,16 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    const supplied=Object.entries(explanations).filter(([key,entry])=>
     /^[a-z][a-z0-9_]{1,64}$/.test(key)&&entry&&
     arr(entry.paragraphs).some(str)&&validURL(entry.source_url));
-   if(supplied.length&&!panel)panel=makeSection('v2EditorialResearch','Documented factory research',$('body'));
+   // Source-linked guide explanations are another approved input to the
+   // SAME model research panel, including models without verified RPC facts.
+   // Never create a parallel standalone research layout.
+   if(supplied.length&&!panel){
+    panel=node('section',undefined,'card feature anybike-verified-model-research');
+    panel.dataset.anybikeVerifiedModelFacts='1';
+    panel.dataset.anybikeResearchIdentity=JSON.stringify([make.toLowerCase(),model.toLowerCase()]);
+    panel.append(node('h2','Documented factory research'));
+    $('body').prepend(panel);
+   }
    for(const [key,entry] of supplied){
     let group=[...panel.querySelectorAll('[data-anybike-research-category]')]
       .find(x=>x.dataset.anybikeResearchCategory===key);
