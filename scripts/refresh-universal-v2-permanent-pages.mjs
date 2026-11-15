@@ -11,8 +11,11 @@ const names=['approved-v2-preview-style.css','approved-v2-universal-preview.mjs'
 const version=(html,name)=>html.split(name+'?v=')[1]?.split(/["'<>]/)[0];
 const target=Object.fromEntries(names.map(name=>[name,version(master,name)]));
 for(const [name,v] of Object.entries(target))assert(v,'Missing approved master asset '+name);
-let changed=0;
+const changes=[];
+const seenUrls=new Set();
 for(const route of routes){
+ assert(!seenUrls.has(route.url),'Duplicate model route '+route.url);
+ seenUrls.add(route.url);
  const path=route.url.slice(1);
  let html=read(path);
  const original=html;
@@ -38,6 +41,9 @@ for(const route of routes){
   assert(html.includes('location.replace(')&&routes.some(row=>row.url===target),
    'Invalid canonical alias '+route.url);
  }
- if(html!==original){fs.writeFileSync(path,html);changed++;}
+ if(html!==original)changes.push({path,html});
 }
-console.log('Updated',changed,'of',routes.length,'permanent model pages to shared master asset revisions',target);
+// Validate the ENTIRE batch before writing a single model page.
+assert.equal(seenUrls.size,routes.length);
+for(const change of changes)fs.writeFileSync(change.path,change.html);
+console.log('Updated',changes.length,'of',routes.length,'permanent model pages to shared master asset revisions',target);
