@@ -8,6 +8,12 @@ const master=read('motorcycle-v2-master.html');
 const guide=read('motorcycle-model-guide.html');
 const routes=JSON.parse(read('data/universal-v2-model-routes.json')).models;
 const sitemap=read('sitemap-motorcycle-models.xml');
+// The approved 20-part reading experience uses 14 fixed top-level sections
+// plus shared renderer-owned sections. Every permanent URL must retain the
+// identical HTML section skeleton; research availability must not alter it.
+const sectionSkeleton=html=>[...html.matchAll(/<section\\b([^>]*)>/g)].map(m=>m[1]);
+const approvedSkeleton=sectionSkeleton(master);
+assert.equal(approvedSkeleton.length,14,'Unexpected approved master top-level structure');
 const exact='main > section.bmw-explore[aria-label="Browse motorcycle types"] > nav#databaseMotorcycleTypes';
 assert(css.includes('Correct the root cause of the mobile riding-style layout'),
  'The approved full-width pill-layout override was removed');
@@ -38,6 +44,8 @@ for(const r of routes){
  assert(/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(r.url),
   'Invalid permanent model URL: '+r.url);
  const html=read(r.url.slice(1));
+ assert.deepEqual(sectionSkeleton(html),approvedSkeleton,
+  'Model URL diverges from the ONE approved V2 master: '+r.url);
  assert(html.includes('id="databaseMotorcycleTypes"'),
   'Permanent model route missing shared pill navigation: '+r.url);
  assert.deepEqual(html.match(assetPattern)||[],masterAssets,
