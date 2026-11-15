@@ -108,6 +108,9 @@ function updateDynamicResearchNavigation(body){
   const title=section.querySelector(':scope > h2')?.textContent?.trim();
   if(title)entries.push([section,title]);
  }
+ // A model with no approved research still retains the SAME navigation
+ // and factory-research position as a fully researched motorcycle.
+ if(!entries.length&&verified)entries.push([verified,'Documented factory research']);
  if(!entries.length){nav?.remove();return;}
  if(!nav){
   nav=node('nav',undefined,'anybike-v2-dynamic-research-navigation');
