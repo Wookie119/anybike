@@ -46,8 +46,8 @@ main{width:min(1760px,calc(100% - 60px));padding-top:0}
 .category-card strong{font-size:19px;display:block}
 .category-card span{display:block;color:#b9bdc7;margin-top:8px;font-size:14px}
 .category-card em{display:block;font-style:normal;color:#ed1c24;margin-top:12px;font-size:13px;font-weight:800}
-.category-card:hover,.card:hover{border-color:#ed1c24}
-.category-navigation a{border-radius:100px}
+.category-card:hover,.category-card:focus-visible,.card:hover{border-color:#ed1c24}
+.family[id^="category-"]{scroll-margin-top:110px}.category-card{cursor:pointer;text-decoration:none;color:inherit}.category-card:focus-visible{outline:2px solid #ed1c24;outline-offset:3px}.category-navigation a{border-radius:100px}
 @media(max-width:1100px){.manufacturer-hero{grid-template-columns:1fr}.category-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){main{width:calc(100% - 32px)}.hero-main{padding:20px;min-height:auto}.hero-main h1{font-size:35px}.category-cards{grid-template-columns:1fr}.hero-visual{height:205px}}
 .global-stories{margin-top:30px}.global-stories-header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}.global-stories-header p{color:#ccc}.global-stories-header a{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 18px;border:1px solid #555;border-radius:8px;background:#242424;color:#fff;text-decoration:none;font-weight:800;white-space:nowrap}.global-stories-header a:hover{border-color:#ed1c24;background:#303030}.global-stories-header a:focus-visible{outline:3px solid #fff;outline-offset:3px}.global-story-card a{color:#ed1c24;text-decoration:underline}.global-stories-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.global-story-card{display:flex;flex-direction:column;border:1px solid #ffffff29;border-top:3px solid #ed1c24;background:#151515;border-radius:14px;padding:20px}.global-story-tag{color:#ed1c24;font-size:12px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase}.global-story-card h3{font-size:20px;margin:9px 0}.global-story-card p{color:#d0d0d0;flex:1}.global-story-card a{font-weight:700}@media(max-width:950px){.global-stories-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.global-stories-grid{grid-template-columns:1fr}}
@@ -567,6 +567,21 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
 
  const categoryEntries=Object.entries(groups).filter(([,models])=>models.length);
  document.getElementById("categoryCards").innerHTML=categoryEntries.map(([category,models],i)=>'<a class="category-card" href="#category-'+i+'"><strong>'+esc(category)+'</strong><span>'+esc(models.slice(0,3).join(", "))+'</span><em>Explore '+esc(category.toLowerCase())+' motorcycles →</em></a>').join("");
+ // All category cards are full-area links. Explicitly focus and scroll the
+ // corresponding model group so mobile browsers cannot silently ignore a
+ // same-page fragment while the manufacturer catalogue is dynamically built.
+ const categoryCards=document.getElementById("categoryCards");
+ categoryCards.onclick=event=>{
+  const link=event.target.closest('a.category-card[href^="#category-"]');
+  if(!link||!categoryCards.contains(link))return;
+  const target=document.getElementById(link.getAttribute('href').slice(1));
+  if(!target)return;
+  event.preventDefault();
+  target.setAttribute('tabindex','-1');
+  target.scrollIntoView({behavior:'smooth',block:'start'});
+  target.focus({preventScroll:true});
+  history.replaceState(null,'',link.getAttribute('href'));
+ };
  document.getElementById("categoryNavigation").innerHTML=categoryEntries.map(([category],i)=>'<a href="#category-'+i+'">'+esc(category)+'</a>').join("");
  const categoryDescriptions={"Adventure":"Touring and mixed-surface motorcycles; equipment and engine sizes vary by model year.","Roadsters":"Naked and road-focused motorcycles, from entry-level to high-performance generations.","Sports":"Road and track-oriented motorcycles; check precise trim and generation.","Touring":"Long-distance motorcycles; confirm luggage, rider aids and specification by year.","Cruisers":"Cruiser motorcycles and custom-styled machines; check original equipment and modifications.","Classics":"Heritage models and historic names; confirm generation and originality.","Scooters":"Automatic and urban-focused two-wheelers; check licence class and market specification.","Off-road":"Motocross, enduro and off-road machines; road registration varies by model and individual example.","Electric":"Electric motorcycles and scooters; battery and charging specification vary by year."};
  document.getElementById("modelGroups").innerHTML=categoryEntries.map(([category,models],i)=>'<div class="family" id="category-'+i+'"><h3>'+esc(category)+'</h3><p class="family-intro">'+esc(categoryDescriptions[category]||'Explore the main models and their different production generations.')+'</p><div class="grid">'+models.map(model=>{const guide=(make==="Honda"&&model==="Africa Twin CRF1100L")||(make==="Ducati"&&model==="Panigale V4");const href=permanentModelRoutes.get(String(model).toLowerCase().replace(/[^a-z0-9]/g,""))||"/motorcycle-model-guide.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);const fact=modelFacts.get(String(model).toLowerCase().replace(/[^a-z0-9]/g,""));const years=fact?.production_years;const yearText=typeof years==="string"&&years.trim()?years.trim():"";return '<a class="card manufacturer-model-card" href="'+href+'"><strong>'+esc(make)+' '+esc(model)+'</strong><small>'+esc(category)+(yearText?' · '+esc(yearText):'')+' · Confirm model year and exact variant</small>'+(modelResearchNotes[make]?.[model]?'<p class="model-research-note">'+esc(modelResearchNotes[make][model])+'</p>':'')+'<span>'+("Explore "+esc(make)+" "+esc(model)+" model guide →")+'</span></a>'}).join("")+'</div></div>').join("")+(key?"":'<p>Our detailed model guide for this manufacturer is being prepared. You can already request any model using the sourcing form.</p>');
