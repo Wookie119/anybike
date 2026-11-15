@@ -227,11 +227,13 @@ try{
    }
    assert.equal(await page.locator('#r1300gsModelHistory').evaluate(el=>el.parentElement?.id), '',
     'Development and ownership must be a standalone main-level panel, not nested in stock');
-   assert.equal(await page.locator('#r1300gsModelHistory').evaluate(el=>{
-     const previous=el.previousElementSibling;
-     return previous?.id==='v2GenericModelYears' ? previous.previousElementSibling?.id : previous?.id;
-    }), 'r1300V2VerifiedExtras',
-    'Development panel must follow the model-year timeline, allowing documented model-year cards between them');
+   // Runtime inserts model-year panels between fixed master sections.
+   // Enforce relative order rather than requiring adjacent siblings.
+   const sectionOrder=await page.locator('main > *').evaluateAll(nodes=>
+    nodes.map(n=>n.id||n.className));
+   assert(sectionOrder.indexOf('r1300gsModelHistory')>
+    sectionOrder.indexOf('r1300V2VerifiedExtras'),
+    'Development panel must follow the model-year timeline');
    if(routeName.startsWith('models/')){
     assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),
      'https://www.anybike.co.uk/'+routeName,
