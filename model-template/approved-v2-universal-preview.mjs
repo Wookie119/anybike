@@ -1143,14 +1143,27 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
         merged.append(node('h4','Additional approved research'),...content);
         matches[0].append(merged);
        }else{
+        // Put approved sections INSIDE the existing factory research panel.
+        // Appending them elsewhere leaves a misleading 'not published' card
+        // on the page even when Supabase has released exact-model research.
+        const researchPanel=destination.querySelector('[data-anybike-verified-model-facts]');
+        const target=researchPanel&&researchPanel.dataset.anybikeResearchIdentity===JSON.stringify([make.toLowerCase(),model.toLowerCase()])?researchPanel:destination;
         // A canonical slot already rendered in a previous pass must not
         // produce a second full-width editorial panel.
         const slot=section.dataset.sectionKey||'';
         if(destination.querySelector('.anybike-v2-reviewed-universal-section[data-section-key="'+slot+'"]'))continue;
         section.classList.add('anybike-v2-reviewed-universal-section');
-        destination.append(section);
+        target.append(section);
        }
        publishedCount++;
+      }
+     }
+     if(publishedCount){
+      // An approved section is real published research. Never show the
+      // contradictory awaiting-publication message alongside it.
+      const researchPanel=$('body')?.querySelector('[data-anybike-verified-model-facts]');
+      if(researchPanel?.dataset.anybikeResearchIdentity===JSON.stringify([make.toLowerCase(),model.toLowerCase()])){
+       researchPanel.querySelector('[data-anybike-research-awaiting-publication]')?.remove();
       }
      }
     }
