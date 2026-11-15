@@ -124,6 +124,29 @@ function updateDynamicResearchNavigation(body){
   links.append(a);
  });
 }
+// Present RLS-approved editorial in the SAME documented-research panel as
+// audited factory facts, rather than appending a second model-page layout.
+// Only approved, already-rendered sections enter this projection.
+function integratePublishedResearch(body){
+ const panel=body?.querySelector('[data-anybike-verified-model-facts]');
+ if(!panel)return;
+ const identity=panel.dataset.anybikeResearchIdentity;
+ for(const section of [...body.querySelectorAll(':scope > .anybike-v2-reviewed-universal-section[data-section-key]')]){
+  if(!UNIVERSAL_SLOT_KEYS.includes(section.dataset.sectionKey))continue;
+  const heading=section.querySelector(':scope > h2');
+  if(!heading||section.children.length<2)continue;
+  const group=node('div',undefined,'anybike-v2-reviewed-category');
+  group.dataset.anybikeResearchCategory='approved_'+section.dataset.sectionKey;
+  group.dataset.anybikeResearchIdentity=identity;
+  group.dataset.anybikeV2CanonicalSlot=section.dataset.sectionKey;
+  const title=node('h3',heading.textContent?.trim()||'Documented motorcycle research');
+  group.append(title);
+  section.removeChild(heading);
+  section.classList.remove('card');
+  group.append(section);
+  panel.append(group);
+ }
+}
 function organiseUniversalFactoryResearch(body){
  const panel=body?.querySelector('[data-anybike-verified-model-facts]');
  if(!panel)return;
@@ -1088,6 +1111,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     group.append(article);
    }
   }
+  integratePublishedResearch($('body'));
   organiseCanonicalResearchSlots($('body'));
   organiseUniversalFactoryResearch($('body'));
   updateDynamicResearchNavigation($('body'));
