@@ -1070,7 +1070,16 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // an inappropriate "available internationally / access restricted" card.
   // International view: retain stock, VAT-eligible inventory and the
   // existing access state exactly as the stock service returned it.
-  stock.hidden=await ukPresentationPromise;
+  const confirmedUkVisitor=await ukPresentationPromise;
+  stock.hidden=confirmedUkVisitor;
+  // Keep the same functioning model enquiry form for all audiences, but do
+  // not label a UK dealer's form as an international-buyer-only service.
+  const enquiryAudienceIntro=$('internationalGuestRequest')?.querySelector('p');
+  if(enquiryAudienceIntro){
+   enquiryAudienceIntro.textContent=confirmedUkVisitor?
+    'Ask AnyBike about this motorcycle. Include your preferred year, specification and budget.':
+    'International buyers can enquire without creating an account.';
+  }
   const related=$('databaseRelatedModels');
   // The shared navigation renderer owns the related pills and 217 markets;
   // never hardcode a second manufacturer or model directory.
