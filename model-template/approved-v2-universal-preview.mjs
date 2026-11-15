@@ -154,7 +154,7 @@ let approvedDedicatedRoute=null;
  // Static SEO routes share this exact V2 document and renderer. Identity is
  // embedded by the published catalogue build, then revalidated by Supabase.
  // Query parameters cannot override a model's permanent URL.
- if(/^\\/models\\/[a-z0-9-]+\\/[a-z0-9-]+\\.html$/.test(location.pathname)){
+ if(/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(location.pathname)){
   try{
    const identityNode=document.getElementById('anybikeV2RouteIdentity');
    const identity=JSON.parse(identityNode?.textContent||'null');
