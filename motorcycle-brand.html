@@ -604,40 +604,16 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
 
  const categoryEntries=Object.entries(groups).filter(([,models])=>models.length);
  document.getElementById("categoryCards").innerHTML=categoryEntries.map(([category,models],i)=>'<a class="category-card" href="/motorcycle-brand.html?make='+encodeURIComponent(make)+'&category='+encodeURIComponent(category)+'#selectedCategoryModels"><strong>'+esc(category)+'</strong><span>'+esc(models.slice(0,3).join(", "))+'</span><em>Explore '+esc(category.toLowerCase())+' motorcycles →</em></a>').join("");
- // Category cards use ordinary page navigation, not mobile click handlers.
- // The selected category is rendered immediately on the destination page.
- const categoryCards=document.getElementById("categoryCards");
- let categoryResult=document.getElementById("selectedCategoryModels");
- if(!categoryResult){
-   categoryResult=document.createElement("div");
-   categoryResult.id="selectedCategoryModels";
-   categoryCards.insertAdjacentElement("afterend",categoryResult);
- }
+ // One model library per manufacturer: category cards jump to the existing
+ // grouped model cards rather than duplicating them in a separate panel.
  const selectedCategory=new URLSearchParams(location.search).get("category");
  const selectedIndex=categoryEntries.findIndex(([name])=>name===selectedCategory);
- if(selectedIndex>=0){
-   const [name,models]=categoryEntries[selectedIndex];
-   const heading=document.createElement("h3");
-   heading.textContent=name+" motorcycles";
-   const intro=document.createElement("p");
-   intro.textContent="Choose a "+make+" model to open its individual AnyBike model guide.";
-   const links=document.createElement("div");
-   links.className="grid";
-   for(const model of models){
-     const anchor=document.createElement("a");
-     anchor.className="card manufacturer-model-card";
-     anchor.href=permanentModelRoutes.get(String(model).toLowerCase().replace(/[^a-z0-9]/g,""))||"/motorcycle-model-guide.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);
-     const title=document.createElement("strong");title.textContent=make+" "+model;
-     const action=document.createElement("span");action.textContent="Explore model guide →";
-     anchor.append(title,action);links.append(anchor);
-   }
-   categoryResult.replaceChildren(heading,intro,links);
-   categoryResult.style.cssText="margin-top:20px;padding:18px;border:1px solid #ed1c24;border-radius:13px;background:#151515;scroll-margin-top:18px";
-   requestAnimationFrame(()=>categoryResult.scrollIntoView({block:"start",behavior:"auto"}));
- }
  document.getElementById("categoryNavigation").innerHTML=categoryEntries.map(([category],i)=>'<a href="#category-'+i+'">'+esc(category)+'</a>').join("");
  const categoryDescriptions={"Adventure":"Touring and mixed-surface motorcycles; equipment and engine sizes vary by model year.","Roadsters":"Naked and road-focused motorcycles, from entry-level to high-performance generations.","Sports":"Road and track-oriented motorcycles; check precise trim and generation.","Touring":"Long-distance motorcycles; confirm luggage, rider aids and specification by year.","Cruisers":"Cruiser motorcycles and custom-styled machines; check original equipment and modifications.","Classics":"Heritage models and historic names; confirm generation and originality.","Scooters":"Automatic and urban-focused two-wheelers; check licence class and market specification.","Off-road":"Motocross, enduro and off-road machines; road registration varies by model and individual example.","Electric":"Electric motorcycles and scooters; battery and charging specification vary by year."};
  document.getElementById("modelGroups").innerHTML=categoryEntries.map(([category,models],i)=>'<div class="family" id="category-'+i+'"><h3>'+esc(category)+'</h3><p class="family-intro">'+esc(categoryDescriptions[category]||'Explore the main models and their different production generations.')+'</p><div class="grid">'+models.map(model=>{const guide=(make==="Honda"&&model==="Africa Twin CRF1100L")||(make==="Ducati"&&model==="Panigale V4");const href=permanentModelRoutes.get(String(model).toLowerCase().replace(/[^a-z0-9]/g,""))||"/motorcycle-model-guide.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);const fact=modelFacts.get(String(model).toLowerCase().replace(/[^a-z0-9]/g,""));const years=fact?.production_years;const yearText=typeof years==="string"&&years.trim()?years.trim():"";return '<a class="card manufacturer-model-card" href="'+href+'"><strong>'+esc(make)+' '+esc(model)+'</strong><small>'+esc(category)+(yearText?' · '+esc(yearText):'')+' · Confirm model year and exact variant</small>'+(modelResearchNotes[make]?.[model]?'<p class="model-research-note">'+esc(modelResearchNotes[make][model])+'</p>':'')+'<span>'+("Explore "+esc(make)+" "+esc(model)+" model guide →")+'</span></a>'}).join("")+'</div></div>').join("")+(key?"":'<p>Our detailed model guide for this manufacturer is being prepared. You can already request any model using the sourcing form.</p>');
+ if(selectedIndex>=0){
+   requestAnimationFrame(()=>document.getElementById('category-'+selectedIndex)?.scrollIntoView({block:'start',behavior:'auto'}));
+ }
  }
  renderManufacturerModels();
 })();
