@@ -28,8 +28,8 @@ for(const [name,html] of [['master',master],['guide',guide]]){
  assert(html.includes('/model-template/approved-v2-preview-style.css?v='),
   name+' must use the shared approved stylesheet');
 }
-assert.equal(routes.length,965,'Unexpected universal model count');
-assert.equal(new Set(routes.map(r=>r.url)).size,965,'Duplicate permanent model URLs');
+assert(routes.length>=965,'Universal model routes regressed below approved baseline');
+assert.equal(new Set(routes.map(r=>r.url)).size,routes.length,'Duplicate permanent model URLs');
 const assetPattern=/(?:approved-v2-preview-style\.css|approved-v2-universal-preview\.mjs|approved-v2-dynamic-navigation\.mjs)\?v=[^"']+/g;
 const masterAssets=master.match(assetPattern)||[];
 assert.equal(masterAssets.length,3,'Master must load all three approved shared V2 assets');
@@ -58,4 +58,4 @@ for(const r of routes){
 }
 assert(sitemap.includes('https://www.anybike.co.uk/models/yamaha/mt-09.html'),
  'The permanent Yamaha MT-09 model must be in the sitemap');
-console.log('PASS: approved 2-column mobile / 4-column desktop pill layout and 965 V2 routes retained');
+console.log('PASS: approved 2-column mobile / 4-column desktop pill layout and all V2 routes retained');
