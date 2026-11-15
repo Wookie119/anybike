@@ -151,6 +151,26 @@ import {resolveApprovedV2Identity} from '/model-template/approved-v2-route-ident
 const params=new URLSearchParams(location.search);
 let wantMake=str(params.get('make')),wantModel=str(params.get('model'));
 let approvedDedicatedRoute=null;
+ // Static SEO routes share this exact V2 document and renderer. Identity is
+ // embedded by the published catalogue build, then revalidated by Supabase.
+ // Query parameters cannot override a model's permanent URL.
+ if(/^\\/models\\/[a-z0-9-]+\\/[a-z0-9-]+\\.html$/.test(location.pathname)){
+  try{
+   const identityNode=document.getElementById('anybikeV2RouteIdentity');
+   const identity=JSON.parse(identityNode?.textContent||'null');
+   if(!identity||typeof identity.make!=='string'||typeof identity.model!=='string'||
+      !Number.isInteger(identity.model_id)||identity.model_id<=0||
+      (wantMake&&normalize(wantMake)!==normalize(identity.make))||
+      (wantModel&&normalize(wantModel)!==normalize(identity.model)))
+    throw Error('Permanent model route identity invalid');
+   wantMake=identity.make;wantModel=identity.model;
+   approvedDedicatedRoute=location.pathname;
+  }catch(error){
+   console.warn('Permanent model route rejected',error);
+   wantMake='';wantModel='';
+  }
+ }
+
 // A dedicated page can adopt this exact renderer in a later approved migration
 // without duplicating the template or guessing an identity from its URL slug.
 // The checked-in reviewed route map supplies both make and exact model name.
