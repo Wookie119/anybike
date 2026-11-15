@@ -256,7 +256,7 @@ try{
     const canonical=await page.locator('link[rel=canonical]').getAttribute('href');
     assert(canonical===origin+'/motorcycle-model-guide.html?make='+
      encodeURIComponent(make)+'&model='+encodeURIComponent(model)||
-     (canonical.startsWith('https://www.anybike.co.uk/models/')&&canonical.endsWith('.html')),
+     (/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(new URL(canonical).pathname)),
      'Guide must canonicalize to its exact-model permanent route or established guide URL');
    }
    await page.waitForFunction(()=>document.querySelector('#r1300CountryMarkets')?.hidden===false,null,{timeout:15000});
