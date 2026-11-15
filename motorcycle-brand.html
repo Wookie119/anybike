@@ -562,6 +562,23 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
  }).catch(error=>{
    showCuratedCatalogueSummary();
    console.warn("Master manufacturer models unavailable",error.message);
+   // Never leave category pills pointing at a permanent loading placeholder.
+   const entries=Object.entries(groups).filter(([,models])=>models.length);
+   const modelGroups=document.getElementById("modelGroups");
+   const categoryNav=document.getElementById("categoryNavigation");
+   if(!modelGroups||!categoryNav)return;
+   const buildLink=(model)=>"/motorcycle-model-guide.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);
+   modelGroups.replaceChildren();categoryNav.replaceChildren();
+   for(const [category,models] of entries){
+     const section=document.createElement("section");
+     section.className="family";section.id="category-"+entries.findIndex(x=>x[0]===category);
+     const heading=document.createElement("h3");heading.textContent=category;
+     const grid=document.createElement("div");grid.className="grid";
+     for(const model of models){const link=document.createElement("a");link.className="card manufacturer-model-card";link.href=buildLink(model);link.textContent=make+" "+model+" →";grid.append(link)}
+     section.append(heading,grid);modelGroups.append(section);
+     const navLink=document.createElement("a");navLink.href="#"+section.id;navLink.textContent=category;categoryNav.append(navLink);
+   }
+   if(!entries.length)modelGroups.textContent="Model categories are temporarily unavailable. Use the complete model directory below.";
  });
  function renderManufacturerModels(){
 
