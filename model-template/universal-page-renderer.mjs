@@ -120,7 +120,7 @@ function appendContent(doc,parent,value,depth=0){
   // entries remain blocked above; unreviewed source-only records stay hidden.
   const editorialApproved=['approved','published'].includes(editorialStatus);
   if(documentedUrl && documentedUrl!==evidenceUrl &&
-     (['verified','approved','published'].includes(sourceReview)||editorialApproved) &&
+     (['verified','approved','published','verified_official_manufacturer_source'].includes(sourceReview)||editorialApproved) &&
      documentedUrl.startsWith('https://')&&approvedLink(documentedUrl)){
     const citation=node(doc,'a','View manufacturer source','anybike-universal-source-link');
     citation.href=documentedUrl;
