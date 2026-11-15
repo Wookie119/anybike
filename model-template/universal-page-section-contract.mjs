@@ -101,7 +101,8 @@ export function buildUniversalPageSections(entity,sections){
   if(safeRecord(s.content)){
    const statuses=['source_verification_status','editorial_status',
     'content_status','verification_status','review_state'];
-   const allowed=new Set(['verified','approved','published']);
+   const allowed=new Set(['verified','approved','published',
+    'verified_official_manufacturer_source']);
    if(statuses.some(k=>s.content[k]!==undefined&&s.content[k]!==null&&
       (typeof s.content[k]!=='string'||
        !allowed.has(s.content[k].trim().toLowerCase()))))continue;
