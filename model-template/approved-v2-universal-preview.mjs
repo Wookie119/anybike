@@ -1011,12 +1011,13 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    }
   }
   organiseUniversalFactoryResearch($('body'));
-  // Avoid an empty-looking extra research-status card where no verified
-  // research has yet been published. Keep model-specific sourcing available.
+  // Every catalogue model gets the approved master regardless of research
+  // coverage. Do not turn its hero into a research-publication status notice.
+  // Leave unverified specifications and model-year claims absent until approved.
   if(!factCount&&!guide&&!publishedCount){
    const intro=$('summary');
    intro.replaceChildren();
-   paragraph(intro,'Documented research is not yet published for '+title+'. Tell AnyBike the year and specification you need, and we can help with your enquiry.');
+   paragraph(intro,'Explore '+title+' and other '+make+' motorcycles. Tell AnyBike the year and specification you are looking for, and we can help with your enquiry.');
    $('years').textContent='';
   }
   // Public exact-model inventory: never use whole-manufacturer stock.
