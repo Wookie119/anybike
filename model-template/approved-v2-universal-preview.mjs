@@ -143,7 +143,16 @@ function ensureUniversalResearchPanel(body,make,model){
  const identity=JSON.stringify([String(make).toLowerCase(),String(model).toLowerCase()]);
  let panel=body.querySelector('[data-anybike-verified-model-facts]');
  if(panel){
-  panel.querySelector('[data-anybike-research-awaiting-publication]')?.remove();
+  // A pre-existing panel may be an empty container, not published research.
+  // Keep the identical panel and provide an honest empty state until approved
+  // records arrive. Never remove the message merely because a panel exists.
+  const hasPublishedResearch=Boolean(panel.querySelector('[data-anybike-research-category] article, .anybike-v2-reviewed-universal-section, article[data-verified-model-fact]'));
+  const awaiting=panel.querySelector('[data-anybike-research-awaiting-publication]');
+  if(hasPublishedResearch){awaiting?.remove();}
+  else if(!awaiting){
+   const status=node('p','Verified factory research for this exact model has not yet been published. Specifications and model-year information will appear here once source-checked and approved.');
+   status.dataset.anybikeResearchAwaitingPublication='1';panel.append(status);
+  }
   return;
  }
  panel=node('section',undefined,'card feature anybike-verified-model-research');
