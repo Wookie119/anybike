@@ -55,3 +55,15 @@ All **1,306** model drafts have now been classified by a read-only, mutually exc
 The model counts per queue overlap: a model may have different sections in different queues. The 305 held sections include records flagged by source-reference review requirements, `pending_editorial_review`, or `not_verified` text in their JSON content. Text matching is a **conservative triage signal**, not proof of incorrect content or a substitute for editorial assessment.
 
 The read-only review queue is in `scripts/audit-universal-v2-publication-readiness.sql`. No publication status, source fact, or page layout was changed in this audit.
+
+## Source-linked queue audit — 15 November 2026
+
+The **327** source-linked drafts (the third triage queue) were examined further:
+
+- **219** contain an explicit `content.source_url`; all 219 begin with `https://`. This validates syntax only, not link accessibility or claim accuracy.
+- **58** cite versioned Harley-Davidson HTML page snapshots as provenance, not direct external URLs. Preserve the approved Harley pages; verify these snapshots against manufacturer evidence before approving their claims.
+- **39** cite `motorcycle_catalog_facts`, and **9** cite `motorcycle_catalog_models.overview`. These counts are source-kind subsets; other source kinds account for the remainder.
+- The SQL review queue now displays the exact model ID, make, model, section number, source URL, claim summary and source reference together for editorial verification.
+- Example source records reviewed for structure include Aprilia RSV4 and SX 125 manufacturer range announcements, Aprilia Tuono 660 brochure, and KTM Super Duke launch announcements. No external source availability or claim accuracy is asserted by this structural audit.
+
+The public universal published projection still had zero records at the previous check. No draft was auto-approved. Follow-up work: validate the external documents, source-specific model years and claims, record genuine reviewer approval, then release approved sections through the existing publication projection.
