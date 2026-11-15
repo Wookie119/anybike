@@ -136,25 +136,32 @@ function updateDynamicResearchNavigation(body){
 // Present RLS-approved editorial in the SAME documented-research panel as
 // audited factory facts, rather than appending a second model-page layout.
 // Only approved, already-rendered sections enter this projection.
-function integratePublishedResearch(body){
+function integratePublishedResearch(body,make,model){
  if(!body)return;
  const approved=[...body.querySelectorAll(':scope > .anybike-v2-reviewed-universal-section[data-section-key]')]
   .filter(section=>UNIVERSAL_SLOT_KEYS.includes(section.dataset.sectionKey)&&
    section.querySelector(':scope > h2')&&section.children.length>1);
  if(!approved.length)return;
+ const identity=JSON.stringify([String(make).toLowerCase(),String(model).toLowerCase()]);
  let panel=body.querySelector('[data-anybike-verified-model-facts]');
+ // A reused model route must not retain the previous motorcycle's evidence.
+ if(panel&&panel.dataset.anybikeResearchIdentity!==identity){
+  panel.remove();panel=null;
+ }
  // Some models have approved editorial but no verified-facts RPC rows.
  // They still use the ONE research layout, not an orphaned second design.
  if(!panel){
   panel=node('section',undefined,'card feature anybike-verified-model-research');
   panel.dataset.anybikeVerifiedModelFacts='1';
-  panel.dataset.anybikeResearchIdentity=body.dataset.anybikeModelIdentity||'';
+  panel.dataset.anybikeResearchIdentity=identity;
   panel.append(node('h2','Documented factory research'));
   body.prepend(panel);
  }
- const identity=panel.dataset.anybikeResearchIdentity||'';
+ const seen=new Set();
  for(const section of approved.sort((a,b)=>UNIVERSAL_SLOT_KEYS.indexOf(a.dataset.sectionKey)-
   UNIVERSAL_SLOT_KEYS.indexOf(b.dataset.sectionKey))){
+  if(seen.has(section.dataset.sectionKey))continue;
+  seen.add(section.dataset.sectionKey);
   const heading=section.querySelector(':scope > h2');
   const group=node('div',undefined,'anybike-v2-reviewed-category');
   group.dataset.anybikeResearchCategory='approved_'+section.dataset.sectionKey;
@@ -1131,7 +1138,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     group.append(article);
    }
   }
-  integratePublishedResearch($('body'));
+  integratePublishedResearch($('body'),make,model);
   organiseCanonicalResearchSlots($('body'));
   organiseUniversalFactoryResearch($('body'));
   updateDynamicResearchNavigation($('body'));
