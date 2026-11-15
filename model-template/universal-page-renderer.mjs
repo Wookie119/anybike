@@ -64,10 +64,6 @@ function appendContent(doc,parent,value,depth=0){
   if(heading)parent.append(node(doc,depth>0?'h3':'h2',heading));
   // Model-year notes are explicitly reviewed editorial text, not a year
   // inferred from a press-release or a source document's publication date.
-  if(safeText(value.years))
-    parent.append(node(doc,'p',value.years,'anybike-universal-model-years'));
-  if(safeText(value.subtitle))
-    parent.append(node(doc,'p',value.subtitle,'anybike-universal-subtitle'));
   // The approved R 1300 GS introduction carries a plain-text production and
   // model-year distinction. Preserve this source-reviewed text on the shared
   // renderer rather than leaving a populated 'years' research card empty.
