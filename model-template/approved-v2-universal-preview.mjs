@@ -1098,6 +1098,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // timestamps and nested approvals. Render its approved research into V2,
   // not a second page layout. Zero approved slots means NO draft leakage.
   let publishedCount=0;
+  let publicationFailure=null;
   if(hasCanonicalId){
    try{
     const {loadUniversalPublishedPage}=await import('/model-template/universal-page-data.mjs?v=20261115-rest-zero4');
@@ -1170,6 +1171,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    }catch(e){
     // Fail closed: a malformed or unpublished section must never replace
     // exact-model verified research or surface editorial drafts.
+    publicationFailure=e;
     console.error('Reviewed 20-slot editorial projection unavailable or rejected for '+make+' '+model+' (ID '+canonicalId+')',e);
    }
   }
@@ -1219,6 +1221,21 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   organiseCanonicalResearchSlots($('body'));
   organiseUniversalFactoryResearch($('body'));
   ensureUniversalResearchPanel($('body'),make,model);
+  // Never tell visitors research is unpublished when the public projection
+  // failed to load or validate. Distinguish service failure from no release.
+  if(publicationFailure){
+   const panel=$('body')?.querySelector('[data-anybike-verified-model-facts]');
+   const empty=panel?.querySelector('[data-anybike-research-awaiting-publication]');
+   if(empty){
+    empty.textContent='Documented factory research is temporarily unavailable. Please try again shortly.';
+    empty.dataset.anybikeResearchLoadError='true';
+   }
+   if(new URLSearchParams(location.search).has('v2debug')&&panel){
+    const diagnostic=node('p','Research load error: '+String(publicationFailure?.message||publicationFailure));
+    diagnostic.dataset.anybikeResearchDiagnostic='true';
+    panel.append(diagnostic);
+   }
+  }
   updateDynamicResearchNavigation($('body'));
   // Every catalogue model gets the approved master regardless of research
   // coverage. Do not turn its hero into a research-publication status notice.
