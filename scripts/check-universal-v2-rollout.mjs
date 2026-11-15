@@ -22,6 +22,19 @@ const check=(label,fn)=>{
  try{fn();console.log('PASS',label);}
  catch(err){console.error('FAIL',label,err.message);process.exitCode=1;}
 };
+check('All model routes use one canonical 20-slot contract and shared approved research panel',()=>{
+ assert.match(renderer,/SECTION_KEYS as UNIVERSAL_SLOT_KEYS,SECTION_COUNT as UNIVERSAL_SLOT_COUNT/);
+ assert.match(renderer,/function integratePublishedResearch\(body\)/);
+ assert.match(renderer,/if\(!panel\)\{/);
+ assert.match(renderer,/panel\.dataset\.anybikeVerifiedModelFacts='1'/);
+ assert.match(renderer,/group\.dataset\.anybikeV2CanonicalSlot=section\.dataset\.sectionKey/);
+ assert.match(renderer,/organiseCanonicalResearchSlots\(\$\('body'\)\)/);
+ assert.match(renderer,/organiseUniversalFactoryResearch\(\$\('body'\)\)/);
+ assert.match(renderer,/updateDynamicResearchNavigation\(\$\('body'\)\)/);
+ assert.match(renderer,/const details=section\.querySelector/);
+ assert.match(facts,/function mountVerifiedModelFacts\(body,rows,make,model\)/);
+ assert.doesNotMatch(facts,/if\(referenceYearText\)/);
+});
 check('Generic model route uses the exact shared V2 renderer and section layout',()=>{
  assert.match(shared,/approved-v2-preview-style\.css\?v=/);
  assert.match(shared,/approved-v2-universal-preview\.mjs\?v=/);
