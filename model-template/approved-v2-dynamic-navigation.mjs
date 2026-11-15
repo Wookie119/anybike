@@ -175,7 +175,11 @@ async function modelNavigation(){
  if(links.length){
   const hero=document.querySelector('main > .hero, main #universalV2Preview > .hero');
   const stock=document.getElementById('internationalModelStock');
-  const placement=stock||hero;
+  // Keep the model's documented research ahead of optional browsing links.
+  // The shared #body is the approved exact-model research destination;
+  // stock remains above it and is never moved by navigation.
+  const research=document.getElementById('body');
+  const placement=research||stock||hero;
   if(placement){
    let panel=document.getElementById('approvedV2ModelQuickLinks');
    if(!panel){
@@ -249,8 +253,8 @@ async function modelNavigation(){
    safeNav(panel.querySelector('[data-v2-quick-all]'),links);
    panel.querySelector('.anybike-v2-all-models summary').textContent=
     'View all '+links.length+' '+make+' models';
-   // The international stock section is directly below the hero. This
-   // panel follows it, ahead of Documented model specification.
+   // Related models follow exact-model research, never interrupting the
+   // approved stock-first, motorcycle-information-first reading order.
    placement.after(panel);
    panel.dataset.anybikeV2Source='published-catalogue-and-routes';
   }
