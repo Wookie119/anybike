@@ -1015,9 +1015,11 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // coverage. Do not turn its hero into a research-publication status notice.
   // Leave unverified specifications and model-year claims absent until approved.
   if(!factCount&&!guide&&!publishedCount){
+   // Keep the approved model-led hero even when research is awaiting approval.
+   // Sourcing enquiries belong in the existing action panels, not the introduction.
    const intro=$('summary');
    intro.replaceChildren();
-   paragraph(intro,'Explore '+title+' and other '+make+' motorcycles. Tell AnyBike the year and specification you are looking for, and we can help with your enquiry.');
+   paragraph(intro,'Explore the '+title+' model, its available motorcycle information and related models. Verified model-year specifications and manufacturer history will appear here when approved for publication.');
    $('years').textContent='';
   }
   // Public exact-model inventory: never use whole-manufacturer stock.
