@@ -34,6 +34,10 @@ const loader=manufacturer.indexOf('loadManufacturerCatalogue().then(async data=>
 const cardRenderer=manufacturer.indexOf('function renderManufacturerModels(){');
 assert(mapDeclaration>=0&&loader>mapDeclaration&&cardRenderer>loader,
  'Permanent model route map must be declared in the shared manufacturer renderer scope');
+assert(!manufacturer.includes('categoryResult.replaceChildren(heading,intro,links)'),
+ 'Manufacturer page must not render duplicate selected-category model cards');
+assert(manufacturer.includes("'#category-'+i"),
+ 'Manufacturer category cards must link to the single model library');
 assert(manufacturer.includes('permanentModelRoutes.get('),
  'Manufacturer cards must use permanent model routes');
 assert(manufacturer.includes("fetch('/data/motorcycle-catalogue-master.json'"),
