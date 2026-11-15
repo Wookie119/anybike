@@ -567,26 +567,30 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
 
  const categoryEntries=Object.entries(groups).filter(([,models])=>models.length);
  document.getElementById("categoryCards").innerHTML=categoryEntries.map(([category,models],i)=>'<a class="category-card" href="#category-'+i+'"><strong>'+esc(category)+'</strong><span>'+esc(models.slice(0,3).join(", "))+'</span><em>Explore '+esc(category.toLowerCase())+' motorcycles →</em></a>').join("");
- // Keep native fragment navigation: mobile browsers must be able to follow
- // the entire card without JS preventDefault, focus or history manipulation.
- // Native anchors also work with keyboard and browser back/forward.
- // Explicit mobile-safe category navigation. The model groups are dynamically
- // inserted, so scroll after layout rather than relying on native hash timing.
+ // Mobile-safe category selection: reveal the matching model links immediately
+ // beneath the category cards, rather than relying on fragment scrolling.
  const categoryCards=document.getElementById("categoryCards");
+ let categoryResult=document.getElementById("selectedCategoryModels");
+ if(!categoryResult){
+   categoryResult=document.createElement("div");
+   categoryResult.id="selectedCategoryModels";
+   categoryResult.setAttribute("aria-live","polite");
+   categoryCards.insertAdjacentElement("afterend",categoryResult);
+ }
  categoryCards.onclick=function(event){
    const link=event.target.closest("a.category-card");
    if(!link||!categoryCards.contains(link))return;
-   const id=link.getAttribute("href").slice(1);
-   const target=document.getElementById(id);
+   const target=document.getElementById(link.getAttribute("href").slice(1));
    if(!target)return;
    event.preventDefault();
-   const jump=()=>{
-     const top=window.scrollY+target.getBoundingClientRect().top-16;
-     window.scrollTo({top:Math.max(0,top),behavior:"instant"});
-   };
-   jump();
-   requestAnimationFrame(jump);
-   if(window.location.hash!=="#"+id)history.pushState(null,"","#"+id);
+   const copy=target.cloneNode(true);
+   copy.removeAttribute("id");
+   copy.querySelectorAll("[id]").forEach(node=>node.removeAttribute("id"));
+   categoryResult.replaceChildren(copy);
+   categoryResult.style.cssText="margin-top:18px;scroll-margin-top:16px";
+   categoryCards.querySelectorAll("a.category-card").forEach(card=>card.removeAttribute("aria-current"));
+   link.setAttribute("aria-current","true");
+   categoryResult.scrollIntoView({block:"start",behavior:"auto"});
  };
  document.getElementById("categoryNavigation").innerHTML=categoryEntries.map(([category],i)=>'<a href="#category-'+i+'">'+esc(category)+'</a>').join("");
  const categoryDescriptions={"Adventure":"Touring and mixed-surface motorcycles; equipment and engine sizes vary by model year.","Roadsters":"Naked and road-focused motorcycles, from entry-level to high-performance generations.","Sports":"Road and track-oriented motorcycles; check precise trim and generation.","Touring":"Long-distance motorcycles; confirm luggage, rider aids and specification by year.","Cruisers":"Cruiser motorcycles and custom-styled machines; check original equipment and modifications.","Classics":"Heritage models and historic names; confirm generation and originality.","Scooters":"Automatic and urban-focused two-wheelers; check licence class and market specification.","Off-road":"Motocross, enduro and off-road machines; road registration varies by model and individual example.","Electric":"Electric motorcycles and scooters; battery and charging specification vary by year."};
