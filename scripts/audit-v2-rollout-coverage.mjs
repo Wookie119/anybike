@@ -48,7 +48,7 @@ for(const row of approved){
  // contract, not exact legacy/editorial section ordering or card count.
  const requiredSections=['internationalModelStock','generationPanel','r1300V2VerifiedExtras',
   'r1300DeepDive','r1300CountryMarkets','v2UkSelling','internationalGuestRequest','nextAction','modelSources'];
- const sectionIds=sections(html).map(x=>x.match(/\\bid="([^"]+)"/)?.[1]).filter(Boolean);
+ const sectionIds=sections(html).map(x=>x.match(/\bid="([^"]+)"/)?.[1]).filter(Boolean);
  for(const sectionId of requiredSections)
   verify(sectionIds.includes(sectionId),'Missing approved V2 section '+sectionId+': '+route);
  verify(sectionIds.indexOf('internationalModelStock')<sectionIds.indexOf('r1300DeepDive'),
