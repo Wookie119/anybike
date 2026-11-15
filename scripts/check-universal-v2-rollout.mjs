@@ -64,6 +64,13 @@ check('Approved publication cannot mount duplicate canonical slots',()=>{
  assert.match(renderer,/if\(seen\.has\(section\.dataset\.sectionKey\)\)\{/);
  assert.match(renderer,/existing\.append\(section\)/);
 });
+check('Every model retains the same factory research panel without invented facts',()=>{
+ assert.match(renderer,/function ensureUniversalResearchPanel\(body,make,model\)/);
+ assert.match(renderer,/ensureUniversalResearchPanel\(\$\('body'\),make,model\)/);
+ assert.match(renderer,/data-anybike-research-awaiting-publication/);
+ assert.match(renderer,/Verified factory research for this exact model has not yet been published/);
+ assert.match(renderer,/if\(panel\)\{/);
+});
 check('One exact canonical set of 20 section identifiers for every model',()=>{
  assert.equal(SECTION_COUNT,20);
  assert.equal(SECTION_KEYS.length,SECTION_COUNT);
