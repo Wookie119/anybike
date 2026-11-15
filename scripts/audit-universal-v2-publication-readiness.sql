@@ -111,3 +111,21 @@ SELECT model_id,manufacturer,model,section_number,section_title,
 FROM queued
 WHERE bucket='source' AND content ? 'source_url'
 ORDER BY manufacturer,model,section_number;
+
+-- Large-batch allocation: see source-linked research volume per manufacturer.
+WITH queued AS (
+ SELECT s.*,m.manufacturer,
+ CASE WHEN s.source_reference ILIKE '%editorial_review_required%'
+           OR s.content::text ILIKE '%pending_editorial_review%'
+           OR s.content::text ILIKE '%not_verified%' THEN 'hold'
+      WHEN s.source_reference LIKE 'motorcycle_model_v2_editorial:%' THEN 'legacy'
+      ELSE 'source' END AS bucket
+ FROM public.motorcycle_universal_page_sections_v1 s
+ JOIN public.motorcycle_catalog_models m ON m.id=s.model_id
+ WHERE s.entity_type='model' AND s.editorial_status='draft'
+)
+SELECT manufacturer,count(*) AS source_linked_sections,
+ count(distinct model_id) AS distinct_models,
+ count(*) FILTER(WHERE content ? 'source_url') AS direct_urls
+FROM queued WHERE bucket='source'
+GROUP BY manufacturer ORDER BY source_linked_sections DESC,manufacturer;
