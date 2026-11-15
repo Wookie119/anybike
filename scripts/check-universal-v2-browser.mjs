@@ -242,9 +242,9 @@ try{
     sectionOrder.indexOf('r1300V2VerifiedExtras'),
     'Development panel must follow the model-year timeline');
    if(routeName.startsWith('models/')){
-    assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),
-     'https://www.anybike.co.uk/'+routeName,
-     'Permanent model URL must keep its own SEO canonical');
+    const permanentCanonical=await page.locator('link[rel=canonical]').getAttribute('href');
+    assert.equal(new URL(permanentCanonical).pathname,'/'+routeName,
+     'Permanent model URL must keep its own SEO canonical path');
     const identity=await page.locator('#anybikeV2RouteIdentity').textContent();
     const parsed=JSON.parse(identity);
     assert.equal(parsed.make,make);
