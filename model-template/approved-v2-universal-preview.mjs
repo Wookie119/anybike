@@ -98,8 +98,11 @@ function updateDynamicResearchNavigation(body){
  const editorial=[...body.querySelectorAll(':scope > .anybike-v2-reviewed-universal-section[data-section-key]')];
  const entries=[];
  for(const group of categories){
-  const title=group.querySelector(':scope > h3')?.textContent?.trim();
-  if(title&&group.querySelector('article, [data-anybike-reviewed-publication], .anybike-v2-reviewed-universal-section'))entries.push([group,title]);
+  // Category headings move inside <details><summary> when the approved
+  // compact research layout is applied. Read the actual visible heading.
+  const title=(group.querySelector(':scope > details[data-v2-factory-category] > summary > h3')||
+   group.querySelector(':scope > h3'))?.textContent?.trim();
+  if(title&&group.querySelector('article, .anybike-v2-reviewed-universal-section'))entries.push([group,title]);
  }
  for(const section of editorial){
   const title=section.querySelector(':scope > h2')?.textContent?.trim();
