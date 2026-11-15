@@ -25,6 +25,11 @@ const check=(label,fn)=>{
  try{fn();console.log('PASS',label);}
  catch(err){console.error('FAIL',label,err.message);process.exitCode=1;}
 };
+check('Approved publication cannot mount duplicate canonical slots',()=>{
+ assert.match(renderer,/matches\[0\]\.querySelector\('\[data-anybike-reviewed-publication\]\[data-section-key=/);
+ assert.match(renderer,/destination\.querySelector\('\.anybike-v2-reviewed-universal-section\[data-section-key=/);
+ assert.match(renderer,/if\(seen\.has\(section\.dataset\.sectionKey\)\)continue/);
+});
 check('One exact canonical set of 20 section identifiers for every model',()=>{
  assert.equal(SECTION_COUNT,20);
  assert.equal(SECTION_KEYS.length,SECTION_COUNT);
