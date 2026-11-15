@@ -1100,7 +1100,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   let publishedCount=0;
   if(hasCanonicalId){
    try{
-    const {loadUniversalPublishedPage}=await import('/model-template/universal-page-data.mjs?v=20261115-contract-gate3');
+    const {loadUniversalPublishedPage}=await import('/model-template/universal-page-data.mjs?v=20261115-rest-zero4');
     const {renderUniversalPage}=await import('/model-template/universal-page-renderer.mjs?v=20261115-contract-gate3');
     // If the optional Supabase JS CDN is unavailable, use the SAME public
     // RLS-protected published projection over REST. Never substitute drafts.
@@ -1170,7 +1170,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    }catch(e){
     // Fail closed: a malformed or unpublished section must never replace
     // exact-model verified research or surface editorial drafts.
-    console.warn('Reviewed 20-slot editorial projection unavailable or rejected',e);
+    console.error('Reviewed 20-slot editorial projection unavailable or rejected for '+make+' '+model+' (ID '+canonicalId+')',e);
    }
   }
   const explanations=guide?.research_explanations;
