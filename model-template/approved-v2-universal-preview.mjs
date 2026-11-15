@@ -472,7 +472,14 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    about:{'@type':'Motorcycle',name:title,brand:{'@type':'Brand',name:make}}
   });
   $('heading').textContent=title;
-  $('category').textContent=str(guide?.page_metadata?.category)||str(selected.category)||'Motorcycle model';
+  // "Other" is an internal catch-all, not a useful public motorcycle type.
+  // Prefer approved editorial taxonomy; otherwise identify the established
+  // Yamaha MT roadster family and use a neutral label for uncategorised bikes.
+  const categoryCandidates=[str(guide?.page_metadata?.category),str(selected.category)];
+  const approvedCategory=categoryCandidates.find(value=>value&&!/^(other|unknown|uncategorised|uncategorized|n\/a)$/i.test(value));
+  $('category').textContent=approvedCategory||
+   (normalize(make)==='yamaha'&&/^MT[- ](?:03|07|09|10|125)(?:\b|$)/i.test(model)?
+    'Naked & Roadsters':'Motorcycle model');
   const summary=$('summary');summary.replaceChildren();
   const hero=guide?.hero||{};
   if(arr(hero.paragraphs).length)arr(hero.paragraphs).forEach(x=>paragraph(summary,x));
