@@ -42,7 +42,12 @@ const tests=[['BMW','R 1300 GS',1280],['BMW','R 1300 GS',390],
  ['Triumph','Street Triple',1280,'motorcycle-model-guide.html'],
  ['KTM','390 Duke',390,'motorcycle-model-guide.html'],
  ['Suzuki','RM250',1024],['Suzuki','RM250',768],
- ['Suzuki','RM250',560]];
+ ['Suzuki','RM250',560],
+ // Exercise real permanent SEO model files, not just the generic master.
+ ['Yamaha','MT-09',390,'models/yamaha/mt-09.html'],
+ ['Yamaha','MT-09',1280,'models/yamaha/mt-09.html'],
+ ['KTM','390 Duke',390,'models/ktm/390-duke.html'],
+ ['KTM','390 Duke',1280,'models/ktm/390-duke.html']];
 let passed=0;
 try{
  for(const [make,model,width,routeName='motorcycle-v2-master.html'] of tests){
@@ -219,6 +224,17 @@ try{
      return previous?.id==='v2GenericModelYears' ? previous.previousElementSibling?.id : previous?.id;
     }), 'r1300V2VerifiedExtras',
     'Development panel must follow the model-year timeline, allowing documented model-year cards between them');
+   if(routeName.startsWith('models/')){
+    assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),
+     'https://www.anybike.co.uk/'+routeName,
+     'Permanent model URL must keep its own SEO canonical');
+    const identity=await page.locator('#anybikeV2RouteIdentity').textContent();
+    const parsed=JSON.parse(identity);
+    assert.equal(parsed.make,make);
+    assert.equal(parsed.model,model);
+    assert(Number.isInteger(parsed.model_id)&&parsed.model_id>0,
+     'Permanent model route must retain its catalogue database identity');
+   }
    if(routeName==='motorcycle-model-guide.html'){
     const canonical=await page.locator('link[rel=canonical]').getAttribute('href');
     assert.equal(canonical,origin+'/motorcycle-model-guide.html?make='+
