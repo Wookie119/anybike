@@ -37,18 +37,28 @@ check('Approved V2 model-section structure matches the exact reference',()=>{
  // It must not move, remove or restyle any other approved reference section.
  const approvedOrder=sectionClasses(referenceHtml),masterOrder=sectionClasses(html);
  assert.equal(approvedOrder.filter(x=>x==='end-action').length,5);
- assert.equal(masterOrder.filter(x=>x==='end-action').length,5);
+ assert.equal(masterOrder.filter(x=>x==='end-action').length,4,
+  'The shared V2 master keeps four original actions and relocates stock after hero');
+ assert.equal(masterOrder.filter(x=>x==='end-action anybike-approved-model-development').length,2,
+  'Both existing approved model-development action cards must remain present');
  const stockPosition=html.indexOf('id="internationalModelStock"');
  const heroPosition=html.indexOf('<section class="hero"');
  const generationPosition=html.indexOf('id="generationPanel"');
  assert(heroPosition>=0&&stockPosition>heroPosition&&generationPosition>stockPosition,
   'International exact-model stock must appear after hero and before research');
  const stockMoved=masterOrder.slice();
- assert.equal(stockMoved[1],'end-action','Stock must be the only relocated end-action');
+ assert.equal(stockMoved[1],'end-action','Stock must remain directly below hero');
  stockMoved.splice(1,1);
+ // The two reviewed model-development action cards are approved additions
+ // between the V2 generation panel and deep dive; do not remove or restyle them.
+ const approvedDevelopment='end-action anybike-approved-model-development';
+ assert.deepEqual(stockMoved.slice(3,5),[approvedDevelopment,approvedDevelopment],
+  'Approved model-development actions must retain their location');
+ stockMoved.splice(3,2);
  const expected=approvedOrder.slice();
  expected.splice(expected.lastIndexOf('end-action'),1);
- assert.deepEqual(stockMoved,expected,'Every other approved reference section must retain its order');
+ assert.deepEqual(stockMoved,expected,
+  'All reference sections other than relocated stock and approved development actions must retain their order');
  const required=['publicHeader','category','heading','summary','years','databaseHeroPhoto','source',
   'generationPanel','generationControls','generationDetail','generationCompare',
   'r1300V2VerifiedExtras','databaseModelTimeline','body','r1300DeepDive',
