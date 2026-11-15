@@ -56,9 +56,12 @@ check('Approved V2 model-section structure matches the exact reference',()=>{
   'Approved model-development actions must retain their location');
  stockMoved.splice(3,2);
  const expected=approvedOrder.slice();
+ // The reference's legacy gallery was converted into the approved model
+ // development/gallery card. It is not a missing public selling action.
+ expected.splice(expected.indexOf('end-action'),1);
  expected.splice(expected.lastIndexOf('end-action'),1);
  assert.deepEqual(stockMoved,expected,
-  'All reference sections other than relocated stock and approved development actions must retain their order');
+  'All reference sections other than relocated stock and the two approved development/gallery cards must retain their order');
  const required=['publicHeader','category','heading','summary','years','databaseHeroPhoto','source',
   'generationPanel','generationControls','generationDetail','generationCompare',
   'r1300V2VerifiedExtras','databaseModelTimeline','body','r1300DeepDive',
