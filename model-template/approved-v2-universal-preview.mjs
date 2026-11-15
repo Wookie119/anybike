@@ -87,6 +87,43 @@ function organiseCanonicalResearchSlots(body){
  body.dataset.anybikeV2PopulatedSlots=String(new Set(published.map(x=>x.dataset.sectionKey)).size);
  body.dataset.anybikeV2SectionContract='20';
 }
+// Build the visible model-research navigation from published content, never
+// from a hard-coded make/model list or unpublished database slots. It updates
+// automatically as approved 20-slot editorial and verified facts arrive.
+function updateDynamicResearchNavigation(body){
+ if(!body)return;
+ let nav=document.getElementById('anybikeV2ResearchNavigation');
+ const verified=body.querySelector('[data-anybike-verified-model-facts]');
+ const categories=verified?[...verified.querySelectorAll(':scope > [data-anybike-research-category]')]:[];
+ const editorial=[...body.querySelectorAll(':scope > .anybike-v2-reviewed-universal-section[data-section-key]')];
+ const entries=[];
+ for(const group of categories){
+  const title=group.querySelector(':scope > h3')?.textContent?.trim();
+  if(title&&group.querySelector('article, [data-anybike-reviewed-publication], .anybike-v2-reviewed-universal-section'))entries.push([group,title]);
+ }
+ for(const section of editorial){
+  const title=section.querySelector(':scope > h2')?.textContent?.trim();
+  if(title)entries.push([section,title]);
+ }
+ if(!entries.length){nav?.remove();return;}
+ if(!nav){
+  nav=node('nav',undefined,'anybike-v2-dynamic-research-navigation');
+  nav.id='anybikeV2ResearchNavigation';
+  nav.setAttribute('aria-label','Documented motorcycle research sections');
+  const heading=node('h2','Explore documented research');
+  const links=node('div',undefined,'anybike-v2-dynamic-research-links');
+  nav.append(heading,links);
+  body.before(nav);
+ }
+ const links=nav.querySelector('.anybike-v2-dynamic-research-links');
+ links.replaceChildren();
+ entries.forEach(([section,title],i)=>{
+  const id='anybike-v2-research-'+String(i+1);
+  section.id=id;
+  const a=node('a',title);a.href='#'+id;
+  links.append(a);
+ });
+}
 function organiseUniversalFactoryResearch(body){
  const panel=body?.querySelector('[data-anybike-verified-model-facts]');
  if(!panel)return;
@@ -1053,6 +1090,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   }
   organiseCanonicalResearchSlots($('body'));
   organiseUniversalFactoryResearch($('body'));
+  updateDynamicResearchNavigation($('body'));
   // Every catalogue model gets the approved master regardless of research
   // coverage. Do not turn its hero into a research-publication status notice.
   // Leave unverified specifications and model-year claims absent until approved.
