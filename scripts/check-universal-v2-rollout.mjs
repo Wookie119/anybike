@@ -28,7 +28,8 @@ const check=(label,fn)=>{
 check('Approved publication cannot mount duplicate canonical slots',()=>{
  assert.match(renderer,/matches\[0\]\.querySelector\('\[data-anybike-reviewed-publication\]\[data-section-key=/);
  assert.match(renderer,/destination\.querySelector\('\.anybike-v2-reviewed-universal-section\[data-section-key=/);
- assert.match(renderer,/if\(seen\.has\(section\.dataset\.sectionKey\)\)continue/);
+ assert.match(renderer,/if\(seen\.has\(section\.dataset\.sectionKey\)\)\{/);
+ assert.match(renderer,/existing\.append\(section\)/);
 });
 check('One exact canonical set of 20 section identifiers for every model',()=>{
  assert.equal(SECTION_COUNT,20);
@@ -43,7 +44,8 @@ check('All model routes use one canonical 20-slot contract and shared approved r
  assert.match(renderer,/function integratePublishedResearch\(body,make,model\)/);
  assert.match(renderer,/integratePublishedResearch\(\$\('body'\),make,model\)/);
  assert.match(renderer,/panel\.dataset\.anybikeResearchIdentity!==identity/);
- assert.match(renderer,/if\(seen\.has\(section\.dataset\.sectionKey\)\)continue/);
+ assert.match(renderer,/if\(seen\.has\(section\.dataset\.sectionKey\)\)\{/);
+ assert.match(renderer,/existing\.append\(section\)/);
  assert.match(renderer,/if\(!panel\)\{/);
  assert.match(renderer,/panel\.dataset\.anybikeVerifiedModelFacts='1'/);
  assert.doesNotMatch(renderer,/panel=makeSection\('v2EditorialResearch'/);
