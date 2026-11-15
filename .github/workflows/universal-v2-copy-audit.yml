@@ -1,0 +1,29 @@
+name: Universal V2 model copy audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'models/**'
+      - 'motorcycle-v2-master.html'
+      - 'model-template/**'
+      - 'data/universal-v2-model-routes.json'
+      - 'scripts/audit-universal-v2-model-copy.mjs'
+      - '.github/workflows/universal-v2-copy-audit.yml'
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check all 978 model-page copy and template consistency
+        run: node scripts/audit-universal-v2-model-copy.mjs
+      - name: Upload full report even when audit fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-v2-model-copy-audit
+          path: reports/universal-v2-model-copy-audit.json
+          if-no-files-found: warn
