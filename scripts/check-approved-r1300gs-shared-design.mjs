@@ -26,8 +26,12 @@ const approvedV2=readFileSync('model-template/approved-v2-preview-style.css','ut
 const originalReference=readFileSync('bmw-r1300gs-v2-approved-20261102.html','utf8');
 const referenceStyleBlocks=[...originalReference.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map(x=>x[1]);
 assert(referenceStyleBlocks.length>=30,'Approved V2 reference styles must exist');
-for(const block of referenceStyleBlocks)assert(approvedV2.includes(block),
- 'Universal stylesheet is missing an approved BMW R 1300 GS reference style');
+// The approved universal stylesheet preserves every reference rule while
+// replacing the old burgundy accents with the approved charcoal palette.
+const v2Palette=block=>block.replaceAll('#352124','#282828')
+ .replaceAll('#813438','#4b4b4b');
+for(const block of referenceStyleBlocks)assert(approvedV2.includes(v2Palette(block)),
+ 'Universal stylesheet is missing an approved BMW R 1300 GS reference style or palette correction');
 for(const token of ['--red:#ed1c24','background:#000','background:var(--panel)',
  '.generation-panel','.factory-colour-card','.grid']){
  assert(shared.includes(token),'Approved design token missing: '+token);
