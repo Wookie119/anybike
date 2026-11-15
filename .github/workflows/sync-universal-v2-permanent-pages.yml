@@ -1,0 +1,36 @@
+name: Synchronise permanent model pages with universal V2
+on:
+  push:
+    paths:
+      - 'scripts/refresh-universal-v2-permanent-pages.mjs'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: universal-v2-permanent-pages
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate safe bulk updater
+        run: node --check scripts/refresh-universal-v2-permanent-pages.mjs
+      - name: Synchronise all permanent model pages
+        run: node scripts/refresh-universal-v2-permanent-pages.mjs
+      - name: Verify all permanent routes use the master asset revisions
+        run: node scripts/refresh-universal-v2-permanent-pages.mjs && git diff --exit-code -- models/
+      - name: Commit only generated permanent model pages
+        run: |
+          if ! git diff --quiet -- models/; then
+            git config user.name "AnyBike Universal V2 Bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add models/
+            git commit -m "Synchronise all permanent model URLs with approved universal V2 assets"
+            git push origin HEAD:main
+          fi
