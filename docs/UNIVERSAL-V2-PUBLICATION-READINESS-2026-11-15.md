@@ -67,3 +67,16 @@ The **327** source-linked drafts (the third triage queue) were examined further:
 - Example source records reviewed for structure include Aprilia RSV4 and SX 125 manufacturer range announcements, Aprilia Tuono 660 brochure, and KTM Super Duke launch announcements. No external source availability or claim accuracy is asserted by this structural audit.
 
 The public universal published projection still had zero records at the previous check. No draft was auto-approved. Follow-up work: validate the external documents, source-specific model years and claims, record genuine reviewer approval, then release approved sections through the existing publication projection.
+
+## Cross-manufacturer source metadata check — further batch
+
+A live Supabase read-only query grouped all 327 source-linked draft sections across 13 manufacturer names and inspected each direct source URL payload.
+
+- 219 sections carry a direct `source_url` field.
+- **0** of those 219 have an empty `summary`.
+- **0** of those 219 have an empty `source_name`.
+- **0** of those 219 have a URL not beginning with `https://`.
+- These are metadata-completeness and URL-syntax results only; no external link or factual accuracy was established by this query.
+- The expanded SQL audit includes a KTM review queue spanning its remaining source-linked models. Preserve distinctions among KTM 390 Duke, 390 Adventure, RC 390, 1290/1390 Super Adventure and other model families.
+
+**Release gate remains closed:** Source metadata completeness does not establish source accessibility, exact claim support, image rights or reviewer approval. No draft status was changed.
