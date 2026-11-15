@@ -1093,7 +1093,26 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    $('internationalModelCards')?.replaceChildren(node('p','Current stock cannot be confirmed right now. Ask AnyBike to check UK supplier availability.'));
    pendingStock.dataset.stockFeedState='unavailable';
   }
-  showError('The selected model could not be loaded safely. No other motorcycle information has been substituted.');
+  // A permanent route can identify its motorcycle even when its catalogue
+  // record is awaiting editorial review. Display only the route's literal
+  // identity, never another model's specifications or unpublished research.
+  if(permanentRouteModelId!==null&&wantMake&&wantModel){
+   const heading=$('heading');
+   if(heading)heading.textContent=wantMake+' '+wantModel;
+   const category=$('category');
+   if(category)category.textContent='Motorcycle model';
+   const summary=$('summary');
+   if(summary)summary.textContent='This motorcycle model is awaiting catalogue review. Verified model research is not yet available.';
+   const source=$('source');
+   if(source)source.href='/bulk-buying-request.html?make='+encodeURIComponent(wantMake)+'&model='+encodeURIComponent(wantModel);
+   const manufacturer=$('manufacturer');
+   if(manufacturer)manufacturer.href=normalize(wantMake)==='bmw'?'/bmw-motorcycles.html':
+    normalize(wantMake)==='harley davidson'?'/harley-davidson-motorcycles.html':
+    '/motorcycle-brand.html?make='+encodeURIComponent(wantMake);
+   showError('This model is awaiting catalogue review. No unverified motorcycle information has been published.');
+  }else{
+   showError('The selected model could not be loaded safely. No other motorcycle information has been substituted.');
+  }
   done();
  }
 }
