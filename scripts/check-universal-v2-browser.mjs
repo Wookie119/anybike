@@ -179,6 +179,13 @@ try{
     document.querySelector('#internationalModelStock')?.dataset.stockFeedState===expected,
     permitted?'checked':'restricted',{timeout:15000});
    assert.equal(await page.locator('#heading').innerText(),make+' '+model);
+   if(routeName.startsWith('models/')&&make==='KTM'){
+    const introduction=await page.locator('#summary').innerText();
+    assert.match(introduction,/Explore KTM 390 Duke/,
+     'Unresearched motorcycle must retain a customer-facing universal hero');
+    assert.doesNotMatch(introduction,/research is not yet published/i,
+     'Universal model page must not advertise missing research');
+   }
    const manufacturerLink=page.locator('#manufacturer');
    assert.equal(await manufacturerLink.isVisible(),true,'Manufacturer action absent from approved V2 hero');
    const expectedManufacturerPath=make==='BMW'?'/bmw-motorcycles.html':
