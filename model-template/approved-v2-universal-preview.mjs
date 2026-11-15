@@ -1100,8 +1100,8 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   let publishedCount=0;
   if(hasCanonicalId){
    try{
-    const {loadUniversalPublishedPage}=await import('/model-template/universal-page-data.mjs?v=20261114-reviewed-rest1');
-    const {renderUniversalPage}=await import('/model-template/universal-page-renderer.mjs');
+    const {loadUniversalPublishedPage}=await import('/model-template/universal-page-data.mjs?v=20261115-official-status-fallback2');
+    const {renderUniversalPage}=await import('/model-template/universal-page-renderer.mjs?v=20261115-official-status2');
     // If the optional Supabase JS CDN is unavailable, use the SAME public
     // RLS-protected published projection over REST. Never substitute drafts.
     const publication=await loadUniversalPublishedPage(client,{
