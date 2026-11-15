@@ -20,7 +20,7 @@ const origin='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 const inventory={
  BMW:[{make:'BMW',model:'R 1300 GS',model_id:77,category:'Adventure'},{make:'BMW',model:'R 1250 GS',model_id:68,category:'Adventure'}],
- Suzuki:[{make:'Suzuki',model:'RM250',model_id:1054,category:'Motocross'}],
+ Suzuki:[{make:'Suzuki',model:'RM250',model_id:202,category:'Motocross'}],
  'Harley-Davidson':[{make:'Harley-Davidson',model:'Fat Boy',model_id:127,category:'Cruiser'}],
  Honda:[{make:'Honda',model:'CB650R',model_id:446,category:'Naked'}],
  Yamaha:[{make:'Yamaha',model:'MT-09',model_id:275,category:'Naked'}],
