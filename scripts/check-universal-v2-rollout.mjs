@@ -64,6 +64,10 @@ check('Approved publication cannot mount duplicate canonical slots',()=>{
  assert.match(renderer,/if\(seen\.has\(section\.dataset\.sectionKey\)\)\{/);
  assert.match(renderer,/existing\.append\(section\)/);
 });
+check('Universal research navigation remains visible even before verified records arrive',()=>{
+ assert.match(renderer,/if\(!entries\.length&&verified\)entries\.push\(\[verified,'Documented factory research'\]\)/);
+ assert.match(renderer,/ensureUniversalResearchPanel\(\$\('body'\),make,model\);\s*updateDynamicResearchNavigation\(\$\('body'\)\)/);
+});
 check('Every model retains the same factory research panel without invented facts',()=>{
  assert.match(renderer,/function ensureUniversalResearchPanel\(body,make,model\)/);
  assert.match(renderer,/ensureUniversalResearchPanel\(\$\('body'\),make,model\)/);
