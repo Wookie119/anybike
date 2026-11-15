@@ -87,7 +87,7 @@ export async function loadUniversalPublishedPage(client,{type,id,restEndpoint,re
   if(row.content&&typeof row.content==='object'&&!Array.isArray(row.content)){
    const rootStatus=['source_verification_status','editorial_status',
     'content_status','verification_status','review_state'];
-   const approvedStates=new Set(['verified','approved','published']);
+   // Official manufacturer verification is an approved evidence state in the\n   // reviewed publication rows; do not mistake it for an unpublished draft.\n   const approvedStates=new Set(['verified','approved','published',\n    'verified_official_manufacturer_source']);
    for(const key of rootStatus){
     const state=row.content[key];
     if(state!==undefined&&state!==null&&
