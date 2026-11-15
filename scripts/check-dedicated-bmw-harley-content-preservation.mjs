@@ -37,7 +37,7 @@ for(const {make,model,url} of routes){
   'Model-specific SEO title lost: '+url);
  assert(html.includes('/model-template/approved-v2-universal-preview.mjs'),
   'Dedicated route lost shared verified research renderer: '+url);
- const approvedCss=master.match(/approved-v2-preview-style\\.css\\?v=[^"']+/)?.[0];
+ const approvedCss=master.match(/approved-v2-preview-style\.css\?v=[^"']+/)?.[0];
  assert(approvedCss&&html.includes(approvedCss),
   'Dedicated model must use the approved V2 riding-style stylesheet: '+url);
  // The dedicated pages can contain valuable, individually reviewed hero
