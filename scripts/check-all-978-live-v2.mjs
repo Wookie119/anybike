@@ -49,7 +49,7 @@ const issue_counts={};
 for(const row of failures)for(const issue of row.issues){const key=issue.startsWith('REQUEST_FAILED')?'REQUEST_FAILED':issue;issue_counts[key]=(issue_counts[key]||0)+1;}
 const manufacturer_counts={};
 for(const row of results){const item=manufacturer_counts[row.make]||(manufacturer_counts[row.make]={checked:0,passed:0,failed:0});item.checked++;item[row.pass?'passed':'failed']++;}
-const report={checked:978,passed:978-failures.length,failed:failures.length,checked_at:new Date().toISOString(),master_main_sha256:hash(main),master_style_sha256:hash(style),issue_counts,manufacturer_counts,failures};
+const report={checked:978,passed:978-failures.length,failed:failures.length,checked_at:new Date().toISOString(),master_main_sha256:hash(main),master_style_sha256:hash(style),issue_counts,manufacturer_counts,results,failures};
 await fs.mkdir('artifacts/universal-v2-live-audit',{recursive:true});
 await fs.writeFile('artifacts/universal-v2-live-audit/report.json',JSON.stringify(report,null,2)+'\n');
 console.log('Live V2 audit:',report.passed,'/ 978 passed. Report: artifacts/universal-v2-live-audit/report.json');
