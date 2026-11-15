@@ -67,7 +67,7 @@ const sections=[
 const root=new Element('main',document);
 root.dataset.anybikeUniversalRoot='true';
 const view=renderUniversalPage(root,{entity,sections,stock:[]});
-assert.equal(view.sections.length,15,'Expected all fifteen approved-schema research slots');
+assert.equal(view.sections.length,14,'Photography-rights-only slot must be excluded from visible research');
 const children=root.childNodes[0].childNodes;
 assert.deepEqual(children.map(x=>x.dataset.anybikeRole||x.tagName),
  ['header','stock','research','customer-actions']);
@@ -98,4 +98,4 @@ assert(all.some(x=>x.href==='https://www.press.bmwgroup.com/example'&&
  x.rel==='noopener noreferrer'),'Reviewed source paragraph link lost');
 assert(!all.some(x=>String(x.href).startsWith('javascript:')),
  'Unsafe paragraph reference was displayed');
-console.log('PASS: fifteen-section BMW schema covers fourteen readable cards, preserves stock order and excludes photo-rights-only content');
+console.log('PASS: fifteen staged BMW schema fixtures yield fourteen approved readable cards, preserving stock order and excluding photo-rights-only content');
