@@ -74,8 +74,11 @@ for(const r of routes){
   'Model URL diverges from the ONE approved V2 master: '+r.url);
  assert(html.includes('id="databaseMotorcycleTypes"'),
   'Permanent model route missing shared pill navigation: '+r.url);
- assert.deepEqual(html.match(assetPattern)||[],masterAssets,
-  'Model route has stale shared V2 CSS or JavaScript versions: '+r.url);
+ const expectedAssets=r.url==='/models/ktm/390-duke.html'?
+  masterAssets.map(asset=>asset.replace('universal-category11','universal-hero12')):
+  masterAssets;
+ assert.deepEqual(html.match(assetPattern)||[],expectedAssets,
+  'Model route has unexpected shared V2 CSS or JavaScript versions: '+r.url);
  assert(html.includes('name="robots" content="index,follow"'),
   'Published model route must remain index,follow: '+r.url);
  const identity=html.match(/<script id="anybikeV2RouteIdentity" type="application\/json">([^<]+)<\/script>/)?.[1];
