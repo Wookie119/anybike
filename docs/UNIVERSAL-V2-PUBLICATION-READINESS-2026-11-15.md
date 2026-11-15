@@ -40,3 +40,18 @@ A read-only SQL audit of all 1,306 model draft sections found:
 The reusable SQL file `scripts/audit-universal-v2-publication-readiness.sql` checks these invariants and lists the draft editorial review queue. Its execution is read-only and cannot approve or publish content.
 
 **Important:** Valid section structure is necessary but does not establish that the factual claims or media rights are reviewed. The publication reviewer must approve each section and record the required provenance before its status changes.
+
+## Editorial triage batch — 15 November 2026
+
+All **1,306** model drafts have now been classified by a read-only, mutually exclusive review rule:
+
+| Review queue | Sections | Distinct models | Required action |
+|---|---:|---:|---|
+| Explicit verification/review hold | 305 | 165 | Investigate review markers before considering release |
+| Legacy V2 editorial drafts, without explicit marker | 674 | 102 | Validate source, model/year specificity, content and reviewer sign-off |
+| Other source-linked drafts, without explicit marker | 327 | 145 | Check exact factory/document references and reviewer sign-off |
+| **Total** | **1,306** | **318 unique models across queues** | No automatic publication |
+
+The model counts per queue overlap: a model may have different sections in different queues. The 305 held sections include records flagged by source-reference review requirements, `pending_editorial_review`, or `not_verified` text in their JSON content. Text matching is a **conservative triage signal**, not proof of incorrect content or a substitute for editorial assessment.
+
+The read-only review queue is in `scripts/audit-universal-v2-publication-readiness.sql`. No publication status, source fact, or page layout was changed in this audit.
