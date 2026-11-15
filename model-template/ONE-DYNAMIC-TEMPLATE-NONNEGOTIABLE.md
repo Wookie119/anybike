@@ -20,3 +20,11 @@ D. Roll out the verified single renderer across every clean published model iden
 **Do not** divert to individual model edits, cosmetic tweaks, wording changes, new research campaigns, unrelated site features, alternate templates or repeated user check requests. Only make an exception for a blocking security/data-leak or shared production regression. Work in substantial tested batches. GitHub commits deploy automatically; never manually upload to 123-reg.
 
 Before each development batch and hourly automated run, read this directive and the approved design checkpoint. Every update must state what was implemented, what was tested, what remains incomplete and whether live deployment was verified. Do not claim all 20 sections are dynamic until proven.
+
+## Legacy template retirement rule — 15 November 2026
+
+The sole authoritative model-page HTML is `motorcycle-v2-master.html`; the sole model-page runtime is `model-template/approved-v2-universal-preview.mjs` with its shared navigation, styling, and 20-section data contract. The 978 permanent `models/<make>/<model>.html` URLs are generated SEO entry points, NOT independently edited templates. Their `<main>` and inline `<style>` must match the master exactly; the bulk synchroniser and regression test enforce this.
+
+Do not edit model-specific HTML or create a manufacturer-specific renderer. Any necessary fix must be made to the shared master, renderer, or Supabase publication pipeline, then synchronised across all routes.
+
+Before deleting any legacy page, guide, renderer, or stylesheet: search every HTML/JS import, internal link, redirect, sitemap, and indexed public URL; migrate dependencies to the approved shared renderer while retaining working public URLs; verify SEO redirects and live deployment; only then remove unreferenced implementation files. Do not remove BMW or Harley editorial content or break existing inbound links.
