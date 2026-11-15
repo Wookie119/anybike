@@ -1112,7 +1112,12 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   }
   const explanations=guide?.research_explanations;
   if(explanations&&typeof explanations==='object'&&!Array.isArray(explanations)){
+   const guideIdentity=JSON.stringify([make.toLowerCase(),model.toLowerCase()]);
    let panel=$('body').querySelector('[data-anybike-verified-model-facts]');
+   // Never append guide research to a panel for a different model.
+   if(panel&&panel.dataset.anybikeResearchIdentity!==guideIdentity){
+    panel.remove();panel=null;
+   }
    const supplied=Object.entries(explanations).filter(([key,entry])=>
     /^[a-z][a-z0-9_]{1,64}$/.test(key)&&entry&&
     arr(entry.paragraphs).some(str)&&validURL(entry.source_url));
@@ -1122,7 +1127,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    if(supplied.length&&!panel){
     panel=node('section',undefined,'card feature anybike-verified-model-research');
     panel.dataset.anybikeVerifiedModelFacts='1';
-    panel.dataset.anybikeResearchIdentity=JSON.stringify([make.toLowerCase(),model.toLowerCase()]);
+    panel.dataset.anybikeResearchIdentity=guideIdentity;
     panel.append(node('h2','Documented factory research'));
     $('body').prepend(panel);
    }
