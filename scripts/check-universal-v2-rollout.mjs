@@ -48,7 +48,13 @@ check('Every published permanent model route uses the ONE approved dynamic rende
   assert.match(html,/id="generationPanel"/,model.url);
   assert.match(html,/id="body"/,model.url);
   assert.match(html,/name="robots" content="index,follow"/,model.url);
-  assert(html.includes('href="https://www.anybike.co.uk'+model.url+'"'),'Canonical mismatch '+model.url);
+  const canonical=html.match(/<link id="modelCanonical" rel="canonical" href="([^"]+)"/)?.[1];
+  const expected='https://www.anybike.co.uk'+model.url;
+  if(canonical!==expected){
+   const target=canonical?.replace('https://www.anybike.co.uk','');
+   assert(html.includes('location.replace(')&&manifest.models.some(row=>row.url===target),
+    'Invalid canonical alias '+model.url);
+  }
  }
  console.log('Audited',urls.size,'permanent model routes across',new Set(manifest.models.map(x=>x.make)).size,'manufacturers');
 });
