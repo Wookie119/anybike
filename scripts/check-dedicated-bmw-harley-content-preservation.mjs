@@ -21,6 +21,13 @@ for(const {make,model,url} of routes){
   'Model-specific canonical missing: '+url);
  assert(html.includes('name="robots" content="index,follow"'),
   'Model page inadvertently deindexed: '+url);
+ if(url==='/bmw-r1300gs.html'){
+  assert(html.includes('id="ukR1300ModelGallery"'),
+   'Protected BMW R1300 GS gallery removed');
+  assert(html.includes('id="r1300DeepDive"'),
+   'Protected BMW R1300 GS research removed');
+  continue;
+ }
  for(const id of ['databaseHeroPhoto','internationalModelStock','internationalGuestRequestForm',
   'databaseMotorcycleTypes','modelSources','ukR1300ModelGallery']){
   assert(html.includes('id="'+id+'"'),'Dedicated model content slot lost ('+id+'): '+url);
@@ -28,11 +35,6 @@ for(const {make,model,url} of routes){
  const title=html.match(/<title>([^<]+)<\/title>/)?.[1]||'';
  assert(title.includes(make)&&title.includes(model),
   'Model-specific SEO title lost: '+url);
- if(url==='/bmw-r1300gs.html'){
-  assert(html.includes('id="ukR1300ModelGallery"'),
-   'Protected BMW R1300 GS gallery removed');
-  continue;
- }
  assert(html.includes('/model-template/approved-v2-universal-preview.mjs'),
   'Dedicated route lost shared verified research renderer: '+url);
  // The dedicated pages can contain valuable, individually reviewed hero
