@@ -39,9 +39,10 @@ const robots=read('robots.txt'),sitemap=read('sitemap.xml');
 assert(robots.includes('Allow: /')&&
  robots.includes('Sitemap: https://www.anybike.co.uk/sitemap.xml'),
  'Google must be allowed to crawl indexed model guides');
-assert(sitemap.includes('https://www.anybike.co.uk/motorcycle-model-guide.html?make=')||
- sitemap.includes('https://www.anybike.co.uk/motorcycle-model-guide.html?make='),
- 'Keep the existing model guide URLs discoverable during phased migration');
+assert(sitemap.includes('https://www.anybike.co.uk/models/yamaha/mt-09.html')&&
+ sitemap.includes('https://www.anybike.co.uk/bmw-r1300gs.html')&&
+ !sitemap.includes('motorcycle-model-guide.html?make='),
+ 'The sitemap must publish permanent canonical model URLs, not duplicate query routes');
 assert(!html.includes('Suzuki RM250')&&!html.includes('BMW R 1300 GS'),
  'Master HTML must never contain model-specific example copy');
 assert(html.includes('approved-v2-preview-style.css'),
@@ -78,8 +79,9 @@ assert(!renderer.includes('eq("model_id",77)')&&
 assert(nav.includes('public_anybike_manufacturer_catalogue_names_v1')&&
  nav.includes('categories.get(normalize(item.label))'),
  'Related models must come from shared public model/category data');
-assert(nav.includes("location.pathname==='/motorcycle-v2-master.html'"),
- 'Model navigation within the universal master must remain in that master');
+assert(nav.includes("permanentRoutes.get(normalize(name))")&&
+ nav.includes('/data/universal-v2-model-routes.json'),
+ 'Model navigation must use the shared permanent SEO route manifest');
 assert(reference.includes('id="generationPanel"')&&
  reference.includes('id="internationalModelStock"'),
  'Original approved V2 reference must remain intact');
