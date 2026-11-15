@@ -1019,7 +1019,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    // Sourcing enquiries belong in the existing action panels, not the introduction.
    const intro=$('summary');
    intro.replaceChildren();
-   paragraph(intro,'Explore the '+title+' model, its available motorcycle information and related models. Verified model-year specifications and manufacturer history will appear here when approved for publication.');
+   paragraph(intro,'Explore the '+title+' motorcycle, its documented model information, photographs, history and related models. Specifications and equipment vary by model year and market.');
    $('years').textContent='';
   }
   // Public exact-model inventory: never use whole-manufacturer stock.
