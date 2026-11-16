@@ -846,6 +846,11 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     img.src=registeredLogo;
     img.alt=make+' manufacturer logo';
     img.style.objectFit='contain';
+    // Manufacturer marks with black/transparent artwork must remain legible
+    // on the shared charcoal V2 hero without altering real motorcycle photos.
+    img.style.backgroundColor='#fff';
+    img.style.padding='12px';
+    img.style.boxSizing='border-box';
     const caption=fig.querySelector('figcaption');
     caption.textContent=make+' manufacturer logo';
     fig.dataset.anybikeHeroType='manufacturer-logo';
