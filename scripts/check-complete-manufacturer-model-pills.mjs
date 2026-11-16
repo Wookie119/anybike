@@ -44,7 +44,7 @@ for(const phrase of [
  'Public catalogue fallback unavailable; trying canonical Supabase directory',
  'databaseModels.length?databaseModels:publicModels','const models=[...new Map([...(databaseModels.length?databaseModels:publicModels).map(x=>x.model),...routes.map(x=>x.model)]',
  "rows.filter(x=>normalize(x.make)===normalize(make)",
- 'const byModel=new Map(routes.map(x=>[normalize(x.model),x.url]))',
+ 'const byModel=new Map(permanentRoutes)', 'if(!byModel.has(identity))byModel.set(identity,route.url)',
  "name=>byModel.get(normalize(name))||genericUrl(make,name)",
  "const entries=models;",
  "entries,currentName,m=>byModel.get(normalize(m))||genericUrl(make,m)",
