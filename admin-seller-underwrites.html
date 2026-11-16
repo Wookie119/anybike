@@ -180,6 +180,44 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 .submission-detail .review-workspace-tools>.data>.box strong{margin-top:3px!important;line-height:1.25}
 .submission-detail .review-workspace-tools>.data>.box div[style*="margin-top:7px"]{margin-top:4px!important;line-height:1.4}
 .submission-detail .review-workspace-tools>.data>.box a[style*="display:inline-block"]{padding:6px 8px!important;margin-top:4px!important}
+/* Desktop one-screen underwrite review: compact top and reveal photo tools only when editing. */
+@media(min-width:960px){
+ .submission-detail{padding:0 8px 8px}
+ .submission-detail .card:has(> .review-workspace){padding:10px 12px;position:relative}
+ .submission-detail .card:has(> .review-workspace)>.top{align-items:center;min-height:38px}
+ .submission-detail .card:has(> .review-workspace)>.top .ref{font-size:15px}
+ .submission-detail .card:has(> .review-workspace)>.top .meta{font-size:10px;margin-top:0}
+ .submission-detail .card:has(> .review-workspace)>.bike{font-size:20px;line-height:1.15;margin:4px 0 3px}
+ .submission-detail .card:has(> .review-workspace)>.sub{margin:0;font-size:12px}
+ .submission-detail .card:has(> .review-workspace) .review-advert-preview{font-size:12px!important;padding:7px 10px!important;margin:0!important}
+ .submission-detail .review-workspace{margin-top:6px;gap:12px;grid-template-columns:minmax(280px,.39fr) minmax(0,.61fr)}
+ .submission-detail .review-workspace-photos .submission-gallery{padding:8px!important}
+ .submission-detail .review-workspace .submission-gallery-hero{height:clamp(160px,19vh,225px);margin:5px 0!important}
+ .submission-detail .review-workspace .submission-gallery-head{margin:0!important}
+ .submission-detail .review-workspace .submission-gallery-grid{gap:4px!important}
+ .submission-detail .review-workspace .submission-gallery-grid .submission-photo-wrap{padding:3px}
+ .submission-detail .review-workspace .submission-photo{aspect-ratio:2/1}
+ .submission-detail .review-workspace .submission-photo-wrap .photo-actions{display:none!important}
+ .submission-detail .review-workspace-photos.photo-editing .submission-photo-wrap .photo-actions{display:grid!important}
+ .submission-detail .review-workspace-tools>.data{margin:0 0 5px!important;gap:5px!important}
+ .submission-detail .review-workspace-tools>.data>.box{padding:6px 8px!important}
+ .submission-detail .review-workspace-tools>.data>.box strong{font-size:13px}
+ .submission-detail .review-workspace-tools .admin-advert-description{margin:5px 0;padding:8px}
+ .submission-detail .review-workspace-tools .admin-advert-description h3{font-size:13px;margin-bottom:3px}
+ .submission-detail .review-workspace-tools .admin-advert-description p{font-size:13px;line-height:1.35;max-height:46px}
+ .submission-detail .review-workspace-tools .admin-source-details{margin:4px 0;font-size:11px}
+ .submission-detail .review-workspace-tools .actions{margin:5px 0;gap:5px}
+ .submission-detail .review-workspace-tools .review-auction-actions>*{font-size:11px;padding:7px 8px}
+ .submission-detail .review-workspace-tools .review-final-action{margin-top:6px!important;padding:8px!important}
+ .submission-detail .review-workspace-tools .review-final-action>p{display:none}
+ .submission-detail .review-workspace-tools .review-final-action>strong{font-size:12px}
+ .submission-detail .review-workspace-tools .review-final-action button,.submission-detail .review-workspace-tools .review-final-action a{padding:8px 12px;font-size:12px}
+}
+.review-photo-toggle{display:inline-flex;align-items:center;justify-content:center;font-size:11px!important;padding:5px 8px!important;background:#292929;border:1px solid #555;border-radius:7px}
+.review-workspace-photos.photo-editing{outline:1px solid #555;border-radius:12px}
+@media(max-width:959px){
+ .review-workspace .review-photo-toggle{display:none}
+}
 /* Advert presentation preview: separate from administrative review and private data. */
 #advertPreviewOverlay{display:none;position:fixed;inset:0;z-index:20000;overflow:auto;background:rgba(0,0,0,.94);padding:20px}
 #advertPreviewOverlay.open{display:block}.advert-preview-sheet{max-width:1180px;margin:auto;background:#070707;color:#fff;border:1px solid #ed1c24;border-radius:14px;padding:16px}
@@ -828,6 +866,8 @@ function compactSubmissionWorkspace(id){
  const workspace=document.createElement("div");workspace.className="review-workspace";
  const photos=document.createElement("section");photos.className="review-workspace-photos";photos.setAttribute("aria-label","Motorcycle photographs");
  const tools=document.createElement("section");tools.className="review-workspace-tools";tools.setAttribute("aria-label","Motorcycle review and auction actions");
+ const preview=[...card.children].find(el=>el.matches?.('button[onclick^="openSubmissionAdvertPreview"]'));
+ if(preview){preview.classList.add("review-advert-preview");const top=card.querySelector(":scope > .top");top?.appendChild(preview);}
  const elements=[...card.children];
  const galleryIndex=elements.indexOf(gallery);
  const firstData=elements.findIndex(el=>el.classList.contains("data"));
@@ -835,6 +875,18 @@ function compactSubmissionWorkspace(id){
  // Move existing controls; do not clone them or lose their event handlers.
  elements.slice(firstData).forEach(el=>{if(el===gallery)photos.appendChild(el);else tools.appendChild(el);});
  workspace.append(photos,tools);card.appendChild(workspace);
+ const galleryHead=photos.querySelector(".submission-gallery-head");
+ if(galleryHead&&!galleryHead.querySelector(".review-photo-toggle")){
+  const btn=document.createElement("button");btn.type="button";btn.className="review-photo-toggle";
+  btn.textContent="Edit photos";btn.setAttribute("aria-expanded","false");
+  btn.addEventListener("click",()=>{
+   const active=photos.classList.toggle("photo-editing");
+   btn.textContent=active?"Done editing":"Edit photos";
+   btn.setAttribute("aria-expanded",String(active));
+  });
+  galleryHead.appendChild(btn);
+ }
+
 }
 function openInlinePhotoTools(submissionId,position){
  if(!Number.isInteger(Number(submissionId))||Number(submissionId)<=0)return;
