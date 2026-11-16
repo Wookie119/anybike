@@ -441,7 +441,20 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    const catalogue=await response.json();
    candidates=arr(catalogue.models);
   }
-  const found=candidates.filter(row=>normalize(row.make)===normalize(wantMake)&&normalize(row.model)===normalize(wantModel));
+  let found=candidates.filter(row=>normalize(row.make)===normalize(wantMake)&&normalize(row.model)===normalize(wantModel));
+  // The public dropdown deliberately excludes aliases and names pending review.
+  // Their already-published permanent SEO URLs still need the SAME V2 shell.
+  // Resolve ONLY an exact embedded ID+make+model+pathname match against the
+  // immutable 978-route publication manifest. Never use it to publish facts.
+  if(found.length!==1&&permanentRouteModelId!==null){
+   const response=await fetch('/data/universal-v2-model-routes.json',{cache:'no-cache'});
+   if(!response.ok)throw Error('Published permanent model identity unavailable');
+   const manifest=await response.json();
+   const exact=arr(manifest.models).filter(row=>
+    row.url===location.pathname&&Number(row.model_id)===permanentRouteModelId&&
+    normalize(row.make)===normalize(wantMake)&&normalize(row.model)===normalize(wantModel));
+   if(exact.length===1)found=exact;
+  }
   if(found.length!==1)throw Error('No unique published model matches that make and model.');
   const selected=found[0],make=str(selected.make),model=str(selected.model),title=make+' '+model;
   const canonicalId=Number(selected.model_id||selected.catalogue_model_id);
