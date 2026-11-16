@@ -96,7 +96,7 @@ async function mount(){
   }catch(error){console.warn('Verified dedicated model route fallback unavailable',error)}
  }
  // Use the complete permanent V2 route manifest for all makes, while
- // preserving verified dedicated BMW/Harley links as the preferred route.
+ // preferring permanent V2 URLs for EVERY manufacturer, including BMW/Harley.
  const permanentRoutes=new Map();
  try{
   const response=await fetch('/data/universal-v2-model-routes.json',{cache:'no-cache'});
@@ -110,7 +110,10 @@ async function mount(){
   }
  }catch(error){console.warn('Permanent model routes unavailable; keeping existing guide links',error)}
  const byModel=new Map(permanentRoutes);
- for(const route of routes)byModel.set(normalize(route.model),route.url);
+ for(const route of routes){
+  const identity=normalize(route.model);
+  if(!byModel.has(identity))byModel.set(identity,route.url);
+ }
  // The public catalogue is the reviewed directory. Existing verified BMW
  // and Harley guide routes may also appear even before a catalogue refresh.
  const models=[...new Map([...(databaseModels.length?databaseModels:publicModels).map(x=>x.model),...routes.map(x=>x.model)]
