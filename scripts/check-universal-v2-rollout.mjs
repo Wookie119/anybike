@@ -264,7 +264,7 @@ check('All approved BMW and Harley model aliases converge on permanent V2 routes
  const apache=read('.htaccess');
  const published=JSON.parse(read('data/universal-v2-model-routes.json')).models;
  const byIdentity=new Map(published.map(row=>[String(row.make).toLowerCase()+'|'+String(row.model).toLowerCase(),row.url]));
- const escapeRegex=value=>String(value).replaceAll('.','[.]');
+ const escapeRegex=value=>String(value).replaceAll('.', '\\.');
  for(const row of approved){
   const target=byIdentity.get(String(row.make).toLowerCase()+'|'+String(row.model).toLowerCase());
   assert(target,'Missing canonical permanent route: '+row.url);
