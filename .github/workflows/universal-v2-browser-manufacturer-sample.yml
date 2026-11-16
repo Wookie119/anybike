@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - 'scripts/check-all-978-browser-v2.mjs'
+      - 'model-template/approved-v2-universal-preview.mjs'
+      - 'public-header.js'
+      - 'data/universal-v2-model-routes.json'
+      - 'scripts/check-legacy-v2-browser-redirects.mjs'
       - '.github/workflows/universal-v2-browser-manufacturer-sample.yml'
   schedule:
     - cron: '7 7 * * *'
@@ -32,11 +36,14 @@ jobs:
         run: node --check scripts/check-all-978-browser-v2.mjs
       - name: Render one exact model per manufacturer with Supabase
         run: node scripts/check-all-978-browser-v2.mjs
+      - name: Check all 45 legacy model URLs converge in browser
+        if: success() || failure()
+        run: node scripts/check-legacy-v2-browser-redirects.mjs
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: universal-v2-manufacturer-browser-sample
-          path: artifacts/universal-v2-browser-audit/report.json
+          path: artifacts/universal-v2-browser-audit/*.json
           if-no-files-found: warn
           retention-days: 30
