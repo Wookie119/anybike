@@ -1,0 +1,35 @@
+name: Verify published KTM research in universal V2
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/check-live-ktm-reviewed-sections.mjs'
+      - '.github/workflows/check-live-ktm-reviewed-sections.yml'
+permissions:
+  contents: read
+jobs:
+  verify-public-research:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - name: Syntax check
+        run: node --check scripts/check-live-ktm-reviewed-sections.mjs
+      - name: Verify exact-model approved research live
+        run: node scripts/check-live-ktm-reviewed-sections.mjs
+      - name: Save result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ktm-reviewed-research-live-browser-report
+          path: artifacts/ktm-source-verified-research/report.json
+          if-no-files-found: warn
+          retention-days: 14
