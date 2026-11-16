@@ -78,7 +78,11 @@ check('Approved publication cannot mount duplicate canonical slots',()=>{
 });
 check('Universal research navigation remains visible even before verified records arrive',()=>{
  assert.match(renderer,/if\(!entries\.length&&verified\)entries\.push\(\[verified,'Documented factory research'\]\)/);
- assert.match(renderer,/ensureUniversalResearchPanel\(\$\('body'\),make,model\);\s*updateDynamicResearchNavigation\(\$\('body'\)\)/);
+ // Publication-failure handling is deliberately between panel creation and navigation.
+ // Check the actual call order without requiring these calls to be adjacent.
+ const panelCall=renderer.indexOf("ensureUniversalResearchPanel($('body'),make,model);");
+ const navigationCall=renderer.indexOf("updateDynamicResearchNavigation($('body'));",panelCall);
+ assert.ok(panelCall>=0&&navigationCall>panelCall,'Research panel must precede universal navigation');
 });
 check('Empty existing research containers retain an honest universal empty state',()=>{
  assert.match(renderer,/const hasPublishedResearch=Boolean\(panel\.querySelector/);
