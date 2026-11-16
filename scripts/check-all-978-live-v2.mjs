@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-// Read-only proof of all 978 live permanent model routes. Writes a machine-readable failure report.
+// Read-only proof of all published live permanent model routes. Writes a machine-readable failure report.
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 const base='https://www.anybike.co.uk';
 const manifest=JSON.parse(await fs.readFile('data/universal-v2-model-routes.json','utf8'));
-assert.equal(manifest.count,978);
-assert.equal(manifest.models.length,978);
-assert.equal(new Set(manifest.models.map(x=>x.url)).size,978);
+const total=manifest.models.length;
+assert(total>=978,'Unexpectedly small model catalogue');
+assert.equal(manifest.count,total);
+assert.equal(new Set(manifest.models.map(x=>x.url)).size,total);
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const extract=(html,tag)=>html.match(new RegExp('<'+tag+'(?:\\s[^>]*)?>[\\s\\S]*?<\\/'+tag+'>','i'))?.[0]||'';
 const request=async path=>{
@@ -40,10 +41,10 @@ try{
  verificationMarkerSourceChecked=true;
 }catch(error){verificationMarkerSourceError=String(error.message||error);}
 
-const results=new Array(978);
+const results=new Array(total);
 let cursor=0;
 async function worker(){
- while(cursor<978){
+ while(cursor<total){
   const i=cursor++,entry=manifest.models[i],issues=[];
   try{
    const {status,html,contentType}=await request(entry.url);
@@ -77,8 +78,8 @@ const issue_counts={};
 for(const row of failures)for(const issue of row.issues){const key=issue.startsWith('REQUEST_FAILED')?'REQUEST_FAILED':issue;issue_counts[key]=(issue_counts[key]||0)+1;}
 const manufacturer_counts={};
 for(const row of results){const item=manufacturer_counts[row.make]||(manufacturer_counts[row.make]={checked:0,passed:0,failed:0});item.checked++;item[row.pass?'passed':'failed']++;}
-const report={verification_marker_source_checked:verificationMarkerSourceChecked,verification_marker_source_error:verificationMarkerSourceError,checked:978,passed:978-failures.length,failed:failures.length,master_comparison_complete:!masterError,master_error:masterError,checked_at:new Date().toISOString(),master_main_sha256:masterError?null:hash(main),master_style_sha256:masterError?null:hash(style),issue_counts,manufacturer_counts,results,failures};
+const report={verification_marker_source_checked:verificationMarkerSourceChecked,verification_marker_source_error:verificationMarkerSourceError,checked:total,passed:total-failures.length,failed:failures.length,master_comparison_complete:!masterError,master_error:masterError,checked_at:new Date().toISOString(),master_main_sha256:masterError?null:hash(main),master_style_sha256:masterError?null:hash(style),issue_counts,manufacturer_counts,results,failures};
 await fs.mkdir('artifacts/universal-v2-live-audit',{recursive:true});
 await fs.writeFile('artifacts/universal-v2-live-audit/report.json',JSON.stringify(report,null,2)+'\n');
-console.log('Live V2 audit:',report.passed,'/ 978 passed. Report: artifacts/universal-v2-live-audit/report.json');
+console.log('Live V2 audit:',report.passed,'/ '+total+' passed. Report: artifacts/universal-v2-live-audit/report.json');
 if(failures.length||masterError||verificationMarkerSourceError)process.exitCode=1;

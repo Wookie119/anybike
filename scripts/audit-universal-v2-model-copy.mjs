@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Audit the *published source HTML* for all 978 permanent motorcycle model pages.
+// Audit the *published source HTML* for all published permanent motorcycle model pages.
 // Run from repository root: node scripts/audit-universal-v2-model-copy.mjs
 // This is a complete source-copy audit, NOT a browser/Supabase live-content audit.
 import fs from 'node:fs';
@@ -39,8 +39,8 @@ for(const row of manifest.models){
  if(!issues.some(issue=>issue.url===row.url))summary.passed++;
 }
 summary.failed=summary.total-summary.passed;
-const output={audit:'universal-v2-source-copy',scope:'978 route HTML files, before runtime Supabase editorial rendering',total:summary.total,manufacturers:summary.manufacturers.size,passed:summary.passed,failed:summary.failed,issueCounts:summary.issueCounts,issues};
+const output={audit:'universal-v2-source-copy',scope:`${summary.total} route HTML files, before runtime Supabase editorial rendering`,total:summary.total,manufacturers:summary.manufacturers.size,passed:summary.passed,failed:summary.failed,issueCounts:summary.issueCounts,issues};
 fs.mkdirSync('reports',{recursive:true});
 fs.writeFileSync('reports/universal-v2-model-copy-audit.json',JSON.stringify(output,null,2)+'\n');
 console.log(JSON.stringify({...output,issues:issues.slice(0,30)},null,2));
-if(summary.total!==978||summary.failed)process.exitCode=1;
+if(summary.total<978||summary.total!==manifest.count||summary.failed)process.exitCode=1;

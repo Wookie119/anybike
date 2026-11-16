@@ -4,7 +4,7 @@ import {chromium} from 'playwright';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 const origin=process.env.ANYBIKE_PUBLIC_ORIGIN||'https://www.anybike.co.uk';
 const manifest=JSON.parse(await readFile('data/universal-v2-model-routes.json','utf8'));
-if(manifest.count!==978||manifest.models.length!==978)throw Error('978-route manifest mismatch');
+if(manifest.count!==manifest.models.length||manifest.count<978)throw Error('Published model-route manifest mismatch');
 const sample=process.env.ANYBIKE_V2_BROWSER_SAMPLE==='1';
 const selected=sample?[...new Map(manifest.models.map(x=>[x.make,x])).values()]:manifest.models;
 const browser=await chromium.launch({headless:true,args:['--disable-dev-shm-usage']});
@@ -74,7 +74,7 @@ async function worker(){
 try{await Promise.all(Array.from({length:6},worker));}
 finally{await browser.close();}
 const failures=results.filter(x=>!x.pass);
-const report={checked:results.length,passed:results.length-failures.length,failed:failures.length,mode:sample?'one-per-manufacturer':'all-978',checked_at:new Date().toISOString(),failures,results};
+const report={checked:results.length,passed:results.length-failures.length,failed:failures.length,mode:sample?'one-per-manufacturer':'all-permanent-models',checked_at:new Date().toISOString(),failures,results};
 await mkdir('artifacts/universal-v2-browser-audit',{recursive:true});
 await writeFile('artifacts/universal-v2-browser-audit/report.json',JSON.stringify(report,null,2));
 console.log('Universal V2 browser audit:',report.passed,'/',report.checked,'passed; failures:',report.failed);
