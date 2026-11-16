@@ -147,8 +147,17 @@ async function mount(){
   }
   const other=makes.filter(m=>normalize(m)!==normalize(make));
   if(!other.length)return;
-  const manufacturers=section('Explore all motorcycle manufacturers','Browse every manufacturer in the AnyBike public catalogue.',other,'',makeUrl);
-  manufacturers.dataset.completeCatalogueNavigation='1';main.append(manufacturers);
+  // Multiple navigation initialisers can finish at different times.
+  // Keep exactly one complete cross-manufacturer directory per page.
+  const existingDirectories=[...main.querySelectorAll('.anybike-complete-directory')]
+   .filter(el=>el.querySelector('h2')?.textContent?.trim()==='Explore all motorcycle manufacturers');
+  if(existingDirectories.length){
+   existingDirectories.slice(1).forEach(el=>el.remove());
+  }else{
+   const manufacturers=section('Explore all motorcycle manufacturers','Browse every manufacturer in the AnyBike public catalogue.',other,'',makeUrl);
+   manufacturers.dataset.completeCatalogueNavigation='1';
+   main.append(manufacturers);
+  }
   return;
  }
 
