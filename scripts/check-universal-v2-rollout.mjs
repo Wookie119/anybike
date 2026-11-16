@@ -131,7 +131,7 @@ check('Complete manufacturer model-pill directories prefer permanent V2 model ro
  assert.match(directory,/const permanentRoutes=new Map\(\)/);
  assert.match(directory,/fetch\('\/data\/universal-v2-model-routes\.json'/);
  assert.match(directory,/const byModel=new Map\(permanentRoutes\)/);
- assert.match(directory,/for\(const route of routes\)byModel\.set\(/);
+ assert.match(directory,/if\(!byModel\.has\(identity\)\)byModel\.set\(identity,route\.url\)/);
  assert.match(directory,/byModel\.get\(normalize\(name\)\)\|\|genericUrl\(make,name\)/);
 });
 check('Public motorcycle model library prefers the same permanent V2 routes',()=>{
@@ -158,6 +158,8 @@ check('Both model routes use identical renderer and expanded manufacturer naviga
  };
  for(const filename of ['renderer','navigation'])
   assert.equal(revision(shared,filename),revision(sourceMaster,filename),filename+' routes diverged');
+ assert.match(navigation,/const permanent=permanentRoutes\.get\(key\)/);
+ assert.match(navigation,/url:permanent\|\|existing\?\.url\|\|item\.url/);
  assert.match(navigation,/directory\.open=true/);
  assert.doesNotMatch(navigation,/directory\.open=false/);
 });
