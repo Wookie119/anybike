@@ -1,0 +1,32 @@
+name: Universal model hero and manufacturer logo proof
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'model-template/approved-v2-universal-preview.mjs'
+      - 'scripts/check-v2-model-hero-fallback.mjs'
+      - '.github/workflows/check-v2-model-hero-fallback.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: node --check scripts/check-v2-model-hero-fallback.mjs
+      - run: node scripts/check-v2-model-hero-fallback.mjs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-v2-hero-proof
+          path: artifacts/hero-regression/report.json
+          if-no-files-found: warn
+          retention-days: 14
