@@ -273,6 +273,66 @@ const submissionImages=new Map();
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const money=v=>v===null||v===undefined||v===""?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
 
+const conditionFields=[
+ ["service_history","Service history",["Full","Partial","None","Unknown"]],
+ ["mot","MOT",["Valid — expiry known","Valid — date unknown","Expired","No MOT","Unknown"]],
+ ["keys","Number of keys",["1","2","3 or more","None","Unknown"]],
+ ["v5c","V5C logbook",["In my name","Present — another name","Missing","Unknown"]],
+ ["accident","Accident / damage history",["None known","Previous damage or accident","Unknown"]],
+ ["tyres","Tyres (front and rear)",["Good","Fair","Replacement needed","Unknown"]],
+ ["brakes","Brakes",["Good","Fair","Attention needed","Unknown"]],
+ ["drive","Chain / belt / final drive",["Good","Fair","Attention needed","Not applicable","Unknown"]],
+ ["mechanical","Known mechanical faults",["None known","Faults declared in description","Unknown"]]
+];
+function conditionSellerAnswers(notes){
+ const source=String(notes||"").split("[SELLER-DECLARED CONDITION — NOT VERIFIED]")[1]||"";
+ const labels=["Service history","MOT","Number of keys","V5C logbook","Accident / damage history","Front and rear tyres","Brakes","Chain / belt / final drive","Known mechanical faults"];
+ const found={};
+ conditionFields.forEach(([key],i)=>{const line=source.split(/\r?\n/).find(x=>x.startsWith(labels[i]+": "));if(line){const value=line.slice(labels[i].length+2).trim();if(conditionFields[i][2].includes(value))found[key]=value;}});
+ return found;
+}
+let activeConditionReviewId=null;
+async function openSellerConditionReview(id){
+ const row=rows.find(r=>Number(r.submission_id)===Number(id));if(!row)return;
+ activeConditionReviewId=Number(id);
+ const {data,error}=await sb.rpc("admin_get_seller_condition_review_v1",{p_submission_id:Number(id)});
+ if(error){alert("Cannot load admin corrections: "+error.message);return;}
+ const original=conditionSellerAnswers(row.notes);
+ const edits=data&&typeof data==="object"?data:{};
+ let overlay=document.getElementById("abConditionReviewOverlay");
+ if(!overlay){overlay=document.createElement("div");overlay.id="abConditionReviewOverlay";document.body.appendChild(overlay);}
+ overlay.style.cssText="position:fixed;inset:0;z-index:99999;overflow:auto;background:rgba(0,0,0,.82);padding:20px;display:block";
+ overlay.innerHTML='<div style="max-width:960px;margin:15px auto;background:#171717;color:#fff;border:1px solid #666;border-radius:16px;padding:22px">'+
+ '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 style="margin:0">Complete Auction Information · '+esc(row.reference)+'</h2><button type="button" onclick="closeSellerConditionReview()">✕ Close</button></div>'+
+ '<p class="meta">Original seller answers are preserved. Only the corrections you save will appear as AnyBike admin updates. Do not guess: choose Unknown if confirmation is unavailable.</p>'+
+ '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin:16px 0">'+conditionFields.map(([key,label,options])=>{
+ const originalValue=original[key]||"Not supplied";
+ return '<label style="display:flex;flex-direction:column;gap:7px;padding:12px;border:1px solid '+(!original[key]||original[key]==="Unknown"?"#b66a33":"#444")+';border-radius:8px">'+
+ '<strong>'+esc(label)+'</strong><small style="color:#bbb">Seller declared: '+esc(originalValue)+'</small>'+
+ '<select data-condition-admin-key="'+esc(key)+'" style="min-height:41px;background:#070707;color:white;border:1px solid #777;border-radius:7px;padding:8px">'+
+ '<option value="">Keep original seller answer</option>'+
+ options.map(option=>'<option value="'+esc(option)+'"'+(edits[key]===option?' selected':'')+'>'+esc(option)+'</option>').join("")+
+ '</select></label>';
+ }).join("")+'</div>'+
+ '<label style="display:block;margin-bottom:12px">Reason / supporting source (required)<textarea id="abConditionReviewReason" rows="2" placeholder="e.g. Confirmed with seller by phone; photographs inspected; documentation supplied" style="display:block;margin-top:7px;width:100%;min-height:62px;background:#080808;color:#fff;border:1px solid #666;border-radius:8px;padding:10px"></textarea></label>'+
+ '<p id="abConditionReviewStatus" role="status" style="color:#bbb"></p>'+
+ '<div style="display:flex;gap:12px;flex-wrap:wrap"><button type="button" class="red" onclick="saveSellerConditionReview()">Save reviewed information</button><button type="button" onclick="closeSellerConditionReview()">Close</button></div></div>';
+}
+function closeSellerConditionReview(){const node=document.getElementById("abConditionReviewOverlay");if(node)node.style.display="none";activeConditionReviewId=null;}
+async function saveSellerConditionReview(){
+ const id=activeConditionReviewId;if(!id)return;
+ const root=document.getElementById("abConditionReviewOverlay"),status=document.getElementById("abConditionReviewStatus");
+ const reason=document.getElementById("abConditionReviewReason").value.trim();
+ if(reason.length<5){status.textContent="Enter the source of the information before saving.";return;}
+ const answers={};root.querySelectorAll("[data-condition-admin-key]").forEach(el=>answers[el.dataset.conditionAdminKey]=el.value||null);
+ const button=root.querySelector("button.red");button.disabled=true;status.textContent="Saving reviewed answers…";
+ try{
+  const {data,error}=await sb.rpc("admin_save_seller_condition_review_v1",{p_submission_id:id,p_answers:answers,p_reason:reason});
+  if(error||!data?.success)throw Error(error?.message||"Could not save correction");
+  status.textContent=data.unchanged?"No corrections were changed.":"Saved with a full admin audit record. Future eligible dealer auction views will show the completed answers.";
+  status.style.color="#9cdda9";document.getElementById("abConditionReviewReason").value="";
+ }catch(e){status.textContent=e.message;status.style.color="#ffaaaa";}finally{button.disabled=false;}
+}
 async function toggleInternationalConsideration(id){
  const next=!internationalSelections.get(Number(id));
  const b=document.querySelector('[data-international-id="'+Number(id)+'"]');
@@ -502,6 +562,7 @@ function render(){
         (r.notes?'<details class="admin-source-details"><summary>Original source information · Admin only</summary><p>'+esc(r.notes)+'</p></details>':'')+
         (dealer && !["live","closed","completed","cancelled"].includes(String(r.underwrite_status||"").toLowerCase()) && r.make && r.model?'<div class="underwrite-ready-note">Ready to invite trade offers. The current system still applies an initial bidding deadline; reserve-triggered timing is under development.</div>':'')+
         '<div class="actions">'+
+          '<button type="button" class="red" data-action="condition-review" data-id="'+Number(r.submission_id)+'">Complete Auction Information →</button>'+ 
           '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Optional Stock Comparison</button>'+
           (r.underwrite_status!=="live"
             ?(r.make&&r.model
@@ -736,6 +797,7 @@ document.getElementById("queue").addEventListener("click",async function(e){
     return;
   }
 
+  if(action==="condition-review"){openSellerConditionReview(id);return;}
   if(action==="comparables"){captureComps(id);return;}
   if(action==="start-underwrite"){startUnderwrite(id);return;}
   if(action==="copy-dealer-invite"){
