@@ -1143,23 +1143,29 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // Legacy editorial sections are optional and content-driven, not empty.
   const textSections=arr(guide?.sections).filter(x=>Array.isArray(x)&&str(x[0])&&str(x[1]));
   if(textSections.length){
-   // Keep every legacy paragraph accessible without allowing an old, long
-   // editorial layout to take over the ONE approved universal V2 design.
-   // This shared disclosure is closed by default on every motorcycle.
+   // A single shared V2 supplementary research component for every model:
+   // compact source-text disclosures, never a separate long-form template.
+   // Preserve each legacy paragraph in the DOM, including its exact wording.
    const card=makeSection('v2EditorialSections','Further motorcycle research',$('v2EditorialResearch')||$('v2EngineeringOverview')||$('body'));
+   card.classList.add('anybike-v2-legacy-research');
    const heading=card.querySelector(':scope > h2');
-   const details=node('details');
-   details.dataset.anybikeV2LegacyResearch='1';
-   const summary=node('summary','Further motorcycle research · '+textSections.length+' documented topics');
-   details.append(summary);
+   if(heading)heading.textContent='Further motorcycle research';
+   const grid=node('div',undefined,'anybike-v2-legacy-research-grid');
    for(const [sectionHeading,copy] of textSections){
-    const topic=node('section',undefined,'anybike-v2-legacy-research-topic');
-    topic.append(node('h3',sectionHeading));
-    paragraph(topic,copy);
-    details.append(topic);
+    const details=node('details');
+    details.dataset.anybikeV2LegacyResearch='1';
+    const summary=node('summary');
+    summary.append(node('span',sectionHeading));
+    details.append(summary);
+    const content=node('div',undefined,'anybike-v2-legacy-research-content');
+    paragraph(content,copy);
+    details.append(content);
+    grid.append(details);
    }
-   heading?.remove();
-   card.append(details);
+   // Render only once when the shared route is re-initialised.
+   card.querySelector('.anybike-v2-legacy-research-grid')?.remove();
+   card.querySelector('details[data-anybike-v2-legacy-research]')?.remove();
+   card.append(grid);
   }
   const nav=$('databaseMotorcycleTypes');
   nav.replaceChildren();
