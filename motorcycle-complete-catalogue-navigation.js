@@ -127,10 +127,19 @@ async function mount(){
   if(models.length){
    const nav=section('All '+make+' motorcycle models','Choose any '+make+' model to open its individual AnyBike model guide.',models,'',name=>byModel.get(normalize(name))||genericUrl(make,name));
    nav.dataset.completeCatalogueNavigation='1';
-   const existing=main.querySelector('nav[aria-label="All '+make+' model guides"],nav[aria-label="Related '+make+' model guides"]');
+   // Manufacturer pages may contain an older curated 21-model shortcut DIV,
+   // not a NAV. Replace those exact shortcuts in place with the full shared
+   // Supabase-backed directory; never leave the short list above a second one.
+   const existing=main.querySelector(
+    'nav[aria-label="All '+make+' model guides"],'+
+    'nav[aria-label="Related '+make+' model guides"],'+
+    '#models .navtags.bmw-shortcuts[aria-label="All '+make+' model guides"]'
+   );
    if(existing){
     existing.replaceChildren(...Array.from(nav.querySelector('nav').children));
     existing.setAttribute('aria-label','All '+make+' model guides');
+    existing.dataset.completeCatalogueNavigation='1';
+    existing.dataset.modelCount=String(models.length);
    }else{
     const modelGroups=main.querySelector('#modelGroups,#models');
     if(modelGroups)modelGroups.after(nav);else main.append(nav);
