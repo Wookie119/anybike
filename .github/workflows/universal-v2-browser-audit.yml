@@ -1,0 +1,40 @@
+name: Browser-rendered universal V2 model audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/check-all-978-browser-v2.mjs'
+      - '.github/workflows/universal-v2-browser-audit.yml'
+  schedule:
+    - cron: '37 6 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: universal-v2-browser-audit
+  cancel-in-progress: false
+jobs:
+  browser-audit:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - name: Check browser audit syntax
+        run: node --check scripts/check-all-978-browser-v2.mjs
+      - name: Inspect all 978 browser-rendered V2 pages
+        run: node scripts/check-all-978-browser-v2.mjs
+      - name: Upload per-model browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-v2-browser-audit
+          path: artifacts/universal-v2-browser-audit/report.json
+          if-no-files-found: warn
+          retention-days: 30
