@@ -327,7 +327,7 @@ function showUniversalVerification(make,model,canonicalId){
  if(!marker){
   marker=node('div',undefined,'anybike-v2-verification');
   marker.id='anybikeUniversalV2Verification';
-  marker.style.cssText='max-width:1100px;margin:22px auto 8px;padding:8px 12px;background:#1d1d1d;border:1px solid #777;border-left:3px solid #ed1c24;border-radius:6px;color:#eee;font-size:12px;font-weight:700';
+  marker.style.cssText='max-width:1100px;margin:22px auto 8px;padding:8px 12px;background:#1d1d1d;border:1px solid #777;border-left:3px solid var(--model-accent);border-radius:6px;color:#eee;font-size:12px;font-weight:700';
  }
  marker.dataset.renderer='approved-v2-universal-preview';
  marker.dataset.catalogueModelId=String(canonicalId);
@@ -425,7 +425,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
  showError('Explore motorcycle manufacturers and choose a model to view its researched specifications.');
  const browse=node('a','Browse all motorcycle manufacturers →');
  browse.href='/motorcycle-manufacturers.html';
- browse.style.cssText='display:inline-block;margin-top:10px;color:#fff;text-decoration:underline;text-decoration-color:#ed1c24';
+ browse.style.cssText='display:inline-block;margin-top:10px;color:#fff;text-decoration:underline;text-decoration-color:var(--model-accent)';
  $('previewStatusError').append(browse);
  // Notify the shared navigation loader that there is no valid model identity.
  // It must not wait forever or fabricate model-specific links.
@@ -474,6 +474,10 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   }
   if(found.length!==1)throw Error('No unique published model matches that make and model.');
   const selected=found[0],make=str(selected.make),model=str(selected.model),title=make+' '+model;
+  // SINGLE V2 TEMPLATE: only the manufacturer accent changes, not layout.
+  // Apply exclusively after exact published catalogue identity verification.
+  document.documentElement.dataset.anybikeModelBrand=
+   normalize(make)==='harley davidson'?'harley-davidson':'anybike';
   const canonicalId=Number(selected.model_id||selected.catalogue_model_id);
    if(permanentRouteModelId!==null&&canonicalId!==permanentRouteModelId)
     throw Error('Permanent route catalogue ID mismatch');
