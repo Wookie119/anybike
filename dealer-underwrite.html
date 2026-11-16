@@ -106,7 +106,18 @@ select[id^="request-make-"]:disabled,select[id^="request-model-"]:disabled{
  background:#333!important;color:#bbb!important;cursor:not-allowed;
 }
 </style>
-</head>
+<style id="ab-seller-condition-style">
+.ab-condition-intake{grid-column:1/-1;min-width:0;margin:14px 0;padding:18px;border:1px solid #555;border-radius:12px;background:#141414;color:#fff}
+.ab-condition-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.ab-condition-head strong{font-size:19px}.ab-condition-head span{font-size:13px;font-weight:800;color:#a9dbb6}
+.ab-condition-note{font-size:13px;color:#bbb;line-height:1.5;margin:10px 0}
+.ab-condition-bar{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:3px;min-height:10px;margin:12px 0 18px}
+.ab-condition-bar i{background:#454545;border-radius:3px}.ab-condition-bar i.filled{background:#2d9850}
+.ab-condition-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.ab-condition-field{display:flex!important;flex-direction:column;gap:7px;min-width:0;font-size:13px;font-weight:700}
+.ab-condition-field select{width:100%;min-height:43px;background:#090909;border:1px solid #666;border-radius:8px;color:#fff;padding:9px;font:inherit}
+@media(max-width:550px){.ab-condition-fields{grid-template-columns:minmax(0,1fr)}.ab-condition-intake{padding:13px}}
+</style></head>
 <body>
 <div id="publicHeader"></div>
 <main class="wrap auth-pending" id="underwriteMain">
@@ -170,6 +181,11 @@ select[id^="request-make-"]:disabled,select[id^="request-model-"]:disabled{
         <div id="priceWantedHelp" class="small" style="margin-top:7px;color:#bbb">Enter the price you would ideally like to achieve. Dealers can make confidential offers and you decide whether to accept..</div>
       </div>
 
+      <div class="field">
+        <label for="postcode">Motorcycle collection postcode *</label>
+        <input id="postcode" name="postcode" required autocomplete="postal-code" maxlength="12" placeholder="e.g. OX44 7RW">
+        <div class="small">Used internally for transport and delivery pricing. If the motorcycle is with a customer, enter its collection postcode rather than the dealership's.</div>
+      </div>
       <div class="field">
         <label for="motorcycle_position">Where is the motorcycle?</label>
         <select id="motorcycle_position">
@@ -360,7 +376,7 @@ if(dealerTradeRoute){
   const intro=document.querySelector(".hero p");
   if(intro)intro.textContent="Enter the motorcycle details, your confidential minimum trade price and photographs. For the quickest approval, upload clear original photographs without dealership signs, watermarks or advertising. Photos copied from an existing advert may require cleaning and review. AnyBike will review all photographs before inviting eligible UK trade dealers to bid.";
   const eyebrow=document.querySelector(".hero .eyebrow");
-  if(eyebrow)eyebrow.textContent="My Dealership · Trade services";
+  if(eyebrow)eyebrow.textContent="My Dealership · Trade services"; const priceLabel=document.querySelector('label[for="price_wanted_gbp"]');if(priceLabel)priceLabel.textContent="Confidential minimum acceptable price (£) — required";const priceHelp=document.getElementById("priceWantedHelp");if(priceHelp)priceHelp.textContent="Your reserve is for AnyBike internal review only. It is not shown to bidding dealerships and meeting it does not automatically agree a sale.";
   const expectation=document.getElementById("price_expectation");
   if(expectation){expectation.value="reserve";expectation.closest(".field").style.display="none";}
   const title=document.querySelector("h1");
@@ -711,6 +727,7 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
       btn.disabled=false;btn.textContent=dealerTradeRoute?"Submit for AnyBike auction review →":"Request Underwrite";return;
     }
     fd.set("notes",(dealerTradeRoute && new URLSearchParams(location.search).get("advert")?"[TRADE OFFER ADVERT] "+new URLSearchParams(location.search).get("advert")+"\n":"")+(dealerTradeRoute?"[TRADE OFFER — ADMIN REVIEW REQUIRED]\\n":"")+"[DEALER TIMING] Position: "+position+(position!=="onsite"&&arrival?" | Expected arrival: "+arrival:"")+(paidBy?" | Collection and payment requested by: "+paidBy:"")+"\n[SELLER PREFERENCE] Urgency: "+urgency+" | Price basis: "+priceType+"\n[FINANCE DECLARATION] "+financeDetail+"\n"+String(fd.get("notes")||"").trim());
+    window.AnyBikeSellerDetails?.appendToNotes(fd);
     fd.set("legal_owner_confirmed","true");
     fd.set("source_url",location.origin+(dealerTradeRoute?"/offer-bikes-to-trade.html":"/dealer-underwrite.html"));
     fd.set("country","United Kingdom");
@@ -763,5 +780,6 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
 });
 </script>
 <script src="/public-header.js?v=20261006-underwrite"></script>
+<script src="/seller-condition-intake.js?v=20261116-1"></script>
 </body>
 </html>
