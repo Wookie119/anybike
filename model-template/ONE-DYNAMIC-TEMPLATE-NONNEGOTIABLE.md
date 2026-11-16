@@ -43,3 +43,14 @@ Before deleting any legacy page, guide, renderer, or stylesheet: search every HT
 7. GitHub commits, CI results and live 123-reg deployment are separate evidence; never report a live change without checking it.
 
 **No exceptions to individual template editing without the owner's explicit approval.**
+
+
+## Permanent manufacturer accent rule — 16 November 2026
+
+The **one and only** universal motorcycle-model master, shared renderer and stylesheet apply to every published model URL. A manufacturer may customise **accent colour only**, by the shared renderer selecting the theme after verifying the canonical Supabase model identity. This is NOT permission to create another template or a model-specific HTML/CSS override.
+
+- Harley-Davidson model pages: factory-associated orange `#ff6600` replaces AnyBike red on the universal template's pinstripes, buttons, links, headings, card outlines and accents.
+- All other manufacturer model pages: existing approved AnyBike red `#ed1c24` unless the owner explicitly approves another manufacturer's central accent.
+- The theme is resolved from the canonical `make`, not a user-supplied query override, and implemented through `--model-accent` in the ONE shared stylesheet.
+- The 20-section universal model structure, layouts, approved research, all 979 permanent routes, photography and SEO conventions remain identical.
+- No individual model HTML edits; any shared master asset revision propagates via the audited bulk synchroniser and regression checks. Never weaken design-parity checks to justify a separate Harley-Davidson model template.
