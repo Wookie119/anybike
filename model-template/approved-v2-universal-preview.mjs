@@ -816,7 +816,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // every model of that manufacturer. Logos are NOT motorcycle photographs.
   const registeredManufacturerLogos=Object.freeze({
    ktm:'https://commons.wikimedia.org/wiki/Special:FilePath/KTM-Logo.svg',
-   honda:'https://commons.wikimedia.org/wiki/Special:FilePath/Honda%20Logo.svg',
+   honda:'https://global.honda/content/dam/site/global-en/newsroom-new/cq_img/news/2025/11/c251104beng/c251104beng_01.jpg',
    bmw:'https://cdn.simpleicons.org/bmw',
    ducati:'https://commons.wikimedia.org/wiki/Special:FilePath/Logo%20ducati.png',
    'harley davidson':'https://commons.wikimedia.org/wiki/Special:FilePath/Harley-Davidson%20logo.svg',
