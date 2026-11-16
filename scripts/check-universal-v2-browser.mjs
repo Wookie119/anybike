@@ -274,8 +274,8 @@ try{
     const visible=page.locator('.anybike-v2-reviewed-universal-section');
     if(approvedResearch){
      assert.equal(await visible.count(),20,'All 20 approved research slots must render on the master');
-     assert.match(await visible.first().innerText(),/Approved factory history smoke-test record 1/);
-     assert.match(await visible.last().innerText(),/Approved factory history smoke-test record 20/);
+     assert.match(await visible.first().textContent(),/Approved factory history smoke-test record 1/);
+     assert.match(await visible.last().textContent(),/Approved factory history smoke-test record 20/);
     }else{
      assert.equal(await visible.count(),0,'Draft research must never become visible');
      assert.equal((await page.locator('#body').innerText()).includes('Approved factory history smoke-test record'),false);
