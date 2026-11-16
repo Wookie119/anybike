@@ -260,5 +260,23 @@ check('Legacy guide research remains exact-identity-only',()=>{
  assert.match(renderer,/exact.length===1/);
  assert.match(renderer,/canonicalPath/);
 });
+check('All approved BMW and Harley model aliases converge on permanent V2 routes',()=>{
+ const apache=read('.htaccess');
+ const published=JSON.parse(read('data/universal-v2-model-routes.json')).models;
+ const byIdentity=new Map(published.map(row=>[String(row.make).toLowerCase()+'|'+String(row.model).toLowerCase(),row.url]));
+ const escapeRegex=value=>String(value).replace(/[.*+?^$\{\}()|[\]\\]/g,'\\if(process.exitCode)console.error('Universal V2 source checks FAILED. Live role and visual checks are still required.');');
+ for(const row of approved){
+  const target=byIdentity.get(String(row.make).toLowerCase()+'|'+String(row.model).toLowerCase());
+  assert(target,'Missing canonical permanent route: '+row.url);
+  const expected='RewriteRule ^'+escapeRegex(row.url.slice(1))+'$ '+target+' [R=302,L,NC]';
+  assert(apache.includes(expected),'Legacy alias must redirect to V2: '+row.url);
+ }
+});
+check('Legacy generic model guide resolves exact canonical V2 URL',()=>{
+ const html=read('motorcycle-model-guide.html');
+ assert(html.includes("fetch('/data/universal-v2-model-routes.json'"));
+ assert(html.includes('if(matches.length!==1)return;'));
+ assert(html.includes('location.replace(target.href);'));
+});
 if(process.exitCode)console.error('Universal V2 source checks FAILED. Live role and visual checks are still required.');
 else console.log('Universal V2 source checks passed. Live role and visual checks are still required.');
