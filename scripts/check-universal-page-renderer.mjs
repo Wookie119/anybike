@@ -190,7 +190,7 @@ assert(yearContextText.includes('2018 launch, 2019 model references'),
  'Documented model-year note suppressed by generic renderer');
 assert(yearContextText.includes('Documented owner guidance'),
  'Approved research subtitle suppressed by generic renderer');
-assert(yearContextNodes.some(x=>x.className==='anybike-universal-model-years'),
+assert(yearContextNodes.some(x=>x.className==='anybike-universal-years'),
  'Model-year context class missing from shared layout');
 
 
