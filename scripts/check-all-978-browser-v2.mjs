@@ -36,11 +36,24 @@ async function worker(){
       rendererReady:window.__anybikeV2EditorialReady===true
      };
     });
-    if(state.identity?.model_id!==entry.model_id||state.identity?.make!==entry.make||state.identity?.model!==entry.model)issues.push('ROUTE_IDENTITY_MISMATCH');
-    if(state.heading.toLowerCase()!==(entry.make+' '+entry.model).toLowerCase())issues.push('HEADING_MISMATCH');
+    // Reviewed catalogue aliases intentionally redirect to their canonical
+    // URL. Accept ONLY a source-declared alias pointing to an exact published
+    // model identity, never an unrelated or guessed destination.
+    let expected=entry,aliasRedirected=false;
+    if(new URL(page.url()).pathname!==entry.url){
+     const source=await readFile('.'+entry.url,'utf8');
+     const declared=source.match(/Reviewed catalogue alias:[^<]*?location\.replace\("([^"]+)"/)?.[1];
+     const canonical=source.match(/<link id="modelCanonical" rel="canonical" href="([^"]+)"/)?.[1];
+     const match=manifest.models.filter(x=>x.url===declared&&origin+x.url===canonical);
+     if(match.length===1&&new URL(page.url()).pathname===match[0].url){
+      expected=match[0];aliasRedirected=true;
+     }else issues.push('UNAPPROVED_ROUTE_REDIRECT');
+    }
+    if(state.identity?.model_id!==expected.model_id||state.identity?.make!==expected.make||state.identity?.model!==expected.model)issues.push('ROUTE_IDENTITY_MISMATCH');
+    if(state.heading.toLowerCase()!==(expected.make+' '+expected.model).toLowerCase())issues.push('HEADING_MISMATCH');
     if(state.error)issues.push('PUBLIC_ERROR:'+state.error);
     if(!state.researchPanel)issues.push('RESEARCH_PANEL_MISSING');
-    results[index]={...entry,pass:!issues.length,issues,actualUrl:page.url(),actualHeading:state.heading,actualIdentity:state.identity,rendererReady:state.rendererReady,researchCount:state.researchCount,errors};
+    results[index]={...entry,pass:!issues.length,issues,aliasRedirected,actualUrl:page.url(),actualHeading:state.heading,actualIdentity:state.identity,rendererReady:state.rendererReady,researchCount:state.researchCount,errors};
    }catch(e){results[index]={...entry,pass:false,issues:['BROWSER_FAILED:'+String(e.message||e).slice(0,200)],errors};}
    finally{await page.close().catch(()=>{});}
    if((index+1)%50===0)console.log('Browser audit processed',index+1,'/',selected.length);
