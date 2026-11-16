@@ -317,11 +317,10 @@ function makeSection(id,title,after){
 }
 import {resolveApprovedV2Identity} from '/model-template/approved-v2-route-identity.mjs';
 const params=new URLSearchParams(location.search);
-// On permanent /models/ routes, show this small identity marker at the bottom.
-// On shared query/legacy routes, show it only when ?v2verify=1 is supplied.
+// Optional diagnostic only; no visible marker on normal public pages.
 // Emitted only after the shared renderer resolves an exact catalogue identity.
 function showUniversalVerification(make,model,canonicalId){
- if(!/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(location.pathname)&&params.get('v2verify')!=='1')return;
+ if(params.get('v2verify')!=='1')return;
  const main=document.querySelector('main');
  if(!main)return;
  let marker=document.getElementById('anybikeUniversalV2Verification');
