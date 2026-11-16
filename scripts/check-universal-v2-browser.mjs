@@ -181,7 +181,7 @@ try{
    assert.equal(await page.locator('#heading').innerText(),make+' '+model);
    if(routeName.startsWith('models/')&&make==='KTM'){
     const introduction=await page.locator('#summary').innerText();
-    assert.match(introduction,/Explore KTM 390 Duke/,
+    assert.match(introduction,/Explore (?:the )?KTM 390 Duke/,
      'Unresearched motorcycle must retain a customer-facing universal hero');
     assert.doesNotMatch(introduction,/research is not yet published/i,
      'Universal model page must not advertise missing research');
