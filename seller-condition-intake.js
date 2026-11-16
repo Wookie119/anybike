@@ -38,6 +38,21 @@ function setup(){
   for(const option of choices){const node=document.createElement("option");node.value=option;node.textContent=option;select.appendChild(node);}
   label.append(titleNode,select);host.appendChild(label);
  }
+ // Known faults must be described in actual words, not just marked as present.
+ const faults=document.createElement("label");faults.className="ab-condition-field ab-condition-faults";
+ faults.style.gridColumn="1/-1";faults.hidden=true;
+ const faultsTitle=document.createElement("span");faultsTitle.textContent="Describe the known mechanical faults *";
+ const faultsInput=document.createElement("textarea");faultsInput.id="ab-condition-fault-description";faultsInput.rows=3;
+ faultsInput.placeholder="Describe symptoms, warning lights, repairs needed or any known mechanical issue. Do not include contact details.";
+ faultsInput.style.cssText="width:100%;min-height:90px;background:#090909;border:1px solid #666;border-radius:8px;color:#fff;padding:10px";
+ faults.append(faultsTitle,faultsInput);host.appendChild(faults);
+ const faultsSelect=wrapper.querySelector("#ab-condition-mechanical");
+ function syncFaults(){
+  const shown=faultsSelect?.value==="Faults declared in description";
+  faults.hidden=!shown;faultsInput.required=!!shown;if(!shown)faultsInput.value="";
+ }
+ faultsSelect?.addEventListener("change",syncFaults);syncFaults();
+ form.addEventListener("reset",()=>setTimeout(syncFaults,0));
  // Collection postcodes are essential for delivery quotes. Keep full postcodes internal.
  const postcode=form.querySelector("#postcode");
  if(postcode){postcode.required=true;const lbl=form.querySelector('label[for="postcode"]');if(lbl)lbl.textContent="Motorcycle collection postcode *";}
@@ -57,6 +72,8 @@ window.AnyBikeSellerDetails={
    const select=document.getElementById("ab-condition-"+key);
    if(select)declarations.push(title+": "+normalise(select.value||"Not answered"));
   }
+  const faultText=normalise(document.getElementById("ab-condition-fault-description")?.value||"");
+  if(faultText)declarations.push("Known fault details: "+faultText);
   if(declarations.length)fd.set("notes",String(fd.get("notes")||"")+"\n[SELLER-DECLARED CONDITION — NOT VERIFIED]\n"+declarations.join("\n"));
   return fd;
  }
