@@ -815,11 +815,11 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // inferred logo from an arbitrary brand's name. The same registry serves
   // every model of that manufacturer. Logos are NOT motorcycle photographs.
   const registeredManufacturerLogos=Object.freeze({
-   ktm:'https://cdn.simpleicons.org/ktm',
-   honda:'https://cdn.simpleicons.org/honda',
+   ktm:'https://commons.wikimedia.org/wiki/Special:FilePath/KTM-Logo.svg',
+   honda:'https://commons.wikimedia.org/wiki/Special:FilePath/Honda%20Logo.svg',
    bmw:'https://cdn.simpleicons.org/bmw',
-   ducati:'https://cdn.simpleicons.org/ducati',
-   'yamaha':'https://cdn.simpleicons.org/yamahamotorcorporation'
+   ducati:'https://commons.wikimedia.org/wiki/Special:FilePath/Logo%20ducati.png',
+   'yamaha':'https://commons.wikimedia.org/wiki/Special:FilePath/Yamaha%20Motor%202025.svg'
   });
   if(fig&&safePhoto(approvedHero)){
    // Share/preview images are added only when the same exact-model photo
