@@ -85,7 +85,7 @@ export async function installPublicCountryNavigation({root=document.querySelecto
   if(!mounted)return false;
   const panel=root.querySelector('[data-anybike-db-section="country_markets"]');
   if(panel){
-   panel.style.cssText='grid-column:1 / -1;margin:22px 0;padding:22px;border:1px solid #555;border-left:3px solid #ed1c24;border-radius:12px;background:#252525;color:#fff';
+   panel.style.cssText='grid-column:1 / -1;margin:22px 0;padding:22px;border:1px solid #555;border-left:3px solid '+(location.pathname==='/harley-davidson-motorcycles.html'?'#ff6600':'#ed1c24')+';border-radius:12px;background:#252525;color:#fff';
    for(const nav of panel.querySelectorAll('.anybike-db-model-links')){
     nav.style.cssText='display:flex;flex-wrap:wrap;gap:9px;padding:14px 0';
    }
