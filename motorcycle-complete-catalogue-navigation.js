@@ -13,7 +13,7 @@ const normalize=x=>String(x||'').toLocaleLowerCase('en').replace(/[^a-z0-9]/g,''
 const makeUrl=m=>normalize(m)===normalize('BMW')?'/bmw-motorcycles.html':normalize(m)===normalize('Harley-Davidson')?'/harley-davidson-motorcycles.html':'/motorcycle-brand.html?make='+encodeURIComponent(m);
 const genericUrl=(m,n)=>'/motorcycle-model-guide.html?make='+encodeURIComponent(m)+'&model='+encodeURIComponent(n);
 const css='.anybike-complete-directory{margin:22px 0;padding:22px;background:#252525;border:1px solid #ed1c24;border-radius:12px;color:#fff}.anybike-complete-directory h2{margin:0 0 8px;color:#fff}.anybike-complete-directory p{color:#ddd}.anybike-complete-directory nav{display:flex;flex-wrap:wrap;gap:9px}.anybike-complete-directory a,.anybike-complete-directory .nav-pill{display:inline-flex;align-items:center;min-height:40px;padding:8px 13px;background:#303030;border:1px solid #767676;border-radius:99px;color:#fff;text-decoration:none;font-weight:650;font-size:14px}.anybike-complete-directory a:hover,.anybike-complete-directory a:focus-visible{border-color:#ed1c24;outline-offset:3px}.anybike-complete-directory .nav-pill[aria-current="page"]{border-color:#ed1c24;background:#3a3a3a}.anybike-complete-directory .dir-count{font-size:13px;color:#bbb;margin:4px 0 14px}';
-const style=document.createElement('style');style.textContent=css;document.head.append(style);
+const style=document.createElement('style');style.textContent=make==='Harley-Davidson'?css.replaceAll('#ed1c24','#ff6600'):css;document.head.append(style);
 function pill(nav,label,url,current){
  const el=document.createElement(current?'span':'a');el.className='nav-pill';el.textContent=label+(current?'':' →');
  if(current)el.setAttribute('aria-current','page');else el.href=url;nav.append(el);
