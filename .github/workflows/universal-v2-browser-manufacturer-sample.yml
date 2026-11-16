@@ -1,0 +1,42 @@
+name: V2 browser sample across all manufacturers
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/check-all-978-browser-v2.mjs'
+      - '.github/workflows/universal-v2-browser-manufacturer-sample.yml'
+  schedule:
+    - cron: '7 7 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: universal-v2-manufacturer-sample
+  cancel-in-progress: false
+jobs:
+  manufacturer-browser-audit:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    timeout-minutes: 25
+    env:
+      ANYBIKE_V2_BROWSER_SAMPLE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - name: Check sample audit syntax
+        run: node --check scripts/check-all-978-browser-v2.mjs
+      - name: Render one exact model per manufacturer with Supabase
+        run: node scripts/check-all-978-browser-v2.mjs
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-v2-manufacturer-browser-sample
+          path: artifacts/universal-v2-browser-audit/report.json
+          if-no-files-found: warn
+          retention-days: 30
