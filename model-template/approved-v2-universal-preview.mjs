@@ -798,10 +798,29 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    normalize(x.model)===normalize(model)&&validURL(x.image_url)&&
    validURL(x.source_page_url)&&validURL(x.licence_url)&&
    str(x.attribution)&&str(x.licence);
-  // Central photo-bank approvals take precedence. An already-published,
-  // attributed exact-model Wikimedia image is used only as a fallback.
+  // Always prefer a rights-checked photograph of THIS exact model.
+  // A valid licensed exact-model gallery photograph may fill the hero slot
+  // when the dedicated hero RPC has no image. Never use another motorcycle.
+  if(!safePhoto(approvedHero)){
+   const fullBike=arr(approvedGallery).filter(safePhoto).sort((a,b)=>{
+    const detail=x=>/\\b(?:engine|motor|detail|close.up|instrument|exhaust)\\b/i.test(str(x.title));
+    return Number(detail(a))-Number(detail(b));
+   });
+   if(fullBike.length)approvedHero=fullBike[0];
+  }
+  // Existing attributed exact-model research photos are a final photo fallback.
   if(!safePhoto(approvedHero)&&safePhoto(preservedExistingPhoto))
    approvedHero=preservedExistingPhoto;
+  // Explicitly registered manufacturer marks only; no fuzzy lookup or
+  // inferred logo from an arbitrary brand's name. The same registry serves
+  // every model of that manufacturer. Logos are NOT motorcycle photographs.
+  const registeredManufacturerLogos=Object.freeze({
+   ktm:'https://cdn.simpleicons.org/ktm',
+   honda:'https://cdn.simpleicons.org/honda',
+   bmw:'https://cdn.simpleicons.org/bmw',
+   ducati:'https://cdn.simpleicons.org/ducati',
+   'yamaha':'https://cdn.simpleicons.org/yamahamotorcorporation'
+  });
   if(fig&&safePhoto(approvedHero)){
    // Share/preview images are added only when the same exact-model photo
    // passed the central image rights and identity checks.
@@ -819,6 +838,19 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    sourceLink(caption,approvedHero.source_page_url,'Photograph attribution ↗');
    sourceLink(caption,approvedHero.licence_url,' · Licence ↗');
    fig.hidden=false;
+  }else if(fig){
+   const registeredLogo=registeredManufacturerLogos[normalize(make)];
+   if(registeredLogo){
+    const img=fig.querySelector('img');
+    img.src=registeredLogo;
+    img.alt=make+' manufacturer logo';
+    img.style.objectFit='contain';
+    const caption=fig.querySelector('figcaption');
+    caption.textContent=make+' manufacturer logo';
+    fig.dataset.anybikeHeroType='manufacturer-logo';
+    img.onerror=()=>{fig.hidden=true;fig.dataset.anybikeHeroType='unavailable'};
+    fig.hidden=false;
+   }
   }
   // Never repeat the hero as a gallery card or display the same image twice.
   const galleryUrls=new Set(safePhoto(approvedHero)?[approvedHero.image_url]:[]);
