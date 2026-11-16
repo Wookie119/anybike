@@ -819,6 +819,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    honda:'https://commons.wikimedia.org/wiki/Special:FilePath/Honda%20Logo.svg',
    bmw:'https://cdn.simpleicons.org/bmw',
    ducati:'https://commons.wikimedia.org/wiki/Special:FilePath/Logo%20ducati.png',
+   'harley davidson':'https://commons.wikimedia.org/wiki/Special:FilePath/Harley-Davidson%20logo.svg',
    'yamaha':'https://commons.wikimedia.org/wiki/Special:FilePath/Yamaha%20Motor%202025.svg'
   });
   if(fig&&safePhoto(approvedHero)){
