@@ -22,6 +22,9 @@ export async function mountManufacturerModelIndex({
  root=typeof document==='undefined'?null:document.querySelector('main'),
  make=null,client=null
 }={}){
+ // A manufacturer's own complete model library already serves this purpose.
+ // Never append a second "model guide directory" beneath that library.
+ if(root?.querySelector('#models .navtags.bmw-shortcuts[aria-label="All '+make+' model guides"]'))return false;
  if(!root||!prefixFor(make)||root.querySelector('[data-anybike-model-index]'))return false;
  const db=client||globalThis.supabase?.createClient?.(ENDPOINT,PUBLIC_KEY);
  if(!db)return false;
