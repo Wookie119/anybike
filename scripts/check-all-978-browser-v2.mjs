@@ -40,7 +40,7 @@ async function worker(){
     if(state.heading.toLowerCase()!==(entry.make+' '+entry.model).toLowerCase())issues.push('HEADING_MISMATCH');
     if(state.error)issues.push('PUBLIC_ERROR:'+state.error);
     if(!state.researchPanel)issues.push('RESEARCH_PANEL_MISSING');
-    results[index]={...entry,pass:!issues.length,issues,rendererReady:state.rendererReady,researchCount:state.researchCount,errors};
+    results[index]={...entry,pass:!issues.length,issues,actualUrl:page.url(),actualHeading:state.heading,actualIdentity:state.identity,rendererReady:state.rendererReady,researchCount:state.researchCount,errors};
    }catch(e){results[index]={...entry,pass:false,issues:['BROWSER_FAILED:'+String(e.message||e).slice(0,200)],errors};}
    finally{await page.close().catch(()=>{});}
    if((index+1)%50===0)console.log('Browser audit processed',index+1,'/',selected.length);
