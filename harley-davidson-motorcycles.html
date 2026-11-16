@@ -195,6 +195,21 @@ function photoHarley(p,name){if(name==='Pan America 1250')return '<div class="ha
 document.getElementById("modelFamilies").innerHTML=curatedHarley.map(f=>'<section class="section" id="'+f.key+'"><div class="sectionhead"><div><h3>'+escHarley(f.label)+'</h3></div></div><div class="modelgrid">'+f.entries.map(m=>'<div class="model'+(m.photo?'':' model--text-only')+'">'+photoHarley(m.photo,m.name)+'<a class="model-main" href="'+escHarley(m.url)+'"><span class="name">Harley-Davidson '+escHarley(m.name)+'</span><span class="hint">'+escHarley(m.hint)+'</span><span class="model-description">'+escHarley(m.description)+'</span><span class="go">'+(m.url==='/harley-davidson-cvo.html'?'Explore all Harley-Davidson CVO editions →':'Read Harley-Davidson '+escHarley(m.name)+' model guide →')+'</span></a>'+(m.photo?'<a class="bmw-credit-link" href="#harley-photo-credits">Photo credit ↗</a>':'')+'</div>').join("")+'</div></section>').join("");
 const credits=curatedHarley.flatMap(f=>f.entries.filter(m=>m.photo).map(m=>({name:m.name,...m.photo})));
 if(credits.length){const creditSection=document.createElement("section");creditSection.className="section bmw-credits-section";creditSection.id="harley-photo-credits";creditSection.innerHTML='<h2>Photograph credits</h2><p class="footnote">Photographs are credited to their creators, or identified as images supplied to AnyBike. Some supplied photographs have edited backgrounds. Source and licence details are shown where applicable.</p><ul class="bmw-credit-list">'+credits.map(p=>'<li><strong>Harley-Davidson '+escHarley(p.name)+'</strong> — '+escHarley(p.author)+(p.license&&(p.license.includes('Illustration')||p.license.includes('Branded artwork'))?' · Branded or illustrative artwork, not a verified motorcycle photograph':' · <a href="'+escHarley(p.source)+'" target="_blank" rel="noopener noreferrer">Original photograph ↗</a> · <a href="'+escHarley(p.licenseUrl)+'" target="_blank" rel="noopener noreferrer">'+escHarley(p.license)+' ↗</a>')+'</li>').join("")+'</ul>';document.getElementById("harley-credits-mount").appendChild(creditSection)}
+// One consolidated credits panel: keep unique original editorial sources
+// alongside curated model-card photo credits; never show a duplicate box.
+const oldEditorialCredits=document.querySelector('details.harley-editorial-attributions');
+const consolidatedCredits=document.querySelector('#harley-photo-credits ul');
+if(oldEditorialCredits&&consolidatedCredits){
+ const originalLinks=new Set([...consolidatedCredits.querySelectorAll('a[href]')].map(a=>a.href));
+ for(const item of oldEditorialCredits.querySelectorAll('li')){
+  const link=item.querySelector('a[href]');
+  if(!link||!originalLinks.has(link.href)){
+   consolidatedCredits.append(item.cloneNode(true));
+   if(link)originalLinks.add(link.href);
+  }
+ }
+ oldEditorialCredits.remove();
+}
 </script>
 <script>
 /* Universal V2 rollout: reuse the approved Supabase model identity index
@@ -225,9 +240,9 @@ if(credits.length){const creditSection=document.createElement("section");creditS
  }catch(error){console.warn('Harley V2 model guide routing fallback retained',error)}
 })();
 </script>
-<script defer src="/motorcycle-complete-catalogue-navigation.js?v=20261116-harley-orange-no-duplicate"></script>
+<script defer src="/motorcycle-complete-catalogue-navigation.js?v=20261116-one-manufacturer-directory"></script>
 <script src="/public-header.js?v=202610112205"></script>
-<script type="module" src="/model-template/public-country-market-navigation.mjs?v=20261109-2"></script>
+<script type="module" src="/model-template/public-country-market-navigation.mjs?v=20261116-harley-orange"></script>
 <script type="module" src="/model-template/public-manufacturer-model-index.mjs?v=20261116-no-duplicate"></script>
 <script src="/global-manufacturer-stories.js?v=20261012"></script>
 <script src="/motorcycle-related-manufacturers.js?v=20261012"></script>
