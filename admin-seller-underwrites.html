@@ -405,7 +405,7 @@ async function toggleInternationalConsideration(id){
  const {error}=await sb.rpc("admin_set_trade_international_consideration_v1",{p_submission_id:Number(id),p_selected:next});
  if(error){alert("Could not change international consideration: "+error.message);if(b)b.disabled=false;return;}
  internationalSelections.set(Number(id),next);
- if(b){b.disabled=false;b.textContent=next?"✓ International consideration selected — Remove":"Consider for international buyers later";}
+ if(b){b.disabled=false;b.textContent=next?"✓ International consideration selected — Remove":"Consider internationally";}
 }
 async function loadQueue(){
   const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v5",{p_limit:150});
@@ -604,40 +604,40 @@ function render(){
       '<article class="card">'+
         '<div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+new Date(r.created_at).toLocaleString("en-GB")+'</div></div><div style="display:flex;gap:8px;align-items:center"><span class="badge '+(dealer?"dealer":"")+'">'+esc(dealer?"Dealer Underwrite":"Sell Your Bike")+'</span><button type="button" class="btn" data-action="collapse" data-id="'+Number(r.submission_id)+'">▲ Collapse</button></div></div>'+
         '<div class="bike">'+esc(bike)+'</div>'+
-        '<button type="button" class="red" onclick="openSubmissionAdvertPreview('+Number(r.submission_id)+')" style="margin:9px 0 12px">View motorcycle advert preview →</button>'+
+        '<button type="button" class="red" onclick="openSubmissionAdvertPreview('+Number(r.submission_id)+')" style="margin:9px 0 12px">Preview dealer advert →</button>'+
         '<div class="sub">'+esc(r.registration||"No registration")+(r.bike_year?" · "+esc(r.bike_year):"")+(r.mileage!==null?" · "+Number(r.mileage).toLocaleString("en-GB")+" miles":"")+'</div>'+
         '<div class="data">'+
           '<div class="box"><span>Seller price expectation</span><strong>'+(r.price_wanted_gbp===null||r.price_wanted_gbp===undefined?(dealer?"To be determined from trade bids":"Not provided"):money(r.price_wanted_gbp))+'</strong></div>'+
-          '<div class="box"><span>Seller</span><strong>'+esc(seller)+'</strong><div style="margin-top:7px;font-size:12px">'+(r.seller_email?'<a style="color:#ff696e" href="mailto:'+encodeURIComponent(r.seller_email)+'">Email seller</a> ':'')+(r.seller_phone?'<a style="color:#ff696e;margin-left:10px" href="tel:'+esc(r.seller_phone)+'">Call seller</a> ':'')+(r.message_thread_id?'<a style="color:#ff696e;margin-left:10px" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Conversation →</a> <a style="display:inline-block;margin:6px 0 0 10px;color:#fff;background:#ed1c24;padding:8px 10px;border-radius:7px;text-decoration:none;font-weight:700" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'&dealer_photo_request=1&reference='+encodeURIComponent(r.reference||'')+'">Request More Photos →</a>':'')+'</div></div>'+
+          '<div class="box"><span>Seller</span><strong>'+esc(seller)+'</strong><div style="margin-top:7px;font-size:12px">'+(r.seller_email?'<a style="color:#ff696e" href="mailto:'+encodeURIComponent(r.seller_email)+'">Email seller</a> ':'')+(r.seller_phone?'<a style="color:#ff696e;margin-left:10px" href="tel:'+esc(r.seller_phone)+'">Call seller</a> ':'')+(r.message_thread_id?'<a style="color:#ff696e;margin-left:10px" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Conversation →</a> <a style="display:inline-block;margin:6px 0 0 10px;color:#fff;background:#ed1c24;padding:8px 10px;border-radius:7px;text-decoration:none;font-weight:700" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'&dealer_photo_request=1&reference='+encodeURIComponent(r.reference||'')+'">Request photos →</a>':'')+'</div></div>'+
 
           '<div class="box"><span>History check</span><strong>'+esc(r.hpi_clear===true?"Seller HPI clear indicated":"Not verified")+'</strong></div>'+
-          '<div class="box"><span>Trade offers</span><strong>'+(tradeOpportunityBySubmission.has(Number(r.submission_id))?Number(tradeOpportunityBySubmission.get(Number(r.submission_id)).live_bid_count||0)+' current offers':'Not open for bidding')+'</strong><div style="margin-top:7px;font-size:12px">'+(tradeOpportunityBySubmission.has(Number(r.submission_id))?'Highest current bid: '+money(tradeOpportunityBySubmission.get(Number(r.submission_id)).highest_live_bid_gbp):'Trade bids will appear after publication')+'</div><a href="/admin-trade-underwrites.html" style="color:#ff696e;font-size:12px">Open Trade Underwrite Desk →</a></div>'+
+          '<div class="box"><span>Trade offers</span><strong>'+(tradeOpportunityBySubmission.has(Number(r.submission_id))?Number(tradeOpportunityBySubmission.get(Number(r.submission_id)).live_bid_count||0)+' current offers':'Not open for bidding')+'</strong><div style="margin-top:7px;font-size:12px">'+(tradeOpportunityBySubmission.has(Number(r.submission_id))?'Highest current bid: '+money(tradeOpportunityBySubmission.get(Number(r.submission_id)).highest_live_bid_gbp):'Awaiting auction')+'</div><a href="/admin-trade-underwrites.html" style="color:#ff696e;font-size:12px">Open Trade Underwrite Desk →</a></div>'+
 
 
         '</div>'+
         '<div class="submission-gallery" id="submission-gallery-'+Number(r.submission_id)+'">'+
-          '<div class="submission-gallery-head"><strong>Motorcycle photos · '+Number(r.image_total||0)+'</strong><span class="sub">Loading all images…</span></div>'+
+          '<div class="submission-gallery-head"><strong>Photos · '+Number(r.image_total||0)+'</strong><span class="sub">Loading all images…</span></div>'+
           (r.reference==="AB-S-000037"?'<div style="margin:9px 0 14px;padding:13px;background:#161616;border:1px solid #444;border-radius:9px"><strong>Petro photo recovery</strong><button type="button" class="btn" onclick="reviewPetroOriginals(this)">View 6 original photos →</button><div id="petro-originals-review" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px"></div><span id="petro-recovery-status" style="display:block;color:#bbb;font-size:12px">Originals retained. No automatic publication.</span></div>':'')+
-          (r.message_thread_id?'<a class="btn" style="display:inline-block;margin-bottom:10px" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'&photo_request=1&reference='+encodeURIComponent(r.reference||'')+'">Ask Seller for More Photos →</a>':'')+'<div class="submission-gallery-grid"><div class="submission-photo placeholder">Loading photos…</div></div>'+(Number(r.submission_id)===34?'<button type="button" class="btn" style="margin-top:10px" onclick="recoverSuzukiPhotos(this)">Recover 3 Suzuki advert photos →</button>':'')+
+          '<div class="submission-gallery-grid"><div class="submission-photo placeholder">Loading photos…</div></div>'+(Number(r.submission_id)===34?'<button type="button" class="btn" style="margin-top:10px" onclick="recoverSuzukiPhotos(this)">Recover 3 Suzuki advert photos →</button>':'')+
         '</div>'+
         (hasComps
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
-          :'<div class="sub">Trade price will be established from confidential UK dealer bids. No stock comparison is required.</div>')+
+          :'<div class="sub"></div>')+
                 '<section class="admin-advert-description"><h3>Motorcycle description</h3><p>'+esc(cleanUnderwriteAdvertDescription(r.notes))+'</p><button type="button" class="btn" data-action="edit-description" data-id="'+Number(r.submission_id)+'">Edit Description →</button></section>'+
-        (r.notes?'<details class="admin-source-details"><summary>Original source information · Admin only</summary><p>'+esc(r.notes)+'</p></details>':'')+
-        (dealer && !["live","closed","completed","cancelled"].includes(String(r.underwrite_status||"").toLowerCase()) && r.make && r.model?'<div class="underwrite-ready-note">Complete auction information, confirm the confidential seller reserve and review the photos before publishing.</div>':'')+
+        (r.notes?'<details class="admin-source-details"><summary>Original seller notes</summary><p>'+esc(r.notes)+'</p></details>':'')+
+        (dealer && !["live","closed","completed","cancelled"].includes(String(r.underwrite_status||"").toLowerCase()) && r.make && r.model?'<div class="underwrite-ready-note"></div>':'')+
         '<div class="actions review-auction-actions">'+
-          '<button type="button" class="red" data-action="condition-review" data-id="'+Number(r.submission_id)+'">Complete Auction Information →</button>'+ 
-          '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Optional Stock Comparison</button>'+
+          '<button type="button" class="red" data-action="condition-review" data-id="'+Number(r.submission_id)+'">Complete details →</button>'+ 
+          '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Compare stock</button>'+
           (r.underwrite_status!=="live"
             ?(r.make&&r.model
               ?'<select id="underwrite-hours-'+Number(r.submission_id)+'" aria-label="Bidding time" style="max-width:185px"><option value="12" '+(String(r.notes||"").includes("Urgency: urgent")?"selected":"")+'>Urgent · 12 hours</option><option value="24">24 hours</option><option value="48" '+(!String(r.notes||"").includes("Urgency: urgent")&&!String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Standard · 48 hours</option><option value="72">72 hours</option><option value="96" '+(String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Flexible · 96 hours</option><option value="168">7 days</option><option value="336" '+(r.seller_type==="dealer"?"selected":"")+'>14 days · Dealer stock</option><option value="720">30 days · Long-term dealer stock</option></select>'
               :'<button type="button" class="red" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Complete Bike Details</button>')
             :'<a class="btn" href="/admin-trade-underwrites.html">Open Underwrite Desk</a>')+
-          '<button type="button" data-action="copy-dealer-invite" data-id="'+Number(r.submission_id)+'">Copy dealer invitation link</button>'+ '<button type="button" data-action="refresh-demand" data-id="'+Number(r.submission_id)+'">Refresh Buyer Match</button>'+
+          '<button type="button" data-action="copy-dealer-invite" data-id="'+Number(r.submission_id)+'">Copy invite</button>'+ '<button type="button" data-action="refresh-demand" data-id="'+Number(r.submission_id)+'">Refresh matches</button>'+
           (Number(r.unique_buyer_match_count||0)>0?'<button type="button" data-action="view-demand" data-id="'+Number(r.submission_id)+'">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
-          '<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Edit Bike Details</button>'+
-          (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Open Message</a>':"")+
+          '<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Edit bike</button>'+
+          (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Messages</a>':"")+
           ''+
         '</div>'+
         '<div class="review-final-action" style="margin-top:12px;padding:10px 12px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Your Next Action →</strong><p style="margin:5px 0 9px;font-size:13px">'+
@@ -647,7 +647,7 @@ function render(){
             ? "Bidding is live. Review offers in the Trade Underwrite Desk; complete seller and HPI checks before choosing the buyer."
             : ["closed","completed","cancelled"].includes(String(r.underwrite_status||"").toLowerCase())
               ? "Bidding has ended. Review the result and any agreed sale in the Trade Underwrite Desk. Do not restart bidding."
-              : "Review motorcycle details and approved photos, then start UK trade bidding when ready.")+
+              : "Finish details and photos before starting.")+
         '</p>'+
         (Number(r.submission_id)===28 && ["closed","completed"].includes(String(r.underwrite_status||"").toLowerCase())
           ? '<a class="btn red" href="/admin-enquiries.html?deal=36">OPEN HONDA DEAL 360 — PREPARE PROFORMA →</a>'
@@ -655,8 +655,8 @@ function render(){
             ? '<a class="btn" href="/admin-trade-underwrites.html">OPEN TRADE UNDERWRITE DESK →</a>'
             : (!r.make||!r.model
               ? '<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">COMPLETE MOTORCYCLE DETAILS →</button>'
-              : '<button type="button" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">START TRADE BIDDING →</button>'))+'</div>'+ 
-        (dealer?'<button type="button" data-international-id="'+Number(r.submission_id)+'" onclick="toggleInternationalConsideration('+Number(r.submission_id)+')" style="margin-top:8px">'+(internationalSelections.get(Number(r.submission_id))?'✓ International consideration selected — Remove':'Consider for international buyers later')+'</button><div class="sub">Admin-only shortlist. Does not publish or contact buyers.</div>':'')+'<div id="action-status-'+Number(r.submission_id)+'" class="sub" style="margin-top:8px;min-height:16px"></div>'+
+              : '<button type="button" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">START AUCTION →</button>'))+'</div>'+ 
+        (dealer?'<button type="button" data-international-id="'+Number(r.submission_id)+'" onclick="toggleInternationalConsideration('+Number(r.submission_id)+')" style="margin-top:8px">'+(internationalSelections.get(Number(r.submission_id))?'✓ International consideration selected — Remove':'Consider internationally')+'</button><div class="sub"></div>':'')+'<div id="action-status-'+Number(r.submission_id)+'" class="sub" style="margin-top:8px;min-height:16px"></div>'+
       '</article>'+
     '</div>';
 
@@ -766,8 +766,8 @@ async function loadSubmissionImages(id){
       '<span>Photo '+Number(img.image_position||0)+(img.final_status!=="approved"?' · REVIEW REQUIRED':'')+'</span></button>'+
       '<div class="photo-actions"><button type="button" class="rotate-photo" onclick="moveSellerPhotoInGallery('+id+','+Number(img.image_id)+',\'up\',this)" title="Move photo earlier">↑ Earlier</button><button type="button" class="rotate-photo" onclick="moveSellerPhotoInGallery('+id+','+Number(img.image_id)+',\'down\',this)" title="Move photo later">↓ Later</button></div><div class="photo-actions"><button type="button" class="rotate-photo" onclick="cleanSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Create a cleaned copy; inspect before approval">Clean photo →</button><button type="button" class="rotate-photo" onclick="rotateSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Rotate this photo 90 degrees clockwise">↻ Rotate</button><button type="button" class="reject-photo" onclick="rejectSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Remove this photograph from the advert; keep original privately for audit">✕ Remove</button></div></div>';
   }).join("");
-  status.textContent=images.filter(img=>img.final_status==="approved").length+" approved · "+images.filter(img=>img.final_status==="review_required").length+" awaiting review · click available photos to enlarge";
-  status.insertAdjacentHTML("beforeend",' · <button type="button" class="btn" style="font-size:11px;padding:4px 7px" onclick="openInlinePhotoTools('+id+',1)">Advanced photo tools (on this page) →</button>');
+  status.textContent=images.filter(img=>img.final_status==="approved").length+" approved · "+images.filter(img=>img.final_status==="review_required").length+" to review";
+  status.insertAdjacentHTML("beforeend",' · <button type="button" class="btn" style="font-size:11px;padding:4px 7px" onclick="openInlinePhotoTools('+id+',1)">Photo tools →</button>');
 }
 
 function openSellerPhotoCleaner(submissionId,position){openInlinePhotoTools(submissionId,position);}
