@@ -384,7 +384,7 @@ if(/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(location.pathname)){
 // Preserve reviewed public alias links from the established general model route.
 // A known alias redirects to one explicitly named published identity; there
 // is no fuzzy matching and the destination still passes the public catalogue.
-if(location.pathname==='/motorcycle-model-guide.html'){
+if(location.pathname==='/motorcycle-model-guide.html'&&wantMake&&wantModel){
  const aliases={
   'aprilia|rs660':['Aprilia','RS 660'],
   'bmw|ce 02 am 7.9% apr representative':['BMW','CE 02 AM'],
@@ -394,10 +394,27 @@ if(location.pathname==='/motorcycle-model-guide.html'){
   'kawasaki|z900rs':['Kawasaki','Z900 RS']
  };
  const alias=aliases[wantMake.toLowerCase()+'|'+wantModel.toLowerCase()];
- if(alias){
-  location.replace('/motorcycle-model-guide.html?make='+encodeURIComponent(alias[0])+
-   '&model='+encodeURIComponent(alias[1])+location.hash);
- }
+ const targetMake=alias?.[0]||wantMake,targetModel=alias?.[1]||wantModel;
+ // Keep the one approved HTML shell: resolve old query routes here, not in
+ // a second inline page script. Match ONLY the published permanent manifest.
+ try{
+  const response=await fetch('/data/universal-v2-model-routes.json',{cache:'no-cache'});
+  if(response.ok){
+   const manifest=await response.json();
+   const routes=arr(manifest.models).filter(row=>
+    normalize(row.make)===normalize(targetMake)&&normalize(row.model)===normalize(targetModel)&&
+    /^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(row.url||''));
+   if(routes.length===1){
+    const destination=new URL(routes[0].url,location.origin);
+    for(const [key,value] of params)if(key!=='make'&&key!=='model')destination.searchParams.append(key,value);
+    destination.hash=location.hash;
+    location.replace(destination.href);
+   }else if(alias){
+    location.replace('/motorcycle-model-guide.html?make='+encodeURIComponent(targetMake)+
+     '&model='+encodeURIComponent(targetModel)+location.hash);
+   }
+  }
+ }catch(error){console.warn('Permanent model route unavailable',error)}
 }
 
 const done=()=>{

@@ -276,9 +276,10 @@ check('All approved BMW and Harley model aliases converge on permanent V2 routes
 });
 check('Legacy generic model guide resolves exact canonical V2 URL',()=>{
  const html=read('motorcycle-model-guide.html');
- assert(html.includes("fetch('/data/universal-v2-model-routes.json'"));
- assert(html.includes('if(matches.length!==1)return;'));
- assert(html.includes('location.replace(target.href);'));
+ assert.match(html,/approved-v2-universal-preview\.mjs\?v=/);
+ assert.match(renderer,/fetch\('\/data\/universal-v2-model-routes\.json'/);
+ assert.match(renderer,/routes\.length===1/);
+ assert.match(renderer,/location\.replace\(destination\.href\)/);
 });
 if(process.exitCode)console.error('Universal V2 source checks FAILED. Live role and visual checks are still required.');
 else console.log('Universal V2 source checks passed. Live role and visual checks are still required.');
