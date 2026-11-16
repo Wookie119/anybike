@@ -4,8 +4,12 @@ import {mkdir,writeFile} from 'node:fs/promises';
 // Read-only live browser proof for reviewed KTM publication. No form submits.
 const base=process.env.ANYBIKE_PUBLIC_ORIGIN||'https://www.anybike.co.uk';
 const bikes=[
- {url:'/models/ktm/390-duke.html',id:524,model:'390 Duke',required:['2013','399 cc','820 mm']},
- {url:'/models/ktm/125-duke.html',id:926,model:'125 Duke',required:['2011','125 cc','800 mm']}
+ {url:'/models/ktm/390-duke.html',id:524,model:'390 Duke',slots:['section_01','section_07','section_12'],required:['2013','399 cc','820 mm']},
+ {url:'/models/ktm/125-duke.html',id:926,model:'125 Duke',slots:['section_01','section_07','section_12'],required:['2011','125 cc','800 mm']},
+ {url:'/models/ktm/200-duke.html',id:917,model:'200 Duke',slots:['section_01','section_07'],required:['2012','200 Duke']},
+ {url:'/models/ktm/690-duke.html',id:887,model:'690 Duke',slots:['section_01','section_07'],required:['2008','690 Duke']},
+ {url:'/models/ktm/790-duke.html',id:527,model:'790 Duke',slots:['section_01','section_07'],required:['2016','2018','prototype']},
+ {url:'/models/ktm/990-duke.html',id:210,model:'990 Duke',slots:['section_01','section_07','section_12'],required:['2024','USB-C','optional']}
 ];
 const browser=await chromium.launch({headless:true,args:['--disable-dev-shm-usage']});
 const report={checked_at:new Date().toISOString(),checked:bikes.length,passed:0,failed:0,results:[]};
@@ -17,8 +21,9 @@ try {
    const response=await page.goto(base+bike.url,{waitUntil:'domcontentloaded',timeout:35000});
    if(!response||response.status()!==200)entry.issues.push('HTTP_'+(response?.status()||'NONE'));
    await page.waitForFunction(()=>window.__anybikeV2EditorialReady===true,{timeout:25000});
+   await page.evaluate(count=>{window.__expectedSectionCount=count},bike.slots.length);
    try{
-    await page.waitForFunction(()=>document.querySelectorAll('.anybike-v2-reviewed-universal-section').length>=3,{timeout:25000});
+    await page.waitForFunction(()=>document.querySelectorAll('.anybike-v2-reviewed-universal-section').length>=window.__expectedSectionCount,{timeout:25000});
    }catch{entry.issues.push('PUBLISHED_SECTIONS_NOT_RENDERED')}
    const state=await page.evaluate(()=>{
     const nodes=[...document.querySelectorAll('.anybike-v2-reviewed-universal-section')];
@@ -30,8 +35,8 @@ try {
    });
    if(state.heading!=='KTM '+bike.model)entry.issues.push('WRONG_MODEL_HEADING');
    const keys=state.sections.map(x=>x.key).sort();
-   if(JSON.stringify(keys)!==JSON.stringify(['section_01','section_07','section_12']))
-    entry.issues.push('EXPECTED_THREE_CANONICAL_SECTIONS:'+JSON.stringify(keys));
+   if(JSON.stringify(keys)!==JSON.stringify(bike.slots))
+    entry.issues.push('WRONG_CANONICAL_SECTIONS:'+JSON.stringify(keys));
    for(const term of bike.required)if(!state.bodyText.includes(term))entry.issues.push('MISSING_VERIFIED_FACT:'+term);
    if(state.bodyText.includes('TEST - Test - test'))entry.issues.push('PRIVATE_TEST_LEAK');
    if(state.error)entry.issues.push('VISIBLE_PUBLIC_ERROR:'+state.error.slice(0,150));
