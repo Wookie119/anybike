@@ -317,6 +317,25 @@ function makeSection(id,title,after){
 }
 import {resolveApprovedV2Identity} from '/model-template/approved-v2-route-identity.mjs';
 const params=new URLSearchParams(location.search);
+// Diagnostic marker: shown only with ?v2verify=1, at the BOTTOM of the page.
+// Emitted only after the shared renderer resolves an exact catalogue identity.
+function showUniversalVerification(make,model,canonicalId){
+ if(params.get('v2verify')!=='1')return;
+ const main=document.querySelector('main');
+ if(!main)return;
+ let marker=document.getElementById('anybikeUniversalV2Verification');
+ if(!marker){
+  marker=node('div',undefined,'anybike-v2-verification');
+  marker.id='anybikeUniversalV2Verification';
+  marker.style.cssText='max-width:1100px;margin:22px auto 8px;padding:8px 12px;background:#1d1d1d;border:1px solid #777;border-left:3px solid #ed1c24;border-radius:6px;color:#eee;font-size:12px;font-weight:700';
+ }
+ marker.dataset.renderer='approved-v2-universal-preview';
+ marker.dataset.catalogueModelId=String(canonicalId);
+ marker.dataset.sectionContract='20';
+ marker.textContent='AB-V2-978 · '+make+' '+model+' · Model ID '+canonicalId+' · 20-slot master';
+ main.append(marker);
+}
+
 let wantMake=str(params.get('make')),wantModel=str(params.get('model'));
 let approvedDedicatedRoute=null;
 let permanentRouteModelId=null;
@@ -1322,6 +1341,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    if(h)h.textContent='Find your riding style';
    if(p)p.textContent='Explore motorcycles by category across manufacturers.';
   }
+  showUniversalVerification(make,model,canonicalId);
   done();
  }catch(error){
   console.error('Universal V2 master failed safely',error);
