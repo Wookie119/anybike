@@ -1,4 +1,29 @@
 
+// Universal V2 route convergence for reviewed legacy BMW/Harley model URLs.
+// Works on static hosting where Apache .htaccess redirects are not processed.
+// Never redirects an unmatched research/story/brand page or fabricates a model.
+(function convergeReviewedLegacyV2ModelRoute(){
+ const path=location.pathname.toLowerCase();
+ if(!/^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(path)||
+    path==='/bmw-motorcycles.html'||path==='/harley-davidson-motorcycles.html')return;
+ const normal=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+ Promise.all([
+  fetch('/data/approved-dedicated-model-routes.json',{cache:'no-cache'}),
+  fetch('/data/universal-v2-model-routes.json',{cache:'no-cache'})
+ ]).then(async responses=>{
+  if(responses.some(response=>!response.ok))return;
+  const [reviewed,published]=await Promise.all(responses.map(response=>response.json()));
+  const aliases=(Array.isArray(reviewed.models)?reviewed.models:[]).filter(x=>x.url?.toLowerCase()===path);
+  if(aliases.length!==1)return;
+  const route=aliases[0];
+  const matches=(Array.isArray(published.models)?published.models:[]).filter(x=>
+   normal(x.make)===normal(route.make)&&normal(x.model)===normal(route.model)&&
+   /^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(x.url||''));
+  if(matches.length!==1)return;
+  location.replace(matches[0].url+location.search+location.hash);
+ }).catch(e=>console.warn('Reviewed V2 route convergence unavailable',e));
+})();
+
 // Version customer Message Centre links consistently across public pages.
 // A different query URL avoids stale cached HTML for the unversioned path.
 (function versionCustomerMessageLinks(){
