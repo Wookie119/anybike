@@ -824,7 +824,12 @@ document.getElementById("queue").addEventListener("click",async function(e){
   if(action==="edit-description"){
     const item=rows.find(x=>Number(x.submission_id)===Number(id));
     if(!item)return;
-    const revised=window.prompt("Edit motorcycle description shown to buyers. Remove WhatsApp details and direct-contact requests. Original wording is retained in the audit history.",cleanUnderwriteAdvertDescription(item.notes));
+    const {data:existingDescription,error:existingError}=await sb.rpc("admin_get_seller_trade_description_v1",{p_submission_id:Number(id)});
+    if(existingError){alert("Could not load existing buyer description: "+existingError.message);return;}
+    const original=String(existingDescription||"").trim();
+    const suggested=cleanUnderwriteAdvertDescription(item.notes);
+    const seed=original||(suggested==="Description requires Admin review before advertisement."?"":suggested);
+    const revised=window.prompt("Edit the description shown to bidding dealers. Remove seller contact details, private pricing and unverified claims. The seller's original notes will be preserved.",seed);
     if(revised===null)return;
     const {error}=await sb.rpc("admin_edit_seller_description_v1",{p_submission_id:Number(id),p_description:revised.trim()});
     if(error){alert("Could not save description: "+error.message);return;}
