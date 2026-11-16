@@ -291,6 +291,13 @@ body.my-trade-offers-view #grid.mine-grid{margin-top:12px}
 #grid.mine-grid .mine-bidding-policy{flex:1}
 #grid.mine-grid .mine-detail{margin-top:auto}
 #grid.mine-grid .mine-action-spacer{height:45px;margin-top:8px;flex-shrink:0}
+.seller-facts-panel{background:#171717;border:1px solid #555;border-radius:12px;padding:14px;margin:12px 0 20px;color:#eee}
+.seller-facts-warning{font-size:13px;color:#ddd;margin:0 0 14px}
+.seller-facts-group{margin:12px 0}.seller-facts-group>strong{display:block;font-size:16px;margin-bottom:8px;color:white}
+.seller-facts-group dl{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.seller-facts-group dl>div{display:flex;justify-content:space-between;gap:10px;padding:9px 11px;background:#0d0d0d;border:1px solid #333;border-radius:7px}
+.seller-facts-group dt{color:#bbb}.seller-facts-group dd{margin:0;text-align:right;font-weight:700;color:white}
+@media(max-width:700px){.seller-facts-group dl{grid-template-columns:1fr}}
 </style>
 
 <style>
@@ -513,6 +520,16 @@ function openMineDetails(id){
  const r=currentOpportunities.find(x=>Number(x.opportunity_id)===Number(id));
  if(!r)return;
  mineDetailId=Number(id);mineDetailIndex=0;
+ sb.rpc("trade_get_my_underwrite_seller_facts_v1",{p_opportunity_id:Number(id)}).then(({data,error})=>{
+  if(mineDetailId!==Number(id))return;
+  const host=document.getElementById("mineSellerFacts");if(!host)return;
+  if(error){host.textContent="Seller-declared information could not be loaded.";return;}
+  const paperwork=Array.isArray(data?.paperwork)?data.paperwork:[];
+  const mechanical=Array.isArray(data?.mechanical)?data.mechanical:[];
+  if(!paperwork.length&&!mechanical.length){host.textContent="Detailed seller declarations have not yet been supplied for this motorcycle. Ask AnyBike for further information before bidding.";return;}
+  const section=(heading,items)=>items.length?'<div class="seller-facts-group"><strong>'+esc(heading)+'</strong><dl>'+items.map(item=>'<div><dt>'+esc(item.label)+'</dt><dd>'+esc(item.value)+'</dd></div>').join('')+'</dl></div>':'';
+  host.innerHTML='<p class="seller-facts-warning">Seller-declared information only — not independently verified by AnyBike.</p>'+section("Paperwork & history",paperwork)+section("Mechanical condition",mechanical);
+ }).catch(()=>{const el=document.getElementById("mineSellerFacts");if(el&&mineDetailId===Number(id))el.textContent="Seller declarations unavailable.";});
  // Refresh the approved wording for each opening, without exposing the raw seller notes.
  sb.rpc("trade_get_my_underwrite_description_v1",{p_opportunity_id:Number(id)}).then(({data,error})=>{
    if(error||mineDetailId!==Number(id))return;
@@ -534,7 +551,7 @@ function openMineDetails(id){
  '<div class="mine-detail-actions"><p class="mine-detail-deadline"><strong>'+(r.closes_at?(canUpdate?'Closes in '+esc(countdown(r.closes_at)):'Bidding closed'):'Closing time to confirm')+'</strong></p>'+
  (canUpdate?'<form class="mine-detail-bid-form" onsubmit="event.preventDefault();submitDetailBid('+id+')"><button type="button" class="cheap-price-prompt" onclick="focusCheapPriceBid()" style="background:#222;border:1px solid #ed1c24;color:#fff;text-align:left;padding:12px;border-radius:9px;margin-bottom:4px"><span style="display:block;font-size:14px;font-weight:400;margin-bottom:6px">Not your first choice?</span><strong style="display:block;font-size:18px">I will make you cheeky offer →</strong><small style="display:block;font-weight:400;margin-top:6px">Enter the price you would genuinely pay. It counts as a real confidential bid only when you submit it.</small></button><label for="mineDetailBidAmount">Your maximum confidential offer (£)</label><input id="mineDetailBidAmount" type="number" min="1" step="0.01" required value="'+(Number(r.my_bid_gbp)>0?Number(r.my_bid_gbp).toFixed(2):'')+'"><label for="mineDetailBidNotes">Private notes to AnyBike (optional)</label><textarea id="mineDetailBidNotes" rows="2" placeholder="Optional conditions"></textarea><button id="mineDetailBidSave" type="submit">'+(Number(r.my_bid_gbp)>0?'Update My Bid':'Place Confidential Bid')+' →</button><p id="mineDetailBidStatus" role="status" aria-live="polite"></p></form>':'')+
  '</div></section></div>'+
- '<section class="mine-detail-below"><h3>Description</h3><p id="mineDetailDescription">'+esc(dealerDescriptions[id]||'Motorcycle details are being prepared by AnyBike.')+'</p><h3>History and checks</h3><p class="mine-check-note">'+(r.hpi_clear===true?'Seller declares HPI clear — independent verification pending.':'HPI check pending — not yet independently verified.')+'</p><p class="mine-detail-small">AnyBike will not sell you a motorcycle unless it has been independently verified as HPI Clear. History, condition and sale arrangements will be confirmed before a transaction proceeds.</p><h3>Bidding</h3><p>Your offer includes agreed UK delivery to your dealership. All offers remain confidential and subject to AnyBike’s final checks.</p><p>This is confidential best-offer bidding, not an eBay-style auction. Place your strongest offer from the outset. If an acceptable offer is received and a sale is agreed, bidding may close early. You cannot see other dealers’ bids, and there is no guarantee of a chance to increase your offer before bidding ends.</p></section></div>';
+ '<section class="mine-detail-below"><h3>Seller-declared paperwork &amp; condition</h3><div id="mineSellerFacts" class="seller-facts-panel" aria-live="polite">Loading seller declarations…</div><h3>Description</h3><p id="mineDetailDescription">'+esc(dealerDescriptions[id]||'Motorcycle details are being prepared by AnyBike.')+'</p><h3>History and checks</h3><p class="mine-check-note">'+(r.hpi_clear===true?'Seller declares HPI clear — independent verification pending.':'HPI check pending — not yet independently verified.')+'</p><p class="mine-detail-small">AnyBike will not sell you a motorcycle unless it has been independently verified as HPI Clear. History, condition and sale arrangements will be confirmed before a transaction proceeds.</p><h3>Bidding</h3><p>Your offer includes agreed UK delivery to your dealership. All offers remain confidential and subject to AnyBike’s final checks.</p><p>This is confidential best-offer bidding, not an eBay-style auction. Place your strongest offer from the outset. If an acceptable offer is received and a sale is agreed, bidding may close early. You cannot see other dealers’ bids, and there is no guarantee of a chance to increase your offer before bidding ends.</p></section></div>';
  overlay.hidden=false;overlay.scrollTop=0;document.body.classList.add('mine-detail-open');
 }
 function closeMineDetails(){document.getElementById('mineDetailOverlay').hidden=true;document.body.classList.remove('mine-detail-open');mineDetailId=null;}
