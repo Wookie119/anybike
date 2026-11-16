@@ -153,6 +153,27 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 .submission-detail .review-workspace-tools [data-action="collapse"]{display:none}
 @media(max-width:950px){.submission-detail .review-workspace{grid-template-columns:1fr}.submission-detail .review-workspace .submission-gallery-hero{height:260px}}
 @media(max-width:600px){.submission-detail .review-workspace-tools>.data{grid-template-columns:1fr 1fr!important}.submission-detail .review-workspace .submission-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+/* Compact photo controls and focused single-page auction actions */
+.submission-detail .review-workspace{grid-template-columns:minmax(320px,.43fr) minmax(0,.57fr);gap:18px}
+.submission-detail .review-workspace .submission-gallery-hero{height:clamp(170px,19vw,270px)}
+.submission-detail .review-workspace .submission-gallery-head .sub{font-size:11px}
+.submission-detail .review-workspace .submission-photo{aspect-ratio:5/3}
+.submission-detail .review-workspace .submission-photo-wrap .photo-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;margin-top:3px}
+.submission-detail .review-workspace .submission-photo-wrap .photo-actions>button{width:100%!important;min-width:0;margin:0!important;padding:5px 2px;font-size:10px!important;line-height:1.12}
+.submission-detail .review-workspace .submission-photo-wrap .photo-actions:last-child{grid-template-columns:repeat(3,minmax(0,1fr))}
+.submission-detail .review-workspace .submission-gallery-grid .submission-photo-wrap{background:#101010;border:1px solid #333;border-radius:9px;padding:5px}
+.submission-detail .review-workspace .submission-photo-wrap .submission-photo{border-radius:6px}
+.submission-detail .review-workspace-tools .admin-advert-description p{max-height:95px;overflow:auto}
+.submission-detail .review-workspace-tools .admin-advert-description{padding:10px}
+.submission-detail .review-workspace-tools .review-auction-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.submission-detail .review-workspace-tools .review-auction-actions>*{min-width:0;max-width:none!important;margin:0!important;width:100%;text-align:center}
+.submission-detail .review-workspace-tools .review-auction-actions [data-action="condition-review"]{grid-column:1/-1}
+.submission-detail .review-workspace-tools .review-auction-actions select{background:#171717;color:#fff;border:1px solid #555;border-radius:9px;font-size:12px;padding:9px}
+.submission-detail .review-workspace-tools .review-final-action{margin-top:10px!important;padding:12px!important}
+.submission-detail .review-workspace-tools .review-final-action>p{margin:5px 0 8px!important}
+.submission-detail .review-workspace-tools .review-final-action button,.submission-detail .review-workspace-tools .review-final-action a{background:#ed1c24;color:#fff}
+@media(max-width:950px){.submission-detail .review-workspace{grid-template-columns:1fr}.submission-detail .review-workspace .submission-gallery-hero{height:240px}}
+@media(max-width:480px){.submission-detail .review-workspace-tools .review-auction-actions{grid-template-columns:1fr}.submission-detail .review-workspace .submission-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 /* Advert presentation preview: separate from administrative review and private data. */
 #advertPreviewOverlay{display:none;position:fixed;inset:0;z-index:20000;overflow:auto;background:rgba(0,0,0,.94);padding:20px}
 #advertPreviewOverlay.open{display:block}.advert-preview-sheet{max-width:1180px;margin:auto;background:#070707;color:#fff;border:1px solid #ed1c24;border-radius:14px;padding:16px}
@@ -598,7 +619,7 @@ function render(){
                 '<section class="admin-advert-description"><h3>Motorcycle description</h3><p>'+esc(cleanUnderwriteAdvertDescription(r.notes))+'</p><button type="button" class="btn" data-action="edit-description" data-id="'+Number(r.submission_id)+'">Edit Description →</button></section>'+
         (r.notes?'<details class="admin-source-details"><summary>Original source information · Admin only</summary><p>'+esc(r.notes)+'</p></details>':'')+
         (dealer && !["live","closed","completed","cancelled"].includes(String(r.underwrite_status||"").toLowerCase()) && r.make && r.model?'<div class="underwrite-ready-note">Complete auction information, confirm the confidential seller reserve and review the photos before publishing.</div>':'')+
-        '<div class="actions">'+
+        '<div class="actions review-auction-actions">'+
           '<button type="button" class="red" data-action="condition-review" data-id="'+Number(r.submission_id)+'">Complete Auction Information →</button>'+ 
           '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Optional Stock Comparison</button>'+
           (r.underwrite_status!=="live"
@@ -610,9 +631,9 @@ function render(){
           (Number(r.unique_buyer_match_count||0)>0?'<button type="button" data-action="view-demand" data-id="'+Number(r.submission_id)+'">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
           '<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Edit Bike Details</button>'+
           (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Open Message</a>':"")+
-          '<button type="button" data-action="collapse" data-id="'+Number(r.submission_id)+'">▲ Collapse submission</button>'+
+          ''+
         '</div>'+
-        '<div style="margin-top:12px;padding:10px 12px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Your Next Action →</strong><p style="margin:5px 0 9px;font-size:13px">'+
+        '<div class="review-final-action" style="margin-top:12px;padding:10px 12px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Your Next Action →</strong><p style="margin:5px 0 9px;font-size:13px">'+
         (Number(r.submission_id)===28 && ["closed","completed"].includes(String(r.underwrite_status||"").toLowerCase())
           ? "Honda Forza 350: seller accepted and a buying dealer was selected. This submission is already in Deal 360. Check VAT treatment and prepare the £1,300 dealer proforma. Do not restart bidding or arrange seller payment or Move collection before authorisation."
           : r.underwrite_status==="live"
