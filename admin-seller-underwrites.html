@@ -128,6 +128,31 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 .submission-detail .admin-advert-description p{max-height:220px;overflow:auto}
 @media(max-width:1000px){.submission-detail .card:has(> .submission-gallery){grid-template-columns:1fr}.submission-detail .card:has(> .submission-gallery)>*{grid-column:1!important;grid-row:auto!important}.submission-detail .card:has(> .submission-gallery)>.data{grid-column:1!important;grid-row:auto!important}}
 
+/* Single-page compact motorcycle workspace: photograph review left; administration right.
+   Existing functions, auction rules and saved data are unchanged. */
+.submission-detail .card:has(> .review-workspace){display:block!important}
+.submission-detail .review-workspace{display:grid;grid-template-columns:minmax(280px,.38fr) minmax(0,.62fr);gap:16px;margin-top:10px;align-items:start}
+.submission-detail .review-workspace>*{min-width:0}
+.submission-detail .review-workspace-photos .submission-gallery{margin:0!important;padding:12px!important;width:100%!important;border:1px solid #353535;border-radius:12px;background:#0b0b0b}
+.submission-detail .review-workspace .submission-gallery-hero{aspect-ratio:auto;height:clamp(175px,23vw,300px);margin-bottom:8px}
+.submission-detail .review-workspace .submission-gallery-hero img{object-fit:contain}
+.submission-detail .review-workspace .submission-gallery-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px}
+.submission-detail .review-workspace .submission-photo-wrap{min-width:0}
+.submission-detail .review-workspace .photo-actions{gap:3px;flex-wrap:wrap}
+.submission-detail .review-workspace .photo-actions>button{font-size:10px;line-height:1.1;padding:5px 2px;min-width:0}
+.submission-detail .review-workspace-tools>.data{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px;margin:0 0 10px!important}
+.submission-detail .review-workspace-tools>.data .box{min-width:0;padding:10px}
+.submission-detail .review-workspace-tools>.data .box strong{overflow-wrap:anywhere}
+.submission-detail .review-workspace-tools>.sub{margin:8px 0}
+.submission-detail .review-workspace-tools .admin-advert-description{margin:8px 0;padding:12px}
+.submission-detail .review-workspace-tools .admin-source-details{margin:6px 0}
+.submission-detail .review-workspace-tools .underwrite-ready-note{font-size:13px;margin:8px 0}
+.submission-detail .review-workspace-tools .actions{margin:10px 0;gap:7px}
+.submission-detail .review-workspace-tools .actions>*{font-size:12px;padding:9px 11px}
+.submission-detail .review-workspace-tools [data-action="condition-review"]{order:-1}
+.submission-detail .review-workspace-tools [data-action="collapse"]{display:none}
+@media(max-width:950px){.submission-detail .review-workspace{grid-template-columns:1fr}.submission-detail .review-workspace .submission-gallery-hero{height:260px}}
+@media(max-width:600px){.submission-detail .review-workspace-tools>.data{grid-template-columns:1fr 1fr!important}.submission-detail .review-workspace .submission-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 /* Advert presentation preview: separate from administrative review and private data. */
 #advertPreviewOverlay{display:none;position:fixed;inset:0;z-index:20000;overflow:auto;background:rgba(0,0,0,.94);padding:20px}
 #advertPreviewOverlay.open{display:block}.advert-preview-sheet{max-width:1180px;margin:auto;background:#070707;color:#fff;border:1px solid #ed1c24;border-radius:14px;padding:16px}
@@ -572,7 +597,7 @@ function render(){
           :'<div class="sub">Trade price will be established from confidential UK dealer bids. No stock comparison is required.</div>')+
                 '<section class="admin-advert-description"><h3>Motorcycle description</h3><p>'+esc(cleanUnderwriteAdvertDescription(r.notes))+'</p><button type="button" class="btn" data-action="edit-description" data-id="'+Number(r.submission_id)+'">Edit Description →</button></section>'+
         (r.notes?'<details class="admin-source-details"><summary>Original source information · Admin only</summary><p>'+esc(r.notes)+'</p></details>':'')+
-        (dealer && !["live","closed","completed","cancelled"].includes(String(r.underwrite_status||"").toLowerCase()) && r.make && r.model?'<div class="underwrite-ready-note">Ready to invite trade offers. The current system still applies an initial bidding deadline; reserve-triggered timing is under development.</div>':'')+
+        (dealer && !["live","closed","completed","cancelled"].includes(String(r.underwrite_status||"").toLowerCase()) && r.make && r.model?'<div class="underwrite-ready-note">Complete auction information, confirm the confidential seller reserve and review the photos before publishing.</div>':'')+
         '<div class="actions">'+
           '<button type="button" class="red" data-action="condition-review" data-id="'+Number(r.submission_id)+'">Complete Auction Information →</button>'+ 
           '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Optional Stock Comparison</button>'+
@@ -711,13 +736,13 @@ async function loadSubmissionImages(id){
     return '<div class="submission-photo-wrap"><button type="button" class="submission-photo" onclick="openImageLightbox(\''+esc(img.buyer_safe_url)+'\','+Number(img.rotation_degrees||0)+')">'+
       '<img loading="lazy" decoding="async" src="'+esc(img.buyer_safe_url)+'" style="transform:rotate('+Number(img.rotation_degrees||0)+'deg)" alt="Motorcycle photo '+Number(img.image_position||0)+'">'+
       '<span>Photo '+Number(img.image_position||0)+(img.final_status!=="approved"?' · REVIEW REQUIRED':'')+'</span></button>'+
-      '<div class="photo-actions"><button type="button" class="rotate-photo" onclick="moveSellerPhotoInGallery('+id+','+Number(img.image_id)+',\'up\',this)" title="Move photo earlier">↑ Earlier</button><button type="button" class="rotate-photo" onclick="moveSellerPhotoInGallery('+id+','+Number(img.image_id)+',\'down\',this)" title="Move photo later">↓ Later</button></div><div class="photo-actions"><button type="button" class="rotate-photo" onclick="openSellerPhotoCleaner('+id+','+Number(img.image_position)+')" title="Inspect original or cover plate branding">Clean / Plate →</button><button type="button" class="rotate-photo" onclick="rotateSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Rotate this photo 90 degrees clockwise">↻ Rotate</button><button type="button" class="reject-photo" onclick="rejectSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Remove this photograph from the advert; keep original privately for audit">✕ Remove</button></div></div>';
+      '<div class="photo-actions"><button type="button" class="rotate-photo" onclick="moveSellerPhotoInGallery('+id+','+Number(img.image_id)+',\'up\',this)" title="Move photo earlier">↑ Earlier</button><button type="button" class="rotate-photo" onclick="moveSellerPhotoInGallery('+id+','+Number(img.image_id)+',\'down\',this)" title="Move photo later">↓ Later</button></div><div class="photo-actions"><button type="button" class="rotate-photo" onclick="cleanSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Create a cleaned copy; inspect before approval">Clean photo →</button><button type="button" class="rotate-photo" onclick="rotateSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Rotate this photo 90 degrees clockwise">↻ Rotate</button><button type="button" class="reject-photo" onclick="rejectSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Remove this photograph from the advert; keep original privately for audit">✕ Remove</button></div></div>';
   }).join("");
   status.textContent=images.filter(img=>img.final_status==="approved").length+" approved · "+images.filter(img=>img.final_status==="review_required").length+" awaiting review · click available photos to enlarge";
-  status.insertAdjacentHTML("beforeend",' · <a style="color:#fff;text-decoration:underline" href="/admin-buyer-safe-images.html?submission='+id+'">Open in photo cleaner →</a>');
+  status.insertAdjacentHTML("beforeend",' · <button type="button" class="btn" style="font-size:11px;padding:4px 7px" onclick="openInlinePhotoTools('+id+',1)">Advanced photo tools (on this page) →</button>');
 }
 
-function openSellerPhotoCleaner(submissionId,position){location.href="/admin-buyer-safe-images.html?submission="+encodeURIComponent(submissionId)+"&photo="+encodeURIComponent(position);}
+function openSellerPhotoCleaner(submissionId,position){openInlinePhotoTools(submissionId,position);}
 async function cleanSellerPhoto(submissionId,imageId,button){
  if(button.disabled)return;
  button.disabled=true;const old=button.textContent;button.textContent="Cleaning…";
@@ -728,7 +753,7 @@ async function cleanSellerPhoto(submissionId,imageId,button){
      if(error?.context?.json){try{const body=await error.context.json();detail=body?.error||body?.message||detail;}catch(_){}}
      throw new Error(detail||error?.message||"Image repair failed");
    }
-   alert("Cleaned copy created. Please review the result in Photo Cleaner before approving.");
+   alert("Cleaned copy created. Inspect the updated photo on this page before approving. Advanced crop and plate tools remain available here if needed.");
    submissionImages.delete(Number(submissionId));await loadSubmissionImages(submissionId);
  }catch(error){alert("Cleaning could not complete: "+error.message);button.disabled=false;button.textContent=old;}
 }
@@ -770,6 +795,34 @@ function closeImageLightbox(){
   document.getElementById("imageLightboxImg").src="";
 }
 
+function compactSubmissionWorkspace(id){
+ const detail=document.getElementById("submission-detail-"+Number(id));
+ const card=detail?.querySelector(".card");
+ const gallery=document.getElementById("submission-gallery-"+Number(id));
+ if(!card||!gallery||card.querySelector(".review-workspace"))return;
+ const workspace=document.createElement("div");workspace.className="review-workspace";
+ const photos=document.createElement("section");photos.className="review-workspace-photos";photos.setAttribute("aria-label","Motorcycle photographs");
+ const tools=document.createElement("section");tools.className="review-workspace-tools";tools.setAttribute("aria-label","Motorcycle review and auction actions");
+ const elements=[...card.children];
+ const galleryIndex=elements.indexOf(gallery);
+ const firstData=elements.findIndex(el=>el.classList.contains("data"));
+ if(firstData<0||galleryIndex<0)return;
+ // Move existing controls; do not clone them or lose their event handlers.
+ elements.slice(firstData).forEach(el=>{if(el===gallery)photos.appendChild(el);else tools.appendChild(el);});
+ workspace.append(photos,tools);card.appendChild(workspace);
+}
+function openInlinePhotoTools(submissionId,position){
+ if(!Number.isInteger(Number(submissionId))||Number(submissionId)<=0)return;
+ let overlay=document.getElementById("abInlinePhotoTools");
+ if(!overlay){overlay=document.createElement("div");overlay.id="abInlinePhotoTools";document.body.appendChild(overlay);}
+ overlay.style.cssText="position:fixed;inset:0;z-index:19999;background:rgba(0,0,0,.92);padding:15px;display:flex;flex-direction:column;gap:10px";
+ overlay.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;color:white"><strong>Photograph crop and plate review · Submission '+Number(submissionId)+'</strong><button type="button" onclick="closeInlinePhotoTools('+Number(submissionId)+')">✕ Close photo tools</button></div>'+
+ '<iframe title="Advanced seller photograph cleaner" src="/admin-buyer-safe-images.html?submission='+encodeURIComponent(submissionId)+'&photo='+encodeURIComponent(position||"")+'" style="width:100%;flex:1;min-height:0;border:1px solid #555;border-radius:10px;background:#0b0b0b"></iframe>';
+}
+async function closeInlinePhotoTools(submissionId){
+ const overlay=document.getElementById("abInlinePhotoTools");if(overlay){overlay.style.display="none";overlay.replaceChildren();}
+ submissionImages.delete(Number(submissionId));await loadSubmissionImages(submissionId);
+}
 function toggleSubmission(id){
   const detail=document.getElementById("submission-detail-"+Number(id));
   const row=document.getElementById("submission-row-"+Number(id));
@@ -780,6 +833,7 @@ function toggleSubmission(id){
   if(open){
     detail.classList.add("open");
     row.classList.add("open");
+    compactSubmissionWorkspace(id);
     loadSubmissionImages(id);
   }
 }
