@@ -1,0 +1,35 @@
+name: Verify source-reviewed model sections live in universal V2
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/check-live-source-reviewed-v2.mjs'
+      - '.github/workflows/check-live-source-reviewed-v2.yml'
+permissions:
+  contents: read
+jobs:
+  live-research:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - name: Check JavaScript syntax
+        run: node --check scripts/check-live-source-reviewed-v2.mjs
+      - name: Verify public sections in ten exact-model browser pages
+        run: node scripts/check-live-source-reviewed-v2.mjs
+      - name: Keep browser audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-reviewed-v2-10-model-live-proof
+          path: artifacts/ktm-source-verified-research/report.json
+          if-no-files-found: warn
+          retention-days: 14
