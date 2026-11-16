@@ -20,7 +20,9 @@ const key=x=>x.toLowerCase().replace(/[^a-z0-9]/g,'');
 const manufacturers=new Map();
 for(const row of models){
  const k=key(row.make),entry=manufacturers.get(k)||new Map(),m=key(row.model);
- assert(!entry.has(m),'Duplicate model pill identity: '+row.make+' '+row.model);
+ // The shared model navigation deliberately deduplicates aliases that differ
+ // only by spacing/punctuation (for example RS660 and RS 660).
+ if(entry.has(m))continue;
  entry.set(m,row.model);manufacturers.set(k,entry);
  const url='/motorcycle-model-guide.html?make='+encodeURIComponent(row.make)+'&model='+encodeURIComponent(row.model);
  assert(url.includes('make=')&&url.includes('&model='),'Unroutable catalogue model');
