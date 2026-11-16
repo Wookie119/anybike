@@ -26,8 +26,13 @@ check('All approved V2 reference styles are present verbatim in the shared style
  // charcoal replacements for legacy burgundy accents.
  const approvedPalette=style=>style.replaceAll('#352124','#282828')
   .replaceAll('#813438','#4b4b4b');
+ // The universal stylesheet now has a variable accent, whose default value
+ // is the exact approved red and whose only brand override is Harley orange.
+ const defaultAccent=approvedCss.replaceAll('var(--model-accent)','#ed1c24');
+ assert.match(approvedCss,/:root\{--model-accent:#ed1c24\}/);
+ assert.match(approvedCss,/html\[data-anybike-model-brand="harley-davidson"\]\{--model-accent:#ff6600\}/);
  for(const [index,style] of approved.entries())
-  assert(approvedCss.includes(approvedPalette(style)),
+  assert(defaultAccent.includes(approvedPalette(style)),
    'Approved reference style block or palette correction missing: '+index);
 });
 check('Approved V2 model-section structure matches the exact reference',()=>{
