@@ -1143,8 +1143,23 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // Legacy editorial sections are optional and content-driven, not empty.
   const textSections=arr(guide?.sections).filter(x=>Array.isArray(x)&&str(x[0])&&str(x[1]));
   if(textSections.length){
+   // Keep every legacy paragraph accessible without allowing an old, long
+   // editorial layout to take over the ONE approved universal V2 design.
+   // This shared disclosure is closed by default on every motorcycle.
    const card=makeSection('v2EditorialSections','Further motorcycle research',$('v2EditorialResearch')||$('v2EngineeringOverview')||$('body'));
-   for(const [heading,copy] of textSections){card.append(node('h3',heading));paragraph(card,copy);}
+   const heading=card.querySelector(':scope > h2');
+   const details=node('details');
+   details.dataset.anybikeV2LegacyResearch='1';
+   const summary=node('summary','Further motorcycle research · '+textSections.length+' documented topics');
+   details.append(summary);
+   for(const [sectionHeading,copy] of textSections){
+    const topic=node('section',undefined,'anybike-v2-legacy-research-topic');
+    topic.append(node('h3',sectionHeading));
+    paragraph(topic,copy);
+    details.append(topic);
+   }
+   heading?.remove();
+   card.append(details);
   }
   const nav=$('databaseMotorcycleTypes');
   nav.replaceChildren();
