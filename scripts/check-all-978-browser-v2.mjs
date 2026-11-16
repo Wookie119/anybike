@@ -18,7 +18,15 @@ async function worker(){
    const issues=[],errors=[];
    page.on('pageerror',e=>errors.push(String(e.message||e).slice(0,200)));
    try{
-    const response=await page.goto(origin+entry.url,{waitUntil:'domcontentloaded',timeout:35000});
+    let response=null;
+    for(let attempt=0;attempt<3;attempt++){
+     response=await page.goto(origin+entry.url,{waitUntil:'domcontentloaded',timeout:35000});
+     if(response&&response.status()===200)break;
+     // 123-reg may temporarily return 429/502/503/504 during rapid scans.
+     // Retry only transient host responses; never hide a genuine 404.
+     if(!response||![429,502,503,504].includes(response.status())||attempt===2)break;
+     await page.waitForTimeout(1000*(attempt+1));
+    }
     if(!response||response.status()!==200)issues.push('HTTP_'+(response?.status()||'NO_RESPONSE'));
     try{await page.waitForFunction(()=>window.__anybikeV2EditorialReady===true,{timeout:25000});}
     catch{issues.push('RENDERER_NOT_READY');}
