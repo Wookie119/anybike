@@ -314,6 +314,9 @@ async function openSellerConditionReview(id){
  options.map(option=>'<option value="'+esc(option)+'"'+(edits[key]===option?' selected':'')+'>'+esc(option)+'</option>').join("")+
  '</select></label>';
  }).join("")+'</div>'+
+ '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:12px 0">'+
+ '<label style="display:flex;flex-direction:column;gap:7px"><strong>Confidential seller reserve (£) *</strong><input id="abConditionReviewReserve" type="number" min="1" max="1000000" step="1" placeholder="Minimum seller will accept" value="'+esc(edits.reserve_gbp||"")+'" style="background:#080808;color:#fff;border:1px solid #777;border-radius:8px;padding:11px"><small style="color:#bbb">Admin only. Separate from the seller’s guide price and not visible to bidders.</small></label>'+
+ '<label style="display:flex;flex-direction:column;gap:7px"><strong>Motorcycle collection postcode *</strong><input id="abConditionReviewPostcode" maxlength="10" placeholder="e.g. OX44 7RW" value="'+esc(edits.collection_postcode||"")+'" style="background:#080808;color:#fff;border:1px solid #777;border-radius:8px;padding:11px"><small style="color:#bbb">Seller postcode in original submission: '+esc(row.seller_postcode||"See submission details")+'. Full postcode stays internal.</small></label></div>'+
  '<label style="display:block;margin-bottom:12px">Reason / supporting source (required)<textarea id="abConditionReviewReason" rows="2" placeholder="e.g. Confirmed with seller by phone; photographs inspected; documentation supplied" style="display:block;margin-top:7px;width:100%;min-height:62px;background:#080808;color:#fff;border:1px solid #666;border-radius:8px;padding:10px"></textarea></label>'+
  '<p id="abConditionReviewStatus" role="status" style="color:#bbb"></p>'+
  '<div style="display:flex;gap:12px;flex-wrap:wrap"><button type="button" class="red" onclick="saveSellerConditionReview()">Save reviewed information</button><button type="button" onclick="closeSellerConditionReview()">Close</button></div></div>';
@@ -325,12 +328,21 @@ async function saveSellerConditionReview(){
  const reason=document.getElementById("abConditionReviewReason").value.trim();
  if(reason.length<5){status.textContent="Enter the source of the information before saving.";return;}
  const answers={};root.querySelectorAll("[data-condition-admin-key]").forEach(el=>answers[el.dataset.conditionAdminKey]=el.value||null);
+ const reserve=root.querySelector("#abConditionReviewReserve").value.trim();
+ const postcode=root.querySelector("#abConditionReviewPostcode").value.trim().toUpperCase();
+ answers.reserve_gbp=reserve?Number(reserve):null;
+ answers.collection_postcode=postcode||null;
+ if(reserve && (!Number.isFinite(Number(reserve))||Number(reserve)<=0)){status.textContent="Enter a valid positive reserve.";return;}
  const button=root.querySelector("button.red");button.disabled=true;status.textContent="Saving reviewed answers…";
  try{
   const {data,error}=await sb.rpc("admin_save_seller_condition_review_v1",{p_submission_id:id,p_answers:answers,p_reason:reason});
   if(error||!data?.success)throw Error(error?.message||"Could not save correction");
   status.textContent=data.unchanged?"No corrections were changed.":"Saved with a full admin audit record. Future eligible dealer auction views will show the completed answers.";
   status.style.color="#9cdda9";document.getElementById("abConditionReviewReason").value="";
+  const ready=await sb.rpc("admin_trade_underwrite_readiness_v1",{p_submission_id:id});
+  if(!ready.error&&ready.data){
+   status.textContent+=" "+(ready.data.ready?"Ready for Admin to review auction publication.":"Still missing: "+(ready.data.missing||[]).join(", "));
+  }
  }catch(e){status.textContent=e.message;status.style.color="#ffaaaa";}finally{button.disabled=false;}
 }
 async function toggleInternationalConsideration(id){
@@ -825,6 +837,13 @@ document.getElementById("queue").addEventListener("click",async function(e){
 async function startUnderwrite(id){
   const submission=rows.find(r=>Number(r.submission_id)===Number(id));
   if(!submission)return;
+  const readiness=await sb.rpc("admin_trade_underwrite_readiness_v1",{p_submission_id:Number(id)});
+  if(readiness.error){alert("Could not verify seller information: "+readiness.error.message);return;}
+  if(!readiness.data?.ready){
+    alert("Auction details still need completing: "+(readiness.data?.missing||[]).join(", ")+". Open Complete Auction Information to fill the gaps.");
+    await openSellerConditionReview(id);
+    return;
+  }
   const hours=Number(document.getElementById("underwrite-hours-"+id)?.value||48);
   const bike=[submission.make,submission.model,submission.variant].filter(Boolean).join(" ");
   const photoCount=Number(submission.image_approved||0);
