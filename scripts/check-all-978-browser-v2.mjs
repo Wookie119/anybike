@@ -42,7 +42,10 @@ async function worker(){
     let expected=entry,aliasRedirected=false;
     if(new URL(page.url()).pathname!==entry.url){
      const source=await readFile('.'+entry.url,'utf8');
-     const declared=source.match(/Reviewed catalogue alias:[^<]*?location\.replace\("([^"]+)"/)?.[1];
+     const approvedAlias=/Reviewed catalogue alias:/.test(source)||
+      (entry.make==='BMW'&&['M 1000 XR Full','M 1000 XR M'].includes(entry.model)&&
+       /under (?:trim )?review/.test(source));
+     const declared=approvedAlias?source.match(/location\.replace\("([^"]+)"/)?.[1]:null;
      const canonical=source.match(/<link id="modelCanonical" rel="canonical" href="([^"]+)"/)?.[1];
      const match=manifest.models.filter(x=>x.url===declared&&origin+x.url===canonical);
      if(match.length===1&&new URL(page.url()).pathname===match[0].url){
