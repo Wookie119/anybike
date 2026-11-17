@@ -296,7 +296,8 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
  .submission-row .row-next small{font-size:10px}
 }
 
-/* Expanded buying card: aligned commercial summary, readable description, one primary action. */
+.refresh-row-label{display:flex;gap:6px;align-items:center;font-size:11px;color:#ccc;margin-top:4px;cursor:pointer}.refresh-row-label input,#refresh-all{width:15px;height:15px;accent-color:#ed1c24;margin:0;flex-shrink:0}#refresh-review-panel:not([hidden]){display:grid;gap:8px}#refresh-review-panel a{color:#ff777b}#refresh-review:disabled{opacity:.5}
+ /* Expanded buying card: aligned commercial summary, readable description, one primary action. */
 .submission-detail .review-workspace{grid-template-columns:minmax(260px,.36fr) minmax(0,.64fr);gap:12px;align-items:start}
 .submission-detail .review-workspace-tools>.data{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;align-items:stretch!important}
 .submission-detail .review-workspace-tools>.data>.box{align-self:stretch!important;height:auto!important}
@@ -377,6 +378,7 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
       </div>
 
       <div id="underwriteSummary" class="sub" style="margin:12px 0;padding:12px 15px;border:1px solid #333;border-radius:12px">Loading underwriting overview…</div>
+      <div id="refresh-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0"><label style="display:flex;align-items:center;gap:7px"><input id="refresh-all" type="checkbox" onchange="refreshSelectAll(this.checked)"> Select eligible visible listings</label><span id="refresh-count">0 selected</span><button id="refresh-review" type="button" class="red" onclick="reviewSelectedRefresh()" disabled>Review selected listing update requests →</button></div><div id="refresh-review-panel" hidden style="padding:12px;border:1px solid #555;border-radius:9px;margin-bottom:10px"></div>
       <div id="queue" class="queue-list"><div class="empty">Loading…</div></div>
     </main>
   </div>
@@ -432,6 +434,15 @@ const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let rows=[];
+let refreshStatuses=new Map(),refreshStatusLoaded=false;
+const refreshSelected=new Set();
+function refreshEligible(id){const t=refreshStatuses.get(Number(id));return refreshStatusLoaded&&t?.eligible===true&&!((t.requested_at&&!t.responded_at&&Date.parse(t.expires_at)>Date.now())||(t.response_type==="sold")||(t.response_type==="update"&&!t.reviewed_at));}
+function refreshLabel(id){const t=refreshStatuses.get(Number(id));if(!refreshStatusLoaded)return "Status unavailable";if(!t?.eligible)return "—";let label="Not yet updated",date=null;if(t.response_type==="sold"){label="Reported sold / withdrawn";date=t.responded_at;}else if(t.response_type==="update"){label=t.reviewed_at?"Update reviewed":"Awaiting approval";date=t.reviewed_at||t.responded_at;}else if(t.response_type==="available"){label="Availability confirmed";date=t.responded_at;}else if(t.requested_at){label=Date.parse(t.expires_at)>Date.now()?"Link prepared":"Request expired";date=t.requested_at;}return label+(date?" · "+new Date(date).toLocaleDateString("en-GB",{timeZone:"Europe/London"}):"");}
+function refreshSelectionChanged(){const el=document.getElementById("refresh-count"),b=document.getElementById("refresh-review");if(el)el.textContent=refreshSelected.size+" selected";if(b)b.disabled=!refreshSelected.size;const c=[...document.querySelectorAll(".refresh-tick:not(:disabled)")],all=document.getElementById("refresh-all");if(all){all.checked=!!c.length&&c.every(x=>x.checked);all.indeterminate=c.some(x=>x.checked)&&!all.checked;}}
+function refreshToggle(id,checked){if(checked&&refreshEligible(id))refreshSelected.add(Number(id));else refreshSelected.delete(Number(id));refreshSelectionChanged();}
+function refreshSelectAll(checked){document.querySelectorAll(".refresh-tick:not(:disabled)").forEach(x=>{x.checked=checked;refreshToggle(Number(x.value),checked);});}
+function reviewSelectedRefresh(){const panel=document.getElementById("refresh-review-panel");panel.replaceChildren();const items=rows.filter(r=>refreshSelected.has(Number(r.submission_id))&&refreshEligible(r.submission_id));const title=document.createElement("strong");title.textContent="Review "+items.length+" personalised requests — nothing sends automatically";panel.append(title);for(const r of items){const a=document.createElement("a");a.href="/admin-message-centre.html?thread="+Number(r.message_thread_id)+"&listing_update_request=1&reference="+encodeURIComponent(r.reference);a.target="_blank";a.rel="noopener";a.textContent=[r.reference,r.make,r.model,r.seller_name].filter(Boolean).join(" · ")+" →";panel.append(a);}panel.hidden=false;}
+
 const savedBuyerDescriptions=new Map();
 let tradeOpportunityBySubmission=new Map();
 let internationalSelections=new Map();
@@ -526,6 +537,9 @@ async function loadQueue(){
   const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v5",{p_limit:150});
   if(error){document.getElementById("queue").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
   rows=data||[];
+  refreshStatusLoaded=false;refreshStatuses=new Map();
+  try{const x=await sb.rpc("admin_listing_refresh_status_v1");if(!x.error&&Array.isArray(x.data)){refreshStatuses=new Map(x.data.map(t=>[Number(t.submission_id),t]));refreshStatusLoaded=true;}}catch(e){console.warn("Listing refresh status unavailable",e);}
+  for(const id of refreshSelected)if(!refreshEligible(id))refreshSelected.delete(id);
   tradeOpportunityBySubmission=new Map();
   try{const q=await sb.rpc("admin_list_trade_international_consideration_v1");if(!q.error)internationalSelections=new Map((q.data||[]).map(x=>[Number(x.submission_id),!!x.selected]));}catch(e){console.warn("International shortlist unavailable",e);}
   try{
@@ -703,7 +717,7 @@ function render(){
   if(!list.length){host.innerHTML='<div class="empty">No submissions match these filters.</div>';return;}
 
   const head='<div class="queue-head">'+
-    '<div>Image</div><div>Reference</div><div>Motorcycle</div><div>Reg</div><div>Year</div>'+
+    '<div>Image</div><div>Reference / update</div><div>Motorcycle</div><div>Reg</div><div>Year</div>'+
     '<div>Dealer / Seller</div><div>Underwrite</div><div>Next action</div>'+
   '</div>';
 
@@ -788,7 +802,7 @@ function render(){
       '<div class="submission-row" id="submission-row-'+Number(r.submission_id)+'" onclick="toggleSubmission('+Number(r.submission_id)+')">'+
         '<div class="row-image">'+image+'</div>'+
         '<div class="row-cell mobile-hide"><strong>'+esc(r.reference)+'</strong><small>'+esc(dealer?"Dealer Underwrite":"Sell Your Bike")+'</small></div>'+
-        '<div class="row-main"><strong>'+esc(bike)+'</strong><small>'+Number(r.mileage||0).toLocaleString("en-GB")+' miles · '+esc(imageText)+'</small></div>'+
+        '<div class="row-main"><strong>'+esc(bike)+'</strong><small>'+Number(r.mileage||0).toLocaleString("en-GB")+' miles · '+esc(imageText)+'</small>'+(!dealer?'<label class="refresh-row-label" onclick="event.stopPropagation()"><input class="refresh-tick" type="checkbox" value="'+Number(r.submission_id)+'" '+(refreshEligible(r.submission_id)?'':'disabled')+' '+(refreshSelected.has(Number(r.submission_id))?'checked':'')+' onchange="refreshToggle(Number(this.value),this.checked)"> <span>'+esc(refreshLabel(r.submission_id))+'</span></label>':'')+'</div>'+
         '<div class="row-cell mobile-hide">'+esc(r.registration||"—")+'</div>'+
         '<div class="row-cell mobile-hide">'+esc(r.bike_year||"—")+'</div>'+
         '<div class="row-cell mobile-hide">'+esc(seller)+'</div>'+
@@ -798,6 +812,7 @@ function render(){
       detail+
     '</div>';
   }).join("");
+  refreshSelectionChanged();
 }
 
 async function recoverSuzukiPhotos(button){
