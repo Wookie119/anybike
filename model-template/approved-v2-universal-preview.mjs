@@ -819,6 +819,8 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // inferred logo from an arbitrary brand's name. The same registry serves
   // every model of that manufacturer. Logos are NOT motorcycle photographs.
   const registeredManufacturerLogos=Object.freeze({
+   vespa:'https://commons.wikimedia.org/wiki/Special:FilePath/Vespa-logo.svg',
+   piaggio:'https://commons.wikimedia.org/wiki/Special:FilePath/Piaggio_Group_logo.svg',
    'indian motorcycle':'https://commons.wikimedia.org/wiki/Special:FilePath/Indian_Motorcycle_logo.svg',
    husqvarna:'https://commons.wikimedia.org/wiki/Special:FilePath/Husqvarna_Logo.png',
    triumph:'https://commons.wikimedia.org/wiki/Special:FilePath/Logo_Triumph.svg',
