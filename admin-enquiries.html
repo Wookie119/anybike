@@ -6623,6 +6623,7 @@ let adminDealCustomerAccounts = new Map();
 let adminDealMotorcycleCustomerAccounts = new Map();
 let adminDealCustomerPayments = new Map();
 let adminDealInvoices = new Map();
+let adminProformaDelivery = new Map();
 const finalInvoiceReadinessCache = new Map();
 const finalInvoiceReadinessLoading = new Set();
 const finalInvoiceDraftBusy = new Set();
@@ -12691,6 +12692,8 @@ async function loadAdminDealQueue(){
   }
 
   adminDealInvoices = new Map();
+  adminProformaDelivery = new Map();
+  try{const delivery=await sb.rpc("admin_get_proforma_delivery_status_v1");if(delivery.error)throw delivery.error;(delivery.data||[]).forEach(r=>adminProformaDelivery.set(String(r.invoice_id),r));}catch(error){console.warn("Proforma delivery status unavailable",error);}
   await Promise.all(adminDealQueue.map(async function(deal){
     const dealId = Number(deal.deal_id);
     if(!Number.isFinite(dealId)){ return; }
@@ -13382,7 +13385,7 @@ async function ensureDealDraftPurchaseOrder(dealId,motorcycleId,button){
 }
 function renderPaymentPurchaseOrders(deal,bikes){
   const items=(bikes||[]).filter(b=>Number(b.seller_price_gbp||0)>0 && (String(b.negotiation_status||"").toLowerCase()==="accepted"||b.accepted_at));
-  return '<section class="ab-payment-po" style="padding:12px"><small>Outgoing · Seller</small><h4 style="margin:4px 0 12px">Purchase Order</h4>'+(items.length?items.map(b=>{
+  return '<section class="ab-payment-po" style="padding:12px"><div class="anybike-invoice-head" style="margin:-12px -12px 12px"><div><span>Outgoing · Seller</span><h4>Purchase Order</h4></div></div>'+(items.length?items.map(b=>{
     const id=Number(b.deal_motorcycle_id||b.id),po=adminDealPurchaseOrders.get(String(id));
     if(!po)return '<div class="ab-po-item">'+escapeAdminHtml([b.make,b.model].filter(Boolean).join(" "))+'<div class="ab-doc-total">'+anyBikeDealMoney(b.seller_price_gbp)+'</div><button type="button" onclick="ensureDealDraftPurchaseOrder('+Number(deal.deal_id)+','+id+',this)">Prepare Draft PO</button></div>';
     const pay=anyBikeDealSellerPaymentForMotorcycle(id),paid=Number(pay?.total_supplier_payments_gbp??po.supplier_paid_gbp??0),balance=Math.max(Number(po.purchase_gross_gbp||0)-paid,0);
@@ -15177,6 +15180,11 @@ async function requestDealCustomerBalance(dealId,preferredInvoiceId){
   }
 }
 
+function renderProformaDeliveryStatus(invoice){
+ const r=adminProformaDelivery.get(String(invoice.invoice_id??invoice.id));
+ if(!r)return '<div style="font-size:12px;color:#aaa;margin:8px 0">Platform delivery not confirmed · Email not confirmed</div>';
+ return '<div style="font-size:12px;line-height:1.6;margin:8px 0"><strong>Delivery · '+escapeAdminHtml(anyBikeInvoiceDate(r.delivered_at))+'</strong><br>Account notification: '+(r.notification_sent?'Sent':'Not confirmed')+' · '+(r.notification_read===true?'Read':r.notification_read===false?'Unread':'Read status unknown')+'<br>Message Centre: '+(r.message_sent?'Sent':'Not confirmed')+' · Email: Not confirmed</div>';
+}
 function renderAnyBikeDealInvoiceDocuments(deal,compact=false){
   const dealId=String(deal.deal_id||"");
   const invoices=adminDealInvoices.get(dealId)||[];
@@ -15287,6 +15295,7 @@ function renderAnyBikeDealInvoiceDocuments(deal,compact=false){
       ${String(invoice.invoice_type||"")==="Final Invoice" && status==="Issued" ? '<div class="anybike-invoice-combined-note"><strong>FINAL INVOICE</strong><span>Issued accounting document.</span></div>' : ''}
       <div class="anybike-invoice-lines">${lineHtml}</div>
       ${compact?"</details>":""}
+      ${String(invoice.invoice_type||"")==="Proforma"&&status==="Issued"?renderProformaDeliveryStatus(invoice):""}
       ${draftActions}
       ${issuedActions}
     </div>`;
@@ -15301,7 +15310,7 @@ function renderAnyBikeDealInvoiceDocuments(deal,compact=false){
     </div>
     ${compact?`<details style="margin:0 12px"><summary>Proforma rules · Not a VAT invoice</summary>`:""}<div class="anybike-invoice-rule"><strong>PROFORMA RULE</strong><span>A Proforma is not a VAT invoice and does not show a VAT breakdown. VAT verification remains separate until the Final Invoice stage. Issued Proformas are frozen for audit; if information is missing or changes, correct the Deal/customer/handover information and create a corrected Draft version rather than editing the issued document in place.</span></div>${compact?"</details>":""}
     ${invoiceCards}
-    <div class="anybike-invoice-actions">
+    <div class="anybike-invoice-actions" ${compact&&latestSingleProforma?'style="display:none"':""}>
       <div>${canCreate ? "Customer offer accepted. A single-Deal Proforma can still be created independently; Combined Proformas remain linked across all included Deals." : "A Proforma becomes available once the customer has accepted the formal AnyBike offer."}</div>
       ${!latestSingleProforma ? `<button type="button" ${busy||!canCreate ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${escapeAdminHtml(buttonText)}</button>` : (latestSingleProforma && String(latestSingleProforma.invoice_status||"")==="Issued" ? `<button type="button" class="anybike-invoice-secondary-btn" ${busy||!canCreate ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${busy ? "Creating Corrected Draft..." : "Create Corrected Draft"}</button>` : '')}
     </div>
