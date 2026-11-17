@@ -819,6 +819,8 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // inferred logo from an arbitrary brand's name. The same registry serves
   // every model of that manufacturer. Logos are NOT motorcycle photographs.
   const registeredManufacturerLogos=Object.freeze({
+   kawasaki:'https://commons.wikimedia.org/wiki/Special:FilePath/Kawasaki_Motors_logo.svg',
+   suzuki:'https://commons.wikimedia.org/wiki/Special:FilePath/Suzuki_Motor_Corporation_logo.svg',
    ktm:'https://commons.wikimedia.org/wiki/Special:FilePath/KTM-Logo.svg',
    honda:'https://global.honda/content/dam/site/global-en/newsroom-new/cq_img/news/2025/11/c251104beng/c251104beng_01.jpg',
    bmw:'https://commons.wikimedia.org/wiki/Special:FilePath/BMW.svg',
