@@ -754,7 +754,7 @@ function render(){
 
           (r.underwrite_status!=="live"
             ?(r.make&&r.model
-              ?'<select id="underwrite-hours-'+Number(r.submission_id)+'" aria-label="Bidding time" style="max-width:185px"><option value="12" '+(String(r.notes||"").includes("Urgency: urgent")?"selected":"")+'>Urgent · 12 hours</option><option value="24">24 hours</option><option value="48" '+(!String(r.notes||"").includes("Urgency: urgent")&&!String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Standard · 48 hours</option><option value="72">72 hours</option><option value="96" '+(String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Flexible · 96 hours</option><option value="168">7 days</option><option value="336" '+(r.seller_type==="dealer"?"selected":"")+'>14 days · Free customer auction / dealer stock</option><option value="720">30 days · Long-term dealer stock</option></select>'
+              ?'<select id="underwrite-hours-'+Number(r.submission_id)+'" aria-label="Bidding time" style="max-width:185px"><option value="12" '+(String(r.notes||"").includes("Urgency: urgent")?"selected":"")+'>Urgent · 12 hours</option><option value="24">24 hours</option><option value="48" '+(!String(r.notes||"").includes("Urgency: urgent")&&!String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Standard · 48 hours</option><option value="72">72 hours</option><option value="96" '+(String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Flexible · 96 hours</option><option value="168">7 days</option><option value="336" '+(r.seller_type==="dealer"?"selected":"")+'>14 days · Free customer auction / dealer stock</option><option value="720">30 days · Long-term dealer stock</option><optgroup label="Scheduled close · Mon/Wed/Fri 16:00 UK"><option value="slot:0">Next scheduled close</option><option value="slot:2">At least 2 days</option><option value="slot:7">At least 7 days</option><option value="slot:14">At least 14 days</option><option value="slot:21">At least 21 days</option></optgroup></select>'
               :'<button type="button" class="red" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Complete Bike Details</button>')
             :"")+
 '<button type="button" data-action="refresh-demand" data-id="'+Number(r.submission_id)+'">Refresh matches</button>'+
@@ -1291,7 +1291,16 @@ async function startUnderwrite(id){
     await openSellerConditionReview(id);
     return;
   }
-  const hours=Number(document.getElementById("underwrite-hours-"+id)?.value||48);
+  const duration=String(document.getElementById("underwrite-hours-"+id)?.value||48);
+  const scheduled=duration.startsWith("slot:");
+  const hours=scheduled?48:Number(duration);
+  let closeAt=null;
+  if(scheduled){
+    const preview=await sb.rpc("admin_preview_scheduled_auction_close_v1",{p_min_days:Number(duration.split(":")[1])});
+    if(preview.error||!preview.data){alert("Could not calculate scheduled auction close: "+(preview.error?.message||"No deadline"));return;}
+    closeAt=preview.data;
+  }
+  const closingLabel=scheduled?"Scheduled close: "+new Date(closeAt).toLocaleString("en-GB",{timeZone:"Europe/London",weekday:"long",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"})+" UK time":hours+"-hour bidding window";
   const bike=[submission.make,submission.model,submission.variant].filter(Boolean).join(" ");
   const photoCount=Number(submission.image_approved||0);
   if(!submission.make||!submission.model||photoCount<1){
@@ -1316,7 +1325,7 @@ async function startUnderwrite(id){
     const {error:saveDescriptionError}=await sb.rpc("admin_set_seller_trade_description_v1",{p_submission_id:Number(id),p_description:dealerDescription});
     if(saveDescriptionError){alert("Could not save dealer description: "+saveDescriptionError.message);return;}
   }
-  if(!window.confirm("Final Admin check for "+(submission.reference||"this motorcycle")+" — "+year+" "+bike+"\n\n"+photoCount+" approved photo(s); dealer description saved; "+hours+"-hour bidding window.\n\nHave you checked the year, description and buyer-safe photographs, and do you want to invite verified UK trade dealers now?\n\nCancel keeps this motorcycle in Admin review."))return;
+  if(!window.confirm("Final Admin check for "+(submission.reference||"this motorcycle")+" — "+year+" "+bike+"\n\n"+photoCount+" approved photo(s); dealer description saved; "+closingLabel+".\n\nHave you checked the year, description and buyer-safe photographs, and do you want to invite verified UK trade dealers now?\n\nCancel keeps this motorcycle in Admin review."))return;
   if(window.anybikeUnderwritePending?.has(Number(id)))return;
   window.anybikeUnderwritePending=window.anybikeUnderwritePending||new Set();
   window.anybikeUnderwritePending.add(Number(id));
@@ -1324,11 +1333,11 @@ async function startUnderwrite(id){
   buttons.forEach(b=>{b.disabled=true;b.textContent="Starting trade bidding…"});
   const actionStatus=document.getElementById("action-status-"+id);
   if(actionStatus)actionStatus.textContent="Inviting verified UK trade-auction recipients selected by Admin…";
-  const {data,error}=await sb.rpc("admin_create_trade_underwrite_v1",{
+  const {data,error}=await (scheduled?sb.rpc("admin_create_scheduled_trade_underwrite_v1",{p_submission_id:Number(id),p_closes_at:closeAt}):sb.rpc("admin_create_trade_underwrite_v1",{
     p_submission_id:Number(id),
     p_duration_hours:hours,
     p_invitation_mode:"all_verified_trade"
-  });
+  }));
   if(error){window.anybikeUnderwritePending.delete(Number(id));buttons.forEach(b=>{b.disabled=false;b.textContent="Start Trade Bidding →"});if(actionStatus)actionStatus.textContent="Could not start bidding: "+error.message;return;}
   window.anybikeUnderwritePending.delete(Number(id));
   const successMessage="✓ Trade bidding started — "+Number(data.invited_count||0)+" opted-in verified UK dealer"+(Number(data.invited_count||0)===1?" invited.":"s invited.");
