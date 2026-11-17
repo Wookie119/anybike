@@ -695,7 +695,7 @@ function render(){
           '<div class="admin-photo-drop" data-admin-photo-id="'+Number(r.submission_id)+'" data-admin-photo-ref="'+esc(r.reference)+'" tabindex="0" role="button" aria-label="Add emailed motorcycle photographs">'+
           '<strong>+ Drag &amp; drop emailed photos here</strong><span>or click to choose photographs</span><small>JPEG, PNG, WEBP, HEIC or AVIF · large photos resized automatically</small></div>'+
           '<input type="file" id="admin-photo-input-'+Number(r.submission_id)+'" data-admin-photo-id="'+Number(r.submission_id)+'" data-admin-photo-ref="'+esc(r.reference)+'" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,.jpg,.jpeg,.jpe,.jfif,.png,.webp,.heic,.heif,.avif" multiple hidden>'+
-          '<span class="sub" id="admin-photo-status-'+Number(r.submission_id)+'" role="status" aria-live="polite">Photos remain private until reviewed. Large photos resized automatically.</span></div>'+
+          '<span class="sub" id="admin-photo-status-'+Number(r.submission_id)+'" role="status" aria-live="polite">Clean photos appear automatically after checks. Large photos resized automatically.</span></div>'+
           (Number(r.submission_id)===34?'<button type="button" class="btn" style="margin-top:10px" onclick="recoverSuzukiPhotos(this)">Recover 3 Suzuki advert photos →</button>':'')+
         '</div>'+
         (hasComps
@@ -898,7 +898,18 @@ async function adminAddSellerPhotos(submissionId,reference,files,input){
   const gallery=document.getElementById('submission-gallery-'+id);
   if(gallery){const counter=gallery.querySelector('.submission-gallery-head strong');if(counter)counter.textContent='Motorcycle photos · '+(refreshed?.image_total??result.added);}
   await loadSubmissionImages(id);
-  say(result.added+' photograph(s) attached to '+reference+(reduced?' · '+reduced+' resized for upload':'')+'. Awaiting private Admin review.',true);
+  say(result.added+' photograph(s) attached to '+reference+'. Automatic checks are running; clean photos appear automatically. No approval clicks needed unless a photo is flagged.',true);
+  for(const delay of [4000,12000,25000,45000,90000]){
+   setTimeout(async()=>{
+    if(!status.isConnected||input.disabled)return;
+    submissionImages.delete(id);
+    await loadSubmissionImages(id);
+    const items=submissionImages.get(id)||[];
+    const pending=items.filter(x=>['pending','processing'].includes(x.processing_status)||x.final_status==='quarantined').length;
+    const review=items.filter(x=>x.final_status==='review_required').length;
+    if(!pending)say(review?review+' photo(s) flagged for review. Clean photos are available automatically.':'Photographs updated. Clean photos are available automatically.',true);
+   },delay);
+  }
  }catch(e){say('Could not attach photos: '+String(e.message||e),false)}
  finally{input.disabled=false;input.value='';if(drop)drop.classList.remove('upload-busy')}
 }
