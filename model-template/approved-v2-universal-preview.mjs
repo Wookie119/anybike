@@ -806,7 +806,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // A valid licensed exact-model gallery photograph may fill the hero slot
   // when the dedicated hero RPC has no image. Never use another motorcycle.
   if(!safePhoto(approvedHero)){
-   const fullBike=arr(approvedGallery).filter(safePhoto).sort((a,b)=>{
+   const fullBike=arr(approvedGallery).filter(photo=>safePhoto(photo)&&str(photo.subject_category)==='whole_motorcycle').sort((a,b)=>{
     const detail=x=>/\b(?:engine|motor|detail|close.up|instrument|exhaust)\b/i.test(str(x.title));
     return Number(detail(a))-Number(detail(b));
    });
