@@ -14,14 +14,14 @@ const definitions=[
  ["drive","Chain / belt / final drive",["Good","Fair","Attention needed","Not applicable","Unknown"]],
  ["mechanical","Known mechanical faults",["None known","Faults declared in description","Unknown"]]
 ];
-const normalise=v=>String(v||"").replace(/[\r\n\[\]]/g," ").slice(0,180).trim();
+const normalise=(v,max=180)=>String(v||"").replace(/[\r\n\[\]]/g," ").slice(0,max).trim();
 function setup(){
  const form=document.getElementById("underwriteForm")||document.getElementById("sellBikeForm");
  if(!form||form.dataset.abDeclarations==="1")return;
- form.dataset.abDeclarations="1";
  const isDealer=form.id==="underwriteForm";
  const anchor=form.querySelector("#notes")?.closest(".field");
  if(!anchor)return;
+ form.dataset.abDeclarations="1";
  const wrapper=document.createElement("section");
  wrapper.className="ab-condition-intake"+(isDealer?"":" full");
  wrapper.setAttribute("aria-label","Seller motorcycle information");
@@ -42,20 +42,27 @@ function setup(){
  const faults=document.createElement("label");faults.className="ab-condition-field ab-condition-faults";
  faults.style.gridColumn="1/-1";faults.hidden=true;
  const faultsTitle=document.createElement("span");faultsTitle.textContent="Describe the known mechanical faults *";
- const faultsInput=document.createElement("textarea");faultsInput.id="ab-condition-fault-description";faultsInput.rows=3;
+ const faultsInput=document.createElement("textarea");faultsInput.id="ab-condition-fault-description";faultsInput.rows=3;faultsInput.maxLength=2000;
  faultsInput.placeholder="Describe symptoms, warning lights, repairs needed or any known mechanical issue. Do not include contact details.";
  faultsInput.style.cssText="width:100%;min-height:90px;background:#090909;border:1px solid #666;border-radius:8px;color:#fff;padding:10px";
  faults.append(faultsTitle,faultsInput);host.appendChild(faults);
  const faultsSelect=wrapper.querySelector("#ab-condition-mechanical");
  function syncFaults(){
   const shown=faultsSelect?.value==="Faults declared in description";
-  faults.hidden=!shown;faultsInput.required=!!shown;if(!shown)faultsInput.value="";
+  faults.hidden=!shown;faults.style.setProperty("display",shown?"flex":"none","important");faultsInput.required=!!shown;faultsInput.disabled=!shown;if(!shown)faultsInput.value="";
  }
  faultsSelect?.addEventListener("change",syncFaults);syncFaults();
  form.addEventListener("reset",()=>setTimeout(syncFaults,0));
  // Collection postcodes are essential for delivery quotes. Keep full postcodes internal.
  const postcode=form.querySelector("#postcode");
  if(postcode){postcode.required=true;const lbl=form.querySelector('label[for="postcode"]');if(lbl)lbl.textContent="Motorcycle collection postcode *";}
+ function validateText(){
+  if(postcode)postcode.setCustomValidity(postcode.value&&!postcode.value.trim()?"Enter the motorcycle collection postcode.":"");
+  faultsInput.setCustomValidity(faultsInput.required&&faultsInput.value&&!faultsInput.value.trim()?"Describe the known mechanical faults.":"");
+ }
+ postcode?.addEventListener("input",validateText);faultsInput.addEventListener("input",validateText);
+ form.addEventListener("reset",()=>setTimeout(validateText,0));
+ form.addEventListener("submit",event=>{validateText();if(!form.checkValidity()){event.preventDefault();event.stopImmediatePropagation();form.reportValidity();}},true);
  const bar=wrapper.querySelector("#abConditionBar");
  function update(){
   const selectors=[...wrapper.querySelectorAll("select[data-ab-field]")],done=selectors.filter(s=>s.value).length;
@@ -72,7 +79,7 @@ window.AnyBikeSellerDetails={
    const select=document.getElementById("ab-condition-"+key);
    if(select)declarations.push(title+": "+normalise(select.value||"Not answered"));
   }
-  const faultText=normalise(document.getElementById("ab-condition-fault-description")?.value||"");
+  const faultText=normalise(document.getElementById("ab-condition-fault-description")?.value||"",2000);
   if(faultText)declarations.push("Known fault details: "+faultText);
   if(declarations.length)fd.set("notes",String(fd.get("notes")||"")+"\n[SELLER-DECLARED CONDITION — NOT VERIFIED]\n"+declarations.join("\n"));
   return fd;
