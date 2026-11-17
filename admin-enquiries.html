@@ -17039,6 +17039,12 @@ function renderAdminMotorcycleJourneys(deal,bikes){
 }
 
 
+function finalSettlementChecksHtml(data){
+  const x=data?.settlement;
+  if(!x)return '<div class="final-invoice-readiness-note">Settlement checks unavailable. Do not assume the deal is financially settled.</div>';
+  const metric=(label,v)=>'<div><span>'+label+'</span><strong>'+anyBikeNullableMoney(v)+'</strong></div>';
+  return '<div class="final-invoice-readiness" style="margin-top:12px"><div class="final-invoice-readiness-head"><div><span>Internal only · recorded ledger</span><strong>'+(x.checks_pass?'Recorded settlement checks passed':'Financial settlement requires review')+'</strong></div></div><div class="final-invoice-readiness-grid">'+metric("Final Invoice",x.invoice_gbp)+metric("Incoming payments",x.receipts_gbp)+metric("Outgoing customer payments",x.outgoing_gbp)+metric("Net customer receipts",x.net_receipts_gbp)+metric("Valid payment allocations",x.valid_allocations_gbp)+metric("Invoice less net receipts",x.difference_gbp)+metric("Supplier balance due",x.supplier_due_gbp)+'</div><div class="final-invoice-readiness-note">'+escapeAdminHtml((x.review_items||[]).join(" · ")||"Confirm bank reconciliation, credit notes and all remaining costs before financial sign-off.")+' This is a read-only check, not an accounting close or proof of bank settlement.</div></div>';
+}
 function finalInvoiceReadinessHtml(dealId,data){
   const ready=!!data?.ready_for_final_invoice;
   const missing=Array.isArray(data?.missing)?data.missing:[];
@@ -17068,7 +17074,7 @@ function finalInvoiceReadinessHtml(dealId,data){
     (missing.length?'<div class="final-invoice-readiness-missing"><strong>Still required:</strong> '+escapeAdminHtml(missing.join(" · "))+'</div>':'<div class="final-invoice-readiness-ok">All current operational and VAT prerequisites are satisfied.</div>')+
     actionHtml+
     '<div class="final-invoice-readiness-note">The draft is built from the issued Proforma plus completed transaction charges. It remains blocked from issue until the accounting VAT snapshot is reviewed.</div>'+
-  '</div>';
+  '</div>'+finalSettlementChecksHtml(data);
 }
 
 function closeFinalInvoiceVatReview(){
