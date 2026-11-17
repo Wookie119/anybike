@@ -16698,7 +16698,7 @@ function bikeSalesJourneyInstruction(action,flags){
     "Start Purchase & Collection":"Customer funds are clear. Complete the seller purchase, supplier payment and Move Motorcycles collection workflow.",
     "Complete Delivery / Handover":"The motorcycle is collected. Complete the agreed UK handover / delivery to the authorised shipper and record the handover.",
     "Issue Final Invoice":"Finalise all known delivery/storage charges, review the VAT snapshot and issue the Final Invoice.",
-    "Sale Complete":"No further sales action is required. The Deal is financially and operationally complete."
+    "Sale Complete":"Sales workflow complete. Review recorded settlement and outstanding accounting costs in Final Invoice before financial sign-off."
   };
   if(map[primary]) return map[primary];
   if(primary.includes("VAT")) return "Verify the VAT treatment before AnyBike commits to purchase.";
@@ -17062,7 +17062,7 @@ function finalInvoiceReadinessHtml(dealId,data){
       : '';
 
   return '<div class="final-invoice-readiness '+(ready?'ready':'waiting')+'">'+
-    '<div class="final-invoice-readiness-head"><div><span>Final Invoice Readiness</span><strong>'+(ready?'Ready to prepare':'Waiting for prerequisites')+'</strong></div><div class="final-invoice-readiness-state">'+(ready?'READY':'NOT READY')+'</div></div>'+
+    '<div class="final-invoice-readiness-head"><div><span>Final Invoice Readiness</span><strong>'+(issuedId?'Invoice issued':ready?'Ready to prepare':'Waiting for prerequisites')+'</strong></div><div class="final-invoice-readiness-state">'+(issuedId?'ISSUED':ready?'READY':'NOT READY')+'</div></div>'+
     '<div class="final-invoice-readiness-grid">'+
       '<div><span>Motorcycles delivered</span><strong>'+delivered+' / '+motorcycleCount+'</strong></div>'+
       '<div><span>VAT verified</span><strong>'+vatVerified+' / '+motorcycleCount+'</strong></div>'+
@@ -17310,27 +17310,12 @@ window.invalidateFinalInvoiceReadiness=function(dealId){
 function renderFinalFinancialReconciliation(deal){
   const key=String(deal.deal_id||"");
   const rows=adminDealFinancialStatus.filter(r=>String(r.deal_id)===key);
-  const account=adminDealCustomerAccounts.get(key);
-  const invoices=adminDealInvoices.get(key)||[];
-  const invoice=invoices.find(i=>i.invoice_type==="Final Invoice"&&i.invoice_status==="Issued");
-  if(!rows.length||!account)return '<div class="final-invoice-readiness-note">Financial reconciliation unavailable — refresh the deal before financial close.</div>';
-  const sum=field=>rows.reduce((n,r)=>n+Number(r[field]||0),0);
+  if(!rows.length)return '<div class="final-invoice-readiness-note">Motorcycle margin unavailable — refresh the deal.</div>';
   const valid=v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v));
-  const received=valid(account.customer_money_received_gbp)?Number(account.customer_money_received_gbp):null;
-  const allocated=valid(account.customer_money_allocated_gbp)?Number(account.customer_money_allocated_gbp):null;
-  const charge=invoice&&valid(invoice.total_gbp)?Number(invoice.total_gbp):null;
-  const supplierDue=sum("supplier_balance_due_gbp");
-  const margin=sum("gross_margin_gbp");
+  const total=field=>rows.every(r=>valid(r[field]))?rows.reduce((n,r)=>n+Number(r[field]),0):null;
   const vatKnown=rows.every(r=>r.vat_treatment_status==="Verified"&&r.vat_calculation_available&&valid(r.net_margin_after_vat_gbp));
-  const issues=[];
-  if(!invoice)issues.push("Final Invoice not issued");
-  if(received===null||allocated===null)issues.push("Customer payment totals unavailable");
-  if(charge!==null&&received!==null&&Math.abs(charge-received)>0.009)issues.push("Customer receipts differ from Final Invoice");
-  if(received!==null&&allocated!==null&&Math.abs(received-allocated)>0.009)issues.push("Check payment allocations");
-  if(supplierDue>0.009)issues.push("Supplier balance outstanding");
-  if(!vatKnown)issues.push("Motorcycle VAT margin not verified");
   const metric=(label,value)=>'<div><span>'+label+'</span><strong>'+anyBikeNullableMoney(value)+'</strong></div>';
-  return '<div class="final-invoice-readiness" style="margin-top:12px"><div class="final-invoice-readiness-head"><div><span>Internal only</span><strong>Financial reconciliation</strong></div></div><div class="final-invoice-readiness-grid">'+metric("Issued Final Invoice",charge)+metric("Customer receipts",received)+metric("Customer allocations",allocated)+metric("Invoice less receipts (before refunds)",charge===null||received===null?null:charge-received)+metric("Supplier purchase value",sum("seller_purchase_price_gbp"))+metric("Supplier net payments",sum("supplier_payments_made_gbp"))+metric("Supplier balance due",supplierDue)+metric("Motorcycle gross margin",margin)+metric("Estimated motorcycle margin after VAT",vatKnown?sum("net_margin_after_vat_gbp"):null)+'</div><div class="final-invoice-readiness-note">'+escapeAdminHtml(issues.length?"Review: "+issues.join(" · "):"Displayed amounts reconcile; confirm refunds, expenses and accounting records before financial close.")+' Motorcycle margin excludes delivery and other costs; it is not final deal profit.</div></div>';
+  return '<div class="final-invoice-readiness" style="margin-top:12px"><div class="final-invoice-readiness-head"><div><span>Internal only</span><strong>Motorcycle profitability</strong></div></div><div class="final-invoice-readiness-grid">'+metric("Agreed supplier purchase value",total("seller_purchase_price_gbp"))+metric("Supplier net payments",total("supplier_payments_made_gbp"))+metric("Motorcycle gross margin",total("gross_margin_gbp"))+metric("Estimated motorcycle margin after VAT",vatKnown?total("net_margin_after_vat_gbp"):null)+'</div><div class="final-invoice-readiness-note">'+(vatKnown?'VAT treatment verified; the margin remains an estimate.':'VAT margin is not fully verified.')+' Excludes delivery and other costs; not final deal profit.</div></div>';
 }
 
 function renderFinalInvoiceStageStatus(deal,collected,complete){
@@ -17353,7 +17338,7 @@ function renderFinalInvoiceStageStatus(deal,collected,complete){
   if(issued){
     state="done";
     title="Final Invoice issued";
-    text="The customer has been notified and can view the Final Invoice in Accounts & Documents.";
+    text="The issued Final Invoice is available in Accounts & Documents. Check settlement separately below.";
   }else if(draft){
     state="action";
     title="Final Invoice draft prepared";
@@ -17613,7 +17598,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     ["collection","Collection",collected],
     ["delivery","Delivery",complete],
     ["invoice","Final Invoice",finalInvoiceIssued],
-    ["complete","Complete",complete&&finalInvoiceIssued]
+    ["complete","Sales Complete",complete&&finalInvoiceIssued]
   ];
 
   // UK underwrite: never carry payment amounts or seller identities from a different deal.
@@ -17652,7 +17637,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     ["Collection",collected,collected?"Collection completed / in handover.":"Move collection follows the purchase/payment gates."],
     ["Delivery / handover",complete,complete?"UK handover / delivery recorded.":"Delivery follows collection and UK custody."],
     ["Final Invoice",finalInvoiceIssued,finalInvoiceIssued?"Final Invoice issued to the customer.":"Issue the Final Invoice when final delivery/storage charges are known."],
-    ["Complete",complete&&finalInvoiceIssued,(complete&&finalInvoiceIssued)?"Sale and financial close complete.":"Complete only after handover and Final Invoice."]
+    ["Complete",complete&&finalInvoiceIssued,(complete&&finalInvoiceIssued)?"Sales workflow complete; financial sign-off is separate.":"Complete only after handover and Final Invoice."]
   ];
   let currentMarked=false;
   const timelineHtml=timelineRows.map(function(row){
