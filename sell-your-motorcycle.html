@@ -526,6 +526,17 @@ footer{
 .hero .hero-actions{margin-top:18px;gap:10px}
 .hero .eyebrow{margin-bottom:8px}
 </style>
+<style>
+#sellBikeForm #photoDropzone{display:grid;justify-items:center;gap:8px;padding:18px;border:1px dashed #aaa;border-radius:10px;background:#f7f7f7;color:#171717;cursor:pointer;text-align:center}
+#sellBikeForm #photoDropzone.dragover{border-color:#ed1c24;background:#fff}
+#sellBikeForm .ab-photo-add{background:#ed1c24;color:white;border-radius:8px;padding:8px 14px;font-weight:700}
+#sellBikeForm #photos{position:absolute;width:1px;height:1px;opacity:0;padding:0;min-height:0}
+#sellBikeForm #photoPreviewGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:8px}
+#sellBikeForm .ab-photo-preview{position:relative;min-width:0;max-width:220px}
+#sellBikeForm .ab-photo-preview img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px}
+#sellBikeForm .ab-photo-preview button{position:absolute;top:4px;right:4px;background:#111;color:white;border:0;border-radius:50%;width:28px;height:28px;cursor:pointer}
+#sellBikeForm .field:has(#registration_number){grid-column:1/-1}
+</style>
 <style id="ab-seller-condition-style">
 .ab-condition-intake{grid-column:1/-1;min-width:0;margin:14px 0;padding:18px;border:1px solid #555;border-radius:12px;background:#141414;color:#fff}
 .ab-condition-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
@@ -616,16 +627,17 @@ footer{
               <select id="model" name="model" required disabled><option value="">Select manufacturer first</option></select>
             </div>
 
+            <div class="field"><label for="variant">Variant (optional)</label><input id="variant" name="variant" maxlength="100" list="knownModelVariants" autocomplete="off" placeholder="Exact variant, if known"><datalist id="knownModelVariants"></datalist><div id="variantSourceHint" style="font-size:12px;color:#666">Confirm the exact model first.</div></div>
             <div class="field">
               <label for="bike_year">Motorcycle year (please confirm)</label>
-              <input id="bike_year" name="bike_year" type="number" min="1900" max="2027" step="1" inputmode="numeric" placeholder="Example: 2017">
+              <input id="bike_year" name="bike_year" required type="number" min="1900" max="2027" step="1" inputmode="numeric" placeholder="Example: 2017">
               <div style="font-size:12px;color:#777;margin-top:6px;">DVSA dates are a guide; confirm the actual motorcycle year.</div>
             </div>
 
             <div class="field full">
               <label for="photos">Motorcycle photos (required — at least one)</label>
               <div class="photo-box">
-                <input type="file" id="photos" name="photos" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple required>
+                <input type="file" id="photos" name="photos" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif" multiple required aria-label="Motorcycle photographs"><div id="photoDropzone" role="button" tabindex="0" aria-label="Add motorcycle photographs"><strong>Add multiple motorcycle photos</strong><span>Choose photos or drag and drop here</span><span class="ab-photo-add">ADD PHOTOS →</span></div><div id="photoPreviewGrid"></div>
                 <div id="photoHelp" style="color:#777;font-size:13px;margin-top:8px;">
                   Add at least one clear photo of your motorcycle (ideally front, rear, both sides and dashboard). Up to 12 photos.
                 </div>
@@ -858,18 +870,32 @@ function setMsg(text,ok=true){
   el.scrollIntoView({behavior:"smooth",block:"center"});
 }
 
-document.getElementById("photos").addEventListener("change",function(){
-  const count=Array.from(this.files||[]).length;
-  const el=document.getElementById("photoCount");
-  if(count>12){
-    el.textContent="Please choose no more than 12 photos.";
-    el.style.color="#ed1c24";
-    return;
-  }
-  el.style.color="";
-  el.textContent=count?count+" photo"+(count===1?"":"s")+" selected":"";
-});
-
+(function(){
+ const input=document.getElementById("photos"),zone=document.getElementById("photoDropzone"),grid=document.getElementById("photoPreviewGrid"),count=document.getElementById("photoCount");
+ let files=[],urls=[];
+ function redraw(message=""){
+  const dt=new DataTransfer();files.forEach(f=>dt.items.add(f));input.files=dt.files;
+  urls.forEach(URL.revokeObjectURL);urls=[];grid.replaceChildren();
+  files.forEach((file,i)=>{
+   const card=document.createElement("div");card.className="ab-photo-preview";
+   const img=document.createElement("img"),url=URL.createObjectURL(file);urls.push(url);img.src=url;img.alt="Motorcycle photo "+(i+1);img.onerror=()=>{img.remove();const label=document.createElement("span");label.textContent=file.name;card.prepend(label);};
+   const remove=document.createElement("button");remove.type="button";remove.textContent="×";remove.setAttribute("aria-label","Remove photo "+(i+1));remove.onclick=()=>{files.splice(i,1);redraw();};card.append(img,remove);grid.append(card);
+  });
+  count.textContent=files.length+" / 12 photos selected"+(message?" · "+message:"");count.style.color=message?"#b4141a":"";
+ }
+ function add(incoming){let warning="";for(const file of incoming){if(!file.type.startsWith("image/")&&!/\.(jpe?g|png|webp|heic|heif|avif)$/i.test(file.name)){warning="Please choose image files";continue;}if(files.some(f=>f.name===file.name&&f.size===file.size&&f.lastModified===file.lastModified))continue;if(files.length>=12){warning="Maximum 12 photographs";break;}files.push(file);}redraw(warning);}
+ input.addEventListener("change",()=>add(Array.from(input.files||[])));
+ input.addEventListener("invalid",()=>zone.focus());
+ zone.addEventListener("click",()=>input.click());
+ zone.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();input.click();}});
+ for(const event of ["dragenter","dragover","dragleave","drop"])zone.addEventListener(event,e=>{e.preventDefault();zone.classList.toggle("dragover",event==="dragenter"||event==="dragover");if(event==="drop")add(Array.from(e.dataTransfer?.files||[]));});
+ input.form.addEventListener("reset",()=>{files=[];setTimeout(()=>redraw(),0);});redraw();
+})();
+(function(){
+ const make=document.getElementById("make"),model=document.getElementById("model"),list=document.getElementById("knownModelVariants"),hint=document.getElementById("variantSourceHint");let seq=0;
+ async function refresh(){const id=++seq;list.replaceChildren();if(!make.value||!model.value){hint.textContent="Confirm the exact model first.";return;}hint.textContent="Checking available variants…";try{const {data,error}=await sb.rpc("dealer_known_model_variants_v1",{p_make:make.value,p_model:model.value});if(id!==seq)return;if(error)throw error;const names=[...new Set((data||[]).map(r=>String(r.variant||"").trim()).filter(Boolean))];names.forEach(n=>list.append(new Option(n,n)));hint.textContent=names.length?"Choose a recorded variant or type your own.":"Enter the exact variant if known.";}catch{if(id===seq)hint.textContent="Enter the exact variant if known.";}}
+ make.addEventListener("change",refresh);model.addEventListener("change",refresh);
+})();
 document.getElementById("seller_type").addEventListener("change",function(){
   document.getElementById("dealerNameWrap").style.display=this.value==="dealer"?"":"none";
 });
