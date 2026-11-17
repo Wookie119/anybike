@@ -978,7 +978,7 @@ function markAccountsSectionComplete(step,nextId,button){
 function updateAccountsWorkflow(){
   const groups=effectiveAdviceGroups(paymentAdviceRows);
   const outstanding=accountInvoices
-    .filter(row=>row.invoice_status==="Issued")
+    .filter(row=>row.invoice_status==="Issued"&&row.can_report_payment)
     .reduce((sum,row)=>sum+Number(row.balance_due_gbp||0),0);
   const pending=groups.filter(row=>row._effective_status==="Awaiting Verification").length;
 
@@ -1388,6 +1388,7 @@ function invoiceCard(invoice){
   const lineHtml=lines.length?lines.map(line=>`<div class="invoice-line"><div><strong>${safe(cleanCustomerMotorcycleDescription(line.description||line.line_type||"Line"))}</strong><small>${safe(line.line_type||"")}</small></div><strong>${money(line.line_total_gbp)}</strong></div>`).join(""):'<div class="invoice-line"><span>Invoice lines unavailable</span></div>';
   const isProforma=String(invoice.invoice_type||"")==="Proforma";
   const isPaid=Number(invoice.balance_due_gbp||0)<=0.009;
+  const historicalProforma=isProforma&&!canPay&&!isPaid;
 
   const paymentBlock=canPay?`<div class="payment-select">
     <input class="pay-select" id="pay-select-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="checkbox">
@@ -1421,8 +1422,8 @@ function invoiceCard(invoice){
             <div style="margin-top:5px;color:#aaa;font-size:11px;font-weight:800">Registration: ${safe(registration||"Not yet recorded")}</div>
           </div>
           <div class="mini-proforma-balance">
-            <span>${isPaid?"Payment status":"Remaining to pay"}</span>
-            <strong>${isPaid?"Paid":money(invoice.balance_due_gbp)}</strong>
+            <span>${historicalProforma?"Document status":isPaid?"Payment status":"Remaining to pay"}</span>
+            <strong>${historicalProforma?"Reference only":isPaid?"Paid":money(invoice.balance_due_gbp)}</strong>
             <a class="mini-proforma-open" href="/proforma.html?invoice=${Number(invoice.invoice_id)}" target="_blank" rel="noopener">Open full Proforma →</a>
           </div>
         </div>
@@ -1470,6 +1471,7 @@ function invoiceCard(invoice){
           ${String(invoice.invoice_type||"")==="Final Invoice"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/final-invoice.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">Open Final Invoice →</a>':""}
         </div>
       </div>
+      ${canPay?`<div class="invoice-action-row"><div class="invoice-payment-amount"><span>Amount transferred towards this invoice</span><div class="payment-amount-wrap"><input class="pay-amount" id="pay-amount-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="number" inputmode="decimal" min="0.01" step="0.01" max="${Number(invoice.balance_due_gbp||0).toFixed(2)}" placeholder="0.00" aria-label="Payment amount in pounds sterling"></div></div></div>`:""}
       ${paymentBlock}
     </div>
   </article>`;
@@ -1931,7 +1933,7 @@ function renderCentralDocuments(){
 function renderSummary(){
   const groups=effectiveAdviceGroups(paymentAdviceRows);
   const issued=accountInvoices.filter(row=>row.invoice_status==="Issued").length;
-  const outstanding=accountInvoices.filter(row=>row.invoice_status==="Issued").reduce((sum,row)=>sum+Number(row.balance_due_gbp||0),0);
+  const outstanding=accountInvoices.filter(row=>row.invoice_status==="Issued"&&row.can_report_payment).reduce((sum,row)=>sum+Number(row.balance_due_gbp||0),0);
   const pending=groups.filter(row=>row._effective_status==="Awaiting Verification").length;
   const confirmed=groups.filter(row=>row.advice_status==="Verified"||row.ledger_status==="Posted").length;
   document.getElementById("summary").innerHTML=`
