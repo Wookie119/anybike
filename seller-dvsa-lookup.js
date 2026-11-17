@@ -102,6 +102,11 @@
     record=vehicle;lookupToken=typeof result.lookupToken==="string"?result.lookupToken:"";reg.value=registration;
     render(vehicle);
     suggestMot(vehicle);
+    details.style.scrollMarginTop="110px";
+    requestAnimationFrame(()=>{
+     if(request!==requestIndex||details.hidden)return;
+     details.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth",block:"start"});
+    });
     let makeMatched=false,modelMatched=false;
     const makeConflict=make?.value&&normalName(make.value)!==normalName(vehicle.make);
     if(!makeConflict)makeMatched=matchOption(make,vehicle.make);
