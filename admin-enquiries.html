@@ -4309,6 +4309,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 
 
 <style id="anybike-invoice-documents-css">
+.ab-payment-documents{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:10px 0;align-items:start}.ab-payment-documents>*{min-width:0}.ab-payment-documents .anybike-invoice-panel,.ab-payment-documents .ab-payment-po{margin:0!important;border:1px solid #444;border-radius:10px;background:#151515;overflow:hidden}.ab-payment-documents .anybike-invoice-head{padding:12px}.ab-payment-documents .anybike-invoice-head p{display:none}.ab-payment-documents .anybike-invoice-card{margin:8px;padding:12px}.ab-payment-documents .anybike-invoice-card-head{flex-wrap:wrap;margin-bottom:6px}.ab-payment-documents .anybike-invoice-card-head strong{overflow-wrap:anywhere}.ab-payment-documents .anybike-invoice-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ab-payment-documents .anybike-invoice-card-actions{padding:10px 0 0;flex-wrap:wrap;justify-content:flex-start}.ab-payment-documents .anybike-invoice-actions{padding:8px 12px;flex-wrap:wrap}.ab-payment-documents .anybike-invoice-warning{flex-wrap:wrap}.ab-payment-documents details>summary{cursor:pointer;color:#bbb;padding:7px 0}.ab-payment-documents .ab-doc-total{font-size:25px;font-weight:900;color:#fff;margin:7px 0}.ab-payment-documents .ab-doc-profit{grid-column:1/-1;display:flex;justify-content:space-between;gap:12px;padding:10px 14px;border:1px solid #444;border-radius:8px}.ab-payment-po button{margin:6px 0 0!important}.ab-payment-po .ab-po-item+.ab-po-item{border-top:1px solid #444;padding-top:10px;margin-top:10px}@media(max-width:850px){.ab-payment-documents{grid-template-columns:minmax(0,1fr)}}
 .anybike-invoice-panel{margin-top:12px;border:1px solid #373737;border-top:3px solid #ed1c24;border-radius:12px;background:linear-gradient(180deg,#111,#0c0c0c);box-shadow:0 8px 22px rgba(0,0,0,.18);overflow:hidden}
 .anybike-invoice-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.09);background:linear-gradient(180deg,#171717,#121212)}
 .anybike-invoice-head>div:first-child>span{display:block;color:#ed1c24;font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
@@ -13381,15 +13382,18 @@ async function ensureDealDraftPurchaseOrder(dealId,motorcycleId,button){
 }
 function renderPaymentPurchaseOrders(deal,bikes){
   const items=(bikes||[]).filter(b=>Number(b.seller_price_gbp||0)>0 && (String(b.negotiation_status||"").toLowerCase()==="accepted"||b.accepted_at));
-  if(!items.length)return "";
-  return '<section class="ab-payment-po" style="margin:10px 0;border:1px solid #444;border-radius:10px;padding:12px"><strong>Seller purchase orders — separate outgoing transaction</strong>'+items.map(b=>{
-    const id=Number(b.deal_motorcycle_id||b.id), po=adminDealPurchaseOrders.get(String(id));
-    if(!po)return '<div style="margin-top:8px">'+escapeAdminHtml([b.make,b.model].filter(Boolean).join(" "))+' · '+anyBikeDealMoney(b.seller_price_gbp)+' <button type="button" onclick="ensureDealDraftPurchaseOrder('+Number(deal.deal_id)+','+id+',this)">Prepare Draft PO</button></div>';
-    const pay=anyBikeDealSellerPaymentForMotorcycle(id);
-    const paid=Number(pay?.total_supplier_payments_gbp??po.supplier_paid_gbp??0);
-    const balance=Math.max(Number(po.purchase_gross_gbp||0)-paid,0);
-    return '<div style="margin-top:8px"><strong>'+escapeAdminHtml(po.purchase_order_number)+'</strong> · '+escapeAdminHtml(po.purchase_order_status||"Draft")+' · '+escapeAdminHtml(po.supplier_name||"Supplier details required")+'<br>Purchase '+anyBikeDealMoney(po.purchase_gross_gbp)+' · Paid '+anyBikeDealMoney(paid)+' · Balance '+anyBikeDealMoney(balance)+'<br><small>'+(po.purchase_order_status==="Draft"?"Internal draft — not issued to supplier.":"Review the purchase order in the seller section.")+'</small></div>';
-  }).join("")+'</section>';
+  return '<section class="ab-payment-po" style="padding:12px"><small>Outgoing · Seller</small><h4 style="margin:4px 0 12px">Purchase Order</h4>'+(items.length?items.map(b=>{
+    const id=Number(b.deal_motorcycle_id||b.id),po=adminDealPurchaseOrders.get(String(id));
+    if(!po)return '<div class="ab-po-item">'+escapeAdminHtml([b.make,b.model].filter(Boolean).join(" "))+'<div class="ab-doc-total">'+anyBikeDealMoney(b.seller_price_gbp)+'</div><button type="button" onclick="ensureDealDraftPurchaseOrder('+Number(deal.deal_id)+','+id+',this)">Prepare Draft PO</button></div>';
+    const pay=anyBikeDealSellerPaymentForMotorcycle(id),paid=Number(pay?.total_supplier_payments_gbp??po.supplier_paid_gbp??0),balance=Math.max(Number(po.purchase_gross_gbp||0)-paid,0);
+    return '<div class="ab-po-item"><div class="anybike-invoice-card-head"><div><span>Seller purchase order</span><strong>'+escapeAdminHtml(po.purchase_order_number)+'</strong></div><span class="anybike-invoice-status '+(po.purchase_order_status==="Issued"?"issued":"draft")+'">'+escapeAdminHtml(po.purchase_order_status||"Draft")+'</span></div><div class="ab-doc-total">'+anyBikeDealMoney(po.purchase_gross_gbp)+'</div><div>'+escapeAdminHtml(po.supplier_name||"Supplier details required")+'</div><div style="margin-top:8px">Paid '+anyBikeDealMoney(paid)+' · Balance '+anyBikeDealMoney(balance)+'</div><small>'+(po.purchase_order_status==="Draft"?"Internal draft — not issued to supplier.":"Review order status.")+'</small><details><summary>View Purchase Order</summary><div>'+escapeAdminHtml([b.make,b.model,b.year].filter(Boolean).join(" "))+'</div><div>Registration: '+escapeAdminHtml(po.registration||"Not recorded")+'</div><div>VAT: '+escapeAdminHtml([po.vat_treatment_snapshot,po.vat_treatment_status_snapshot].filter(Boolean).join(" · ")||"Not recorded")+'</div></details></div>';
+  }).join(""):'<p>No accepted seller purchase recorded.</p>')+'</section>';
+}
+function renderPaymentDocumentsPair(deal,bikes){
+  const rows=adminDealFinancialStatus.filter(r=>String(r.deal_id)===String(deal.deal_id));
+  const valid=rows.length>0&&rows.every(r=>Number(r.customer_sale_price_gbp)>0&&Number(r.seller_purchase_price_gbp)>0);
+  const gross=rows.reduce((n,r)=>n+Number(r.customer_sale_price_gbp||0)-Number(r.seller_purchase_price_gbp||0),0);
+  return '<div class="ab-payment-documents">'+renderAnyBikeDealInvoiceDocuments(deal,true)+renderPaymentPurchaseOrders(deal,bikes)+(valid?'<div class="ab-doc-profit"><span>Motorcycle gross profit before VAT and expenses</span><strong style="color:'+(gross<0?'#ff9b9b':'#8cffb1')+'">'+anyBikeDealMoney(gross)+'</strong></div>':'')+'</div>';
 }
 function toggleAnyBikePurchaseOrder(dealMotorcycleId){
   const el=document.getElementById("deal-po-details-"+Number(dealMotorcycleId));
@@ -15173,7 +15177,7 @@ async function requestDealCustomerBalance(dealId,preferredInvoiceId){
   }
 }
 
-function renderAnyBikeDealInvoiceDocuments(deal){
+function renderAnyBikeDealInvoiceDocuments(deal,compact=false){
   const dealId=String(deal.deal_id||"");
   const invoices=adminDealInvoices.get(dealId)||[];
   const busy=dealProformaBusy.has(dealId);
@@ -15276,11 +15280,13 @@ function renderAnyBikeDealInvoiceDocuments(deal){
         <span class="anybike-invoice-status ${statusClass}">${escapeAdminHtml(status)}</span>
       </div>
       ${combinedNote}
+      ${compact ? `<div class="ab-doc-total">${anyBikeDealMoney(combined?thisDealAmount:invoice.total_gbp)}</div><small>${combined?"This deal only · ":""}${status==="Issued"?"Issued "+escapeAdminHtml(anyBikeInvoiceDate(invoice.issued_at)):"Document status: "+escapeAdminHtml(status)}</small><details><summary>Document details</summary>` : ""}
       ${summaryGrid}
       ${String(invoice.invoice_type||"")==="Proforma" ? '<div class="anybike-invoice-warning"><strong>PROFORMA INVOICE</strong><span>NOT A VAT INVOICE · No VAT breakdown is shown.</span></div>' : ''}
       ${String(invoice.invoice_type||"")==="Final Invoice" && status==="Draft" ? '<div class="anybike-invoice-warning"><strong>FINAL INVOICE DRAFT</strong><span>Accounting VAT review required before issue.</span></div>' : ''}
       ${String(invoice.invoice_type||"")==="Final Invoice" && status==="Issued" ? '<div class="anybike-invoice-combined-note"><strong>FINAL INVOICE</strong><span>Issued accounting document.</span></div>' : ''}
       <div class="anybike-invoice-lines">${lineHtml}</div>
+      ${compact?"</details>":""}
       ${draftActions}
       ${issuedActions}
     </div>`;
@@ -15290,10 +15296,10 @@ function renderAnyBikeDealInvoiceDocuments(deal){
 
   return `<div class="anybike-invoice-panel">
     <div class="anybike-invoice-head">
-      <div><span>Invoice / Documents</span><h4>${escapeAdminHtml(deal.deal_number||("Deal #"+dealId))}</h4><p>Single and Combined Proformas linked to this Deal are shown here. Combined document totals are separated from this Deal's own share.</p></div>
+      <div><span>${compact?"Incoming · Buyer":"Invoice / Documents"}</span><h4>${compact?"Sales Proforma":escapeAdminHtml(deal.deal_number||("Deal #"+dealId))}</h4><p>Single and Combined Proformas linked to this Deal are shown here. Combined document totals are separated from this Deal's own share.</p></div>
       <div class="anybike-invoice-badge">${escapeAdminHtml(badgeText)}</div>
     </div>
-    <div class="anybike-invoice-rule"><strong>PROFORMA RULE</strong><span>A Proforma is not a VAT invoice and does not show a VAT breakdown. VAT verification remains separate until the Final Invoice stage. Issued Proformas are frozen for audit; if information is missing or changes, correct the Deal/customer/handover information and create a corrected Draft version rather than editing the issued document in place.</span></div>
+    ${compact?`<details style="margin:0 12px"><summary>Proforma rules · Not a VAT invoice</summary>`:""}<div class="anybike-invoice-rule"><strong>PROFORMA RULE</strong><span>A Proforma is not a VAT invoice and does not show a VAT breakdown. VAT verification remains separate until the Final Invoice stage. Issued Proformas are frozen for audit; if information is missing or changes, correct the Deal/customer/handover information and create a corrected Draft version rather than editing the issued document in place.</span></div>${compact?"</details>":""}
     ${invoiceCards}
     <div class="anybike-invoice-actions">
       <div>${canCreate ? "Customer offer accepted. A single-Deal Proforma can still be created independently; Combined Proformas remain linked across all included Deals." : "A Proforma becomes available once the customer has accepted the formal AnyBike offer."}</div>
@@ -17611,7 +17617,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     panel("offer",renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
     panel("payment",(function(){
       if(ukUnderwriteCompleted){
-        return ukPaymentHeading+renderAnyBikeDealInvoiceDocuments(deal)+renderPaymentPurchaseOrders(deal,bikes)+ukSellerDepositGuide+
+        return ukPaymentHeading+renderPaymentDocumentsPair(deal,bikes)+ukSellerDepositGuide+
           (customerPaid
             ? '<details class="ab-completed-section"><summary>✓ Customer receipts — Paid in Full · '+anyBikeDealMoney(0)+' outstanding</summary>'+renderAnyBikeDealCustomerAccount(deal)+'</details>'+
               '<details class="ab-completed-section"><summary>✓ Customer payment ledger — '+anyBikeDealMoney(Number(deal.customer_money_received_deal_gbp||0))+' received</summary>'+renderAnyBikeDealCustomerLedger(deal)+'</details>'
