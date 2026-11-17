@@ -29,7 +29,8 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
 .preview-watermark{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-28deg);font-size:78px;font-weight:900;color:rgba(217,137,0,.07);pointer-events:none;z-index:1;white-space:nowrap}
 .page>*{position:relative;z-index:2}
 @media(max-width:700px){.page{padding:24px}.preview-banner{margin:-24px -24px 22px}.head,.meta{grid-template-columns:1fr}.doc-title{text-align:left}.summary,.vat-grid{grid-template-columns:1fr}.vat-grid>div{border-right:0}}
-@media print{body{background:#fff}.toolbar{display:none}.page{width:100%;margin:0;box-shadow:none;padding:16mm}.preview-watermark{font-size:64px}}
+@page{size:A4;margin:0}
+@media print{body{background:#fff}.toolbar{display:none}.page{width:100%;margin:0;box-shadow:none;padding:16mm;min-height:0}.preview-watermark{font-size:64px}}
 </style>
 </head>
 <body>
@@ -48,6 +49,8 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
   const params=new URLSearchParams(location.search);
   const invoiceId=Number(params.get("invoice")||0);
   const preview=params.get("preview")==="1";
+  const credit=params.get("credit")==="1";
+  const kind=credit?"Credit Note":"Final Invoice";
 
   const issuerFallback={
     legal_company_name:"Giffords Empire Ltd",
@@ -116,14 +119,15 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
   }
 
   function render(d){
-    if(String(d?.invoice_type||"")!=="Final Invoice")throw new Error("The selected document is not a Final Invoice.");
+    if(String(d?.invoice_type||"")!==kind)throw new Error("The selected document is not a "+kind+".");
+    if(credit&&d.invoice_status!=="Draft")throw new Error("Credit Note issue is not yet enabled.");
 
     const md=d.metadata||{};
     const issuer=Object.assign({},issuerFallback,md.issuer||{});
     const isDraft=String(d.invoice_status||"")==="Draft";
     const vatVerified=String(d.vat_treatment_status||"")==="Verified" &&
       d.net_amount_gbp!==null && d.vat_amount_gbp!==null && d.gross_amount_gbp!==null;
-    const number=d.invoice_number || ("Draft Final Invoice v"+Number(d.version_number||1));
+    const number=d.invoice_number || ("Draft "+kind+" v"+Number(d.version_number||1));
     document.title=(isDraft?"Draft — ":"")+number+" | AnyBike";
 
     const marginScheme=String(d.vat_treatment||"")==="Margin Scheme";
@@ -132,18 +136,19 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
       : '<div><span>VAT</span><strong>'+money(d.vat_amount_gbp)+'</strong></div>';
 
     box.innerHTML=
-      (isDraft?'<div class="preview-watermark">DRAFT</div><div class="preview-banner">DRAFT FINAL INVOICE — ACCOUNTING REVIEW REQUIRED · NOT ISSUED · NOT VISIBLE TO CUSTOMER</div>':'')+
+      (isDraft?'<div class="preview-watermark">DRAFT</div><div class="preview-banner">DRAFT '+kind.toUpperCase()+' — ACCOUNTING REVIEW REQUIRED · NOT ISSUED · NOT VISIBLE TO CUSTOMER</div>':'')+
       '<section class="head">'+
         '<div class="brand"><img src="/anybike-logo-new.jpg" alt="AnyBike"><p><strong>'+esc(issuer.trading_name)+'</strong><br>'+esc(issuer.legal_company_name)+'<br>'+esc(issuer.business_address)+'</p></div>'+
-        '<div class="doc-title"><h1>FINAL INVOICE</h1><strong>'+esc(isDraft?"DRAFT — NOT ISSUED":d.invoice_status||"Issued")+'</strong><p>'+esc(number)+'<br>Sale '+esc(d.deal_number||d.deal_id||"")+'<br>'+(d.issued_at?date(d.issued_at):"Draft")+'</p></div>'+
+        '<div class="doc-title"><h1>'+kind.toUpperCase()+'</h1><strong>'+esc(isDraft?"DRAFT — NOT ISSUED":d.invoice_status||"Issued")+'</strong><p>'+esc(number)+'<br>Sale '+esc(d.deal_number||d.deal_id||"")+'<br>'+(d.issued_at?date(d.issued_at):"Draft")+'</p></div>'+
       '</section>'+
       '<section class="meta">'+
         '<div class="box"><h3>Bill To</h3><p><strong>'+esc(d.business_name||d.customer_name||"")+'</strong></p>'+(d.business_name&&d.customer_name?'<p>'+esc(d.customer_name)+'</p>':'')+'<p>'+esc(d.billing_address||"")+'<br>'+esc(d.billing_city||"")+' '+esc(d.billing_postcode||"")+'<br>'+esc(d.billing_country||"")+'</p><p>'+esc(d.customer_email||"")+(d.customer_phone?'<br>'+esc(d.customer_phone):'')+'</p></div>'+
         '<div class="box"><h3>AnyBike</h3><p>'+esc(issuer.legal_company_name)+' trading as '+esc(issuer.trading_name)+'</p><p>Company No. '+esc(issuer.company_number)+'<br>VAT No. '+esc(issuer.vat_number)+'</p><p>'+esc(issuer.email)+'<br>'+esc(issuer.phone)+'</p></div>'+
       '</section>'+
-      (isDraft?'<div class="review"><strong>ACCOUNTING REVIEW REQUIRED</strong><span>This draft contains the completed transaction charges, but the VAT snapshot must be reviewed and verified before the Final Invoice can be issued.</span></div>':'<div class="issued">✓ Issued Final Invoice</div>')+
+      (isDraft?'<div class="review"><strong>ACCOUNTING REVIEW REQUIRED</strong><span>'+(credit?"This is a proposed full credit for internal accounting review only. No credit or refund has been issued.":"This draft contains the completed transaction charges, but the VAT snapshot must be reviewed and verified before the Final Invoice can be issued.")+'</span></div>':'<div class="issued">✓ Issued Final Invoice</div>')+
+      (credit?'<div class="box"><h3>Original invoice and correction</h3><p><strong>'+esc(md.original_invoice_number||"Not recorded")+'</strong> · '+esc(date(md.original_issued_at))+'</p><p>'+esc(md.correction_reason||"")+'</p><p>Proposed full credit only. No refund authorised or paid.</p></div>':"")+
       '<table class="lines"><thead><tr><th>Description</th><th>Qty</th><th>Amount</th></tr></thead><tbody>'+lineRows(d.lines)+'</tbody></table>'+
-      '<section class="summary"><div class="metric"><span>Subtotal</span><strong>'+money(d.subtotal_gbp)+'</strong></div><div class="metric"><span>Delivery</span><strong>'+money(d.delivery_total_gbp)+'</strong></div><div class="metric"><span>Invoice Total</span><strong>'+money(d.total_gbp)+'</strong></div></section>'+
+      '<section class="summary"><div class="metric"><span>Subtotal</span><strong>'+money(d.subtotal_gbp)+'</strong></div><div class="metric"><span>Delivery</span><strong>'+money(d.delivery_total_gbp)+'</strong></div><div class="metric"><span>'+(credit?"Proposed Credit Total":"Invoice Total")+'</span><strong>'+money(d.total_gbp)+'</strong></div></section>'+
       '<section class="vat"><div class="vat-head"><strong>VAT Summary</strong><span>'+esc(d.vat_treatment_status||"Check Required")+'</span></div>'+
         '<div class="vat-grid">'+
           '<div><span>Treatment</span><strong>'+esc(d.vat_treatment||"Accounting Review Required")+'</strong></div>'+
@@ -154,12 +159,12 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
       '</section>'+
       (!vatVerified?'<div class="review"><strong>VAT SNAPSHOT NOT VERIFIED</strong><span>This document must not be issued until the accounting VAT treatment, net amount, VAT amount and gross amount have been reviewed and saved as Verified.</span></div>':'')+
       (marginScheme?'<div class="review" style="border-color:#888;background:#f7f7f7"><strong style="color:#333">MARGIN SCHEME</strong><span>VAT is accounted for under the applicable margin scheme and is not separately stated on this invoice.</span></div>':'')+
-      '<footer class="foot">This Final Invoice records the completed AnyBike transaction. Keep it with the motorcycle purchase, shipping and export documents. A Proforma is a separate payment-stage document and is not the Final Invoice.</footer>';
+      (credit?'<footer class="foot">Internal draft only. The original invoice is unchanged. This document is not a payment request or refund confirmation.</footer>':'<footer class="foot">This Final Invoice records the completed AnyBike transaction. Keep it with the motorcycle purchase, shipping and export documents. A Proforma is a separate payment-stage document and is not the Final Invoice.</footer>');
   }
 
   async function load(){
     try{
-      if(!Number.isFinite(invoiceId)||invoiceId<=0)throw new Error("No valid Final Invoice was selected.");
+      if(!Number.isFinite(invoiceId)||invoiceId<=0)throw new Error("No valid "+kind+" was selected.");
       const access=token();
       if(!access)throw new Error("Your AnyBike session could not be found. Please sign in and reopen the document.");
       const d=await getInvoice(access);
