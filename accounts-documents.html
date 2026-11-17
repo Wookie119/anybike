@@ -818,6 +818,10 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
     <div class="summary-card good"><span>Verified / Posted</span><strong>—</strong></div>
   </div>
 
+  <section class="panel section-anchor" id="seller-purchase-orders" hidden>
+    <div class="panel-head"><div><h2>Purchase Orders from AnyBike</h2><p>Issued orders for motorcycles you are selling to AnyBike. These are not proof of payment.</p></div><div id="sellerPurchaseOrderCount" class="count-badge"></div></div>
+    <div id="sellerPurchaseOrderList"></div>
+  </section>
   <section class="panel" id="financial-documents">
     <div class="panel-head">
       <div>
@@ -1193,6 +1197,25 @@ function updateAccountsHeaderNextAction(){
   });
 }
 
+async function loadSellerPurchaseOrders(){
+  const panel=document.getElementById("seller-purchase-orders");
+  const list=document.getElementById("sellerPurchaseOrderList");
+  const count=document.getElementById("sellerPurchaseOrderCount");
+  try{
+    const result=await sb.rpc("customer_get_issued_purchase_orders_v1");
+    if(result.error)throw result.error;
+    const rows=Array.isArray(result.data)?result.data:[];
+    panel.hidden=!rows.length;
+    if(!rows.length){list.innerHTML="";return;}
+    count.textContent=rows.length+" Order"+(rows.length===1?"":"s");
+    list.innerHTML='<div class="document-grid">'+rows.map(po=>'<article class="invoice-card"><div class="invoice-head"><div><span>Purchase Order</span><strong>'+safe(po.purchase_order_number)+'</strong></div><div class="status-pill">Issued</div></div><div style="padding:12px"><strong>'+safe(po.motorcycle||"Motorcycle")+'</strong><p>Agreed purchase value: '+money(po.purchase_gross_gbp)+'</p><a class="action-btn primary" href="/purchase-order.html?po='+encodeURIComponent(String(po.purchase_order_id))+'&amp;from=seller" target="_blank" rel="noopener">View Purchase Order →</a></div></article>').join("")+'</div>';
+  }catch(error){
+    console.warn("Seller purchase orders unavailable",error);
+    panel.hidden=false;
+    count.textContent="Unavailable";
+    list.textContent="Purchase Orders could not be checked. Refresh the page to try again.";
+  }
+}
 async function loadAccounts(){
   const ok=await requireSession();if(!ok)return;
   const [centralResult,identityResult,profileShippingResult,dealShippingResult]=await Promise.all([
@@ -1217,6 +1240,7 @@ async function loadAccounts(){
     centralDocumentData=centralResult.data||{account_documents:[],customer_documents:[],motorcycle_documents:[],counts:{}};
   }
   renderCentralDocuments();
+  await loadSellerPurchaseOrders();
 
   const invoiceResult=await sb.rpc("customer_get_accounts_invoices");
   if(invoiceResult.error){
