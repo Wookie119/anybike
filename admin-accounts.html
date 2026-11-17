@@ -470,7 +470,7 @@ td strong{font-size:12px}
             <div class="kpi"><span>Documents</span><strong>—</strong></div>
             <div class="kpi"><span>Issued</span><strong>—</strong></div>
             <div class="kpi warn"><span>Drafts</span><strong>—</strong></div>
-            <div class="kpi"><span>Gross Issued</span><strong>—</strong></div>
+            <div class="kpi"><span>Gross issued sales invoices</span><strong>—</strong></div>
             <div class="kpi red"><span>VAT Review</span><strong>—</strong></div>
           </div>
 
@@ -478,17 +478,17 @@ td strong{font-size:12px}
             <div class="panel-head">
               <div>
                 <h2>Accounting Document Register</h2>
-                <p>Proformas, Final Invoices and Credit Notes with linked Deal references and frozen VAT status.</p>
+                <p>Proformas, Purchase Orders, Final Invoices and Credit Notes. Purchase orders and proformas are excluded from VAT returns.</p>
               </div>
               <div class="controls">
-                <div class="field"><label>From</label><input id="registerFrom" type="date"></div>
+                <div class="field"><label>Search documents</label><input type="search" id="registerSearch" placeholder="Reference or name"></div><div class="field"><label>From</label><input id="registerFrom" type="date"></div>
                 <div class="field"><label>To</label><input id="registerTo" type="date"></div>
                 <button class="primary" type="button" onclick="loadRegister()">Apply</button>
                 <button type="button" onclick="clearRegisterDates()">All Dates</button>
               </div>
             </div>
             <div class="table-wrap"><table>
-              <thead><tr><th>Date</th><th>Document</th><th>Customer</th><th>Deals</th><th>Status</th><th>Net</th><th>VAT</th><th>Gross</th><th>VAT Treatment</th><th>VAT Return</th></tr></thead>
+              <thead><tr><th>Date</th><th>Document</th><th>Customer / Supplier</th><th>Deals</th><th>Status</th><th>Net</th><th>VAT</th><th>Gross</th><th>VAT Treatment</th><th>VAT Return</th></tr></thead>
               <tbody id="registerBody"><tr><td colspan="10" class="empty">Loading document register...</td></tr></tbody>
             </table></div>
           </section>
@@ -571,6 +571,7 @@ function showTab(name){
   document.getElementById("tabSupplier").classList.toggle("active",name==="supplier");
   document.getElementById("tabRegister").classList.toggle("active",name==="register");
   document.getElementById("tabVat").classList.toggle("active",name==="vat");
+  if(name==="register")loadRegister();
 }
 
 function statusClass(status){
@@ -1665,20 +1666,28 @@ async function verifySupplierPurchase(id){
 }
 
 
+let registerLoadVersion=0;
 async function loadRegister(){
-  const from=document.getElementById("registerFrom").value||null;
-  const to=document.getElementById("registerTo").value||null;
-  const result=await sb.rpc("admin_get_accounts_document_register_v1",{p_from_date:from,p_to_date:to});
-  if(result.error){
-    document.getElementById("registerBody").innerHTML=`<tr><td colspan="10" class="empty">${esc(result.error.message)}</td></tr>`;
-    return;
-  }
-  registerRows=Array.isArray(result.data)?result.data:[];
-  renderRegister();
+  const version=++registerLoadVersion;
+  const body=document.getElementById("registerBody");
+  const from=document.getElementById("registerFrom").value||null,to=document.getElementById("registerTo").value||null;
+  body.innerHTML='<tr><td colspan="10" class="empty">Loading document register…</td></tr>';
+  try{
+    const [sales,purchases]=await Promise.all([
+      sb.rpc("admin_get_accounts_document_register_v1",{p_from_date:from,p_to_date:to}),
+      sb.rpc("admin_get_purchase_orders_v1",{p_from_date:from,p_to_date:to})
+    ]);
+    if(version!==registerLoadVersion)return;
+    if(sales.error||purchases.error)throw sales.error||purchases.error;
+    registerRows=[...(sales.data||[]),...(purchases.data||[]).map(po=>({
+      invoice_id:po.purchase_order_id,invoice_number:po.purchase_order_number,invoice_type:"Purchase Order",invoice_status:po.purchase_order_status,invoice_date:po.issued_at||po.created_at,customer_name:po.supplier_name,linked_deal_numbers:[po.deal_number],deal_id:po.deal_id,gross_amount_gbp:po.purchase_gross_gbp,vat_treatment:po.vat_treatment,vat_treatment_status:po.vat_status,included_in_vat_report:false,vat_snapshot_complete:false
+    }))].sort((a,b)=>String(b.invoice_date||"").localeCompare(String(a.invoice_date||"")));
+    renderRegister();
+  }catch(error){if(version===registerLoadVersion)body.innerHTML='<tr><td colspan="10" class="empty">Document register could not load: '+esc(error.message||"Unknown error")+' <button type="button" onclick="loadRegister()">Retry</button></td></tr>';}
 }
 
 function renderRegister(){
-  const search=String(document.getElementById("accountSearch").value||"").trim().toLowerCase();
+  const search=String(document.getElementById("registerSearch")?.value||"").trim().toLowerCase();
   const rows=registerRows.filter(row=>{
     if(!search)return true;
     return [
@@ -1695,10 +1704,10 @@ function renderRegister(){
       <td>${esc(niceDate(row.invoice_date))}</td>
       <td><strong>${esc(row.invoice_number||row.invoice_type||"Document")}</strong><br>${esc(row.invoice_type||"")}</td>
       <td><strong>${esc(row.business_name||row.customer_name||"Customer")}</strong><br>${esc(row.customer_name||"")}</td>
-      <td>${esc(dealText(row))}</td>
+      <td>${row.deal_id?`<a href="admin-enquiries.html?deal=${encodeURIComponent(row.deal_id)}&tab=payment">${esc(dealText(row))}</a>`:esc(dealText(row))}</td>
       <td><span class="status ${statusClass(row.invoice_status)}">${esc(row.invoice_status||"")}</span></td>
-      <td>${money(row.net_amount_gbp)}</td>
-      <td>${money(row.vat_amount_gbp)}</td>
+      <td>${row.invoice_type==="Purchase Order"||row.invoice_type==="Proforma"?"—":money(row.net_amount_gbp)}</td>
+      <td>${row.invoice_type==="Purchase Order"||row.invoice_type==="Proforma"?"—":money(row.vat_amount_gbp)}</td>
       <td><strong>${money(row.gross_amount_gbp)}</strong></td>
       <td>${esc(row.vat_treatment||"—")}<br><small>${esc(row.vat_treatment_status||"—")}</small></td>
       <td>${row.included_in_vat_report
@@ -1709,14 +1718,14 @@ function renderRegister(){
 
   const issued=registerRows.filter(r=>r.invoice_status==="Issued").length;
   const drafts=registerRows.filter(r=>r.invoice_status==="Draft").length;
-  const gross=registerRows.filter(r=>r.invoice_status==="Issued").reduce((s,r)=>s+Number(r.gross_amount_gbp||0),0);
+  const gross=registerRows.filter(r=>r.invoice_status==="Issued"&&["Final Invoice","Credit Note"].includes(r.invoice_type)).reduce((s,r)=>s+Number(r.gross_amount_gbp||0),0);
   const review=registerRows.filter(r=>r.included_in_vat_report&&!r.vat_snapshot_complete).length;
 
   document.getElementById("registerKpis").innerHTML=`
     <div class="kpi"><span>Documents</span><strong>${registerRows.length}</strong></div>
     <div class="kpi good"><span>Issued</span><strong>${issued}</strong></div>
     <div class="kpi warn"><span>Drafts</span><strong>${drafts}</strong></div>
-    <div class="kpi"><span>Gross Issued</span><strong>${money(gross)}</strong></div>
+    <div class="kpi"><span>Gross issued sales invoices</span><strong>${money(gross)}</strong></div>
     <div class="kpi red"><span>VAT Review</span><strong>${review}</strong></div>`;
 }
 
@@ -1821,7 +1830,7 @@ function renderVatRows(){
   </tr>`).join("");
 }
 
-document.getElementById("accountSearch").addEventListener("input",renderRegister);
+document.getElementById("registerSearch")?.addEventListener("input",renderRegister);
 
 (async function startAccountsHQ(){
   const allowed=await requireAdminSession();
