@@ -13353,6 +13353,31 @@ function renderAnyBikePurchaseOrderCard(dealMotorcycleId){
   '</div>';
 }
 
+async function ensureDealDraftPurchaseOrder(dealId,motorcycleId,button){
+  if(button.disabled)return;
+  button.disabled=true;
+  try{
+    const result=await sb.rpc("admin_ensure_purchase_order_v1",{p_deal_motorcycle_id:Number(motorcycleId),p_created_from_invoice_id:null});
+    if(result.error)throw result.error;
+    await loadAdminDealQueue();
+    openAnyBikeDealId=String(dealId);
+    renderAdminDealQueue();
+    const row=document.getElementById("anybike-deal-"+dealId);
+    if(row){row.classList.add("open");bikeSalesJourneyTab(String(dealId),"payment",true);row.querySelector(".ab-payment-po")?.scrollIntoView({block:"start"});}
+  }catch(error){alert("Draft purchase order could not be prepared: "+(error?.message||"Unknown error"));button.disabled=false;}
+}
+function renderPaymentPurchaseOrders(deal,bikes){
+  const items=(bikes||[]).filter(b=>Number(b.seller_price_gbp||0)>0 && (String(b.negotiation_status||"").toLowerCase()==="accepted"||b.accepted_at));
+  if(!items.length)return "";
+  return '<section class="ab-payment-po" style="margin:10px 0;border:1px solid #444;border-radius:10px;padding:12px"><strong>Seller purchase orders — separate outgoing transaction</strong>'+items.map(b=>{
+    const id=Number(b.deal_motorcycle_id||b.id), po=adminDealPurchaseOrders.get(String(id));
+    if(!po)return '<div style="margin-top:8px">'+escapeAdminHtml([b.make,b.model].filter(Boolean).join(" "))+' · '+anyBikeDealMoney(b.seller_price_gbp)+' <button type="button" onclick="ensureDealDraftPurchaseOrder('+Number(deal.deal_id)+','+id+',this)">Prepare Draft PO</button></div>';
+    const pay=anyBikeDealSellerPaymentForMotorcycle(id);
+    const paid=Number(pay?.total_supplier_payments_gbp??po.supplier_paid_gbp??0);
+    const balance=Math.max(Number(po.purchase_gross_gbp||0)-paid,0);
+    return '<div style="margin-top:8px"><strong>'+escapeAdminHtml(po.purchase_order_number)+'</strong> · '+escapeAdminHtml(po.purchase_order_status||"Draft")+' · '+escapeAdminHtml(po.supplier_name||"Supplier details required")+'<br>Purchase '+anyBikeDealMoney(po.purchase_gross_gbp)+' · Paid '+anyBikeDealMoney(paid)+' · Balance '+anyBikeDealMoney(balance)+'<br><small>'+(po.purchase_order_status==="Draft"?"Internal draft — not issued to supplier.":"Review the purchase order in the seller section.")+'</small></div>';
+  }).join("")+'</section>';
+}
 function toggleAnyBikePurchaseOrder(dealMotorcycleId){
   const el=document.getElementById("deal-po-details-"+Number(dealMotorcycleId));
   if(!el){ return; }
@@ -17573,7 +17598,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     panel("offer",renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
     panel("payment",(function(){
       if(ukUnderwriteCompleted){
-        return ukPaymentHeading+renderAnyBikeDealInvoiceDocuments(deal)+ukSellerDepositGuide+
+        return ukPaymentHeading+renderAnyBikeDealInvoiceDocuments(deal)+renderPaymentPurchaseOrders(deal,bikes)+ukSellerDepositGuide+
           (customerPaid
             ? '<details class="ab-completed-section"><summary>✓ Customer receipts — Paid in Full · '+anyBikeDealMoney(0)+' outstanding</summary>'+renderAnyBikeDealCustomerAccount(deal)+'</details>'+
               '<details class="ab-completed-section"><summary>✓ Customer payment ledger — '+anyBikeDealMoney(Number(deal.customer_money_received_deal_gbp||0))+' received</summary>'+renderAnyBikeDealCustomerLedger(deal)+'</details>'
