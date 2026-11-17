@@ -315,6 +315,16 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 @media(min-width:1050px){.submission-detail .review-workspace-tools .admin-advert-description p{columns:2;column-gap:18px}}
 @media(max-width:950px){.submission-detail .review-workspace{grid-template-columns:1fr}}
 @media(max-width:600px){.submission-detail .review-workspace-tools>.data{grid-template-columns:repeat(2,minmax(0,1fr))!important}.submission-detail .review-seller>div{margin:0!important}}
+
+.private-delivery-row{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,.9fr) minmax(0,1.4fr);gap:6px 12px;align-items:center;border:1px solid #444;background:#191919;border-radius:9px;padding:9px 10px;margin:6px 0}
+.private-delivery-row small,.private-delivery-row label{display:block;font-size:11px;color:#bbb;margin-bottom:4px;font-weight:700}
+.private-delivery-row strong{display:block;font-size:14px;overflow-wrap:anywhere}
+.delivery-estimate-controls{display:flex;gap:5px;align-items:center}
+.delivery-estimate-controls input{min-width:0;width:100%;background:#101010;color:#fff;border:1px solid #777;border-radius:6px;padding:6px 8px;font:inherit}
+.delivery-estimate-controls button{padding:7px 10px;font-size:12px;background:#444}
+.private-delivery-row .delivery-save-status{grid-column:1/-1;margin:0;color:#b7e5c3}
+.private-delivery-row .delivery-save-status:empty{display:none}
+@media(max-width:560px){.private-delivery-row{grid-template-columns:1fr 1fr}.private-delivery-row>div:nth-child(3){grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -1110,6 +1120,29 @@ function compactSubmissionWorkspace(id){
  // Move existing controls; do not clone them or lose their event handlers.
  elements.slice(firstData).forEach(el=>{if(el===gallery)photos.appendChild(el);else tools.appendChild(el);});
  workspace.append(photos,tools);card.appendChild(workspace);
+ const delivery=document.createElement("section");delivery.className="private-delivery-row";delivery.setAttribute("aria-label","Private collection and delivery estimate");
+ delivery.innerHTML='<div><small>Collection postcode</small><strong data-delivery-postcode>Checking…</strong></div><div><small>Seller reserve · Private</small><strong data-delivery-reserve>—</strong></div><div><label for="delivery-estimate-'+Number(id)+'">Approx. delivery cost (£) · Private</label><div class="delivery-estimate-controls"><input id="delivery-estimate-'+Number(id)+'" type="number" min="0" max="100000" step="0.01" placeholder="Not set" disabled><button type="button" disabled>Save</button></div></div><small class="delivery-save-status" role="status"></small>';
+ const data=tools.querySelector(".data");if(data)data.after(delivery);else tools.prepend(delivery);
+ const input=delivery.querySelector("input"),save=delivery.querySelector("button"),status=delivery.querySelector(".delivery-save-status");
+ function displayDelivery(d){
+  delivery.querySelector("[data-delivery-postcode]").textContent=d.collection_postcode||"Not supplied";
+  delivery.querySelector("[data-delivery-reserve]").textContent=d.reserve_gbp==null?"Not confirmed":money(d.reserve_gbp);
+  input.value=d.delivery_gbp==null?"":Number(d.delivery_gbp).toFixed(2);
+  input.disabled=!d.editable;save.disabled=!d.editable;
+  status.textContent=d.editable?"": "Reviewed commercial assessment — manage in Underwrite Desk.";
+ }
+ sb.rpc("admin_get_submission_delivery_v1",{p_submission_id:Number(id)}).then(({data,error})=>{
+  if(error){status.textContent="Could not load private delivery details: "+error.message;return;}displayDelivery(data);
+ }).catch(()=>{status.textContent="Could not load private delivery details.";});
+ save.addEventListener("click",async()=>{
+  if(input.value===""||!input.checkValidity()){status.textContent="Enter an approximate cost (0 if none).";return;}
+  const amount=Number(input.value);save.disabled=true;input.disabled=true;status.textContent="Saving…";
+  try{
+   const {data,error}=await sb.rpc("admin_save_submission_delivery_v1",{p_submission_id:Number(id),p_amount_gbp:amount});
+   if(error)throw error;displayDelivery(data);status.textContent="Saved · private estimate";
+  }catch(e){status.textContent="Save not confirmed: "+(e.message||e);save.disabled=false;input.disabled=false;}
+ });
+
  const galleryHead=photos.querySelector(".submission-gallery-head");
  if(galleryHead&&!galleryHead.querySelector(".review-photo-toggle")){
   const btn=document.createElement("button");btn.type="button";btn.className="review-photo-toggle";
