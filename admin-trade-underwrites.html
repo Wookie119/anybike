@@ -1252,7 +1252,19 @@ function openReserveReview(id){
 async function loadReserveDraft(id){
  try{
   const {data,error}=await sb.rpc("admin_get_underwrite_commercial_saved_v1",{p_opportunity_id:id});
-  if(error||!data||reserveReviewId!==id)return;
+  if(error||reserveReviewId!==id)return;
+  if(!data){
+   const row=rows.find(r=>Number(r.opportunity_id)===id);
+   if(!row?.submission_id)return;
+   const estimate=await sb.rpc("admin_get_submission_delivery_v1",{p_submission_id:Number(row.submission_id)});
+   if(reserveReviewId!==id||estimate.error)return;
+   const input=document.getElementById("rvTransport");
+   if(input.value===""&&estimate.data?.delivery_gbp!=null){
+    input.value=Number(estimate.data.delivery_gbp).toFixed(2);
+    syncMoveAllowancePreset();updateReservePreview();
+   }
+   return;
+  }
   const fields={rvSeller:"seller_payment_gbp",rvTransport:"transport_cost_gbp",rvOther:"other_costs_gbp",rvSellerTransport:"seller_contribution_gbp",rvDealerTransport:"dealer_contribution_gbp",rvMargin:"minimum_margin_gbp"};
   Object.entries(fields).forEach(([element,key])=>{document.getElementById(element).value=data[key]??"";});
   document.getElementById("rvQuoteStatus").value=data.move_quote_confirmed?"confirmed":"estimate";
