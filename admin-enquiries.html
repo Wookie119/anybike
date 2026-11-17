@@ -15231,6 +15231,28 @@ function renderProformaDeliveryStatus(invoice){
  if(!r)return '<div style="font-size:12px;color:#aaa;margin:8px 0">Platform delivery not confirmed · Email not confirmed</div>';
  return '<div style="font-size:12px;line-height:1.6;margin:8px 0"><strong>Delivery · '+escapeAdminHtml(anyBikeInvoiceDate(r.delivered_at))+'</strong><br>Account notification: '+(r.notification_sent?'Sent':'Not confirmed')+' · '+(r.notification_read===true?'Read':r.notification_read===false?'Unread':'Read status unknown')+'<br>Message Centre: '+(r.message_sent?'Sent':'Not confirmed')+' · Email: Not confirmed</div>';
 }
+const creditNoteDraftBusy=new Set();
+async function prepareFullCreditNoteDraft(invoiceId,dealId){
+  const key=String(invoiceId);
+  if(creditNoteDraftBusy.has(key))return;
+  const reason=window.prompt("Reason for preparing a full Credit Note draft? This is for accounting review only. No refund or customer notification will be made.");
+  if(reason===null||!reason.trim())return;
+  if(!window.confirm("Prepare a full Credit Note draft against this issued Final Invoice? The original invoice stays unchanged. Nothing will be issued or refunded."))return;
+  creditNoteDraftBusy.add(key);
+  renderAdminDealQueue();
+  try{
+    const result=await sb.rpc("admin_prepare_full_credit_note_draft_v1",{p_invoice_id:Number(invoiceId),p_reason:reason.trim()});
+    if(result.error)throw result.error;
+    await loadAdminDealQueue();
+    alert("Credit Note draft prepared for accounting review. No refund made and no customer notification sent.");
+  }catch(error){
+    alert("Credit Note draft could not be confirmed. Refresh the deal and check existing documents before retrying. "+(error?.message||error));
+  }finally{
+    creditNoteDraftBusy.delete(key);
+    renderAdminDealQueue();
+    bikeSalesJourneyTab(String(dealId),"invoice",false);
+  }
+}
 function renderAnyBikeDealInvoiceDocuments(deal,compact=false){
   const dealId=String(deal.deal_id||"");
   const invoices=adminDealInvoices.get(dealId)||[];
@@ -15325,6 +15347,7 @@ function renderAnyBikeDealInvoiceDocuments(deal,compact=false){
         : String(invoice.invoice_type||"")==="Final Invoice" && status==="Issued" && Number.isFinite(invoiceId)
           ? `<div class="anybike-invoice-card-actions">
               <a class="anybike-invoice-view-btn" href="final-invoice.html?invoice=${encodeURIComponent(invoiceId)}&cb=${Date.now()}" target="anybike-final-invoice-${invoiceId}" rel="noopener">View Final Invoice</a>
+              ${!compact&&!combined&&!invoices.some(i=>i.invoice_type==="Credit Note"&&!["Cancelled","Superseded"].includes(i.invoice_status))?`<button type="button" class="anybike-invoice-secondary-btn" ${creditNoteDraftBusy.has(String(invoiceId))?"disabled":""} onclick="prepareFullCreditNoteDraft(${invoiceId},${Number(dealId)});return false;">Prepare Full Credit Note Draft</button>`:""}
             </div>`
           : "";
 
@@ -15337,6 +15360,7 @@ function renderAnyBikeDealInvoiceDocuments(deal,compact=false){
       ${compact ? `<div class="ab-doc-total">${anyBikeDealMoney(combined?thisDealAmount:invoice.total_gbp)}</div><small>${combined?"This deal only · ":""}${status==="Issued"?"Issued "+escapeAdminHtml(anyBikeInvoiceDate(invoice.issued_at)):"Document status: "+escapeAdminHtml(status)}</small><details><summary>Document details</summary>` : ""}
       ${summaryGrid}
       ${String(invoice.invoice_type||"")==="Proforma" ? '<div class="anybike-invoice-warning"><strong>PROFORMA INVOICE</strong><span>NOT A VAT INVOICE · No VAT breakdown is shown.</span></div>' : ''}
+      ${invoice.invoice_type==="Credit Note"&&status==="Draft"?'<div class="anybike-invoice-warning"><strong>CREDIT NOTE DRAFT · INTERNAL ONLY</strong><span>Full reversal proposed. Accounting review required. Not issued; no refund authorised.</span></div>':""}
       ${String(invoice.invoice_type||"")==="Final Invoice" && status==="Draft" ? '<div class="anybike-invoice-warning"><strong>FINAL INVOICE DRAFT</strong><span>Accounting VAT review required before issue.</span></div>' : ''}
       ${String(invoice.invoice_type||"")==="Final Invoice" && status==="Issued" ? '<div class="anybike-invoice-combined-note"><strong>FINAL INVOICE</strong><span>Issued accounting document.</span></div>' : ''}
       <div class="anybike-invoice-lines">${lineHtml}</div>
