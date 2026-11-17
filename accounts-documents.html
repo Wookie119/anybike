@@ -822,6 +822,10 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
     <div class="panel-head"><div><h2>Purchase Orders from AnyBike</h2><p>Issued orders for motorcycles you are selling to AnyBike. These are not proof of payment.</p></div><div id="sellerPurchaseOrderCount" class="count-badge"></div></div>
     <div id="sellerPurchaseOrderList"></div>
   </section>
+  <section class="panel section-anchor" id="seller-payment-history" hidden>
+    <div class="panel-head"><div><h2>Payments from AnyBike</h2><p>Payments AnyBike has recorded for your issued Purchase Orders. Check receipt in your own bank account.</p></div><div id="sellerPaymentCount" class="count-badge"></div></div>
+    <div id="sellerPaymentList"></div>
+  </section>
   <section class="panel" id="financial-documents">
     <div class="panel-head">
       <div>
@@ -1216,6 +1220,20 @@ async function loadSellerPurchaseOrders(){
     list.textContent="Purchase Orders could not be checked. Refresh the page to try again.";
   }
 }
+async function loadSellerPaymentHistory(){
+  const panel=document.getElementById("seller-payment-history"),list=document.getElementById("sellerPaymentList"),count=document.getElementById("sellerPaymentCount");
+  try{
+    const result=await sb.rpc("customer_get_seller_payment_history_v1");
+    if(result.error)throw result.error;
+    const rows=Array.isArray(result.data)?result.data:[];
+    panel.hidden=!rows.length;
+    count.textContent=rows.length+" Payment"+(rows.length===1?"":"s");
+    list.innerHTML=rows.length?'<div class="document-grid">'+rows.map(p=>'<article class="invoice-card"><div class="invoice-head"><div><span>'+safe(p.payment_purpose||"Seller payment")+'</span><strong>'+money(p.amount_gbp)+'</strong></div><div class="status-pill">Recorded</div></div><div style="padding:12px"><strong>'+safe(p.motorcycle||"Motorcycle")+'</strong><p>'+safe(p.purchase_order_number||"")+' · '+safe(p.paid_at?new Date(p.paid_at).toLocaleDateString("en-GB"):"Date not recorded")+'</p><p>'+safe(p.payment_method||"Method not recorded")+' · Reference: '+safe(p.payment_reference||"Not recorded")+'</p></div></article>').join("")+'</div>':"";
+  }catch(error){
+    console.warn("Seller payment history unavailable",error);
+    if(!document.getElementById("seller-purchase-orders").hidden){panel.hidden=false;count.textContent="Unavailable";list.textContent="Payment history could not be checked. Refresh to try again.";}
+  }
+}
 async function loadAccounts(){
   const ok=await requireSession();if(!ok)return;
   const [centralResult,identityResult,profileShippingResult,dealShippingResult]=await Promise.all([
@@ -1241,6 +1259,7 @@ async function loadAccounts(){
   }
   renderCentralDocuments();
   await loadSellerPurchaseOrders();
+  await loadSellerPaymentHistory();
 
   const invoiceResult=await sb.rpc("customer_get_accounts_invoices");
   if(invoiceResult.error){
