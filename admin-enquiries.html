@@ -17085,6 +17085,7 @@ function finalInvoiceReadinessHtml(dealId,data){
     (missing.length?'<div class="final-invoice-readiness-missing"><strong>Still required:</strong> '+escapeAdminHtml(missing.join(" · "))+'</div>':'<div class="final-invoice-readiness-ok">All current operational and VAT prerequisites are satisfied.</div>')+
     actionHtml+
     '<div class="final-invoice-readiness-note">The draft is built from the issued Proforma plus completed transaction charges. It remains blocked from issue until the accounting VAT snapshot is reviewed.</div>'+
+    '<div style="margin-top:8px"><button type="button" class="final-invoice-draft-button" onclick="loadFinalInvoiceReadiness('+Number(dealId)+',true);return false;">Refresh financial checks</button></div>'+
   '</div>'+finalSettlementChecksHtml(data);
 }
 
@@ -17270,6 +17271,9 @@ async function createOrRefreshFinalInvoiceDraft(dealId){
     alert("Final Invoice Draft could not be created.\n\n"+(error?.message||error));
   }finally{
     finalInvoiceDraftBusy.delete(key);
+    const currentHost=document.getElementById("final-invoice-readiness-"+key);
+    const currentData=finalInvoiceReadinessCache.get(key);
+    if(currentHost&&currentData)currentHost.innerHTML=finalInvoiceReadinessHtml(key,currentData);
   }
 }
 
@@ -17278,12 +17282,13 @@ async function loadFinalInvoiceReadiness(dealId,force){
   const host=document.getElementById("final-invoice-readiness-"+id);
   if(!id||!host)return;
 
+  if(finalInvoiceReadinessLoading.has(id))return;
+  if(force){finalInvoiceReadinessCache.delete(id);host.innerHTML='<div class="anybike-invoice-empty">Refreshing financial checks…</div>';}
   if(!force && finalInvoiceReadinessCache.has(id)){
     host.innerHTML=finalInvoiceReadinessHtml(id,finalInvoiceReadinessCache.get(id));
     return;
   }
 
-  if(finalInvoiceReadinessLoading.has(id))return;
   finalInvoiceReadinessLoading.add(id);
 
   try{
@@ -17291,10 +17296,13 @@ async function loadFinalInvoiceReadiness(dealId,force){
     if(result.error)throw result.error;
     const data=result.data||{};
     finalInvoiceReadinessCache.set(id,data);
-    host.innerHTML=finalInvoiceReadinessHtml(id,data);
+    const currentHost=document.getElementById("final-invoice-readiness-"+id);
+    if(currentHost)currentHost.innerHTML=finalInvoiceReadinessHtml(id,data);
   }catch(error){
     console.error("Final Invoice readiness could not be loaded:",error);
-    host.innerHTML='<div class="anybike-invoice-empty">Final Invoice readiness could not be loaded: '+escapeAdminHtml(error?.message||error)+'</div>';
+    finalInvoiceReadinessCache.delete(id);
+    const currentHost=document.getElementById("final-invoice-readiness-"+id);
+    if(currentHost)currentHost.innerHTML='<div class="anybike-invoice-empty">Final Invoice readiness could not be loaded: '+escapeAdminHtml(error?.message||error)+' <button type="button" class="final-invoice-draft-button" onclick="loadFinalInvoiceReadiness('+Number(id)+',true)">Retry</button></div>';
   }finally{
     finalInvoiceReadinessLoading.delete(id);
   }
