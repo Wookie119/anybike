@@ -481,7 +481,7 @@ td strong{font-size:12px}
                 <p>Proformas, Purchase Orders, Final Invoices and Credit Notes. Purchase orders and proformas are excluded from VAT returns.</p>
               </div>
               <div class="controls">
-                <div class="field"><label>Search documents</label><input type="search" id="registerSearch" placeholder="Reference or name"></div><div class="field"><label>From</label><input id="registerFrom" type="date"></div>
+                <div class="field"><label>Type</label><select id="registerType" onchange="renderRegister()"><option value="">All types</option><option>Proforma</option><option>Purchase Order</option><option>Final Invoice</option><option>Credit Note</option></select></div><div class="field"><label>Status</label><select id="registerStatus" onchange="renderRegister()"><option value="">All statuses</option><option>Draft</option><option>Issued</option><option>Cancelled</option><option>Superseded</option></select></div><div class="field"><label>Search documents</label><input type="search" id="registerSearch" placeholder="Reference or name"></div><div class="field"><label>From</label><input id="registerFrom" type="date"></div>
                 <div class="field"><label>To</label><input id="registerTo" type="date"></div>
                 <button class="primary" type="button" onclick="loadRegister()">Apply</button>
                 <button type="button" onclick="clearRegisterDates()">All Dates</button>
@@ -1673,22 +1673,32 @@ async function loadRegister(){
   const from=document.getElementById("registerFrom").value||null,to=document.getElementById("registerTo").value||null;
   body.innerHTML='<tr><td colspan="10" class="empty">Loading document register…</td></tr>';
   try{
-    const [sales,purchases]=await Promise.all([
+    const [sales,purchases,links]=await Promise.all([
       sb.rpc("admin_get_accounts_document_register_v1",{p_from_date:from,p_to_date:to}),
-      sb.rpc("admin_get_purchase_orders_v1",{p_from_date:from,p_to_date:to})
+      sb.rpc("admin_get_purchase_orders_v1",{p_from_date:from,p_to_date:to}),
+      sb.rpc("admin_accounting_register_v1")
     ]);
     if(version!==registerLoadVersion)return;
     if(sales.error||purchases.error)throw sales.error||purchases.error;
-    registerRows=[...(sales.data||[]),...(purchases.data||[]).map(po=>({
+    const dealMap=new Map((links.data||[]).filter(r=>r.record_type==="Sales Invoice").map(r=>[String(r.record_id),r.deal_id]));
+    registerRows=[...(sales.data||[]).map(r=>({...r,deal_id:dealMap.get(String(r.invoice_id))})),...(purchases.data||[]).map(po=>({
       invoice_id:po.purchase_order_id,invoice_number:po.purchase_order_number,invoice_type:"Purchase Order",invoice_status:po.purchase_order_status,invoice_date:po.issued_at||po.created_at,customer_name:po.supplier_name,linked_deal_numbers:[po.deal_number],deal_id:po.deal_id,gross_amount_gbp:po.purchase_gross_gbp,vat_treatment:po.vat_treatment,vat_treatment_status:po.vat_status,included_in_vat_report:false,vat_snapshot_complete:false
     }))].sort((a,b)=>String(b.invoice_date||"").localeCompare(String(a.invoice_date||"")));
     renderRegister();
   }catch(error){if(version===registerLoadVersion)body.innerHTML='<tr><td colspan="10" class="empty">Document register could not load: '+esc(error.message||"Unknown error")+' <button type="button" onclick="loadRegister()">Retry</button></td></tr>';}
 }
 
+function registerDocumentUrl(row){
+  const id=encodeURIComponent(row.invoice_id),deal=encodeURIComponent(row.deal_id||"");
+  if(row.invoice_type==="Purchase Order")return "purchase-order.html?po="+id+"&from=accounts&deal="+deal;
+  if(row.invoice_type==="Proforma"||row.invoice_type==="Final Invoice")return (row.invoice_type==="Proforma"?"proforma.html":"final-invoice.html")+"?invoice="+id+"&from=admin&deal="+deal+(row.invoice_status==="Draft"?"&preview=1":"");
+  return row.deal_id?"admin-enquiries.html?deal="+deal+"&tab=invoice":"";
+}
 function renderRegister(){
   const search=String(document.getElementById("registerSearch")?.value||"").trim().toLowerCase();
   const rows=registerRows.filter(row=>{
+    const type=document.getElementById("registerType")?.value,status=document.getElementById("registerStatus")?.value;
+    if(type&&row.invoice_type!==type||status&&row.invoice_status!==status)return false;
     if(!search)return true;
     return [
       row.invoice_number,row.invoice_type,row.invoice_status,row.customer_name,row.business_name,
@@ -1702,9 +1712,9 @@ function renderRegister(){
   }else{
     body.innerHTML=rows.map(row=>`<tr>
       <td>${esc(niceDate(row.invoice_date))}</td>
-      <td><strong>${esc(row.invoice_number||row.invoice_type||"Document")}</strong><br>${esc(row.invoice_type||"")}</td>
-      <td><strong>${esc(row.business_name||row.customer_name||"Customer")}</strong><br>${esc(row.customer_name||"")}</td>
-      <td>${row.deal_id?`<a href="admin-enquiries.html?deal=${encodeURIComponent(row.deal_id)}&tab=payment">${esc(dealText(row))}</a>`:esc(dealText(row))}</td>
+      <td><strong>${registerDocumentUrl(row)?`<a style="color:#ed1c24" href="${esc(registerDocumentUrl(row))}">${esc(row.invoice_number||row.invoice_type||"Document")}</a>`:esc(row.invoice_number||row.invoice_type||"Document")}</strong><br>${esc(row.invoice_type||"")}</td>
+      <td><strong>${esc(row.business_name||row.customer_name||"Customer")}</strong>${row.business_name&&row.customer_name?`<br>${esc(row.customer_name)}`:""}</td>
+      <td>${row.deal_id?`<a style="color:#ed1c24" href="admin-enquiries.html?deal=${encodeURIComponent(row.deal_id)}&tab=payment">${esc(dealText(row))}</a>`:esc(dealText(row))}</td>
       <td><span class="status ${statusClass(row.invoice_status)}">${esc(row.invoice_status||"")}</span></td>
       <td>${row.invoice_type==="Purchase Order"||row.invoice_type==="Proforma"?"—":money(row.net_amount_gbp)}</td>
       <td>${row.invoice_type==="Purchase Order"||row.invoice_type==="Proforma"?"—":money(row.vat_amount_gbp)}</td>
