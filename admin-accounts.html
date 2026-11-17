@@ -47,6 +47,14 @@ body{margin:0;background:#080808;color:#fff;font-family:Arial,Helvetica,sans-ser
 .accounts-hero{padding:10px 16px;margin-bottom:12px;background:#111}
 .accounts-hero h1{font-size:25px;margin:3px 0}
 .accounts-hero p{font-size:12px}
+#anybikeSharedNextAction{display:none!important}
+.accounts-next{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 12px;padding:10px 14px;background:#141414;border:1px solid #353535;border-left:3px solid #ed1c24;border-radius:8px;color:#fff}
+.accounts-next .next-kicker{color:#ed1c24;font-size:10px;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+.accounts-next strong{display:block;margin:3px 0;font-size:16px}.accounts-next small{color:#b6b6b6;font-size:12px}
+.accounts-next button{flex-shrink:0;background:#ed1c24;border-color:#ed1c24}
+.accounts-next button[hidden]{display:none}
+#registerPanel .controls input,#registerPanel .controls select,.accounts-wrap .field input,.accounts-wrap .field select{background:#191919;color:#eee;border-color:#555;color-scheme:dark}
+@media(max-width:600px){.accounts-next{align-items:flex-start;flex-direction:column}}
 #registerPanel .panel-head{display:block;padding:12px 14px}
 #registerPanel .controls{display:grid;grid-template-columns:minmax(115px,1fr) minmax(105px,1fr) minmax(150px,1.5fr) minmax(110px,1fr) minmax(110px,1fr) auto auto auto;gap:7px;margin-top:10px}
 #registerPanel .controls .field{min-width:0}
@@ -389,6 +397,7 @@ td strong{font-size:12px}
           <p>Central accounting control for sales documents, VAT reporting and document exceptions. Proformas never enter VAT return figures.</p>
         </section>
 
+        <section class="accounts-next" data-anybike-next-action="finance" aria-live="polite"><div><div class="next-kicker">Your next action</div><strong id="financeNextTitle">Checking outstanding finance work…</strong><small id="financeNextDetail"></small></div><button type="button" id="financeNextButton" hidden></button></section>
         <div class="tabs">
           <button id="tabPayments" class="active" type="button" onclick="showTab('payments')">Payment Verification <span id="paymentQueueBadge"></span></button>
           <button id="tabSupplier" type="button" onclick="showTab('supplier')">Supplier Purchases <span id="supplierQueueBadge"></span></button>
@@ -566,14 +575,12 @@ const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
+let financePaymentState="loading",financeSupplierState="loading";
 let registerRows=[];
 let vatRows=[];
 
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
-const money=value=>{
-  const n=Number(value||0);
-  return "£"+(Number.isFinite(n)?n:0).toFixed(2);
-};
+const money=value=>{const n=Number(value||0);return new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(Number.isFinite(n)?n:0);};
 const niceDate=value=>value?new Date(String(value).length===10?value+"T00:00:00":value).toLocaleDateString("en-GB"):"—";
 
 function showTab(name){
@@ -651,9 +658,11 @@ function groupPaymentAdviceRows(rows){
 }
 
 async function loadPaymentQueue(){
+  financePaymentState="loading";updateFinanceNextAction();
   const result=await sb.rpc("admin_get_payment_advices",{p_status:null});
 
   if(result.error){
+    financePaymentState="error";updateFinanceNextAction();
     document.getElementById("paymentQueue").innerHTML=
       `<div class="empty">${esc(result.error.message)}</div>`;
     return;
@@ -683,7 +692,7 @@ async function loadPaymentQueue(){
       })
   );
 
-  renderPaymentQueue();
+  financePaymentState="ready";renderPaymentQueue();updateFinanceNextAction();
 
   const requestedAdvice=Number(new URLSearchParams(location.search).get("payment_advice")||0);
   if(requestedAdvice){
@@ -1405,15 +1414,44 @@ async function postPaymentAdvice(id){
 let supplierRows=[];
 
 async function loadSupplierQueue(){
+  financeSupplierState="loading";updateFinanceNextAction();
   const result=await sb.rpc("admin_get_supplier_purchase_queue_v1",{p_deal_id:null});
   if(result.error){
+    financeSupplierState="error";updateFinanceNextAction();
     document.getElementById("supplierQueue").innerHTML=`<div class="empty">${esc(result.error.message)}</div>`;
     return;
   }
   supplierRows=Array.isArray(result.data)?result.data:[];
-  renderSupplierQueue();
+  financeSupplierState="ready";renderSupplierQueue();updateFinanceNextAction();
 }
 
+function updateFinanceNextAction(){
+  const title=document.getElementById("financeNextTitle"),detail=document.getElementById("financeNextDetail"),btn=document.getElementById("financeNextButton");
+  if(!title||!detail||!btn)return;
+  const pay=Array.from(paymentAdviceGroups.values()),sup=supplierRows||[];
+  const awaiting=pay.filter(x=>x.advice_status==="Awaiting Verification"),ready=pay.filter(x=>x.advice_status==="Verified"&&x.ledger_status==="Ready to Post"),pending=sup.filter(x=>supplierRowStatus(x)!=="Verified");
+  const go=(tab,filter,id)=>{
+    showTab(tab);
+    const field=document.getElementById(tab==="payments"?"paymentStatusFilter":"supplierStatusFilter");
+    if(field)field.value=filter;
+    if(tab==="payments")renderPaymentQueue();else renderSupplierQueue();
+    requestAnimationFrame(()=>{const target=document.getElementById(id);if(target){target.scrollIntoView({block:"start",behavior:"smooth"});target.style.outline="2px solid #ed1c24";setTimeout(()=>target.style.outline="",2500);}});
+  };
+  const set=(t,d,label,action)=>{title.textContent=t;detail.textContent=d;btn.hidden=!action;btn.textContent=label||"";btn.onclick=action||null;};
+  if(financePaymentState==="ready"&&awaiting.length){
+    const x=awaiting[0];return set("Verify "+awaiting.length+" reported bank transfer"+(awaiting.length===1?"":"s"),(x.advice_number||"Payment advice")+" · "+money(x.reported_amount_gbp)+" — check the actual bank receipt.","Verify payment →",()=>go("payments","Awaiting Verification","payment-advice-"+x.payment_advice_id));
+  }
+  if(financePaymentState==="ready"&&ready.length){
+    const x=ready[0],blocked=paymentPostingPreviews.get(Number(x.payment_advice_id))?.ready_to_post===false;
+    return set(blocked?"Resolve payment allocation exception":"Post "+ready.length+" verified payment"+(ready.length===1?"":"s"),(x.advice_number||"Payment advice")+" · "+(blocked?"Review the posting issues.":"Allocate the verified receipt to Deal 360."),blocked?"Review exception →":"Review allocation →",()=>go("payments","Verified","payment-advice-"+x.payment_advice_id));
+  }
+  if(financePaymentState==="error"||financeSupplierState==="error")return set("Finance checks incomplete","A queue could not load. Refresh before treating finance work as clear.","Retry checks →",()=>Promise.all([loadPaymentQueue(),loadSupplierQueue()]));
+  if(financeSupplierState==="ready"&&pending.length){
+    const x=pending[0],status=supplierRowStatus(x);return set("Review "+pending.length+" supplier purchase record"+(pending.length===1?"":"s"),(x.deal_number||"Deal")+" · "+(x.motorcycle||"Motorcycle")+" — "+(status==="Needs Evidence"?"Obtain purchase evidence before verifying VAT.":"Review purchase evidence and VAT treatment."),"Review purchase →",()=>go("supplier",status,"finance-supplier-"+x.deal_motorcycle_id));
+  }
+  if(financePaymentState==="loading"||financeSupplierState==="loading")return set("Checking outstanding finance work…","Loading payment and supplier queues.");
+  set("No outstanding payment or supplier verification tasks","Both queues are clear. Other document and VAT reviews may still be required.");
+}
 function supplierRowStatus(row){
   if(row.verification_status==="Verified")return "Verified";
   if(row.verification_status==="Check Required")return "Check Required";
@@ -1471,7 +1509,7 @@ function supplierCard(row){
   const net=supplierNet(row);
   const vat=supplierVat(row);
 
-  return `<article class="supplier-card ${supplierCardClass(row)}">
+  return `<article class="supplier-card ${supplierCardClass(row)}" id="finance-supplier-${id}">
     <div class="supplier-head">
       <div>
         <div class="eyebrow">Supplier Purchase Evidence</div>
