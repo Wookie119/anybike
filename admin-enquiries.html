@@ -6634,6 +6634,7 @@ let dealCustomerAllocationBusy = new Set();
 let dealBalanceRequestBusy = new Set();
 let adminDealSellerPaymentStatus = [];
 let adminDealPurchaseOrders = new Map();
+let adminPODelivery = new Map();
 let adminDealSellerConfirmations = new Map();
 let adminDealSellerDisplay = new Map();
 let selectedCombinedProformaDeals = new Set();
@@ -12613,6 +12614,7 @@ async function loadAdminDealQueue(){
   }
 
   adminDealPurchaseOrders = new Map();
+  await loadPODeliveryStatus();
   try{
     const poResult = await sb.rpc("admin_get_deal_purchase_orders_v1",{p_deal_id:null});
     if(poResult.error){ throw poResult.error; }
@@ -13388,13 +13390,39 @@ function viewDealPurchaseOrder(motorcycleId){
  if(!po)return;
  location.assign("purchase-order.html?po="+encodeURIComponent(po.purchase_order_id)+"&deal="+encodeURIComponent(po.deal_id)+"&from=deal");
 }
+async function loadPODeliveryStatus(){
+ adminPODelivery=new Map();
+ try{const r=await sb.rpc("admin_get_po_delivery_status_v1");if(r.error)throw r.error;(r.data||[]).forEach(x=>adminPODelivery.set(String(x.purchase_order_id),x));}catch(e){console.warn("Purchase order delivery status unavailable",e);}
+}
+function renderPODelivery(po){
+ if(po.purchase_order_status!=="Issued")return "";
+ const r=adminPODelivery.get(String(po.purchase_order_id));
+ if(!r)return '<div style="font-size:12px;color:#aaa;margin:8px 0">Delivery not confirmed</div>';
+ return '<div style="font-size:12px;line-height:1.6;margin:8px 0"><strong>Delivery · '+escapeAdminHtml(anyBikeInvoiceDate(r.sent_at))+'</strong><br>Account notification: '+(r.notification_sent?'Sent':'Not confirmed')+' · '+(r.notification_read===true?'Read':r.notification_read===false?'Unread':'Read status unknown')+'<br>Message Centre: '+(r.message_sent?'Sent':'Not confirmed')+' · Email: Not confirmed</div>';
+}
+async function issueTradePurchaseOrder(dealId,motorcycleId,button){
+ const po=adminDealPurchaseOrders.get(String(motorcycleId));
+ if(!po||po.purchase_order_status!=="Draft"||button.disabled)return;
+ if(!confirm("AUTHORISE AND ISSUE PURCHASE ORDER?\n\n"+po.purchase_order_number+"\nSupplier: "+(po.supplier_name||"Not recorded")+"\nPurchase commitment: "+anyBikeDealMoney(po.purchase_gross_gbp)+"\n\nThis sends the order to the seller's AnyBike account. Only proceed if authorised to commit to the purchase. No payment will be recorded."))return;
+ button.disabled=true;button.textContent="Issuing…";
+ try{
+  const result=await sb.rpc("admin_issue_trade_purchase_order_v1",{p_purchase_order_id:Number(po.purchase_order_id),p_expected_amount:Number(po.purchase_gross_gbp)});
+  if(result.error)throw result.error;
+  const refreshed=await sb.rpc("admin_get_deal_purchase_orders_v1",{p_deal_id:Number(dealId)});
+  if(refreshed.error)throw refreshed.error;
+  (refreshed.data||[]).forEach(x=>adminDealPurchaseOrders.set(String(x.deal_motorcycle_id),x));
+  await loadPODeliveryStatus();
+  const row=document.getElementById("anybike-deal-"+dealId),panel=row?.querySelector(".ab-payment-po"),deal=adminDealQueue.find(d=>Number(d.deal_id)===Number(dealId));
+  if(panel&&deal){panel.outerHTML=renderPaymentPurchaseOrders(deal,adminDealMotorcycles.filter(b=>Number(b.deal_id)===Number(dealId)));}else{location.assign("admin-enquiries.html?deal="+encodeURIComponent(dealId)+"&tab=payment");}
+ }catch(e){alert("Purchase order issuing could not be confirmed: "+(e.message||"Unknown error")+"\nCheck the document status before retrying.");button.disabled=false;button.textContent="Issue Purchase Order";}
+}
 function renderPaymentPurchaseOrders(deal,bikes){
   const items=(bikes||[]).filter(b=>Number(b.seller_price_gbp||0)>0 && (String(b.negotiation_status||"").toLowerCase()==="accepted"||b.accepted_at));
   return '<section class="ab-payment-po" style="padding:12px"><div class="anybike-invoice-head" style="margin:-12px -12px 12px"><div><span>Outgoing · Seller</span><h4>Purchase Order</h4></div></div>'+(items.length?items.map(b=>{
     const id=Number(b.deal_motorcycle_id||b.id),po=adminDealPurchaseOrders.get(String(id));
     if(!po)return '<div class="ab-po-item">'+escapeAdminHtml([b.make,b.model].filter(Boolean).join(" "))+'<div class="ab-doc-total">'+anyBikeDealMoney(b.seller_price_gbp)+'</div><button type="button" onclick="ensureDealDraftPurchaseOrder('+Number(deal.deal_id)+','+id+',this)">Prepare Draft PO</button></div>';
     const pay=anyBikeDealSellerPaymentForMotorcycle(id),paid=Number(pay?.total_supplier_payments_gbp??po.supplier_paid_gbp??0),balance=Math.max(Number(po.purchase_gross_gbp||0)-paid,0);
-    return '<div class="ab-po-item"><div class="anybike-invoice-card-head"><div><span>Seller purchase order</span><strong>'+escapeAdminHtml(po.purchase_order_number)+'</strong></div><span class="anybike-invoice-status '+(po.purchase_order_status==="Issued"?"issued":"draft")+'">'+escapeAdminHtml(po.purchase_order_status||"Draft")+'</span></div><div class="ab-doc-total">'+anyBikeDealMoney(po.purchase_gross_gbp)+'</div><div>'+escapeAdminHtml(po.supplier_name||"Supplier details required")+'</div><div style="margin-top:8px">Paid '+anyBikeDealMoney(paid)+' · Balance '+anyBikeDealMoney(balance)+'</div><small>'+(po.purchase_order_status==="Draft"?"Internal draft — not issued to supplier.":"Review order status.")+'</small><details><summary>Document details</summary><div>'+escapeAdminHtml([b.make,b.model,b.year].filter(Boolean).join(" "))+'</div><div>Registration: '+escapeAdminHtml(po.registration||"Not recorded")+'</div><div>VAT: '+escapeAdminHtml([po.vat_treatment_snapshot,po.vat_treatment_status_snapshot].filter(Boolean).join(" · ")||"Not recorded")+'</div></details><div class="anybike-invoice-card-actions"><button type="button" onclick="viewDealPurchaseOrder('+id+');return false;">View Purchase Order</button></div></div>';
+    return '<div class="ab-po-item"><div class="anybike-invoice-card-head"><div><span>Seller purchase order</span><strong>'+escapeAdminHtml(po.purchase_order_number)+'</strong></div><span class="anybike-invoice-status '+(po.purchase_order_status==="Issued"?"issued":"draft")+'">'+escapeAdminHtml(po.purchase_order_status||"Draft")+'</span></div><div class="ab-doc-total">'+anyBikeDealMoney(po.purchase_gross_gbp)+'</div><div>'+escapeAdminHtml(po.supplier_name||"Supplier details required")+'</div><div style="margin-top:8px">Paid '+anyBikeDealMoney(paid)+' · Balance '+anyBikeDealMoney(balance)+'</div><small>'+(po.purchase_order_status==="Draft"?"Internal draft — not issued to supplier.":"Review order status.")+'</small>'+renderPODelivery(po)+'<details><summary>Document details</summary><div>'+escapeAdminHtml([b.make,b.model,b.year].filter(Boolean).join(" "))+'</div><div>Registration: '+escapeAdminHtml(po.registration||"Not recorded")+'</div><div>VAT: '+escapeAdminHtml([po.vat_treatment_snapshot,po.vat_treatment_status_snapshot].filter(Boolean).join(" · ")||"Not recorded")+'</div></details><div class="anybike-invoice-card-actions"><button type="button" onclick="viewDealPurchaseOrder('+id+');return false;">View Purchase Order</button>'+(po.purchase_order_status==="Draft"?'<button type="button" onclick="issueTradePurchaseOrder('+Number(deal.deal_id)+','+id+',this);return false;">Issue Purchase Order</button>':'')+'</div></div>';
   }).join(""):'<p>No accepted seller purchase recorded.</p>')+'</section>';
 }
 function renderPaymentDocumentsPair(deal,bikes){
