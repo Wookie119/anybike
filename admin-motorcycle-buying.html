@@ -541,6 +541,38 @@ async function loadBuyerDescription(id){
  const el=document.getElementById("buyer-advert-description-"+Number(id));
  if(el)el.textContent=String(data||"Description awaiting preparation.");
 }
+async function loadDvsaRecord(id){
+ const host=document.getElementById("dvsa-vehicle-record-"+Number(id));
+ if(!host)return;
+ const {data,error}=await sb.rpc("admin_get_seller_dvsa_record_v1",{p_submission_id:Number(id)});
+ if(!host.isConnected)return;
+ host.replaceChildren();
+ if(error){host.textContent="DVSA record unavailable. Refresh this motorcycle to retry.";return;}
+ if(!data){host.textContent="No DVSA lookup record saved for this submission.";return;}
+ const record=data;
+ const registration=String(rows.find(r=>Number(r.submission_id)===Number(id))?.registration||"").toUpperCase().replace(/\s+/g,"");
+ if(record.registration!==registration){
+  host.textContent="The saved DVSA record relates to a different registration. Do not rely on it until the vehicle is checked again.";return;
+ }
+ const date=x=>{const m=String(x||"").match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"/"+m[2]+"/"+m[1]:String(x||"");};
+ const fields=[
+  ["Registration",record.registration],["Manufacturer",record.make],["DVSA model",record.model],
+  ["Engine capacity",record.engineSize?record.engineSize+" cc":""],["Primary colour",record.colour],["Secondary colour",record.secondaryColour],["Fuel type",record.fuelType],
+  ["First used",date(record.firstUsedDate)],["Registration date",date(record.registrationDate)],["Manufacture date",date(record.manufactureDate)],
+  ["Latest MOT test",date(record.latestMotDate)],["MOT result",record.latestMotResult],
+  ["Historical MOT mileage",record.latestMotMileage!==""&&record.latestMotMileage!=null&&String(record.latestMotMileageResultType||"").toUpperCase()!=="NO_ODOMETER"?String(record.latestMotMileage)+(record.latestMotMileageUnit?" "+record.latestMotMileageUnit:""):""],
+  ["Last recorded MOT pass expiry",date(record.latestPassingMotExpiryDate||record.latestMotExpiryDate)],
+  ["MOT tests returned",Number.isInteger(record.motTestsCount)?String(record.motTestsCount):""],["Retrieved",record.checkedAt?new Date(record.checkedAt).toLocaleString("en-GB",{timeZone:"Europe/London"}):""]
+ ];
+ const grid=document.createElement("div");grid.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:8px 0";
+ for(const [label,value] of fields){
+  if(value===undefined||value===null||String(value).trim()==="")continue;
+  const item=document.createElement("div"),title=document.createElement("span"),text=document.createElement("strong");
+  title.style.cssText="display:block;font-size:12px;color:#999";title.textContent=label;text.style.cssText="font-size:13px;overflow-wrap:anywhere";text.textContent=value;item.append(title,text);grid.append(item);
+ }
+ host.append(grid);
+ const note=document.createElement("div");note.className="sub";note.textContent="Source: DVSA MOT History API. Historical MOT mileage is not the seller's current mileage; verify the exact model and year. This is not an HPI, ownership or finance check.";host.append(note);
+}
 function sellerNotesHtml(notes,submissionId){
  const raw=String(notes||"");
  const preference=(raw.match(/\[SELLER PREFERENCE\]([^\[\r\n]*)/)||[])[1]?.trim()||"";
@@ -659,6 +691,7 @@ function render(){
         (hasComps
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
           :'<div class="sub">Trade price will be established from confidential UK dealer bids. No stock comparison is required.</div>')+
+        '<details class="box" style="margin:8px 0"><summary style="cursor:pointer;font-weight:700">DVSA vehicle and MOT record · Admin only</summary><div id="dvsa-vehicle-record-'+Number(r.submission_id)+'" class="sub" style="margin-top:8px">Checking saved DVSA record…</div></details>'+
         (r.notes?sellerNotesHtml(r.notes,r.submission_id):"")+
         (dealer && !["live","closed","completed","cancelled"].includes(String(r.underwrite_status||"").toLowerCase()) && r.make && r.model?'<div class="underwrite-ready-note">Ready to invite trade offers. The current system still applies an initial bidding deadline; reserve-triggered timing is under development.</div>':'')+
         '<div class="trade-bidding-primary" style="margin-top:16px;padding:18px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>'+
@@ -973,6 +1006,7 @@ function toggleSubmission(id){
     row.classList.add("open");
     loadSubmissionImages(id);
     loadBuyerDescription(id);
+    loadDvsaRecord(id);
     const current=rows.find(r=>Number(r.submission_id)===Number(id));
     if(current?.seller_type==="private_seller")showSellerBiddingPermission(id);
   }
