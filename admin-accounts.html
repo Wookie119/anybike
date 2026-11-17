@@ -409,6 +409,12 @@ td strong{font-size:12px}
 
         
         <section id="paymentsPanel" class="tab-panel active">
+          <details class="payment-advice-card" style="margin-bottom:14px;padding:12px" ontoggle="if(this.open)loadRefundableDeposits()">
+            <summary style="cursor:pointer;font-weight:800">Deposit refunds — failed sales</summary>
+            <p>Full refunds of verified deposits on closed or lost sales. Check eligibility here before returning funds to the original payment source. Record only a refund already completed outside AnyBike.</p>
+            <button type="button" onclick="loadRefundableDeposits()">Refresh eligible deposits</button>
+            <div id="refundableDeposits" aria-live="polite"></div>
+          </details>
           <div class="kpi-grid" id="paymentKpis">
             <div class="kpi warn"><span>Awaiting Verification</span><strong>—</strong></div>
             <div class="kpi"><span>Ready to Post</span><strong>—</strong></div>
@@ -659,6 +665,41 @@ function groupPaymentAdviceRows(rows){
   return map;
 }
 
+let depositRefundBusy=false;
+async function loadRefundableDeposits(){
+ const host=document.getElementById("refundableDeposits");
+ if(!host)return;
+ host.textContent="Checking refundable deposits…";
+ try{
+  const r=await sb.rpc("admin_get_refundable_deposits_v1");
+  if(r.error)throw r.error;
+  host.replaceChildren();
+  const rows=Array.isArray(r.data)?r.data:[];
+  if(!rows.length){host.textContent="No eligible full deposit refunds found.";return;}
+  for(const row of rows){
+   const card=document.createElement("div");card.style.padding="12px 0";card.style.borderTop="1px solid #666";
+   const title=document.createElement("strong");title.textContent=row.deal_number+" · "+money(row.amount_gbp)+" · receipt #"+row.payment_id;
+   const ref=document.createElement("p");ref.textContent="Original bank reference: "+(row.payment_reference||"Not recorded");
+   const button=document.createElement("button");button.type="button";button.textContent="Record completed refund";button.onclick=()=>recordCompletedDepositRefund(row,button);
+   card.append(title,ref,button);host.append(card);
+  }
+ }catch(e){host.textContent="Could not check eligible deposits: "+(e.message||e);}
+}
+async function recordCompletedDepositRefund(row,button){
+ if(depositRefundBusy)return;
+ const reason=prompt("Why was this deposit refunded?");if(!reason?.trim())return;
+ const ref=prompt("Completed outgoing bank / payment transaction reference:");if(!ref?.trim())return;
+ const day=prompt("Actual refund date and time, including timezone (ISO format, e.g. 2026-11-17T14:30:00+00:00):");if(!day)return;
+ const date=new Date(day);if(!Number.isFinite(date.getTime())||date.getTime()>Date.now()){alert("Enter a valid past refund date and time.");return;}
+ if(!confirm("Record "+money(row.amount_gbp)+" refunded for "+row.deal_number+"? Confirm you have already returned the full amount to the original payment source. This does not transfer money."))return;
+ depositRefundBusy=true;button.disabled=true;
+ try{
+  const r=await sb.rpc("admin_record_full_deposit_refund_v1",{p_payment_id:Number(row.payment_id),p_expected_amount:row.amount_gbp,p_reference:ref.trim(),p_reason:reason.trim(),p_paid_at:date.toISOString()});
+  if(r.error)throw r.error;
+  alert("Completed deposit refund recorded. Original receipt retained.");
+ }catch(e){alert("Refund record not confirmed. Check the ledger and do not send funds again. "+(e.message||e));}
+ finally{depositRefundBusy=false;await loadRefundableDeposits();}
+}
 async function loadPaymentQueue(){
   financePaymentState="loading";updateFinanceNextAction();
   const result=await sb.rpc("admin_get_payment_advices",{p_status:null});
