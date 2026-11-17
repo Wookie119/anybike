@@ -17301,6 +17301,32 @@ window.invalidateFinalInvoiceReadiness=function(dealId){
   }
 };
 
+function renderFinalFinancialReconciliation(deal){
+  const key=String(deal.deal_id||"");
+  const rows=adminDealFinancialStatus.filter(r=>String(r.deal_id)===key);
+  const account=adminDealCustomerAccounts.get(key);
+  const invoices=adminDealInvoices.get(key)||[];
+  const invoice=invoices.find(i=>i.invoice_type==="Final Invoice"&&i.invoice_status==="Issued");
+  if(!rows.length||!account)return '<div class="final-invoice-readiness-note">Financial reconciliation unavailable — refresh the deal before financial close.</div>';
+  const sum=field=>rows.reduce((n,r)=>n+Number(r[field]||0),0);
+  const valid=v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v));
+  const received=valid(account.customer_money_received_gbp)?Number(account.customer_money_received_gbp):null;
+  const allocated=valid(account.customer_money_allocated_gbp)?Number(account.customer_money_allocated_gbp):null;
+  const charge=invoice&&valid(invoice.total_gbp)?Number(invoice.total_gbp):null;
+  const supplierDue=sum("supplier_balance_due_gbp");
+  const margin=sum("gross_margin_gbp");
+  const vatKnown=rows.every(r=>r.vat_treatment_status==="Verified"&&r.vat_calculation_available&&valid(r.net_margin_after_vat_gbp));
+  const issues=[];
+  if(!invoice)issues.push("Final Invoice not issued");
+  if(received===null||allocated===null)issues.push("Customer payment totals unavailable");
+  if(charge!==null&&received!==null&&Math.abs(charge-received)>0.009)issues.push("Customer receipts differ from Final Invoice");
+  if(received!==null&&allocated!==null&&Math.abs(received-allocated)>0.009)issues.push("Check payment allocations");
+  if(supplierDue>0.009)issues.push("Supplier balance outstanding");
+  if(!vatKnown)issues.push("Motorcycle VAT margin not verified");
+  const metric=(label,value)=>'<div><span>'+label+'</span><strong>'+anyBikeNullableMoney(value)+'</strong></div>';
+  return '<div class="final-invoice-readiness" style="margin-top:12px"><div class="final-invoice-readiness-head"><div><span>Internal only</span><strong>Financial reconciliation</strong></div></div><div class="final-invoice-readiness-grid">'+metric("Issued Final Invoice",charge)+metric("Customer receipts",received)+metric("Customer allocations",allocated)+metric("Invoice less receipts (before refunds)",charge===null||received===null?null:charge-received)+metric("Supplier purchase value",sum("seller_purchase_price_gbp"))+metric("Supplier net payments",sum("supplier_payments_made_gbp"))+metric("Supplier balance due",supplierDue)+metric("Motorcycle gross margin",margin)+metric("Estimated motorcycle margin after VAT",vatKnown?sum("net_margin_after_vat_gbp"):null)+'</div><div class="final-invoice-readiness-note">'+escapeAdminHtml(issues.length?"Review: "+issues.join(" · "):"Displayed amounts reconcile; confirm refunds, expenses and accounting records before financial close.")+' Motorcycle margin excludes delivery and other costs; it is not final deal profit.</div></div>';
+}
+
 function renderFinalInvoiceStageStatus(deal,collected,complete){
   const dealId=String(deal?.deal_id||"");
   const invoices=adminDealInvoices.get(dealId)||[];
@@ -17708,7 +17734,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     })())+
     panel("collection",renderAnyBikeDealTransactionCompletion(deal)+operationsBody)+
     panel("delivery",(typeof renderAnyBikeDeliveryStatusPanel==="function"?renderAnyBikeDeliveryStatusPanel(deal):"")+renderAnyBikeDealShippingRoutePanel(deal)+(collected?'<div class="sales-what-next"><strong>What happens next?</strong><span>Complete the agreed UK handover / delivery, confirm depot/storage where applicable, then record the final handover milestone.</span></div>':'<div class="sales-what-next"><strong>What happens next?</strong><span>Delivery becomes active after the motorcycle has been purchased and collected.</span></div>'))+
-    panel("invoice",renderFinalInvoiceStageStatus(deal,collected,complete)+renderFinalInvoiceReadinessPanel(deal)+renderAnyBikeDealInvoiceDocuments(deal))+
+    panel("invoice",renderFinalInvoiceStageStatus(deal,collected,complete)+renderFinalInvoiceReadinessPanel(deal)+renderAnyBikeDealInvoiceDocuments(deal)+renderFinalFinancialReconciliation(deal))+
     panel("timeline",renderAdminMotorcycleJourneys(deal,bikes)+renderDealRequirementWorkspace(deal)+'<div class="sales-timeline">'+timelineHtml+'</div><div class="sales-what-next"><strong>What happens next?</strong><span>'+escapeAdminHtml(nextText)+'</span></div>')+
   '</section>';
 };
