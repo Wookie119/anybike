@@ -819,6 +819,9 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // inferred logo from an arbitrary brand's name. The same registry serves
   // every model of that manufacturer. Logos are NOT motorcycle photographs.
   const registeredManufacturerLogos=Object.freeze({
+   triumph:'https://commons.wikimedia.org/wiki/Special:FilePath/Logo_Triumph.svg',
+   aprilia:'https://commons.wikimedia.org/wiki/Special:FilePath/Aprilia-logo.svg',
+   'royal enfield':'https://commons.wikimedia.org/wiki/Special:FilePath/Royal_Enfield_logo.svg',
    kawasaki:'https://commons.wikimedia.org/wiki/Special:FilePath/Kawasaki_Motors_logo.svg',
    suzuki:'https://commons.wikimedia.org/wiki/Special:FilePath/Suzuki_Motor_Corporation_logo.svg',
    ktm:'https://commons.wikimedia.org/wiki/Special:FilePath/KTM-Logo.svg',
