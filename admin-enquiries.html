@@ -13356,15 +13356,28 @@ function renderAnyBikePurchaseOrderCard(dealMotorcycleId){
 async function ensureDealDraftPurchaseOrder(dealId,motorcycleId,button){
   if(button.disabled)return;
   button.disabled=true;
+  button.textContent="Preparing draft…";
   try{
     const result=await sb.rpc("admin_ensure_purchase_order_v1",{p_deal_motorcycle_id:Number(motorcycleId),p_created_from_invoice_id:null});
     if(result.error)throw result.error;
-    await loadAdminDealQueue();
-    openAnyBikeDealId=String(dealId);
-    renderAdminDealQueue();
+    const poResult=await sb.rpc("admin_get_deal_purchase_orders_v1",{p_deal_id:Number(dealId)});
+    if(poResult.error)throw poResult.error;
+    (poResult.data||[]).forEach(po=>adminDealPurchaseOrders.set(String(po.deal_motorcycle_id),po));
     const row=document.getElementById("anybike-deal-"+dealId);
-    if(row){row.classList.add("open");bikeSalesJourneyTab(String(dealId),"payment",true);row.querySelector(".ab-payment-po")?.scrollIntoView({block:"start"});}
-  }catch(error){alert("Draft purchase order could not be prepared: "+(error?.message||"Unknown error"));button.disabled=false;}
+    const deal=adminDealQueue.find(d=>Number(d.deal_id)===Number(dealId));
+    const bikes=adminDealMotorcycles.filter(b=>Number(b.deal_id)===Number(dealId));
+    const panel=row?.querySelector('.sales-tab-panel[data-tab="payment"] .ab-payment-po');
+    if(panel&&deal){
+      panel.outerHTML=renderPaymentPurchaseOrders(deal,bikes);
+      row.classList.add("open");
+      openAnyBikeDealId=String(dealId);
+      bikeSalesJourneyTab(String(dealId),"payment",true);
+    }else{
+      const url=new URL(location.href);
+      url.searchParams.set("deal",String(dealId));url.searchParams.set("tab","payment");
+      location.assign(url.href);
+    }
+  }catch(error){alert("Purchase order operation could not be confirmed. Reopen the deal to check before retrying: "+(error?.message||"Unknown error"));button.disabled=false;button.textContent="Prepare Draft PO";}
 }
 function renderPaymentPurchaseOrders(deal,bikes){
   const items=(bikes||[]).filter(b=>Number(b.seller_price_gbp||0)>0 && (String(b.negotiation_status||"").toLowerCase()==="accepted"||b.accepted_at));
