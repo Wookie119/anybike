@@ -17121,6 +17121,11 @@ async function openFinalInvoiceVatReview(invoiceId,dealId){
         '</div>'+
       '</div>';
     document.body.appendChild(modal);
+    modal.querySelectorAll("#finalVatTreatment,#finalVatRate,#finalVatNet,#finalVatAmount,#finalVatGross,#finalVatNotes").forEach(field=>field.addEventListener("input",()=>{
+      const issue=modal.querySelector("#finalInvoiceIssueButton"),status=modal.querySelector("#finalVatReviewStatus");
+      if(issue)issue.disabled=true;
+      if(status){status.className="final-vat-review-status";status.textContent="Unsaved changes — save and verify the VAT snapshot before issue.";}
+    }));
   }catch(error){
     console.error("Final Invoice VAT review could not be loaded:",error);
     alert("Final Invoice VAT review could not be loaded.\n\n"+(error?.message||error));
@@ -17130,6 +17135,15 @@ async function openFinalInvoiceVatReview(invoiceId,dealId){
 async function saveFinalInvoiceVatReview(invoiceId,dealId){
   const status=document.getElementById("finalVatReviewStatus");
   const button=document.getElementById("finalVatSaveButton");
+  const issueButton=document.getElementById("finalInvoiceIssueButton");
+  if(issueButton)issueButton.disabled=true;
+  const fields=["finalVatRate","finalVatNet","finalVatAmount","finalVatGross"].map(id=>document.getElementById(id));
+  if(fields.some(field=>!field||field.value.trim()===""||!field.checkValidity())){
+    if(status){status.className="final-vat-review-status bad";status.textContent="Enter valid VAT rate, net, VAT and gross figures (enter 0 explicitly where applicable).";}
+    return;
+  }
+  const editable=[...document.querySelectorAll("#finalVatReviewBackdrop select,#finalVatReviewBackdrop input:not([readonly]),#finalVatReviewBackdrop textarea")];
+  editable.forEach(field=>field.disabled=true);
   if(button){button.disabled=true;button.textContent="Saving...";}
   if(status){status.className="final-vat-review-status";status.textContent="Saving reviewed VAT snapshot...";}
 
@@ -17154,6 +17168,7 @@ async function saveFinalInvoiceVatReview(invoiceId,dealId){
   }catch(error){
     if(status){status.className="final-vat-review-status bad";status.textContent=error?.message||String(error);}
   }finally{
+    editable.forEach(field=>field.disabled=false);
     if(button){button.disabled=false;button.textContent="Save & Verify VAT Snapshot";}
   }
 }
@@ -17195,7 +17210,8 @@ async function issueFinalInvoice(invoiceId,dealId){
     },50);
   }catch(error){
     if(status){status.className="final-vat-review-status bad";status.textContent=error?.message||String(error);}
-    if(button){button.disabled=false;button.textContent="Issue Final Invoice";}
+    if(button){button.disabled=true;button.textContent="Reopen to check invoice status";}
+    if(status)status.textContent+=" — Reopen the deal and check the invoice status before retrying.";
   }
 }
 
