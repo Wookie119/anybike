@@ -16,6 +16,23 @@
   if(!form||!reg||!button||!status||!details)return null;
   const make=document.getElementById("make"),model=document.getElementById("model"),year=document.getElementById("bike_year");
   let record=null,lookupToken="",requestIndex=0;
+  const mileageInput=document.getElementById("mileage");
+  const mileageWarning=document.createElement("div");
+  mileageWarning.setAttribute("role","status");mileageWarning.hidden=true;
+  mileageWarning.style.cssText="border:1px solid #d6a449;border-left:4px solid #d6a449;border-radius:8px;background:#fff3d4;color:#593700;padding:10px 12px;font-size:13px;line-height:1.5;margin-top:6px";
+  mileageInput?.insertAdjacentElement("afterend",mileageWarning);
+  function updateMileageWarning(){
+   mileageWarning.hidden=true;mileageWarning.textContent="";
+   if(!record||!mileageInput||normalRegistration(reg.value)!==record.registration)return;
+   const current=String(mileageInput.value||"").trim().replace(/,/g,""),historical=String(record.latestMotMileage??"").trim(),unit=String(record.latestMotMileageUnit||"").toUpperCase(),kind=String(record.latestMotMileageResultType||"").toUpperCase();
+   if(!/^\d+$/.test(current)||!/^\d+$/.test(historical)||kind!=="READ"||!["MI","MILES","KM","KILOMETRES"].includes(unit))return;
+   const miles=Number(historical)*(["KM","KILOMETRES"].includes(unit)?0.621371192237:1);
+   if(Number(current)>=Math.floor(miles))return;
+   mileageWarning.textContent="Mileage discrepancy — you entered "+Number(current).toLocaleString("en-GB")+" miles, but DVSA recorded "+formatMileage(record)+" at the last MOT"+(record.latestMotDate?" on "+dateLabel(record.latestMotDate):"")+". Please double-check the odometer. You can still submit if your entry is correct.";
+   mileageWarning.hidden=false;
+  }
+  mileageInput?.addEventListener("input",updateMileageWarning);
+  mileageInput?.addEventListener("change",updateMileageWarning);
   let family=null;
   const filteredOptions=new Map();
   const familyHint=document.createElement("div");
@@ -50,7 +67,7 @@
   showAll.addEventListener("click",clearFamily);
   make?.addEventListener("change",()=>{if(family&&normalName(make.value)!==family.make)clearFamily();});
   if(model)new MutationObserver(()=>{if(family)applyFamily();}).observe(model,{childList:true});
-  function clear(){clearFamily();clearMotSuggestion();document.getElementById("ab-dvsa-mot-history")?.remove();record=null;lookupToken="";details.hidden=true;details.replaceChildren();}
+  function clear(){clearFamily();clearMotSuggestion();document.getElementById("ab-dvsa-mot-history")?.remove();record=null;lookupToken="";updateMileageWarning();details.hidden=true;details.replaceChildren();}
   function invalidate(){requestIndex++;clear();status.textContent="";button.disabled=false;}
   reg.addEventListener("input",()=>{if(!record||normalRegistration(reg.value)!==record.registration)invalidate();});
   reg.addEventListener("change",()=>{if(record&&normalRegistration(reg.value)!==record.registration)invalidate();});
@@ -162,6 +179,7 @@
     const vehicle=result.vehicle;
     if(normalRegistration(vehicle.registration)!==registration)throw new Error("The returned registration did not match. Please verify it.");
     record=vehicle;lookupToken=typeof result.lookupToken==="string"?result.lookupToken:"";reg.value=registration;
+    updateMileageWarning();
     render(vehicle);
     suggestMot(vehicle);
     renderDeclarationMot(vehicle,result.motHistory);
