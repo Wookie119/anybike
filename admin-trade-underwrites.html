@@ -643,12 +643,19 @@ setInterval(updateAuctionCountdowns,1000);
 
 let dealerInviteOpportunity=0,dealerInviteRows=[],dealerInviteBusy=false,dealerInviteSelected=new Set(),dealerInviteExisting=new Set(),dealerInviteSellerId=null;
 async function editDealerDescription(submissionId){
- const existing=prompt("Dealer-facing motorcycle description (never include seller identity, phone, address, price expectations or private notes). This is visible to invited dealerships.\n\nExplain condition, specification, history and included equipment if verified.", "");
- if(existing===null)return;
- if(!confirm("Publish this description to invited trade dealers?"))return;
- const {error}=await sb.rpc("admin_set_seller_trade_description_v1",{p_submission_id:Number(submissionId),p_description:existing});
- if(error){alert(error.message);return;}
- alert("Dealer description saved. Refresh the dealer page to see it.");
+ const id=Number(submissionId);
+ if(!Number.isSafeInteger(id)||id<1){alert("Motorcycle not found.");return;}
+ const {data,error:readError}=await sb.rpc("admin_get_seller_trade_description_v1",{p_submission_id:id});
+ if(readError){alert("Could not load the saved description: "+readError.message);return;}
+ const edited=prompt("Dealer-facing motorcycle description (never include seller identity, phone, address, price expectations or private notes). This is visible to eligible dealerships.\n\nExplain condition, specification, history and included equipment using supported information.",String(data||""));
+ if(edited===null)return;
+ const revised=edited.trim();
+ if(!revised){alert("Enter a buyer-facing description before saving.");return;}
+ if(revised===String(data||"").trim())return;
+ if(!confirm("Save the dealer-facing description? For a live auction this updates what eligible dealers can see immediately. Original seller notes are not changed."))return;
+ const {data:saved,error}=await sb.rpc("admin_set_seller_trade_description_v1",{p_submission_id:id,p_description:revised});
+ if(error||!saved?.success){alert("Description not saved: "+(error?.message||"Unknown error"));return;}
+ alert("Dealer description saved.");
 }
 async function openDealerInvites(id){
  dealerInviteOpportunity=Number(id);dealerInviteSelected.clear();dealerInviteExisting.clear();dealerInviteSellerId=null;
