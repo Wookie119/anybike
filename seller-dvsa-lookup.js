@@ -50,7 +50,7 @@
   showAll.addEventListener("click",clearFamily);
   make?.addEventListener("change",()=>{if(family&&normalName(make.value)!==family.make)clearFamily();});
   if(model)new MutationObserver(()=>{if(family)applyFamily();}).observe(model,{childList:true});
-  function clear(){clearFamily();clearMotSuggestion();record=null;lookupToken="";details.hidden=true;details.replaceChildren();}
+  function clear(){clearFamily();clearMotSuggestion();document.getElementById("ab-dvsa-mot-history")?.remove();record=null;lookupToken="";details.hidden=true;details.replaceChildren();}
   function invalidate(){requestIndex++;clear();status.textContent="";button.disabled=false;}
   reg.addEventListener("input",()=>{if(!record||normalRegistration(reg.value)!==record.registration)invalidate();});
   reg.addEventListener("change",()=>{if(record&&normalRegistration(reg.value)!==record.registration)invalidate();});
@@ -86,6 +86,32 @@
    if(Array.from(input.options).some(o=>o.value===choice)){
     suggestedMot=choice;input.value=choice;input.dispatchEvent(new Event("change",{bubbles:true}));
    }
+  }
+  function renderDeclarationMot(vehicle,tests){
+   document.getElementById("ab-dvsa-mot-history")?.remove();
+   const select=motSelect(),field=select?.closest("label");
+   if(!field)return;
+   const panel=document.createElement("div");panel.id="ab-dvsa-mot-history";panel.style.cssText="grid-column:1/-1;border:1px solid #666;border-left:3px solid #ed1c24;border-radius:7px;padding:10px 12px;font-size:13px;line-height:1.5;min-width:0";
+   const heading=document.createElement("strong");heading.textContent="DVSA MOT record · confirm your declaration";panel.append(heading);
+   const state=motStatus(vehicle),summary=document.createElement("div");summary.style.marginTop="5px";
+   const statusText=state?(state.latestPass?(state.valid?"Valid until ":"Expired on ")+dateLabel(state.expiry):"Last MOT pass expiry: "+dateLabel(state.expiry)+" — check latest test result"):"MOT expiry not confirmed";
+   const parts=[statusText,vehicle.latestMotDate?"Last test: "+dateLabel(vehicle.latestMotDate):"",formatMileage(vehicle)?"Last MOT mileage: "+formatMileage(vehicle):""].filter(Boolean);
+   summary.textContent=parts.join(" · ");panel.append(summary);
+   const history=document.createElement("details"),toggle=document.createElement("summary");toggle.style.cssText="cursor:pointer;font-weight:700;margin-top:8px";const rows=Array.isArray(tests)?tests:[];toggle.textContent="View MOT history"+(rows.length?" ("+rows.length+" tests)":"");history.append(toggle);
+   if(!rows.length){const empty=document.createElement("p");empty.textContent=vehicle.motTestsCount?"Individual test details not returned.":"No individual MOT tests returned by DVSA.";history.append(empty);}
+   for(const test of rows){
+    const item=document.createElement("div");item.style.cssText="padding:9px 0;border-top:1px solid #777;margin-top:6px";
+    const title=document.createElement("strong"),result=String(test.testResult||"").toUpperCase();title.textContent=[dateLabel(test.completedDate),result||"Result not supplied"].filter(Boolean).join(" · ");if(result==="PASSED")title.style.color="#36a852";if(result==="FAILED")title.style.color="#ed1c24";item.append(title);
+    const mileage=formatMileage({latestMotMileage:test.odometerValue,latestMotMileageUnit:test.odometerUnit,latestMotMileageResultType:test.odometerResultType});
+    const facts=document.createElement("div");facts.textContent=[mileage?"Recorded mileage: "+mileage:"",test.expiryDate?"Expiry: "+dateLabel(test.expiryDate):""].filter(Boolean).join(" · ");if(facts.textContent)item.append(facts);
+    const defects=Array.isArray(test.defects)?test.defects:[];
+    if(defects.length){const list=document.createElement("ul");list.style.cssText="margin:5px 0 0;padding-left:18px";for(const defect of defects){const li=document.createElement("li");li.textContent=[defect.dangerous?"DANGEROUS":defect.type,defect.text].filter(Boolean).join(": ");list.append(li);}item.append(list);}
+    else{const note=document.createElement("div");note.textContent="No defects or advisories returned for this test.";item.append(note);}
+    history.append(item);
+   }
+   panel.append(history);
+   const note=document.createElement("div");note.style.cssText="font-size:12px;margin-top:6px";note.textContent="Historical DVSA records are not a current condition or HPI check. Confirm or correct the MOT declaration above.";panel.append(note);
+   field.insertAdjacentElement("afterend",panel);
   }
   function render(vehicle){
    details.replaceChildren();
@@ -136,6 +162,7 @@
     record=vehicle;lookupToken=typeof result.lookupToken==="string"?result.lookupToken:"";reg.value=registration;
     render(vehicle);
     suggestMot(vehicle);
+    renderDeclarationMot(vehicle,result.motHistory);
     details.style.scrollMarginTop="110px";
     requestAnimationFrame(()=>{
      if(request!==requestIndex||details.hidden)return;
