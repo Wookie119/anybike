@@ -932,7 +932,18 @@ async function adminAddSellerPhotos(submissionId,reference,files,input){
   const gallery=document.getElementById('submission-gallery-'+id);
   if(gallery){const counter=gallery.querySelector('.submission-gallery-head strong');if(counter)counter.textContent='Photos · '+(refreshed?.image_total??result.added);}
   await loadSubmissionImages(id);
-  say(result.added+' photograph(s) attached to '+reference+(reduced?' · '+reduced+' resized for upload':'')+'. Awaiting private Admin review.',true);
+  say(result.added+' photograph(s) attached to '+reference+'. Automatic checks are running; clean photos appear automatically. No approval clicks needed unless a photo is flagged.',true);
+  for(const delay of [4000,12000,25000,45000,90000]){
+   setTimeout(async()=>{
+    if(!status.isConnected||input.disabled)return;
+    submissionImages.delete(id);
+    await loadSubmissionImages(id);
+    const items=submissionImages.get(id)||[];
+    const pending=items.filter(x=>['pending','processing'].includes(x.processing_status)||x.final_status==='quarantined').length;
+    const review=items.filter(x=>x.final_status==='review_required').length;
+    if(!pending)say(review?review+' photo(s) flagged for review. Clean photos are available automatically.':'Photographs updated. Clean photos are available automatically.',true);
+   },delay);
+  }
  }catch(e){say('Could not attach photos: '+String(e.message||e),false)}
  finally{input.disabled=false;input.value='';if(drop)drop.classList.remove('upload-busy')}
 }
@@ -1065,7 +1076,7 @@ function compactSubmissionWorkspace(id){
   const row=rows.find(r=>Number(r.submission_id)===Number(id));
   if(row){
    const uploader=document.createElement("div");uploader.className="admin-photo-upload";
-   uploader.innerHTML='<button type="button" class="admin-photo-drop" data-admin-photo-id="'+Number(id)+'" data-admin-photo-ref="'+esc(row.reference)+'"><strong>+ Add more photos</strong><small>Click or drag photos here</small></button><input type="file" id="admin-photo-input-'+Number(id)+'" data-admin-photo-id="'+Number(id)+'" data-admin-photo-ref="'+esc(row.reference)+'" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,.jpg,.jpeg,.jpe,.jfif,.png,.webp,.heic,.heif,.avif" multiple hidden><div class="sub" id="admin-photo-status-'+Number(id)+'" role="status" aria-live="polite">Private until approved. Existing auction and bids are unchanged.</div>';
+   uploader.innerHTML='<button type="button" class="admin-photo-drop" data-admin-photo-id="'+Number(id)+'" data-admin-photo-ref="'+esc(row.reference)+'"><strong>+ Add more photos</strong><small>Click or drag photos here</small></button><input type="file" id="admin-photo-input-'+Number(id)+'" data-admin-photo-id="'+Number(id)+'" data-admin-photo-ref="'+esc(row.reference)+'" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,.jpg,.jpeg,.jpe,.jfif,.png,.webp,.heic,.heif,.avif" multiple hidden><div class="sub" id="admin-photo-status-'+Number(id)+'" role="status" aria-live="polite">Clean photos appear automatically after checks. Existing auction and bids are unchanged.</div>';
    gallery.append(uploader);
   }
  }
