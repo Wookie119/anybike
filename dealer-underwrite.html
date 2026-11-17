@@ -660,8 +660,10 @@ document.getElementById("motorcycle_position").addEventListener("change",functio
 document.getElementById("finance_status").addEventListener("change",function(){
  document.getElementById("finance_detail_wrap").style.display=this.value==="outstanding"?"block":"none";
 });
+let underwriteSending=false;
 document.getElementById("underwriteForm").addEventListener("submit",async function(e){
   e.preventDefault();
+  if(underwriteSending||tradeSubmissionCompleted)return;
   const btn=this.querySelector("button[type='submit']");
   const files=Array.from(document.getElementById("photos").files||[]);
   if(files.length>12){showMsg("Please choose no more than 12 photos.",false);return;}
@@ -675,6 +677,10 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
     return;
   }
 
+  underwriteSending=true;
+  btn.disabled=true;
+  btn.textContent="Sending…";
+  try{
   const {data:userData}=await sb.auth.getUser();
   if(!userData?.user){
     location.replace("/customer-login.html?return="+encodeURIComponent("/underwrite.html"));
@@ -688,10 +694,6 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
     return;
   }
 
-  btn.disabled=true;
-  btn.textContent="Sending…";
-
-  try{
     const fd=new FormData(this);
     fd.set("mileage",String(fd.get("mileage")||"").replace(/,/g,""));
     const urgency=document.getElementById("sale_urgency").value;
@@ -724,38 +726,25 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
     }
 
     tradeSubmissionCompleted=true;
-    this.reset();
-    document.getElementById("registration").value="";
-    window.anybikeRefreshMotorcycleSelectors?.();
-    document.getElementById("knownModelVariants")?.replaceChildren();
-    document.getElementById("advertImportImages").replaceChildren();
-    document.getElementById("advertImportPanel").style.display="none";
-    const cleanUrl=new URL(location.href);cleanUrl.searchParams.delete("advert");cleanUrl.searchParams.delete("minimum_price");history.replaceState(null,"",cleanUrl.pathname+cleanUrl.search);
-    document.getElementById("finance_detail_wrap").style.display="none";
-    document.getElementById("expectedArrivalWrap").style.display="none";
-
-    selectedPhotoFiles=[];
-    syncPhotoInput();
-    renderPhotoPreviews();
+    this.style.display="none";
+    this.setAttribute("aria-hidden","true");
     showMsg(
       (dealerTradeRoute?"Motorcycle submitted for UK trade ✓  Reference ":"Underwrite requested ✓  Reference ")+result.reference+
-      (dealerTradeRoute?". Your motorcycle is saved for AnyBike preparation and UK trade bidding.":". AnyBike is reviewing your motorcycle.")+
+      ". Your motorcycle has been saved. AnyBike is reviewing your submission."+
       (Number(result.photos_received||0)?" Photos received for safety checking.":""),
       true
     );
-    document.getElementById("msg").scrollIntoView({behavior:"smooth",block:"center"});
-
-    const submittedForm=document.getElementById("underwriteForm");
-    if(submittedForm){submittedForm.style.display="none";submittedForm.setAttribute("aria-hidden","true");}
     const repeat=document.getElementById("submitAnother");
     if(repeat){
       repeat.style.display="block";
       repeat.href=dealerTradeRoute?"/offer-bikes-to-trade.html":"/dealer-underwrite.html";
     }
+    document.getElementById("msg").scrollIntoView({behavior:"smooth",block:"center"});
   }catch(error){
     showMsg(messageText(error,"Underwrite request could not be sent."),false);
   }finally{
-    btn.disabled=false;
+    underwriteSending=false;
+    btn.disabled=tradeSubmissionCompleted;
     btn.textContent=dealerTradeRoute?"Submit for AnyBike auction review →":"Request Underwrite";
   }
 });
