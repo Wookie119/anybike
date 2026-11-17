@@ -13555,7 +13555,7 @@ function renderAnyBikeSellerPaymentLedger(dealMotorcycleId, c){
         </div>
         <div class="anybike-seller-payment-field">
           <label for="deal-seller-payment-reference-${id}">Payment Reference</label>
-          <input id="deal-seller-payment-reference-${id}" type="text" maxlength="200" placeholder="Bank / internal reference">
+          <input id="deal-seller-payment-reference-${id}" type="text" maxlength="200" placeholder="Actual bank transaction / internal reference">
         </div>
         <div class="anybike-seller-payment-field">
           <label for="deal-seller-payment-date-${id}">Date / Time Paid</label>
@@ -14046,6 +14046,7 @@ async function recordDealSellerPayment(dealMotorcycleId){
   if(!method){ alert("Choose how the seller was paid."); return; }
 
   if(method==="Bank Transfer"){
+    if(!reference){ alert("Enter the actual bank transaction reference before recording the payment."); return; }
     if(!payeeName){ alert("Enter the payee / seller name before recording a bank transfer."); return; }
     if(!bankAccountName){ alert("Enter the bank account name before recording a bank transfer."); return; }
     if(!bankAccountNumber && !bankInternationalNotes){
@@ -14101,6 +14102,8 @@ async function recordDealSellerPayment(dealMotorcycleId){
     alert(
       "Seller payment recorded successfully.\n\n" +
       "Amount: "+anyBikeDealMoney(payload.amount_gbp ?? amount)+"\n" +
+      "Total paid: "+anyBikeDealMoney(payload.total_supplier_payments_gbp)+"\n" +
+      "Outstanding: "+anyBikeDealMoney(payload.supplier_balance_gbp)+"\n" +
       "Payee: "+(payeeName||"Not entered")+"\n" +
       "Account name: "+(bankAccountName||"Not entered")+"\n" +
       "Account number: "+(bankAccountNumber||"Not entered")+"\n" +
@@ -14122,7 +14125,8 @@ async function recordDealSellerPayment(dealMotorcycleId){
 
   }catch(error){
     console.error(error);
-    alert("Seller payment could not be recorded.\n\n"+(error?.message||"Unknown error"));
+    alert("Seller payment could not be confirmed. Check the payment history and bank reference before retrying.\n\n"+(error?.message||"Unknown error"));
+    await loadAdminDealQueue();
   }finally{
     dealSellerPaymentBusy.delete(String(id));
     renderAdminDealQueue();
@@ -14182,6 +14186,7 @@ async function recordDealSellerDeposit(dealMotorcycleId){
   }
 
   if(method==="Bank Transfer"){
+    if(!reference){ alert("Enter the actual bank transaction reference before recording the payment."); return; }
     if(!payeeName){ alert("Enter the payee / seller name before recording a bank transfer."); return; }
     if(!bankAccountName){ alert("Enter the bank account name before recording a bank transfer."); return; }
     if(!bankAccountNumber && !bankInternationalNotes){
