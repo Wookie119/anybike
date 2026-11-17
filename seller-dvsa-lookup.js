@@ -97,7 +97,9 @@
    const statusText=state?(state.latestPass?(state.valid?"Valid until ":"Expired on ")+dateLabel(state.expiry):"Last MOT pass expiry: "+dateLabel(state.expiry)+" — check latest test result"):"MOT expiry not confirmed";
    const parts=[statusText,vehicle.latestMotDate?"Last test: "+dateLabel(vehicle.latestMotDate):"",formatMileage(vehicle)?"Last MOT mileage: "+formatMileage(vehicle):""].filter(Boolean);
    summary.textContent=parts.join(" · ");panel.append(summary);
-   const history=document.createElement("details"),toggle=document.createElement("summary");toggle.style.cssText="cursor:pointer;font-weight:700;margin-top:8px";const rows=Array.isArray(tests)?tests:[];toggle.textContent="View MOT history"+(rows.length?" ("+rows.length+" tests)":"");history.append(toggle);
+   const history=document.createElement("details"),toggle=document.createElement("summary");toggle.style.cssText="cursor:pointer;font-weight:700;margin-top:8px";const rows=Array.isArray(tests)?tests:[];toggle.textContent="View MOT history"+(rows.length?" ("+rows.length+" tests)":"");history.append(toggle);history.open=true;
+   const updateHistoryToggle=()=>{toggle.textContent=(history.open?"Hide MOT history":"Show MOT history")+(rows.length?" ("+rows.length+" tests)":"");};
+   history.addEventListener("toggle",updateHistoryToggle);updateHistoryToggle();
    if(!rows.length){const empty=document.createElement("p");empty.textContent=vehicle.motTestsCount?"Individual test details not returned.":"No individual MOT tests returned by DVSA.";history.append(empty);}
    for(const test of rows){
     const item=document.createElement("div");item.style.cssText="padding:9px 0;border-top:1px solid #777;margin-top:6px";
