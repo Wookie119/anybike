@@ -571,6 +571,16 @@ async function loadDvsaRecord(id){
   title.style.cssText="display:block;font-size:12px;color:#999";title.textContent=label;text.style.cssText="font-size:13px;overflow-wrap:anywhere";text.textContent=value;item.append(title,text);grid.append(item);
  }
  host.append(grid);
+ const sellerMileage=rows.find(r=>Number(r.submission_id)===Number(id))?.mileage;
+ const current=String(sellerMileage??"").trim().replace(/,/g,""),historical=String(record.latestMotMileage??"").trim(),unit=String(record.latestMotMileageUnit||"").toUpperCase(),kind=String(record.latestMotMileageResultType||"").toUpperCase();
+ if(/^\d+$/.test(current)&&/^\d+$/.test(historical)&&kind==="READ"&&["MI","MILES","KM","KILOMETRES"].includes(unit)){
+  const miles=Number(historical)*(["KM","KILOMETRES"].includes(unit)?0.621371192237:1);
+  if(Number(current)<Math.floor(miles)){
+   const warning=document.createElement("div");warning.style.cssText="border:1px solid #d6a449;border-left:4px solid #d6a449;border-radius:8px;background:#302414;color:#ffe0a1;padding:10px 12px;margin:8px 0;font-size:13px";
+   warning.textContent="Mileage discrepancy — seller declared "+Number(current).toLocaleString("en-GB")+" miles; DVSA recorded "+Number(historical).toLocaleString("en-GB")+(["KM","KILOMETRES"].includes(unit)?" km":" miles")+" on "+date(record.latestMotDate)+". Verify the current odometer reading with the seller before agreeing a purchase.";
+   host.prepend(warning);const panel=host.closest("details");if(panel)panel.open=true;
+  }
+ }
  const note=document.createElement("div");note.className="sub";note.textContent="Source: DVSA MOT History API. Historical MOT mileage is not the seller's current mileage; verify the exact model and year. This is not an HPI, ownership or finance check.";host.append(note);
 }
 function sellerNotesHtml(notes,submissionId){
