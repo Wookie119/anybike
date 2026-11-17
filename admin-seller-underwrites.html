@@ -385,7 +385,7 @@ const conditionFields=[
  ["service_history","Service history",["Full","Partial","None","Unknown"]],
  ["mot","MOT",["Valid — expiry known","Valid — date unknown","Expired","No MOT","Unknown"]],
  ["keys","Number of keys",["1","2","3 or more","None","Unknown"]],
- ["v5c","V5C logbook",["In my name","Present — another name","Missing","Unknown"]],
+ ["v5c","V5C logbook",["Present","Not confirmed"]],
  ["accident","Accident / damage history",["None known","Previous damage or accident","Unknown"]],
  ["tyres","Tyres (front and rear)",["Good","Fair","Replacement needed","Unknown"]],
  ["brakes","Brakes",["Good","Fair","Attention needed","Unknown"]],
@@ -396,7 +396,7 @@ function conditionSellerAnswers(notes){
  const source=String(notes||"").split("[SELLER-DECLARED CONDITION — NOT VERIFIED]")[1]||"";
  const labels=["Service history","MOT","Number of keys","V5C logbook","Accident / damage history","Front and rear tyres","Brakes","Chain / belt / final drive","Known mechanical faults"];
  const found={};
- conditionFields.forEach(([key],i)=>{const line=source.split(/\r?\n/).find(x=>x.startsWith(labels[i]+": "));if(line){const value=line.slice(labels[i].length+2).trim();if(conditionFields[i][2].includes(value))found[key]=value;}});
+ conditionFields.forEach(([key],i)=>{const line=source.split(/\r?\n/).find(x=>x.startsWith(labels[i]+": "));if(line){const value=line.slice(labels[i].length+2).trim();const normalized=key==="v5c"?(["In my name","Present — another name","Present"].includes(value)?"Present":["Missing","Unknown","Not confirmed"].includes(value)?"Not confirmed":value):value;if(conditionFields[i][2].includes(normalized))found[key]=normalized;}});
  return found;
 }
 let activeConditionReviewId=null;
@@ -415,11 +415,12 @@ async function openSellerConditionReview(id){
  '<p class="meta">Original seller answers are preserved. Only the corrections you save will appear as AnyBike admin updates. Do not guess: choose Unknown if confirmation is unavailable.</p>'+
  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin:16px 0">'+conditionFields.map(([key,label,options])=>{
  const originalValue=original[key]||"Not supplied";
+ const editedValue=key==="v5c"&&edits[key]?(["In my name","Present — another name","Present"].includes(edits[key])?"Present":"Not confirmed"):edits[key];
  return '<label style="display:flex;flex-direction:column;gap:7px;padding:12px;border:1px solid '+(!original[key]||original[key]==="Unknown"?"#b66a33":"#444")+';border-radius:8px">'+
  '<strong>'+esc(label)+'</strong><small style="color:#bbb">Seller declared: '+esc(originalValue)+'</small>'+
  '<select data-condition-admin-key="'+esc(key)+'" style="min-height:41px;background:#070707;color:white;border:1px solid #777;border-radius:7px;padding:8px">'+
  '<option value="">Keep original seller answer</option>'+
- options.map(option=>'<option value="'+esc(option)+'"'+(edits[key]===option?' selected':'')+'>'+esc(option)+'</option>').join("")+
+ options.map(option=>'<option value="'+esc(option)+'"'+(editedValue===option?' selected':'')+'>'+esc(option)+'</option>').join("")+
  '</select></label>';
  }).join("")+'</div>'+
  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:12px 0">'+
@@ -589,7 +590,7 @@ function renderUnderwriteSummary(){
 }
 function advertDescriptionLines(value){
  const raw=String(value||"").trim();
- return raw.replace(/(?:^|\s+)(Service history|MOT|Number of keys|V5C logbook|Accident \/ damage history|Front and rear tyres|Brakes|Chain \/ belt \/ final drive|Known mechanical faults|Known fault details)\s*:/gi,(_,label)=>"\n"+label+":").split(/\r?\n/).map(x=>x.trim().replace(/^[•*-]\s+/,"")).filter(Boolean);
+ return raw.replace(/(?:^|\s+)(Service history|MOT|Number of keys|V5C logbook|Accident \/ damage history|Front and rear tyres|Brakes|Chain \/ belt \/ final drive|Known mechanical faults|Known fault details)\s*:/gi,(_,label)=>"\n"+label+":").split(/\r?\n/).map(x=>x.trim().replace(/^[•*-]\s+/,"")).filter(Boolean).map(x=>x.replace(/^V5C logbook:\s*(In my name|Present — another name|Present)$/i,"V5C logbook: Present").replace(/^V5C logbook:\s*(Missing|Unknown|Not confirmed)$/i,"V5C logbook: Not confirmed"));
 }
 function advertDescriptionMarkup(value){
  const lines=advertDescriptionLines(value);
