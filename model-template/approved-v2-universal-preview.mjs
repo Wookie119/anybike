@@ -813,7 +813,8 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    if(fullBike.length)approvedHero=fullBike[0];
   }
   // Existing attributed exact-model research photos are a final photo fallback.
-  if(!safePhoto(approvedHero)&&safePhoto(preservedExistingPhoto))
+  if(!safePhoto(approvedHero)&&safePhoto(preservedExistingPhoto)&&
+   str(preservedExistingPhoto.subject_category)==='whole_motorcycle')
    approvedHero=preservedExistingPhoto;
   // Explicitly registered manufacturer marks only; no fuzzy lookup or
   // inferred logo from an arbitrary brand's name. The same registry serves
