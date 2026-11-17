@@ -587,6 +587,16 @@ function renderUnderwriteSummary(){
  ).join("")+'</div>';
  host.querySelectorAll("[data-overview]").forEach(btn=>btn.addEventListener("click",()=>focusUnderwriteGroup(btn.dataset.overview)));
 }
+function advertDescriptionLines(value){
+ const raw=String(value||"").trim();
+ return raw.replace(/(?:^|\s+)(Service history|MOT|Number of keys|V5C logbook|Accident \/ damage history|Front and rear tyres|Brakes|Chain \/ belt \/ final drive|Known mechanical faults|Known fault details)\s*:/gi,(_,label)=>"\n"+label+":").split(/\r?\n/).map(x=>x.trim().replace(/^[•*-]\s+/,"")).filter(Boolean);
+}
+function advertDescriptionMarkup(value){
+ const lines=advertDescriptionLines(value);
+ if(!lines.length)return "<p>Description awaiting review.</p>";
+ if(lines.length===1)return "<p>"+esc(lines[0])+"</p>";
+ return '<ul style="margin:8px 0;padding-left:20px;line-height:1.55;display:grid;gap:4px">'+lines.map(x=>"<li>"+esc(x)+"</li>").join("")+"</ul>";
+}
 function cleanUnderwriteAdvertDescription(notes){
  const raw=String(notes||"").replace(/\\r\\n/g,"\n").replace(/\\n/g,"\n");
  const candidate=raw.split("\n").map(x=>x.trim()).filter(x=>x&&!x.startsWith("[")&&!/^https?:\/\//i.test(x)&&!/(searchId=|backLinkQueryParams=|calc-deposit=|postcode=|advertising-location=)/i.test(x)&&!/^Urgency:/i.test(x));
@@ -987,7 +997,7 @@ document.getElementById("queue").addEventListener("click",async function(e){
     const preview=panel.querySelector("p");
     const editor=document.createElement("div");editor.style.cssText="margin-top:10px;display:grid;gap:9px";
     const help=document.createElement("div");help.className="sub";help.textContent="Dealer-facing wording only. Remove seller identity, contact details, private prices and unverified claims. Original seller notes are preserved. Saving an advert already live updates its dealer-facing description.";
-    const field=document.createElement("textarea");field.rows=8;field.maxLength=2000;field.value=seed;field.setAttribute("aria-label","Dealer-facing motorcycle description");field.style.cssText="width:100%;min-height:180px;resize:vertical;background:#0b0b0b;color:#fff;border:1px solid #777;border-radius:8px;padding:12px;font:15px/1.5 Arial;box-sizing:border-box";
+    const field=document.createElement("textarea");field.rows=8;field.maxLength=2000;field.value=advertDescriptionLines(seed).join("\n");field.setAttribute("aria-label","Dealer-facing motorcycle description");field.style.cssText="width:100%;min-height:180px;resize:vertical;background:#0b0b0b;color:#fff;border:1px solid #777;border-radius:8px;padding:12px;font:15px/1.5 Arial;box-sizing:border-box";
     const actions=document.createElement("div");actions.style.cssText="display:flex;gap:8px;flex-wrap:wrap";
     const save=document.createElement("button"),cancel=document.createElement("button"),status=document.createElement("div");
     save.type=cancel.type="button";save.className="red";save.textContent="Save description";cancel.textContent="Cancel";status.setAttribute("role","status");status.style.fontSize="13px";
@@ -1205,11 +1215,14 @@ async function openSubmissionAdvertPreview(id){
  if(!images){const response=await sb.rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(id)});if(response.error){alert("Photographs unavailable: "+response.error.message);return;}images=response.data||[];submissionImages.set(Number(id),images);}
  const approved=images.filter(x=>x.final_status==="approved"&&x.buyer_safe_url);
  const bike=[r.make,r.model,r.variant].filter(Boolean).join(" ");
- const notes=String(r.notes||"");
- const description=notes.replace(/\\r\\n/g,"\n").split(/\n/).map(line=>line.trim()).filter(line=>line&&!line.startsWith("[")&&!line.startsWith("http")&&!/(searchId=|backLinkQueryParams=|calc-deposit=|postcode=)/i.test(line)&&!line.startsWith("Urgency:")).join(" ").trim()||"Motorcycle description awaiting Admin review.";
+ const {data:publishedDescription,error:descriptionError}=await sb.rpc("admin_get_seller_trade_description_v1",{p_submission_id:Number(id)});
+ const description=descriptionError?"Description unavailable — retry preview.":String(publishedDescription||"Description awaiting review.");
+ const placeholder="/anybike-image-coming-soon.png";
+ const missing=Math.max(0,5-approved.length);
+ const placeholderSlots=Array.from({length:missing},()=>'<div title="Photograph awaiting upload" style="aspect-ratio:4/3;border:1px dashed #555;border-radius:6px;overflow:hidden;background:#111"><img src="'+placeholder+'" alt="AnyBike — awaiting image" style="width:100%;height:100%;object-fit:contain"></div>').join("");
  let el=document.getElementById("advertPreviewOverlay");
  if(!el){el=document.createElement("div");el.id="advertPreviewOverlay";document.body.append(el);}
- el.innerHTML='<div class="advert-preview-sheet"><div class="advert-preview-top"><strong>ANYBIKE · MOTORCYCLE ADVERT PREVIEW</strong><button type="button" onclick="closeSubmissionAdvertPreview()">✕ Close preview</button></div><div class="advert-preview-columns"><div><img id="advertPreviewMain" class="advert-preview-main" src="'+esc(approved[0]?.buyer_safe_url||"/anybike-image-coming-soon.png")+'" alt="'+esc(bike)+'"><div class="advert-preview-thumbs">'+approved.map((x,i)=>'<button type="button" onclick="showSubmissionAdvertPhoto(this)" aria-label="Show photograph '+(i+1)+'"><img src="'+esc(x.buyer_safe_url)+'" alt="Approved motorcycle photograph '+(i+1)+'"></button>').join("")+'</div><small>'+approved.length+' approved photos · '+(images.length-approved.length)+' not approved for display</small></div><div><h1 class="advert-preview-heading">'+esc(bike)+'</h1><div class="advert-preview-facts">'+esc([r.bike_year,r.mileage==null?"":Number(r.mileage).toLocaleString("en-GB")+" miles",r.registration&&r.registration!=="TBC"?r.registration:""].filter(Boolean).join(" · "))+'</div><div class="advert-preview-section"><h3>Description</h3><p>'+esc(description||"Description awaiting review.")+'</p></div><div class="advert-preview-section"><h3>History & checks</h3><p>'+(r.hpi_clear===true?"Seller declares HPI Clear — AnyBike verification pending.":"Independent HPI verification pending.")+'</p></div><div class="advert-preview-privacy">PRIVATE ADVERT PREVIEW · Not published · Seller identity, confidential pricing and other dealers’ bids are excluded.</div></div></div></div>';
+ el.innerHTML='<div class="advert-preview-sheet"><div class="advert-preview-top"><strong>ANYBIKE · MOTORCYCLE ADVERT PREVIEW</strong><button type="button" onclick="closeSubmissionAdvertPreview()">✕ Close preview</button></div><div class="advert-preview-columns"><div><img id="advertPreviewMain" class="advert-preview-main" src="'+esc(approved[0]?.buyer_safe_url||"/anybike-image-coming-soon.png")+'" alt="'+esc(bike)+'"><div class="advert-preview-thumbs">'+approved.map((x,i)=>'<button type="button" onclick="showSubmissionAdvertPhoto(this)" aria-label="Show photograph '+(i+1)+'"><img src="'+esc(x.buyer_safe_url)+'" alt="Approved motorcycle photograph '+(i+1)+'"></button>') .join("")+placeholderSlots+'</div><small>'+approved.length+' approved photos · '+(images.length-approved.length)+' not approved for display'+(missing?' · '+missing+' awaiting image slots':'')+'</small></div><div><h1 class="advert-preview-heading">'+esc(bike)+'</h1><div class="advert-preview-facts">'+esc([r.bike_year,r.mileage==null?"":Number(r.mileage).toLocaleString("en-GB")+" miles",r.registration&&r.registration!=="TBC"?r.registration:""].filter(Boolean).join(" · "))+'</div><div class="advert-preview-section"><h3>Description</h3>'+advertDescriptionMarkup(description)+'</div><div class="advert-preview-section"><h3>History & checks</h3><p>'+(r.hpi_clear===true?"Seller declares HPI Clear — AnyBike verification pending.":"Independent HPI verification pending.")+'</p></div><div class="advert-preview-privacy">PRIVATE ADVERT PREVIEW · Not published · Seller identity, confidential pricing and other dealers’ bids are excluded.</div></div></div></div>';
  el.classList.add("open");document.body.style.overflow="hidden";
 }
 function showSubmissionAdvertPhoto(button){const main=document.getElementById("advertPreviewMain");const thumb=button.querySelector("img");if(main&&thumb)main.src=thumb.src;}
