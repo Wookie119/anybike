@@ -63,6 +63,9 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
   const params=new URLSearchParams(window.location.search);
   const invoiceId=Number(params.get("invoice")||0);
   const previewMode=params.get("preview")==="1";
+  let adminOrigin=previewMode || params.get("from")==="admin";
+  let returnDeal=Number(params.get("deal")||0);
+  try{const ref=new URL(document.referrer);if(ref.origin===location.origin && /\/admin-[^/]+\.html$/.test(ref.pathname)){adminOrigin=true;returnDeal=returnDeal||Number(ref.searchParams.get("deal")||0);}}catch(_error){}
 
   const esc=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[ch]||ch));
   const money=value=>{
@@ -250,6 +253,7 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
       if(!data||typeof data!=="object"){ throw new Error("The Proforma returned no document data."); }
       if(Number(data.invoice_id)!==invoiceId){ throw new Error("The wrong Proforma was returned. Requested invoice #"+invoiceId+", received #"+String(data.invoice_id||"unknown")+"."); }
       liveStatusKey=paymentStatusKey(data);
+      if(!returnDeal) returnDeal=Number(data.deal_id||0);
       render(data);
     }catch(error){
       console.error("Proforma could not be loaded:",error);
@@ -277,7 +281,8 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
 
   if(closeButton){
     closeButton.addEventListener("click",()=>{
-      window.location.href="/customer-dashboard.html";
+      const destination=adminOrigin ? "/admin-enquiries.html"+(returnDeal>0?"?deal="+encodeURIComponent(returnDeal)+"&tab=payment":"") : "/accounts-documents.html";
+      window.location.assign(destination);
     });
   }
 
