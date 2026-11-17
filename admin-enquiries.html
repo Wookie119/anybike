@@ -12862,6 +12862,14 @@ async function loadAdminDealQueue(){
     }
   }));
 
+  finalInvoiceReadinessCache.clear();
+  const issuedCompleted=(adminDealQueue||[]).filter(deal=>String(deal.deal_stage||"")==="Completed" && (adminDealInvoices.get(String(deal.deal_id))||[]).some(i=>i.invoice_type==="Final Invoice"&&i.invoice_status==="Issued"));
+  // Load current settlement before calculating next actions; an unavailable check remains outstanding.
+  for(let offset=0;offset<issuedCompleted.length;offset+=8){
+    await Promise.all(issuedCompleted.slice(offset,offset+8).map(async deal=>{
+      try{const r=await sb.rpc("admin_get_final_invoice_readiness_v1",{p_deal_id:Number(deal.deal_id)});if(!r.error&&r.data)finalInvoiceReadinessCache.set(String(deal.deal_id),r.data);}catch(error){console.warn("Settlement check unavailable",error);}
+    }));
+  }
   renderAdminDealQueue();
   await recordBikeSalesProcessSnapshots();
   await loadAcceptedFormalOffersAwaitingDeal();
@@ -12881,7 +12889,7 @@ function anyBikeProcessKeyForNextAction(primary){
   if(action==="Customer Balance Due") return "customer-balance";
   if(action==="Start Purchase & Collection") return "collection";
   if(action==="Complete Delivery / Handover") return "shipping-handover";
-  if(action==="Issue Final Invoice" || action==="Sale Complete") return "final-invoice";
+  if(action==="Issue Final Invoice" || action==="Sale Complete" || action==="Review Financial Settlement") return "final-invoice";
   return "business-principles";
 }
 
@@ -16279,7 +16287,7 @@ function buildBikeSalesActions(){
     else if(primary==="Customer Balance Due"){type="Customer Balance";icon="💷";cls="balance";priority=40;}
     else if(primary==="Start Purchase & Collection"){type="Purchase & Collection";icon="🚚";cls="operations";priority=45;}
     else if(primary==="Complete Delivery / Handover"){type="Delivery / Handover";icon="📦";cls="delivery";priority=46;}
-    else if(primary==="Issue Final Invoice"){type="Final Invoice";icon="🧾";cls="invoice";priority=47;}
+    else if(primary==="Issue Final Invoice" || primary==="Review Financial Settlement"){type=primary==="Issue Final Invoice"?"Final Invoice":"Financial Settlement";icon="🧾";cls="invoice";priority=47;}
 
     const bikes=(adminDealMotorcycles||[]).filter(function(row){return String(row.deal_id||"")===dealId;});
     const motorcycle=bikes.length
@@ -16505,6 +16513,12 @@ function bikeSalesEffectivePrimary(action,flags,deal){
   const backendPrimary=String(action?.primary_action||"");
   const dealId=String(deal?.deal_id||action?.deal_id||"");
 
+  // Issued documents must not route completed sales backwards through purchasing.
+  if(flags.complete && flags.finalInvoiceIssued){
+    const settlement=finalInvoiceReadinessCache.get(dealId)?.settlement;
+    return settlement?.checks_pass===true ? "Sale Complete" : "Review Financial Settlement";
+  }
+
   if(flags.accountStopped) return "Buyer Account Stopped";
   if(flags.accountOnHold) return "Buyer Account On Hold";
 
@@ -16543,13 +16557,9 @@ function bikeSalesEffectivePrimary(action,flags,deal){
   if(!flags.vatDone) return "Verify VAT Treatment";
   if(flags.offerSent) return "Waiting for Formal Offer Response";
   return "Send Formal Offer";
-  if(flags.collected && !flags.complete) return "Complete Delivery / Handover";
-  if(flags.complete && !flags.finalInvoiceIssued) return "Issue Final Invoice";
-  if(flags.complete && flags.finalInvoiceIssued) return "Sale Complete";
-  return backendPrimary || "Review Sale";
 }
 function bikeSalesJourneyStage(action,deal,flags){
-  if(flags.complete && flags.finalInvoiceIssued) return "complete";
+  if(flags.complete && flags.finalInvoiceIssued) return action?.primary_action==="Review Financial Settlement"?"invoice":"complete";
   if(flags.complete && !flags.finalInvoiceIssued) return "invoice";
   if(flags.collected) return "delivery";
   if(!flags.hasMotorcycle) return "sourcing";
@@ -16602,7 +16612,7 @@ function bikeSalesNextActionTarget(action,deal,flags){
   if(primary.includes("Shipping") || primary.includes("Delivery") || primary.includes("Handover")){
     return {tab:"delivery",selector:"#anybike-deal-"+dealId+" .sales-tab-panel[data-tab=\"delivery\"]"};
   }
-  if(primary.includes("Final Invoice")){
+  if(primary.includes("Final Invoice") || primary==="Review Financial Settlement"){
     return {tab:"invoice",selector:"#anybike-deal-"+dealId+" .sales-tab-panel[data-tab=\"invoice\"]"};
   }
   if(primary==="Deposit Due" || primary==="Customer Balance Due"){
@@ -16698,7 +16708,8 @@ function bikeSalesJourneyInstruction(action,flags){
     "Start Purchase & Collection":"Customer funds are clear. Complete the seller purchase, supplier payment and Move Motorcycles collection workflow.",
     "Complete Delivery / Handover":"The motorcycle is collected. Complete the agreed UK handover / delivery to the authorised shipper and record the handover.",
     "Issue Final Invoice":"Finalise all known delivery/storage charges, review the VAT snapshot and issue the Final Invoice.",
-    "Sale Complete":"Sales workflow complete. Review recorded settlement and outstanding accounting costs in Final Invoice before financial sign-off."
+    "Review Financial Settlement":"Open Final Invoice to check net customer receipts, allocations and supplier balances. Resolve discrepancies before financial sign-off.",
+    "Sale Complete":"Sales workflow complete and recorded settlement checks passed. Confirm accounting costs and bank reconciliation before financial sign-off."
   };
   if(map[primary]) return map[primary];
   if(primary.includes("VAT")) return "Verify the VAT treatment before AnyBike commits to purchase.";
@@ -17572,7 +17583,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   if(!hasMotorcycle && ["Check Seller Availability","Select Motorcycle for Sale","Waiting for Buyer Response","Find Potential Matches"].includes(primary)){
     activeTab="sourcing";
   }
-  if(primary==="Issue Final Invoice") activeTab="invoice";
+  if(primary==="Issue Final Invoice" || primary==="Review Financial Settlement") activeTab="invoice";
   if(primary==="Complete Delivery / Handover") activeTab="delivery";
   if(primary==="Start Purchase & Collection") activeTab="collection";
 
