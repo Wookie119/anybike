@@ -16,7 +16,41 @@
   if(!form||!reg||!button||!status||!details)return null;
   const make=document.getElementById("make"),model=document.getElementById("model"),year=document.getElementById("bike_year");
   let record=null,lookupToken="",requestIndex=0;
-  function clear(){clearMotSuggestion();record=null;lookupToken="";details.hidden=true;details.replaceChildren();}
+  let family=null;
+  const filteredOptions=new Map();
+  const familyHint=document.createElement("div");
+  familyHint.style.cssText="font-size:12px;line-height:1.4;margin-top:6px";
+  familyHint.hidden=true;
+  const familyText=document.createElement("span"),showAll=document.createElement("button");
+  showAll.type="button";showAll.textContent="Show all models";showAll.style.cssText="background:transparent;color:inherit;border:0;text-decoration:underline;cursor:pointer;padding:4px 0;margin-left:8px;font:inherit";
+  familyHint.append(familyText,showAll);
+  model?.insertAdjacentElement("afterend",familyHint);
+  function restoreModels(){
+   for(const [option,original] of filteredOptions){option.hidden=original.hidden;option.disabled=original.disabled;}
+   filteredOptions.clear();
+  }
+  function clearFamily(){family=null;restoreModels();familyHint.hidden=true;}
+  function familyMatches(value,target){
+   const full=normalName(value),base=normalName(target);
+   if(base.length<3||!/\d/.test(base))return false;
+   return full===base||(full.startsWith(base)&&/^[a-z]/.test(full.slice(base.length)));
+  }
+  function applyFamily(){
+   restoreModels();
+   if(!family||!model||model.disabled||normalName(make?.value)!==family.make){familyHint.hidden=true;return 0;}
+   const options=Array.from(model.options),matches=options.filter(o=>o.value&&!o.value.startsWith("__")&&familyMatches(o.value,family.model));
+   if(!matches.length||(model.value&&!matches.some(o=>o.value===model.value))){familyHint.hidden=true;return 0;}
+   for(const option of options){
+    if(!option.value||matches.includes(option))continue;
+    filteredOptions.set(option,{hidden:option.hidden,disabled:option.disabled});option.hidden=true;option.disabled=true;
+   }
+   familyText.textContent="Select the exact "+family.label+" model from "+matches.length+" matching option"+(matches.length===1?"":"s")+".";
+   familyHint.hidden=false;return matches.length;
+  }
+  showAll.addEventListener("click",clearFamily);
+  make?.addEventListener("change",()=>{if(family&&normalName(make.value)!==family.make)clearFamily();});
+  if(model)new MutationObserver(()=>{if(family)applyFamily();}).observe(model,{childList:true});
+  function clear(){clearFamily();clearMotSuggestion();record=null;lookupToken="";details.hidden=true;details.replaceChildren();}
   function invalidate(){requestIndex++;clear();status.textContent="";button.disabled=false;}
   reg.addEventListener("input",()=>{if(!record||normalRegistration(reg.value)!==record.registration)invalidate();});
   reg.addEventListener("change",()=>{if(record&&normalRegistration(reg.value)!==record.registration)invalidate();});
@@ -107,15 +141,27 @@
      if(request!==requestIndex||details.hidden)return;
      details.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth",block:"start"});
     });
-    let makeMatched=false,modelMatched=false;
+    let makeMatched=false,modelMatched=false,familyCount=0;
     const makeConflict=make?.value&&normalName(make.value)!==normalName(vehicle.make);
     if(!makeConflict)makeMatched=matchOption(make,vehicle.make);
     if(makeMatched){
      for(let i=0;i<12;i++){
       if(request!==requestIndex)return;
       if(model?.value&&normalName(model.value)!==normalName(vehicle.model))break;
+      const related=Array.from(model?.options||[]).filter(o=>o.value&&familyMatches(o.value,vehicle.model));
+      const exact=related.find(o=>normalName(o.value)===normalName(vehicle.model));
+      if(related.length>1&&(!exact||/\d$/.test(normalName(vehicle.model)))){
+       family={make:normalName(make.value),model:vehicle.model,label:vehicle.model};
+       familyCount=applyFamily();
+       if(familyCount)break;
+      }
       modelMatched=matchOption(model,vehicle.model);
       if(modelMatched)break;
+      if(related.length){
+       family={make:normalName(make.value),model:vehicle.model,label:vehicle.model};
+       familyCount=applyFamily();
+       if(familyCount)break;
+      }
       await new Promise(resolve=>setTimeout(resolve,150));
      }
     }
@@ -125,7 +171,7 @@
      if(year.tagName==="SELECT"){if(Array.from(year.options).some(o=>o.value===yearHint))year.value=yearHint;}else year.value=yearHint;
      if(year.value)year.dispatchEvent(new Event("change",{bubbles:true}));
     }
-    status.textContent=(makeConflict?"Record found; check the selected manufacturer and model.":makeMatched&&modelMatched?"Make and model selected; please confirm.":makeMatched?"Make selected; please select the correct model.":"Record found; please select the matching make and model.")+(lookupToken?"":" DVSA snapshot could not be saved; manual entry is still available.");
+    status.textContent=(makeConflict?"Record found; check the selected manufacturer and model.":makeMatched&&modelMatched?"Make and model selected; please confirm.":familyCount?"Matching models shortlisted; please select the exact model.":makeMatched?"Make selected; please select the correct model.":"Record found; please select the matching make and model.")+(lookupToken?"":" DVSA snapshot could not be saved; manual entry is still available.");
    }catch(error){if(request===requestIndex){clear();status.textContent=(error instanceof Error?error.message:"Lookup unavailable")+" You can still enter the details manually.";}}
    finally{if(request===requestIndex)button.disabled=false;}
   });
