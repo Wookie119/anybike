@@ -16513,6 +16513,12 @@ function openBikeSalesNextTask(dealId){
   }) || {};
 
   const flags=bikeSalesFlagsForDeal(deal,action);
+  if(adminCompletedUnderwriteDealIds.has(id) && flags.offerAccepted && !flags.customerPaid && !flags.accountStopped && !flags.accountOnHold && !flags.collected && !flags.complete){
+    bikeSalesJourneyTab(id,"payment",false);
+    const target=document.querySelector("#anybike-deal-"+id+" .sales-tab-panel[data-tab=\"payment\"]");
+    if(target)scrollBikeSalesTargetIntoView(target);
+    return;
+  }
   const effectiveAction=Object.assign({},action,{primary_action:bikeSalesEffectivePrimary(action,flags,deal)});
   const primary=String(effectiveAction.primary_action||"");
 
@@ -17421,7 +17427,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   // This is a display-only exception; export and retail deals keep their original validation.
   const ukUnderwriteCompleted=offerAccepted && adminCompletedUnderwriteDealIds.has(String(dealId));
   const sellerStageLabel=ukUnderwriteCompleted?"Purchase & Profit Check":"Seller / Commercial";
-  if(ukUnderwriteCompleted && !customerPaid){
+  if(ukUnderwriteCompleted && !customerPaid && !flags.accountStopped && !flags.accountOnHold && !collected && !complete){
     current="payment";
     activeTab="payment";
     primary="Review dealer payment and proforma";
