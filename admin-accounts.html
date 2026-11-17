@@ -56,6 +56,7 @@ body{margin:0;background:#080808;color:#fff;font-family:Arial,Helvetica,sans-ser
 .accounts-next button[hidden]{display:none!important}
 #registerPanel .controls input,#registerPanel .controls select,.accounts-wrap .field input,.accounts-wrap .field select{background:#191919;color:#eee;border-color:#555;color-scheme:dark}
 @media(max-width:600px){.accounts-next{gap:7px;padding:6px 8px}.accounts-next button{white-space:normal;max-width:110px}.accounts-next strong{font-size:12px}}
+.accounts-next .finance-next-buttons{display:flex;justify-content:flex-end;align-items:center;gap:5px;flex-wrap:wrap}.accounts-next #financeAllButton,.accounts-next #financeSkipButton{background:#222;border-color:#555;color:#ddd}.finance-task-list{background:#141414;border:1px solid #444;border-radius:8px;padding:10px;margin-bottom:10px}.finance-task-list[hidden]{display:none!important}.finance-task-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #333;padding:8px 0}.finance-task-row small{display:block;color:#aaa}.accounts-wrap textarea{background:#191919!important;color:#eee!important;border-color:#555!important;color-scheme:dark}.accounts-wrap textarea::placeholder{color:#9ea3aa}@media(max-width:800px){.accounts-next .finance-next-buttons{max-width:170px}.finance-task-row{flex-wrap:wrap}}
 #registerPanel .panel-head{display:block;padding:12px 14px}
 #registerPanel .controls{display:grid;grid-template-columns:minmax(115px,1fr) minmax(105px,1fr) minmax(150px,1.5fr) minmax(110px,1fr) minmax(110px,1fr) auto auto auto;gap:7px;margin-top:10px}
 #registerPanel .controls .field{min-width:0}
@@ -398,7 +399,7 @@ td strong{font-size:12px}
           <p>Central accounting control for sales documents, VAT reporting and document exceptions. Proformas never enter VAT return figures.</p>
         </section>
 
-        <section class="accounts-next" data-anybike-next-action="finance" aria-live="polite"><div><div class="next-kicker">Your next action</div><strong id="financeNextTitle">Checking outstanding finance work…</strong><small id="financeNextDetail"></small></div><button type="button" id="financeNextButton" hidden></button></section>
+        <section class="accounts-next" data-anybike-next-action="finance" aria-live="polite"><div><div class="next-kicker">Your next action</div><strong id="financeNextTitle">Checking outstanding finance work…</strong><small id="financeNextDetail"></small></div><div class="finance-next-buttons"><button type="button" id="financeAllButton" hidden>View all tasks</button><button type="button" id="financeSkipButton" hidden>Skip for now</button><button type="button" id="financeNextButton" hidden></button></div></section><section id="financeTaskList" class="finance-task-list" hidden></section>
         <div class="tabs">
           <button id="tabPayments" class="active" type="button" onclick="showTab('payments')">Payment Verification <span id="paymentQueueBadge"></span></button>
           <button id="tabSupplier" type="button" onclick="showTab('supplier')">Supplier Purchases <span id="supplierQueueBadge"></span></button>
@@ -1426,31 +1427,37 @@ async function loadSupplierQueue(){
   financeSupplierState="ready";renderSupplierQueue();updateFinanceNextAction();
 }
 
+let financeActiveKey=null,financeDeferred=new Set(),financeTaskItems=[];
 function updateFinanceNextAction(){
-  const title=document.getElementById("financeNextTitle"),detail=document.getElementById("financeNextDetail"),btn=document.getElementById("financeNextButton");
-  if(!title||!detail||!btn)return;
+  const title=document.getElementById("financeNextTitle"),detail=document.getElementById("financeNextDetail"),btn=document.getElementById("financeNextButton"),skip=document.getElementById("financeSkipButton"),all=document.getElementById("financeAllButton"),list=document.getElementById("financeTaskList");
+  if(!title||!detail||!btn||!skip||!all||!list)return;
   const pay=Array.from(paymentAdviceGroups.values()),sup=supplierRows||[];
-  const awaiting=pay.filter(x=>x.advice_status==="Awaiting Verification"),ready=pay.filter(x=>x.advice_status==="Verified"&&x.ledger_status==="Ready to Post"),pending=sup.filter(x=>supplierRowStatus(x)!=="Verified");
   const go=(tab,filter,id)=>{
-    showTab(tab);
+    list.hidden=true;showTab(tab);
     const field=document.getElementById(tab==="payments"?"paymentStatusFilter":"supplierStatusFilter");
     if(field)field.value=filter;
     if(tab==="payments")renderPaymentQueue();else renderSupplierQueue();
     requestAnimationFrame(()=>{const target=document.getElementById(id);if(target){target.scrollIntoView({block:"start",behavior:"smooth"});target.style.outline="2px solid #ed1c24";setTimeout(()=>target.style.outline="",2500);}});
   };
+  const tasks=[];
+  if(financePaymentState==="ready"){
+    pay.filter(x=>x.advice_status==="Awaiting Verification").forEach(x=>tasks.push({key:"verify-"+x.payment_advice_id,title:"Verify reported bank transfer",detail:(x.advice_number||"Payment advice")+" · "+money(x.reported_amount_gbp)+" — check actual bank receipt.",label:"Verify payment →",go:()=>go("payments","Awaiting Verification","payment-advice-"+x.payment_advice_id)}));
+    pay.filter(x=>x.advice_status==="Verified"&&x.ledger_status==="Ready to Post").forEach(x=>{const blocked=paymentPostingPreviews.get(Number(x.payment_advice_id))?.ready_to_post===false;tasks.push({key:"post-"+x.payment_advice_id,title:blocked?"Resolve payment allocation exception":"Post verified payment",detail:(x.advice_number||"Payment advice")+" · "+(blocked?"Review posting issues.":"Allocate the verified receipt."),label:blocked?"Review exception →":"Review allocation →",go:()=>go("payments","Verified","payment-advice-"+x.payment_advice_id)});});
+  }
+  if(financeSupplierState==="ready")sup.filter(x=>supplierRowStatus(x)!=="Verified").forEach(x=>{const status=supplierRowStatus(x),price=Number(x.seller_purchase_price_gbp||0);tasks.push({key:"supplier-"+x.deal_motorcycle_id,title:price<=0?"Check supplier purchase requirement":"Review supplier purchase evidence",detail:(x.deal_number||"Deal")+" · "+(x.motorcycle||"Motorcycle")+" — "+(price<=0?"No positive purchase price recorded; establish whether purchase evidence is required.":status==="Needs Evidence"?"Obtain purchase evidence before verifying VAT.":"Review purchase evidence and VAT treatment."),label:"Review purchase →",go:()=>go("supplier",status,"finance-supplier-"+x.deal_motorcycle_id)});});
+  financeTaskItems=tasks;
+  const keys=new Set(tasks.map(t=>t.key));financeDeferred=new Set([...financeDeferred].filter(k=>keys.has(k)));
+  let current=tasks.find(t=>t.key===financeActiveKey&&!financeDeferred.has(t.key))||tasks.find(t=>!financeDeferred.has(t.key));
   const set=(t,d,label,action)=>{title.textContent=t;detail.textContent=d;btn.hidden=!action;btn.textContent=label||"";btn.onclick=action||null;};
-  if(financePaymentState==="ready"&&awaiting.length){
-    const x=awaiting[0];return set("Verify "+awaiting.length+" reported bank transfer"+(awaiting.length===1?"":"s"),(x.advice_number||"Payment advice")+" · "+money(x.reported_amount_gbp)+" — check the actual bank receipt.","Verify payment →",()=>go("payments","Awaiting Verification","payment-advice-"+x.payment_advice_id));
-  }
-  if(financePaymentState==="ready"&&ready.length){
-    const x=ready[0],blocked=paymentPostingPreviews.get(Number(x.payment_advice_id))?.ready_to_post===false;
-    return set(blocked?"Resolve payment allocation exception":"Post "+ready.length+" verified payment"+(ready.length===1?"":"s"),(x.advice_number||"Payment advice")+" · "+(blocked?"Review the posting issues.":"Allocate the verified receipt to Deal 360."),blocked?"Review exception →":"Review allocation →",()=>go("payments","Verified","payment-advice-"+x.payment_advice_id));
-  }
-  if(financePaymentState==="error"||financeSupplierState==="error")return set("Finance checks incomplete","A queue could not load. Refresh before treating finance work as clear.","Retry checks →",()=>Promise.all([loadPaymentQueue(),loadSupplierQueue()]));
-  if(financeSupplierState==="ready"&&pending.length){
-    const x=pending[0],status=supplierRowStatus(x);return set("Review "+pending.length+" supplier purchase record"+(pending.length===1?"":"s"),(x.deal_number||"Deal")+" · "+(x.motorcycle||"Motorcycle")+" — "+(status==="Needs Evidence"?"Obtain purchase evidence before verifying VAT.":"Review purchase evidence and VAT treatment."),"Review purchase →",()=>go("supplier",status,"finance-supplier-"+x.deal_motorcycle_id));
-  }
+  function drawList(){list.replaceChildren();const heading=document.createElement("strong");heading.textContent="Finance tasks · "+tasks.length+" outstanding";list.append(heading);for(const t of tasks){const row=document.createElement("div");row.className="finance-task-row";const copy=document.createElement("div"),name=document.createElement("strong"),desc=document.createElement("small"),open=document.createElement("button");name.textContent=t.title+(financeDeferred.has(t.key)?" · Skipped for now":"");desc.textContent=t.detail;copy.append(name,desc);open.textContent=t.label;open.onclick=()=>{financeDeferred.delete(t.key);financeActiveKey=t.key;updateFinanceNextAction();t.go();};row.append(copy,open);list.append(row);}}
+  all.hidden=!tasks.length;all.onclick=()=>{list.hidden=!list.hidden;if(!list.hidden)drawList();};
+  skip.hidden=!current;skip.onclick=()=>{if(current){financeDeferred.add(current.key);financeActiveKey=null;updateFinanceNextAction();}};
+  document.querySelector(".accounts-next .next-kicker").textContent="Your next action"+(tasks.length?" · "+tasks.length+" outstanding":"");
+  if(!list.hidden)drawList();
+  if(current){financeActiveKey=current.key;return set(current.title,current.detail,current.label,current.go);}
+  if(financePaymentState==="error"||financeSupplierState==="error")return set("Finance checks incomplete","A queue could not load. Retry before treating work as clear.","Retry checks →",()=>Promise.all([loadPaymentQueue(),loadSupplierQueue()]));
   if(financePaymentState==="loading"||financeSupplierState==="loading")return set("Checking outstanding finance work…","Loading payment and supplier queues.");
+  if(tasks.length)return set("All current tasks skipped for now",tasks.length+" still outstanding. Select any task or restart the list.","Restart tasks →",()=>{financeDeferred.clear();financeActiveKey=null;updateFinanceNextAction();});
   set("No outstanding payment or supplier verification tasks","Both queues are clear. Other document and VAT reviews may still be required.");
 }
 function supplierRowStatus(row){
