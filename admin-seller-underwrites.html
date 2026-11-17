@@ -266,6 +266,7 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 .submission-detail .card:has(>.submission-gallery) select{background:#151515!important;color:#fff!important;border:1px solid #555!important;max-width:240px!important}
 .submission-detail .card:has(>.submission-gallery)>.admin-source-details{max-width:100%;overflow-wrap:anywhere}
 @media(max-width:900px){.submission-detail .card:has(>.submission-gallery){display:block!important}.submission-detail .card:has(>.submission-gallery)>*{margin-bottom:12px!important}.submission-detail .card:has(>.submission-gallery)>.data{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.admin-photo-upload{display:grid;gap:5px;margin-top:9px}.admin-photo-upload input[hidden]{display:none!important}.admin-photo-drop{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:10px 12px;background:#ed1c24;color:#fff;border:1px solid #ed1c24;border-radius:8px;text-align:left;flex-wrap:wrap}.admin-photo-drop small{font-weight:400;color:#fff}.admin-photo-drop.drag-over{outline:2px dashed #fff;outline-offset:-4px}.admin-photo-drop.upload-busy{opacity:.6;pointer-events:none}.admin-photo-upload .upload-ok{color:#90e6a2}.admin-photo-upload .upload-error{color:#ffb6a1}
 </style>
 </head>
 <body>
@@ -789,6 +790,153 @@ async function processPetroImages(button){
  }catch(e){if(status)status.textContent="Could not finish: "+e.message;}
  finally{button.disabled=false;button.textContent=old;}
 }
+function adminPhotoZone(event){
+ const target=event.target;
+ return target&&typeof target.closest==='function'?target.closest('.admin-photo-drop'):null;
+}
+document.addEventListener('click',event=>{
+ const zone=adminPhotoZone(event);if(!zone||zone.classList.contains('upload-busy'))return;
+ const input=document.getElementById('admin-photo-input-'+Number(zone.dataset.adminPhotoId));
+ if(input&&!input.disabled)input.click();
+});
+document.addEventListener('keydown',event=>{
+ if(event.key!=='Enter'&&event.key!==' ')return;
+ const zone=adminPhotoZone(event);if(!zone)return;
+ event.preventDefault();
+ if(!zone.classList.contains('upload-busy')){
+  const input=document.getElementById('admin-photo-input-'+Number(zone.dataset.adminPhotoId));
+  if(input&&!input.disabled)input.click();
+ }
+});
+document.addEventListener('change',event=>{
+ const input=event.target;
+ if(!input?.matches?.('input[data-admin-photo-id]'))return;
+ adminAddSellerPhotos(Number(input.dataset.adminPhotoId),input.dataset.adminPhotoRef,
+  Array.from(input.files||[]),input);
+});
+for(const eventType of ['dragenter','dragover']){
+ document.addEventListener(eventType,event=>{
+  const zone=adminPhotoZone(event);if(!zone)return;
+  event.preventDefault();
+  if(event.dataTransfer)event.dataTransfer.dropEffect='copy';
+  if(!zone.classList.contains('upload-busy'))zone.classList.add('drag-over');
+ });
+}
+document.addEventListener('dragleave',event=>{
+ const zone=adminPhotoZone(event);if(!zone)return;
+ event.preventDefault();
+ if(!zone.contains(event.relatedTarget))zone.classList.remove('drag-over');
+});
+document.addEventListener('drop',event=>{
+ const zone=adminPhotoZone(event);if(!zone)return;
+ event.preventDefault();
+ zone.classList.remove('drag-over');
+ if(zone.classList.contains('upload-busy'))return;
+ const files=Array.from(event.dataTransfer?.files||[]);
+ if(!files.length)return;
+ const id=Number(zone.dataset.adminPhotoId);
+ adminAddSellerPhotos(id,zone.dataset.adminPhotoRef,files,document.getElementById('admin-photo-input-'+id));
+});
+// Keep original emailed photographs on the administrator's computer.
+ // Large browser-decodable images are resized to a review-quality JPEG copy,
+ // under the existing 10 MB server-side image limit.
+async function prepareAdminSellerPhoto(file,mime){
+ const maxBytes=10485760;
+ if(file.size<=maxBytes)return {file,mime,compressed:false};
+ if(file.size>52428800)throw Error(file.name+' is over 50 MB; please resize it first');
+ let bitmap;
+ try{bitmap=await createImageBitmap(file,{imageOrientation:'from-image'});}
+ catch{throw Error(file.name+' cannot be resized by this browser. Please save it as a smaller JPEG (under 10 MB) first');}
+ try{
+  for(const maxSide of [3000,2400,1900,1500]){
+   const ratio=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
+   const width=Math.max(1,Math.round(bitmap.width*ratio));
+   const height=Math.max(1,Math.round(bitmap.height*ratio));
+   const canvas=document.createElement('canvas');
+   canvas.width=width;canvas.height=height;
+   const ctx=canvas.getContext('2d');
+   if(!ctx)throw Error('Image resizing is not available in this browser');
+   ctx.drawImage(bitmap,0,0,width,height);
+   for(const quality of [0.85,0.72,0.6]){
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
+    if(blob&&blob.size>0&&blob.size<=maxBytes){
+     const name=file.name.replace(/\.[^.]+$/,'')+'-anybike.jpg';
+     return {file:new File([blob],name,{type:'image/jpeg',lastModified:file.lastModified}),
+      mime:'image/jpeg',compressed:true};
+    }
+   }
+  }
+  throw Error(file.name+' could not be reduced to 10 MB; please resize it manually');
+ }finally{bitmap.close?.();}
+}
+async function adminAddSellerPhotos(submissionId,reference,files,input){
+ const id=Number(submissionId),status=document.getElementById('admin-photo-status-'+id);
+ input=input||document.getElementById('admin-photo-input-'+id);files=[...files];
+ if(!status)return;
+ const say=(message,ok)=>{status.textContent=message;status.classList.toggle('upload-ok',ok===true);status.classList.toggle('upload-error',ok===false)};
+ if(!files.length)return;
+ const imageTypes={jpg:'image/jpeg',jpeg:'image/jpeg',jpe:'image/jpeg',jfif:'image/jpeg',
+  png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif',avif:'image/avif'};
+ const checked=files.map(file=>{
+  const suffix=file.name.split('.').pop()?.toLowerCase()||'';
+  const reported=(file.type||'').toLowerCase();
+  const inferred=imageTypes[suffix]||'';
+  // Email download tools often provide no MIME type or a generic binary type.
+  // Accept the image suffix only in this case; server validates file signature.
+  const mime=(!reported||reported==='application/octet-stream')?inferred:
+   (reported==='image/jfif'||reported==='image/pjpeg'?'image/jpeg':reported);
+  let problem='';
+  if(file.size===0)problem='empty file';
+  else if(file.size>52428800)problem='over 50 MB ('+(file.size/1048576).toFixed(1)+' MB)';
+  else if(!Object.values(imageTypes).includes(mime))problem='unsupported format ('+(reported||suffix||'unknown')+')';
+  return {file,mime,problem};
+ });
+ if(files.length>12){say('Selected '+files.length+' files. Please select no more than 12 photos at once.',false);input.value='';return}
+ const invalid=checked.filter(item=>item.problem);
+ if(invalid.length){
+  say('Cannot upload: '+invalid.slice(0,4).map(item=>item.file.name+' — '+item.problem).join(' · ')+
+   (invalid.length>4?' · and '+(invalid.length-4)+' more':'')+'.',false);
+  input.value='';return;
+ }
+ const drop=document.querySelector('.admin-photo-drop[data-admin-photo-id="'+id+'"]');
+ input.disabled=true;if(drop)drop.classList.add('upload-busy');
+ say('Preparing '+files.length+' image(s), resizing large photos where needed…',null);
+ try{
+  const prepared=[];
+  for(let i=0;i<checked.length;i++){
+   const item=checked[i];
+   say('Preparing photo '+(i+1)+' of '+checked.length+
+    (item.file.size>10485760?' · reducing '+(item.file.size/1048576).toFixed(1)+' MB':'')+'…',null);
+   prepared.push(await prepareAdminSellerPhoto(item.file,item.mime));
+  }
+  const reduced=prepared.filter(item=>item.compressed).length;
+  say('Uploading '+prepared.length+' photo(s)'+(reduced?' · '+reduced+' automatically resized':'')+'…',null);
+  const {data:{session},error:sessionError}=await sb.auth.getSession();
+  if(sessionError||!session?.access_token)throw Error('Admin sign-in required.');
+  const form=new FormData();form.set('reference',reference);
+  for(const {file,mime} of prepared){
+   form.append('photos',file.type===mime?file:
+    new File([file],file.name,{type:mime,lastModified:file.lastModified}));
+  }
+  const response=await fetch(SUPABASE_URL+'/functions/v1/admin-add-seller-photos',{
+   method:'POST',headers:{authorization:'Bearer '+session.access_token,apikey:SUPABASE_ANON_KEY},body:form
+  });
+  const result=await response.json().catch(()=>null);
+  if(!response.ok||result?.success!==true){
+   if(result?.added){submissionImages.delete(id);await loadSubmissionImages(id);}
+   throw Error((result?.error||'Upload failed')+(result?.added?' · '+result.added+' photo(s) already received':''));
+  }
+  submissionImages.delete(id);
+  const refreshed=rows.find(row=>Number(row.submission_id)===id);
+  if(refreshed)refreshed.image_total=Number(refreshed.image_total||0)+Number(result.added||0);
+  const gallery=document.getElementById('submission-gallery-'+id);
+  if(gallery){const counter=gallery.querySelector('.submission-gallery-head strong');if(counter)counter.textContent='Photos · '+(refreshed?.image_total??result.added);}
+  await loadSubmissionImages(id);
+  say(result.added+' photograph(s) attached to '+reference+(reduced?' · '+reduced+' resized for upload':'')+'. Awaiting private Admin review.',true);
+ }catch(e){say('Could not attach photos: '+String(e.message||e),false)}
+ finally{input.disabled=false;input.value='';if(drop)drop.classList.remove('upload-busy')}
+}
+
 async function loadSubmissionImages(id){
   id=Number(id);
   const gallery=document.getElementById("submission-gallery-"+id);
@@ -912,6 +1060,14 @@ function compactSubmissionWorkspace(id){
    btn.setAttribute("aria-expanded",String(active));
   });
   galleryHead.appendChild(btn);
+ }
+ if(!gallery.querySelector(".admin-photo-upload")){
+  const row=rows.find(r=>Number(r.submission_id)===Number(id));
+  if(row){
+   const uploader=document.createElement("div");uploader.className="admin-photo-upload";
+   uploader.innerHTML='<button type="button" class="admin-photo-drop" data-admin-photo-id="'+Number(id)+'" data-admin-photo-ref="'+esc(row.reference)+'"><strong>+ Add more photos</strong><small>Click or drag photos here</small></button><input type="file" id="admin-photo-input-'+Number(id)+'" data-admin-photo-id="'+Number(id)+'" data-admin-photo-ref="'+esc(row.reference)+'" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,.jpg,.jpeg,.jpe,.jfif,.png,.webp,.heic,.heif,.avif" multiple hidden><div class="sub" id="admin-photo-status-'+Number(id)+'" role="status" aria-live="polite">Private until approved. Existing auction and bids are unchanged.</div>';
+   gallery.append(uploader);
+  }
  }
 
 }
