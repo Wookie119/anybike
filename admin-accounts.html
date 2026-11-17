@@ -43,7 +43,22 @@ body{margin:0;background:#080808;color:#fff;font-family:Arial,Helvetica,sans-ser
 }
 .accounts-hero .eyebrow{color:var(--red);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}
 .accounts-hero h1{margin:6px 0;font-size:34px}
-.accounts-hero p{margin:0;color:#aaa;line-height:1.5}
+.accounts-hero p{margin:0;color:#aaa;line-height:1.35}
+.accounts-hero{padding:10px 16px;margin-bottom:12px;background:#111}
+.accounts-hero h1{font-size:25px;margin:3px 0}
+.accounts-hero p{font-size:12px}
+#registerPanel .panel-head{display:block;padding:12px 14px}
+#registerPanel .controls{display:grid;grid-template-columns:minmax(115px,1fr) minmax(105px,1fr) minmax(150px,1.5fr) minmax(110px,1fr) minmax(110px,1fr) auto auto auto;gap:7px;margin-top:10px}
+#registerPanel .controls .field{min-width:0}
+#registerPanel .controls input,#registerPanel .controls select{width:100%;min-width:0}
+#registerPanel .controls button{white-space:nowrap;padding:0 10px}
+#registerPanel .kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr));margin:10px 0}
+#registerPanel .kpi{padding:10px 12px}
+#registerPanel .kpi small{display:block;font-size:11px;color:#aaa;margin-top:5px}
+#registerPanel table{min-width:1180px}
+#registerPanel td{padding:9px 10px}
+@media(max-width:1050px){#registerPanel .controls{grid-template-columns:repeat(4,minmax(0,1fr))}#registerPanel .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:550px){#registerPanel .controls{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:16px 0}
 .kpi{
   border:1px solid var(--line);border-radius:11px;background:#101010;padding:14px;
@@ -467,11 +482,10 @@ td strong{font-size:12px}
 
 <section id="registerPanel" class="tab-panel">
           <div class="kpi-grid" id="registerKpis">
-            <div class="kpi"><span>Documents</span><strong>—</strong></div>
-            <div class="kpi"><span>Issued</span><strong>—</strong></div>
-            <div class="kpi warn"><span>Drafts</span><strong>—</strong></div>
-            <div class="kpi"><span>Gross issued sales invoices</span><strong>—</strong></div>
-            <div class="kpi red"><span>VAT Review</span><strong>—</strong></div>
+            <div class="kpi"><span>Issued Proformas</span><strong>—</strong></div>
+            <div class="kpi"><span>Purchase Orders</span><strong>—</strong></div>
+            <div class="kpi"><span>Issued Final Sales Invoices</span><strong>—</strong></div>
+            <div class="kpi"><span>Documents / VAT Review</span><strong>—</strong></div>
           </div>
 
           <section class="panel">
@@ -484,12 +498,12 @@ td strong{font-size:12px}
                 <div class="field"><label>Type</label><select id="registerType" onchange="renderRegister()"><option value="">All types</option><option>Proforma</option><option>Purchase Order</option><option>Final Invoice</option><option>Credit Note</option></select></div><div class="field"><label>Status</label><select id="registerStatus" onchange="renderRegister()"><option value="">All statuses</option><option>Draft</option><option>Issued</option><option>Cancelled</option><option>Superseded</option></select></div><div class="field"><label>Search documents</label><input type="search" id="registerSearch" placeholder="Reference or name"></div><div class="field"><label>From</label><input id="registerFrom" type="date"></div>
                 <div class="field"><label>To</label><input id="registerTo" type="date"></div>
                 <button class="primary" type="button" onclick="loadRegister()">Apply</button>
-                <button type="button" onclick="clearRegisterDates()">All Dates</button>
+                <button type="button" onclick="clearRegisterDates()">All Dates</button><button type="button" onclick="exportRegisterCsv()">Export CSV</button>
               </div>
             </div>
             <div class="table-wrap"><table>
-              <thead><tr><th>Date</th><th>Document</th><th>Customer / Supplier</th><th>Deals</th><th>Status</th><th>Net</th><th>VAT</th><th>Gross</th><th>VAT Treatment</th><th>VAT Return</th></tr></thead>
-              <tbody id="registerBody"><tr><td colspan="10" class="empty">Loading document register...</td></tr></tbody>
+              <thead><tr><th>Date</th><th>Document</th><th>Customer / Supplier</th><th>Motorcycle</th><th>Deals</th><th>Status</th><th>Net</th><th>VAT</th><th>Gross</th><th>VAT Treatment</th><th>VAT Return</th></tr></thead>
+              <tbody id="registerBody"><tr><td colspan="11" class="empty">Loading document register...</td></tr></tbody>
             </table></div>
           </section>
         </section>
@@ -1671,7 +1685,7 @@ async function loadRegister(){
   const version=++registerLoadVersion;
   const body=document.getElementById("registerBody");
   const from=document.getElementById("registerFrom").value||null,to=document.getElementById("registerTo").value||null;
-  body.innerHTML='<tr><td colspan="10" class="empty">Loading document register…</td></tr>';
+  body.innerHTML='<tr><td colspan="11" class="empty">Loading document register…</td></tr>';
   try{
     const [sales,purchases,links]=await Promise.all([
       sb.rpc("admin_get_accounts_document_register_v1",{p_from_date:from,p_to_date:to}),
@@ -1680,12 +1694,12 @@ async function loadRegister(){
     ]);
     if(version!==registerLoadVersion)return;
     if(sales.error||purchases.error)throw sales.error||purchases.error;
-    const dealMap=new Map((links.data||[]).filter(r=>r.record_type==="Sales Invoice").map(r=>[String(r.record_id),r.deal_id]));
-    registerRows=[...(sales.data||[]).map(r=>({...r,deal_id:dealMap.get(String(r.invoice_id))})),...(purchases.data||[]).map(po=>({
-      invoice_id:po.purchase_order_id,invoice_number:po.purchase_order_number,invoice_type:"Purchase Order",invoice_status:po.purchase_order_status,invoice_date:po.issued_at||po.created_at,customer_name:po.supplier_name,linked_deal_numbers:[po.deal_number],deal_id:po.deal_id,gross_amount_gbp:po.purchase_gross_gbp,vat_treatment:po.vat_treatment,vat_treatment_status:po.vat_status,included_in_vat_report:false,vat_snapshot_complete:false
+    const dealMap=new Map((links.data||[]).filter(r=>r.record_type==="Sales Invoice").map(r=>[String(r.record_id),r]));
+    registerRows=[...(sales.data||[]).map(r=>({...r,deal_id:dealMap.get(String(r.invoice_id))?.deal_id,motorcycle:dealMap.get(String(r.invoice_id))?.motorcycle})),...(purchases.data||[]).map(po=>({
+      invoice_id:po.purchase_order_id,invoice_number:po.purchase_order_number,invoice_type:"Purchase Order",invoice_status:po.purchase_order_status,invoice_date:po.issued_at||po.created_at,customer_name:po.supplier_name,motorcycle:po.motorcycle,linked_deal_numbers:[po.deal_number],deal_id:po.deal_id,gross_amount_gbp:po.purchase_gross_gbp,vat_treatment:po.vat_treatment,vat_treatment_status:po.vat_status,included_in_vat_report:false,vat_snapshot_complete:false
     }))].sort((a,b)=>String(b.invoice_date||"").localeCompare(String(a.invoice_date||"")));
     renderRegister();
-  }catch(error){if(version===registerLoadVersion)body.innerHTML='<tr><td colspan="10" class="empty">Document register could not load: '+esc(error.message||"Unknown error")+' <button type="button" onclick="loadRegister()">Retry</button></td></tr>';}
+  }catch(error){if(version===registerLoadVersion)body.innerHTML='<tr><td colspan="11" class="empty">Document register could not load: '+esc(error.message||"Unknown error")+' <button type="button" onclick="loadRegister()">Retry</button></td></tr>';}
 }
 
 function registerDocumentUrl(row){
@@ -1694,49 +1708,65 @@ function registerDocumentUrl(row){
   if(row.invoice_type==="Proforma"||row.invoice_type==="Final Invoice")return (row.invoice_type==="Proforma"?"proforma.html":"final-invoice.html")+"?invoice="+id+"&from=admin&return=accounts&deal="+deal+(row.invoice_status==="Draft"?"&preview=1":"");
   return row.deal_id?"admin-enquiries.html?deal="+deal+"&tab=invoice":"";
 }
-function renderRegister(){
+function filteredRegisterRows(){
   const search=String(document.getElementById("registerSearch")?.value||"").trim().toLowerCase();
-  const rows=registerRows.filter(row=>{
+  return registerRows.filter(row=>{
     const type=document.getElementById("registerType")?.value,status=document.getElementById("registerStatus")?.value;
     if(type&&row.invoice_type!==type||status&&row.invoice_status!==status)return false;
     if(!search)return true;
     return [
       row.invoice_number,row.invoice_type,row.invoice_status,row.customer_name,row.business_name,
-      dealText(row),row.vat_treatment,row.vat_treatment_status
+      dealText(row),row.motorcycle,row.vat_treatment,row.vat_treatment_status
     ].join(" ").toLowerCase().includes(search);
   });
-
+}
+function renderRegister(){
+  const rows=filteredRegisterRows();
   const body=document.getElementById("registerBody");
   if(!rows.length){
-    body.innerHTML='<tr><td colspan="10" class="empty">No accounting documents found for this filter.</td></tr>';
+    body.innerHTML='<tr><td colspan="11" class="empty">No accounting documents found for this filter.</td></tr>';
   }else{
     body.innerHTML=rows.map(row=>`<tr>
       <td>${esc(niceDate(row.invoice_date))}</td>
       <td><strong>${registerDocumentUrl(row)?`<a style="color:#ed1c24" href="${esc(registerDocumentUrl(row))}">${esc(row.invoice_number||row.invoice_type||"Document")}</a>`:esc(row.invoice_number||row.invoice_type||"Document")}</strong><br>${esc(row.invoice_type||"")}</td>
       <td><strong>${esc(row.business_name||row.customer_name||"Customer")}</strong>${row.business_name&&row.customer_name?`<br>${esc(row.customer_name)}`:""}</td>
+      <td>${esc(row.motorcycle||"—")}</td>
       <td>${row.deal_id?`<a style="color:#ed1c24" href="admin-enquiries.html?deal=${encodeURIComponent(row.deal_id)}&tab=payment">${esc(dealText(row))}</a>`:esc(dealText(row))}</td>
       <td><span class="status ${statusClass(row.invoice_status)}">${esc(row.invoice_status||"")}</span></td>
       <td>${row.invoice_type==="Purchase Order"||row.invoice_type==="Proforma"?"—":money(row.net_amount_gbp)}</td>
       <td>${row.invoice_type==="Purchase Order"||row.invoice_type==="Proforma"?"—":money(row.vat_amount_gbp)}</td>
       <td><strong>${money(row.gross_amount_gbp)}</strong></td>
-      <td>${esc(row.vat_treatment||"—")}<br><small>${esc(row.vat_treatment_status||"—")}</small></td>
+      <td>${esc(row.vat_treatment||row.vat_treatment_status||"—")}${row.vat_treatment&&row.vat_treatment_status&&row.vat_treatment!==row.vat_treatment_status?`<br><small>${esc(row.vat_treatment_status)}</small>`:""}</td>
       <td>${row.included_in_vat_report
         ? (row.vat_snapshot_complete?'<span class="status ready">Included</span>':'<span class="status bad">Review</span>')
         : '<span class="status">Excluded</span>'}</td>
     </tr>`).join("");
   }
 
-  const issued=registerRows.filter(r=>r.invoice_status==="Issued").length;
-  const drafts=registerRows.filter(r=>r.invoice_status==="Draft").length;
-  const gross=registerRows.filter(r=>r.invoice_status==="Issued"&&["Final Invoice","Credit Note"].includes(r.invoice_type)).reduce((s,r)=>s+Number(r.gross_amount_gbp||0),0);
-  const review=registerRows.filter(r=>r.included_in_vat_report&&!r.vat_snapshot_complete).length;
-
-  document.getElementById("registerKpis").innerHTML=`
-    <div class="kpi"><span>Documents</span><strong>${registerRows.length}</strong></div>
-    <div class="kpi good"><span>Issued</span><strong>${issued}</strong></div>
-    <div class="kpi warn"><span>Drafts</span><strong>${drafts}</strong></div>
-    <div class="kpi"><span>Gross issued sales invoices</span><strong>${money(gross)}</strong></div>
-    <div class="kpi red"><span>VAT Review</span><strong>${review}</strong></div>`;
+  const sum=(type,status)=>rows.filter(r=>r.invoice_type===type&&r.invoice_status===status).reduce((n,r)=>n+Number(r.gross_amount_gbp||0),0);
+  const count=(type,status)=>rows.filter(r=>r.invoice_type===type&&r.invoice_status===status).length;
+  const review=rows.filter(r=>r.included_in_vat_report&&!r.vat_snapshot_complete).length;
+  const draft=rows.filter(r=>r.invoice_status==="Draft").length;
+  document.getElementById("registerKpis").innerHTML=
+    '<div class="kpi"><span>Issued Proformas · Pending sales</span><strong>'+money(sum("Proforma","Issued"))+'</strong><small>'+count("Proforma","Issued")+' issued · Not sales revenue</small></div>'+
+    '<div class="kpi"><span>Purchase Orders · Issued</span><strong>'+money(sum("Purchase Order","Issued"))+'</strong><small>Drafts: '+money(sum("Purchase Order","Draft"))+' · Not payments</small></div>'+
+    '<div class="kpi good"><span>Issued Final Sales Invoices</span><strong>'+money(sum("Final Invoice","Issued"))+'</strong><small>Credit notes shown separately: '+money(sum("Credit Note","Issued"))+'</small></div>'+
+    '<div class="kpi"><span>Documents in view</span><strong>'+rows.length+'</strong><small>'+draft+' drafts · '+review+' VAT reviews</small></div>';
+}
+function exportRegisterCsv(){
+  const rows=filteredRegisterRows();
+  const cell=v=>{
+    let t=String(v??"");
+    if(/^[\s]*[=+@\-\t\r]/.test(t)&&typeof v!=="number")t="'"+t;
+    return '"'+t.replace(/"/g,'""')+'"';
+  };
+  const values=[["Date","Document","Type","Counterparty","Motorcycle","Deal","Status","Net GBP","VAT GBP","Gross GBP","VAT Treatment","VAT Status","VAT Return"]];
+  rows.forEach(r=>{
+    const excluded=r.invoice_type==="Purchase Order"||r.invoice_type==="Proforma";
+    values.push([niceDate(r.invoice_date),r.invoice_number,r.invoice_type,r.business_name||r.customer_name,r.motorcycle,dealText(r),r.invoice_status,excluded?"":Number(r.net_amount_gbp||0),excluded?"":Number(r.vat_amount_gbp||0),Number(r.gross_amount_gbp||0),r.vat_treatment,r.vat_treatment_status,r.included_in_vat_report?(r.vat_snapshot_complete?"Included":"Review"):"Excluded"]);
+  });
+  const url=URL.createObjectURL(new Blob(["\uFEFF"+values.map(r=>r.map(cell).join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"}));
+  const a=document.createElement("a");a.href=url;a.download="anybike-document-register-"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
 function clearRegisterDates(){
