@@ -702,6 +702,7 @@ function render(){
 '<button type="button" data-action="refresh-demand" data-id="'+Number(r.submission_id)+'">Refresh matches</button>'+
           (Number(r.unique_buyer_match_count||0)>0?'<button type="button" data-action="view-demand" data-id="'+Number(r.submission_id)+'">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
           '<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Edit bike</button>'+
+          (["new","reviewing","needs_information"].includes(String(r.status||"").toLowerCase()) && ["not_started","eligible","queued","not_suitable"].includes(String(r.underwrite_status||"").toLowerCase()) && !tradeOpportunityBySubmission.has(Number(r.submission_id)) ? '<button type="button" data-action="delete-test" data-id="'+Number(r.submission_id)+'" style="border:1px solid #ed1c24;color:#fff">Delete Test Bike</button>' : "")+
           (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Messages</a>':"")+
           ''+
         '</div>'+
@@ -1140,6 +1141,17 @@ document.getElementById("queue").addEventListener("click",async function(e){
     return;
   }
 
+  if(action==="delete-test"){
+    const row=rows.find(r=>Number(r.submission_id)===id);if(!row)return;
+    if(!window.confirm("Delete test bike "+row.reference+" — "+[row.make,row.model].filter(Boolean).join(" ")+"?\n\nConfirm this is a test submission, not a genuine customer enquiry. It will be removed from the admin queue and retained in the database for audit."))return;
+    actionEl.disabled=true;actionEl.textContent="Removing…";
+    try{
+      const {data,error}=await sb.rpc("admin_delete_test_seller_submission_v1",{p_submission_id:id,p_reference:row.reference});
+      if(error||!data?.success)throw Error(error?.message||"Removal could not be confirmed");
+      await loadQueue();
+    }catch(error){alert("Test bike could not be removed: "+error.message);actionEl.disabled=false;actionEl.textContent="Delete Test Bike";}
+    return;
+  }
   if(action==="condition-review"){openSellerConditionReview(id);return;}
   if(action==="comparables"){captureComps(id);return;}
   if(action==="start-underwrite"){startUnderwrite(id);return;}
