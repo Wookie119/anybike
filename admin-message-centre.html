@@ -642,7 +642,18 @@ async function loadThreads(){
         }
       }
       if(replyBox){
-        if(params.get("dealer_photo_request")==="1"){
+        if(params.get("listing_update_request")==="1"){
+          const ref=String(params.get("reference")||"").trim(), intendedThread=threadId;
+          replyBox.placeholder="Checking motorcycle details…";
+          sb.rpc("admin_get_photo_request_submission_v1",{p_thread_id:intendedThread,p_reference:ref}).then(result=>{
+            if(Number(selectedThread?.id)!==intendedThread||document.getElementById("replyBox")!==replyBox||replyBox.value.trim())return;
+            if(result.error||result.data?.reference!==ref){replyBox.placeholder="Motorcycle details could not be verified. Reopen Request listing update.";return;}
+            const d=result.data,bike=[d.make,d.model,d.variant].filter(Boolean).join(" ")||"motorcycle";
+            const first=String(selectedThread.customer_name||"").trim().split(/\s+/)[0];
+            replyBox.value="Hello"+(first?" "+first:"")+",\n\nIs your "+bike+" ("+ref+") still available for sale?\n\nWe have improved our motorcycle adverts and would like to offer you a free refresh of your existing free advert, with the opportunity to feature it as Recently Updated once reviewed. There is no need to start again.\n\nPlease let us know if it is still available, confirm the collection postcode and the confidential minimum amount you would be happy to receive, and tell us about any changes to mileage, condition, history or paperwork. Additional photographs are very welcome.\n\nYour minimum is confidential and is not necessarily what you will receive. We aim to achieve the best possible price for you, deducting delivery costs and any applicable AnyBike commission from the dealer's purchase price, not from your agreed seller amount. There is no obligation to accept an offer.\n\nIf you have already sold the motorcycle, please let us know. Simply reply to this message with your updates.\n\nMany thanks,\nAnyBike Team";
+            replyBox.scrollIntoView({behavior:"smooth",block:"center"});
+          }).catch(()=>{replyBox.placeholder="Could not verify motorcycle details. Reopen Request listing update.";});
+        }else if(params.get("dealer_photo_request")==="1"){
           const ref=String(params.get("reference")||"").trim();
           const intendedThread=Number(params.get("thread"));
           replyBox.value="";
