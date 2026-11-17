@@ -373,6 +373,7 @@ const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let rows=[];
+const savedBuyerDescriptions=new Map();
 let tradeOpportunityBySubmission=new Map();
 let internationalSelections=new Map();
 let editId=null;
@@ -675,7 +676,7 @@ function render(){
           '<div class="submission-gallery-grid"><div class="submission-photo placeholder">Loading photos…</div></div>'+
         '</div>'+
 
-                '<section class="admin-advert-description"><h3>Motorcycle description</h3><p>'+esc(cleanUnderwriteAdvertDescription(r.notes))+'</p><button type="button" class="btn" data-action="edit-description" data-id="'+Number(r.submission_id)+'">Edit Description →</button></section>'+
+                '<section class="admin-advert-description"><h3>Motorcycle description</h3><p>'+esc(savedBuyerDescriptions.get(Number(r.submission_id))||"Description awaiting review.")+'</p><button type="button" class="btn" data-action="edit-description" data-id="'+Number(r.submission_id)+'">Edit Description →</button></section>'+
         (r.notes?'<details class="admin-source-details"><summary>Original seller notes</summary><p>'+esc(r.notes)+'</p></details>':'')+
 
         '<div class="actions review-auction-actions">'+
@@ -927,6 +928,12 @@ function toggleSubmission(id){
     row.classList.add("open");
     compactSubmissionWorkspace(id);
     loadSubmissionImages(id);
+    const panel=detail.querySelector(".admin-advert-description");
+    sb.rpc("admin_get_seller_trade_description_v1",{p_submission_id:Number(id)}).then(({data,error})=>{
+     if(error||!panel?.isConnected)return;
+     savedBuyerDescriptions.set(Number(id),String(data||""));
+     if(!panel.querySelector("textarea"))panel.querySelector("p").textContent=String(data||"Description awaiting review.");
+    });
   }
 }
 
@@ -975,11 +982,29 @@ document.getElementById("queue").addEventListener("click",async function(e){
     const original=String(existingDescription||"").trim();
     const suggested=cleanUnderwriteAdvertDescription(item.notes);
     const seed=original||(suggested==="Description requires Admin review before advertisement."?"":suggested);
-    const revised=window.prompt("Edit the description shown to bidding dealers. Remove seller contact details, private pricing and unverified claims. The seller's original notes will be preserved.",seed);
-    if(revised===null)return;
-    const {error}=await sb.rpc("admin_edit_seller_description_v1",{p_submission_id:Number(id),p_description:revised.trim()});
-    if(error){alert("Could not save description: "+error.message);return;}
-    await loadQueue();
+    const panel=actionEl.closest(".admin-advert-description");
+    if(!panel||panel.querySelector("textarea"))return;
+    const preview=panel.querySelector("p");
+    const editor=document.createElement("div");editor.style.cssText="margin-top:10px;display:grid;gap:9px";
+    const help=document.createElement("div");help.className="sub";help.textContent="Dealer-facing wording only. Remove seller identity, contact details, private prices and unverified claims. Original seller notes are preserved. Saving an advert already live updates its dealer-facing description.";
+    const field=document.createElement("textarea");field.rows=8;field.maxLength=2000;field.value=seed;field.setAttribute("aria-label","Dealer-facing motorcycle description");field.style.cssText="width:100%;min-height:180px;resize:vertical;background:#0b0b0b;color:#fff;border:1px solid #777;border-radius:8px;padding:12px;font:15px/1.5 Arial;box-sizing:border-box";
+    const actions=document.createElement("div");actions.style.cssText="display:flex;gap:8px;flex-wrap:wrap";
+    const save=document.createElement("button"),cancel=document.createElement("button"),status=document.createElement("div");
+    save.type=cancel.type="button";save.className="red";save.textContent="Save description";cancel.textContent="Cancel";status.setAttribute("role","status");status.style.fontSize="13px";
+    actions.append(save,cancel);editor.append(help,field,actions,status);preview.hidden=true;actionEl.hidden=true;panel.append(editor);field.focus({preventScroll:true});
+    const close=()=>{editor.remove();preview.hidden=false;actionEl.hidden=false;};
+    cancel.onclick=close;
+    save.onclick=async()=>{
+     const revised=field.value.trim();if(!revised){status.textContent="Enter a description first.";return;}
+     save.disabled=cancel.disabled=field.disabled=true;status.textContent="Saving…";
+     try{
+      const {data,error}=await sb.rpc("admin_edit_seller_description_v1",{p_submission_id:Number(id),p_description:revised});
+      if(error||!data?.success)throw Error(error?.message||"Description not saved.");
+      savedBuyerDescriptions.set(Number(id),revised);preview.textContent=revised;close();
+      const notice=document.createElement("div");notice.setAttribute("role","status");notice.style.cssText="color:#90e6a2;font-size:13px;margin-top:7px";notice.textContent="Description saved.";panel.append(notice);
+     }catch(error){status.textContent=error.message||"Could not save. Please retry.";}
+     finally{save.disabled=cancel.disabled=field.disabled=false;}
+    };
     return;
   }
   if(action==="edit-bike"){editVehicle(id);return;}
