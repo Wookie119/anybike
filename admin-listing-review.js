@@ -20,9 +20,22 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
    const pending=states.filter(s=>s.responded_at&&!s.reviewed_at);
    const results=await Promise.allSettled(pending.map(async s=>({state:s,responses:await rpc("admin_get_listing_refresh_responses_v1",{p_submission_id:Number(s.submission_id)})})));
    body.replaceChildren(button("Refresh responses",load));
+   const now=Date.now(),day=86400000;
+   const due=states.filter(s=>s.eligible===true&&s.requested_at&&s.sent_at&&s.delivery_state==="sent"&&!s.responded_at&&Date.parse(s.expires_at)<=now&&now-Date.parse(s.sent_at)>=14*day);
+   const stale=states.filter(s=>s.eligible===true&&s.responded_at&&s.reviewed_at&&s.response_type==="update"&&now-Date.parse(s.reviewed_at)>=14*day||s.eligible===true&&s.response_type==="available"&&s.responded_at&&now-Date.parse(s.responded_at)>=14*day);
+   const reminders=el("details");reminders.style.cssText="margin:12px 0;padding:10px;border:1px solid #555;border-radius:7px";
+   const candidates=[...new Map([...due,...stale].map(s=>[Number(s.submission_id),s])).values()];
+   reminders.append(el("summary","Availability reminders · "+candidates.length+" due for review"));
+   reminders.append(el("p","Automatically identifies expired unanswered requests and availability confirmations or reviewed updates at least 14 days old. Emails are not sent automatically during testing. Check each motorcycle before requesting another update."));
+   for(const s of candidates){
+    const row=(typeof getRows==="function"?getRows():[]).find(r=>Number(r.submission_id)===Number(s.submission_id));
+    const p=el("p",[row?.submission_reference||row?.reference||"Submission "+s.submission_id,row?.make,row?.model,s.responded_at?"Availability reconfirmation due":"Previous request expired"].filter(Boolean).join(" · "));
+    reminders.append(p);
+   }
+   body.append(reminders);
    const failed=results.filter(r=>r.status==="rejected").length;
    const entries=results.filter(r=>r.status==="fulfilled").flatMap(r=>Array.isArray(r.value.responses)?r.value.responses.filter(t=>t.responded_at&&!t.reviewed_at).map(t=>({t,s:r.value.state})):[]);
-   summary.textContent="Listing update approvals · "+entries.length+" pending"+(failed?" (partial)":"");
+   summary.textContent="Listing update approvals · "+entries.length+" pending · "+candidates.length+" reminders"+(failed?" (partial)":"");
    if(failed)body.append(el("p",failed+" listing(s) could not be loaded. Refresh to retry."));
    if(!entries.length)body.append(el("p",failed?"No responses could be displayed.":"No pending customer responses."));
    for(const {t,s} of entries){
