@@ -127,7 +127,7 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 <div><small>Highest dealer bid</small><strong id="rvHighestBid">—</strong><span>Current leading confidential bid</span></div>
 <div><small>AnyBike margin after delivery</small><strong id="rvGrossMargin">—</strong><span>Highest bid − buying price − delivery</span></div>
 </div>
-<div id="rvBuyingPrice" hidden></div><div id="rvLeadingDealer" style="border:1px solid #444;border-radius:9px;padding:12px;margin:11px 0;color:#eee" role="status">Checking leading dealership…</div>
+<p style="margin:8px 0;color:#ccc;font-size:13px">Estimated margin including recorded other costs and agreed contributions: <strong id="rvNetMargin">—</strong> · before tax</p><div id="rvBuyingPrice" hidden></div><div id="rvLeadingDealer" style="border:1px solid #444;border-radius:9px;padding:12px;margin:11px 0;color:#eee" role="status">Checking leading dealership…</div>
 <div class="rv-legacy-fields" hidden aria-hidden="true">
 <input id="rvOther" type="number" value="0"><input id="rvMargin" type="number" value="0">
 <input id="rvSellerTransport" type="number" value="0"><input id="rvDealerTransport" type="number" value="0">
@@ -1260,6 +1260,7 @@ function openReserveReview(id){
  document.getElementById("rvQuoteStatus").value="estimate";
  document.getElementById("rvContributionsAgreed").checked=false;
  document.getElementById("rvTransport").value="";
+ for(const key of ["rvOther","rvSellerTransport","rvDealerTransport","rvMargin"])document.getElementById(key).value="0";
  syncMoveAllowancePreset();
  updateReservePreview();
  document.getElementById("reserveReviewModal").classList.add("open");
@@ -1307,13 +1308,14 @@ function showReserveBackupBids(){
  const deliveryField=document.getElementById("rvTransport");
  const delivery=Number(deliveryField.value);
  const validDelivery=deliveryField.value!==""&&Number.isFinite(delivery)&&delivery>=0;
- const profitable=validDelivery?list.filter(b=>Number(b.amount_gbp)>buying+delivery):[];
+ const validBuying=Number.isFinite(buying)&&buying>0;
+ const profitable=validDelivery&&validBuying?list.filter(b=>Number(b.amount_gbp)>buying+delivery):[];
  const id=Number(reserveReviewId);
  if(!list.length){panel.textContent="No current live bids from verified distinct dealerships.";return;}
  panel.innerHTML='<strong>'+profitable.length+' of '+list.length+' dealers bidding above buying price and delivery</strong><p style="font-size:12px;color:#bbb">These are potential buyers, not guaranteed sales. Margins shown after the entered delivery allowance, before other costs.</p>'+
  '<div class="rv-backup-bids">'+list.slice(0,8).map((b,i)=>{
  const margin=Number(b.amount_gbp)-buying-delivery;
- return '<div class="rv-backup-row"><div><strong>'+(i+1)+'. '+esc(b.dealer_name||"Unknown dealership")+'</strong><small>'+esc(i===0?"Leading bidder":"Backup bidder")+'</small></div><strong>'+money(b.amount_gbp)+'</strong><strong style="color:'+(margin>0?"#85e7a2":"#ff9a9a")+'">'+(validDelivery?money(margin):'—')+'</strong><select aria-label="Confidence in '+esc(b.dealer_name||"dealer")+'" data-confidence-dealer="'+Number(b.dealer_organisation_id)+'" onchange="setReserveDealerConfidence(this.dataset.confidenceDealer,this.value)"><option value="">Buyer confidence — not reviewed</option><option value="known">Known dealer — confident</option><option value="new">New dealer — not yet known</option><option value="concern">Concern about completion</option></select></div>';
+ return '<div class="rv-backup-row"><div><strong>'+(i+1)+'. '+esc(b.dealer_name||"Unknown dealership")+'</strong><small>'+esc(i===0?"Leading bidder":"Backup bidder")+'</small></div><strong>'+money(b.amount_gbp)+'</strong><strong style="color:'+(margin>0?"#85e7a2":"#ff9a9a")+'">'+(validDelivery&&validBuying?money(margin):'—')+'</strong><select aria-label="Confidence in '+esc(b.dealer_name||"dealer")+'" data-confidence-dealer="'+Number(b.dealer_organisation_id)+'" onchange="setReserveDealerConfidence(this.dataset.confidenceDealer,this.value)"><option value="">Buyer confidence — not reviewed</option><option value="known">Known dealer — confident</option><option value="new">New dealer — not yet known</option><option value="concern">Concern about completion</option></select></div>';
  }).join('')+'</div><p style="font-size:12px;color:#bbb">Buyer confidence is an Admin judgement, not a credit score. Your confidence selection is saved to the dealership record and reused on other motorcycles. Confirm payment before committing to the seller.</p>'+
  '<button type="button" onclick="document.getElementById(\'reserveReviewModal\').classList.remove(\'open\');viewBids('+id+')">View all bidders →</button> '+
  '<button type="button" onclick="document.getElementById(\'reserveReviewModal\').classList.remove(\'open\');openOffer('+id+')" '+(!profitable.length?'disabled':'')+'>Review &amp; prepare seller offer →</button>';
@@ -1326,6 +1328,11 @@ function updateReservePreview(){
  const delivery=Number(field.value);
  const valid=field.value!==""&&Number.isFinite(delivery)&&delivery>=0&&bid>0&&buying>0;
  const gross=bid-buying-delivery;
+ const other=Number(document.getElementById("rvOther").value)||0;
+ const agreed=document.getElementById("rvContributionsAgreed").checked;
+ const contributions=agreed?((Number(document.getElementById("rvSellerTransport").value)||0)+(Number(document.getElementById("rvDealerTransport").value)||0)):0;
+ const net=document.getElementById("rvNetMargin");
+ if(net){net.textContent=valid?money(gross-other+contributions):"—";net.style.color=!valid?"#bbb":gross-other+contributions>=0?"#84e7a6":"#ff8181";}
  document.getElementById("rvHighestBid").textContent=bid>0?money(bid):"No bid";
  document.getElementById("rvBuyingPrice").textContent=money(buying);
  const result=document.getElementById("rvGrossMargin");
