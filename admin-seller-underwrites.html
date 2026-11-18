@@ -378,6 +378,7 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
       </div>
 
       <div id="underwriteSummary" class="sub" style="margin:12px 0;padding:12px 15px;border:1px solid #333;border-radius:12px">Loading underwriting overview…</div>
+      <div id="listingReviewHost" style="margin:8px 0"><p style="font-size:13px;color:#bbb">Listing update approvals — loading…</p></div>
       <div id="refresh-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0"><label style="display:flex;align-items:center;gap:7px"><input id="refresh-all" type="checkbox" onchange="refreshSelectAll(this.checked)"> Select eligible visible listings</label><span id="refresh-count">0 selected</span><button id="refresh-review" type="button" class="red" onclick="reviewSelectedRefresh()" disabled>Review selected listing update requests →</button></div><div id="refresh-review-panel" hidden style="padding:12px;border:1px solid #555;border-radius:9px;margin-bottom:10px"></div>
       <div id="queue" class="queue-list"><div class="empty">Loading…</div></div>
     </main>
@@ -1523,11 +1524,16 @@ async function openSubmissionAdvertPreview(id){
 }
 function showSubmissionAdvertPhoto(button){const main=document.getElementById("advertPreviewMain");const thumb=button.querySelector("img");if(main&&thumb)main.src=thumb.src;}
 function closeSubmissionAdvertPreview(){document.getElementById("advertPreviewOverlay")?.classList.remove("open");document.body.style.overflow="";}
+</script>
+<script src="/admin-listing-review.js?v=20261118-2"></script>
+<script>
 (async function init(){
   try{
     const allowed=await requireAdminSession();
     if(!allowed)return;
     document.documentElement.classList.remove("admin-auth-pending");
+    const reviewHost=document.getElementById("listingReviewHost");
+    if(window.AnyBikeListingReview){reviewHost.replaceChildren();window.AnyBikeListingReview.mount(sb,reviewHost,()=>rows,loadQueue);}else{reviewHost.textContent="Listing update approvals temporarily unavailable. Refresh this page to retry.";}
     await loadQueue();
   }catch(e){
     document.documentElement.classList.remove("admin-auth-pending");
