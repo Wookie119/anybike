@@ -40,7 +40,7 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
    if(!entries.length)body.append(el("p",failed?"No responses could be displayed.":"No pending customer responses."));
    for(const {t,s} of entries){
     const row=(typeof getRows==="function"?getRows():[]).find(r=>Number(r.submission_id)===Number(s.submission_id));
-    const card=el("section");card.style.cssText="border-top:1px solid #555;padding:12px 0;margin-top:8px";
+    const card=el("section");card.dataset.reviewSubmission=String(s.submission_id);card.style.cssText="border-top:1px solid #555;padding:12px 0;margin-top:8px";
     card.append(el("strong",[row?.submission_reference||row?.reference||"Submission "+s.submission_id,row?.make,row?.model].filter(Boolean).join(" · ")));
     card.append(el("p",({update:"Changes requested",available:"Availability confirmed",sold:"Reported sold / withdrawn"})[t.response_type]||"Customer response"));
     const date=new Date(t.responded_at);if(!isNaN(date))card.append(el("p",date.toLocaleString("en-GB",{timeZone:"Europe/London"})));
@@ -48,6 +48,7 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
     for(const [k,label] of Object.entries(fields)){const v=t.proposed?.[k];if(v!==undefined&&v!==null&&v!==""){const p=el("p");p.style.whiteSpace="pre-wrap";p.append(el("strong",label+": "),document.createTextNode(String(v)));card.append(p);}}
     const guidance=t.response_type==="sold"?"Use the existing withdrawal workflow before resolving. This does not mark a motorcycle as an agreed sale.":t.response_type==="update"?"Apply core updates only after checking the proposed changes. This updates mileage, collection postcode and confidential minimum; description, condition and photographs must be reviewed separately. Active bidding and buyer selection are protected by the database.":"Record that availability was confirmed.";
     card.append(el("p",guidance));
+    const photoLink=el("a","Review motorcycle details and photographs →");photoLink.href="/admin-seller-underwrites.html?submission="+Number(s.submission_id);photoLink.style.cssText="display:inline-block;margin:6px 0;color:#ff777b;font-weight:bold";card.append(photoLink);
     const label=el("label","Review note (required)");const note=el("textarea");note.rows=2;note.maxLength=1000;note.style.cssText="display:block;width:100%;box-sizing:border-box;margin:5px 0";label.append(note);card.append(label);
     const msg=el("p");msg.setAttribute("role","status");
     const actions=el("div");actions.style.cssText="display:flex;gap:8px;flex-wrap:wrap";
@@ -67,6 +68,9 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
   }catch(e){body.replaceChildren(el("p",e.message||"Unable to load approvals"),button("Retry",load));}
   finally{loading=false;}
  }
+ async function openReview(id){panel.open=true;await load();const target=Array.from(body.querySelectorAll("[data-review-submission]")).find(n=>n.dataset.reviewSubmission===String(id));(target||panel).scrollIntoView({block:"center",behavior:"smooth"});}
+ host.addEventListener("anybike-open-listing-review",e=>openReview(e.detail));
  panel.addEventListener("toggle",()=>{if(panel.open)load();});
+ load();
 }};
 })();
