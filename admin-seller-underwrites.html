@@ -379,7 +379,7 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 
       <div id="underwriteSummary" class="sub" style="margin:12px 0;padding:12px 15px;border:1px solid #333;border-radius:12px">Loading underwriting overview…</div>
       <div id="listingReviewHost" style="margin:8px 0"><p style="font-size:13px;color:#bbb">Listing update approvals — loading…</p></div>
-      <div id="refresh-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0"><label style="display:flex;align-items:center;gap:7px"><input id="refresh-all" type="checkbox" onchange="refreshSelectAll(this.checked)"> Select eligible visible listings</label><span id="refresh-count">0 selected</span><button id="refresh-review" type="button" class="red" onclick="reviewSelectedRefresh()" disabled>Review selected listing update requests →</button></div><div id="refresh-review-panel" hidden style="padding:12px;border:1px solid #555;border-radius:9px;margin-bottom:10px"></div>
+      <div id="refresh-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0"><label style="display:flex;align-items:center;gap:7px"><input id="refresh-all" type="checkbox" onchange="refreshSelectAll(this.checked)"> Select eligible visible listings</label><span id="refresh-count">0 selected</span><button id="refresh-review" type="button" class="red" disabled>Review selected listing update requests →</button></div><div id="refresh-review-panel" hidden style="padding:12px;border:1px solid #555;border-radius:9px;margin-bottom:10px"></div>
       <div id="queue" class="queue-list"><div class="empty">Loading…</div></div>
     </main>
   </div>
@@ -445,7 +445,9 @@ function refreshToggle(id,checked){if(checked&&refreshEligible(id))refreshSelect
 function refreshSelectAll(checked){document.querySelectorAll(".refresh-tick:not(:disabled)").forEach(x=>{x.checked=checked;refreshToggle(Number(x.value),checked);});}
 let refreshSendRunning=false;
 function reviewSelectedRefresh(singleId){
- const panel=document.getElementById("refresh-review-panel");if(refreshSendRunning)return;
+ const panel=document.getElementById("refresh-review-panel");if(!panel||refreshSendRunning)return;
+ panel.hidden=false;panel.removeAttribute("hidden");panel.style.display="grid";
+ try{
  panel.replaceChildren();const items=rows.filter(r=>(singleId?Number(r.submission_id)===Number(singleId):refreshSelected.has(Number(r.submission_id)))&&refreshEligible(r.submission_id));
  const title=document.createElement("strong");title.textContent="Review "+items.length+" personalised listing update requests";panel.append(title);
  const info=document.createElement("div");info.textContent="Each seller receives their own branded email and private Update My Listing button. No auction is started or changed.";panel.append(info);
@@ -453,7 +455,9 @@ function reviewSelectedRefresh(singleId){
  const send=document.createElement("button");send.type="button";send.className="red";send.textContent="Send "+items.length+" listing update request"+(items.length===1?"":"s")+" →";send.disabled=!items.length;panel.append(send);
  const result=document.createElement("div");result.setAttribute("role","status");panel.append(result);panel.hidden=false;panel.scrollIntoView({block:"nearest",behavior:"smooth"});
  send.onclick=async()=>{if(refreshSendRunning||!confirm("Send "+items.length+" genuine customer email(s) now?"))return;refreshSendRunning=true;send.disabled=true;let ok=0,failed=0;try{for(const r of items){const line=document.createElement("div");line.textContent=r.reference+" — sending…";result.append(line);try{const x=await sb.functions.invoke("send-listing-refresh-request",{body:{submission_id:Number(r.submission_id)}});if(x.error||!x.data?.success)throw Error("Not confirmed");ok++;line.textContent=r.reference+" — accepted by email service";}catch(e){failed++;line.textContent=r.reference+" — not confirmed; check status before retrying";}}}finally{refreshSendRunning=false;refreshSelected.clear();const summary=document.createElement("strong");summary.textContent=ok+" accepted; "+failed+" not confirmed.";result.prepend(summary);await loadQueue();}};
+ }catch(error){panel.textContent="Unable to open listing update review: "+String(error.message||error);console.error("Listing update review",error);}
 }
+document.getElementById("refresh-review").addEventListener("click",()=>reviewSelectedRefresh());
 
 const savedBuyerDescriptions=new Map();
 let tradeOpportunityBySubmission=new Map();
