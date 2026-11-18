@@ -1380,6 +1380,23 @@ let currentUser=null;
 let currentProfile=null;
 let openConversationKey=null;
 let customerLiveChatRefreshRunning=false;
+function listingRefreshActionHtml(message,threadId){
+ if(isCustomerMessageSender(message))return "";
+ const match=String(message.message||"").match(/^Listing update request emailed to seller for (AB-S-\d+)\s/);
+ if(!match||!Number.isSafeInteger(Number(threadId))||Number(threadId)<=0)return "";
+ return '<div style="margin:10px 0"><button type="button" class="mini-btn primary" data-listing-refresh-thread="'+Number(threadId)+'" data-listing-refresh-ref="'+match[1]+'" style="background:#ed1c24;color:#fff;border:0;border-radius:8px;padding:12px 18px;font-weight:bold;cursor:pointer">Update My Listing →</button><p data-listing-refresh-status role="status" style="margin:6px 0;font-size:13px"></p></div>';
+}
+document.addEventListener("click",async e=>{
+ const b=e.target.closest?.("button[data-listing-refresh-thread]");if(!b)return;
+ e.preventDefault();b.disabled=true;
+ const status=b.parentElement.querySelector("[data-listing-refresh-status]");
+ status.textContent="Opening your secure listing…";
+ try{
+  const {data,error}=await sb.rpc("customer_open_listing_refresh_v1",{p_thread_id:Number(b.dataset.listingRefreshThread),p_reference:b.dataset.listingRefreshRef});
+  if(error||!data?.token)throw Error(error?.message||"Unable to open listing.");
+  location.assign("/seller-update-listing.html#token="+encodeURIComponent(data.token));
+ }catch(err){status.textContent=err.message||"Unable to open listing. Please contact AnyBike.";b.disabled=false;}
+});
 
 async function claimRequestedMessageThread(){
   const params = new URLSearchParams(window.location.search);
@@ -2977,6 +2994,7 @@ async function loadGlobalBuyerMessages(threadId){
       <div class="msg ${isCustomer?'customer':'admin'}">
         <strong>${safe(label)}</strong>
         <div class="msg-text">${candidateMessageHtml(message.message)}</div>
+        ${listingRefreshActionHtml(message,threadId)}
         ${customerMessageAttachmentsHtml(message.id,messageMatchAttachments)}
         <small>${message.created_at ? new Date(message.created_at).toLocaleString("en-GB") : ""}</small>
         ${isLegacyWelcome(message)&&duplicateCounts.get(String(message.message||"").trim())>1 ? '<small class="muted">Earlier identical welcome notices hidden ('+(duplicateCounts.get(String(message.message||"").trim())-1)+'). Conversation history preserved.</small>' : ''}
@@ -3102,6 +3120,7 @@ async function refreshOpenCustomerLiveChat(){
             <div class="msg ${isCustomer?'customer':'admin'}">
               <strong>${safe(label)}</strong>
               <div class="msg-text">${candidateMessageHtml(message.message)}</div>
+        ${listingRefreshActionHtml(message,threadId)}
               ${customerMessageAttachmentsHtml(message.id,liveMessageMatchAttachments)}
               <small>${message.created_at ? new Date(message.created_at).toLocaleString("en-GB") : ""}</small>
             </div>
