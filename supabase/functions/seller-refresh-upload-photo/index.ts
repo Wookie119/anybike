@@ -28,7 +28,7 @@ Deno.serve(async req=>{
   if(linkError||!listing?.reference)return out({error:"Invalid, expired or used listing link"},401);
   const hex=(a:ArrayBuffer)=>Array.from(new Uint8Array(a),v=>v.toString(16).padStart(2,"0")).join("");
   const tokenHash=hex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(token)));
-  const {data:refresh,error:lookupError}=await db.from("seller_listing_refresh_requests").select("id,submission_id").eq("token_hash","\\x"+tokenHash).maybeSingle();
+  const {data:refresh,error:lookupError}=await db.from("seller_listing_refresh_requests").select("id,submission_id").or("token_hash.eq.\\x"+tokenHash+",message_token_hash.eq.\\x"+tokenHash).maybeSingle();
   if(lookupError||!refresh)return out({error:"Invalid listing link"},401);
   const {count,error:countError}=await db.from("seller_submission_images").select("id",{count:"exact",head:true}).eq("submission_id",refresh.submission_id);
   if(countError)return out({error:"Photo availability could not be checked"},503);
