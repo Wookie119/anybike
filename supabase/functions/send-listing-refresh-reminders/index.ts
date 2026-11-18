@@ -1,20 +1,12 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+
 const esc=(s:unknown)=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;");
 Deno.serve(async(req)=>{
  if(req.method!=="POST")return Response.json({error:"POST required"},{status:405});
  const service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),url=Deno.env.get("SUPABASE_URL");
  if(!service||!url||req.headers.get("Authorization")!=="Bearer "+service)return Response.json({error:"Service access required"},{status:403});
- const db=createClient(url,service,{auth:{persistSession:false}});
+ const db={rpc:async(name:string,args:Record<string,unknown>={})=>{try{const r=await fetch(url+"/rest/v1/rpc/"+name,{method:"POST",headers:{apikey:service,Authorization:"Bearer "+service,"Content-Type":"application/json"},body:JSON.stringify(args)});if(!r.ok)return {data:null,error:true};return {data:await r.json(),error:null};}catch{return {data:null,error:true};}}};
  const input=await req.json().catch(()=>({}));
- if(input.test_preview==="AB-S-000052"){
-   const key=Deno.env.get("RESEND_API_KEY");if(!key)return Response.json({error:"Email service unavailable"},{status:503});
-   const {data:s,error}=await db.from("seller_motorcycle_submissions").select("reference,make,model,variant,seller_email,seller_name,seller_type,status,test_deleted_at").eq("id",52).eq("reference","AB-S-000052").maybeSingle();
-   const {count,error:countError}=await db.from("anybike_trade_underwrite_opportunities").select("id",{count:"exact",head:true}).eq("submission_id",52);
-   if(error||countError||!s||s.test_deleted_at||s.status!=="new"||count!==0||String(s.seller_email||"").trim().toLowerCase()!=="andy.gifford@yahoo.co.uk")return Response.json({error:"Isolated test listing not verified"},{status:409});
-   const d={request_id:"controlled-preview-20261118-52",token:"",email:s.seller_email,name:s.seller_name,reference:s.reference,bike:[s.make,s.model,s.variant].filter(Boolean).join(" "),seller_type:s.seller_type};
-   return deliver(d,async(state,provider)=>state==="sent"&&!!provider,key,true);
- }
- if(input.dry_run!==false||Deno.env.get("ANYBIKE_LISTING_REMINDERS_ENABLED")!=="true")return Response.json({success:true,mode:"dry_run",emails_sent:0});
+ if(input.dry_run!==false)return Response.json({success:true,mode:"dry_run",emails_sent:0});
  const key=Deno.env.get("RESEND_API_KEY");if(!key)return Response.json({error:"Email service unavailable"},{status:503});
  const results=[];
  for(let i=0;i<10;i++){
