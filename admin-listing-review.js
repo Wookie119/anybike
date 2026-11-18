@@ -44,23 +44,60 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
     card.append(el("strong",[row?.submission_reference||row?.reference||"Submission "+s.submission_id,row?.make,row?.model].filter(Boolean).join(" · ")));
     card.append(el("p",({update:"Changes requested",available:"Availability confirmed",sold:"Reported sold / withdrawn"})[t.response_type]||"Customer response"));
     const date=new Date(t.responded_at);if(!isNaN(date))card.append(el("p",date.toLocaleString("en-GB",{timeZone:"Europe/London"})));
-    const fields={mileage:"Mileage",postcode:"Collection postcode",minimum:"Confidential seller minimum (£)",notes:"Description changes",condition:"Condition and paperwork"};
-    for(const [k,label] of Object.entries(fields)){const v=t.proposed?.[k];if(v!==undefined&&v!==null&&v!==""){const p=el("p");p.style.whiteSpace="pre-wrap";p.append(el("strong",label+": "),document.createTextNode(String(v)));card.append(p);}}
-    const guidance=t.response_type==="sold"?"Use the existing withdrawal workflow before resolving. This does not mark a motorcycle as an agreed sale.":t.response_type==="update"?"Apply core updates only after checking the proposed changes. This updates mileage, collection postcode and confidential minimum; description, condition and photographs must be reviewed separately. Active bidding and buyer selection are protected by the database.":"Record that availability was confirmed.";
+    if(t.response_type==="update"){
+     const details=await Promise.allSettled([rpc("admin_get_submission_delivery_v1",{p_submission_id:Number(s.submission_id)}),rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(s.submission_id)})]);
+     const current=details[0].status==="fulfilled"?details[0].value:{};
+     const photos=details[1].status==="fulfilled"?details[1].value:[];
+     const fmtMoney=v=>v===null||v===undefined||v===""?"Not confirmed":Number.isFinite(Number(v))?"£"+Number(v).toFixed(2):"Not available";
+     const fmtMileage=v=>v===null||v===undefined||v===""?"Not recorded":Number(v).toLocaleString("en-GB")+" miles";
+     const fmtPostcode=v=>v?String(v).replace(/\s+/g,"").replace(/(.{3})$/," $1").trim():"Not recorded";
+     const grid=el("div");grid.style.cssText="display:grid;grid-template-columns:minmax(90px,1fr) repeat(2,minmax(75px,1fr));gap:8px;padding:10px;background:#101010;border:1px solid #444;border-radius:8px;margin:8px 0;font-size:14px;overflow-wrap:anywhere";
+     for(const title of ["Details","Current","Customer update"])grid.append(el("strong",title));
+     for(const [label,oldValue,newValue] of [["Mileage",fmtMileage(row?.mileage),fmtMileage(t.proposed?.mileage)],["Collection postcode",fmtPostcode(current?.collection_postcode),fmtPostcode(t.proposed?.postcode)],["Confidential minimum",fmtMoney(current?.reserve_gbp),fmtMoney(t.proposed?.minimum)]]){
+      grid.append(el("span",label),el("span",oldValue));const value=el("strong",newValue);value.style.color=newValue===oldValue?"#ddd":"#91e9ac";grid.append(value);
+     }
+     card.append(grid);
+     if(details[0].status!=="fulfilled")card.append(el("p","Current price and postcode could not be retrieved. Refresh before comparing."));
+     for(const [k,label] of Object.entries({notes:"Description changes",condition:"Condition and paperwork"})){
+      const p=el("p");p.style.whiteSpace="pre-wrap";p.style.margin="8px 0";p.append(el("strong",label+": "),document.createTextNode(String(t.proposed?.[k]||"No changes requested")));card.append(p);
+     }
+     const photoSection=el("div");photoSection.style.cssText="border:1px solid #444;border-radius:8px;padding:10px;margin:10px 0";
+     const title=el("strong","Photographs");photoSection.append(title);
+     const photoStatus=el("p");photoStatus.style.margin="6px 0";
+     const photoTools=el("div");
+     const updatePhotoSummary=async()=>{
+       const list=await rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(s.submission_id)});
+       const pending=list.filter(p=>!["approved","rejected"].includes(p.final_status));
+       photoStatus.textContent=list.length+" photographs · "+pending.length+" awaiting photo review";
+       const thumbs=el("div");thumbs.style.cssText="display:flex;gap:8px;flex-wrap:wrap";
+       for(const p of list.filter(p=>p.buyer_safe_url)){const img=el("img");img.src=p.buyer_safe_url;img.alt="Photograph "+p.image_position;img.loading="lazy";img.style.cssText="width:105px;height:75px;object-fit:contain;border:1px solid #555;border-radius:5px";thumbs.append(img);}
+       photoTools.replaceChildren(thumbs);
+       return pending.length;
+     };
+     const open=button("Review & approve photographs →",()=>{
+       if(photoSection.querySelector("iframe"))return;
+       const frame=el("iframe");frame.title="Photograph review tools";frame.src="/admin-buyer-safe-images.html?submission="+Number(s.submission_id);frame.style.cssText="width:100%;height:680px;border:1px solid #555;border-radius:8px;margin:8px 0";
+       const close=button("Done reviewing photos · refresh status",async()=>{frame.remove();close.remove();open.disabled=false;try{await updatePhotoSummary();}catch(e){photoStatus.textContent="Could not refresh photograph status: "+e.message;}});
+       open.disabled=true;photoSection.append(frame,close);
+     });
+     photoSection.append(photoStatus,photoTools,open);card.append(photoSection);
+     if(details[1].status==="fulfilled"){photoStatus.textContent=photos.length+" photographs · "+photos.filter(p=>!["approved","rejected"].includes(p.final_status)).length+" awaiting photo review";try{await updatePhotoSummary();}catch(e){photoStatus.textContent="Photo status could not be refreshed. Open photo tools to review.";}}else photoStatus.textContent="Photo status unavailable. Open photo tools to review.";
+    }
+    const guidance=t.response_type==="sold"?"Use the existing withdrawal workflow before resolving. This does not mark a motorcycle as an agreed sale.":t.response_type==="update"?"Approve the three listing details when checked. Review photographs using the tools above. Description and condition changes are shown for review but are not automatically published. Active bidding remains protected.":"Record that availability was confirmed.";
     card.append(el("p",guidance));
-    const photoLink=el("a","Review motorcycle details and photographs →");photoLink.href="/admin-seller-underwrites.html?submission="+Number(s.submission_id);photoLink.style.cssText="display:inline-block;margin:6px 0;color:#ff777b;font-weight:bold";card.append(photoLink);
-    const label=el("label","Review note (required)");const note=el("textarea");note.rows=2;note.maxLength=1000;note.style.cssText="display:block;width:100%;box-sizing:border-box;margin:5px 0";label.append(note);card.append(label);
+    if(t.response_type==="sold"){const link=el("a","Open existing withdrawal workflow →");link.href="/admin-seller-underwrites.html?submission="+Number(s.submission_id);card.append(link);}
+    const label=el("label","Review note (optional)");const note=el("textarea");note.rows=2;note.maxLength=1000;note.style.cssText="display:block;width:100%;box-sizing:border-box;margin:5px 0;background:#101010;color:white;border:1px solid #555;border-radius:6px;padding:8px";label.append(note);card.append(label);
     const msg=el("p");msg.setAttribute("role","status");
     const actions=el("div");actions.style.cssText="display:flex;gap:8px;flex-wrap:wrap";
     const submit=async(outcome)=>{
      if(saving||loading)return;
-     if(note.value.trim().length<5){msg.textContent="Enter a review note of at least five characters.";note.focus();return;}
+     if(note.value.trim()&&note.value.trim().length<5){msg.textContent="Enter at least five characters or leave the note blank.";note.focus();return;}
      if(!confirm(outcome==="apply_core"?"Apply mileage, postcode and minimum to the existing listing?":outcome==="dismissed"?"Dismiss this response without applying changes?":"Record this response as reviewed without applying changes?"))return;
      saving=true;panel.querySelectorAll("button").forEach(b=>b.disabled=true);msg.textContent="Saving review…";
-     try{const data=await rpc("admin_review_listing_refresh_v1",{p_request_id:Number(t.id),p_outcome:outcome,p_note:note.value.trim()});if(!data?.success)throw Error("Review not confirmed");msg.textContent="Review saved.";saving=false;await load();if(onReviewed)try{await onReviewed();}catch(e){body.append(el("p","Review saved; refresh the desk to see updated listing details."));}}
+     try{const data=await rpc("admin_review_listing_refresh_v1",{p_request_id:Number(t.id),p_outcome:outcome,p_note:note.value.trim()||"Reviewed by Admin: "+outcome});if(!data?.success)throw Error("Review not confirmed");msg.textContent="Review saved.";saving=false;await load();if(onReviewed)try{await onReviewed();}catch(e){body.append(el("p","Review saved; refresh the desk to see updated listing details."));}}
      catch(e){msg.textContent=e.message||"Review not saved";saving=false;panel.querySelectorAll("button").forEach(b=>b.disabled=false);}
     };
-    if(t.response_type==="update")actions.append(button("Apply core updates",()=>submit("apply_core")));
+    if(t.response_type==="update"){const approve=button("Approve listing details →",()=>submit("apply_core"));approve.style.cssText="background:#ed1c24;color:white;font-weight:bold";actions.append(approve);}
     if(t.response_type!=="sold")actions.append(button("Acknowledge without applying",()=>submit("acknowledged")));
     actions.append(button(t.response_type==="sold"?"Dismiss / resolve after withdrawal":"Dismiss response",()=>submit("dismissed")));
     card.append(actions,msg);body.append(card);
