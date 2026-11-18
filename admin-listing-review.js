@@ -66,22 +66,55 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
      const photoStatus=el("p");photoStatus.style.margin="6px 0";
      const photoTools=el("div");
      const updatePhotoSummary=async()=>{
-       const list=await rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(s.submission_id)});
+       photoTools.replaceChildren(el("p","Loading photographs…"));
+       const [list,paths]=await Promise.all([rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(s.submission_id)}),rpc("admin_get_seller_original_paths_v1",{p_submission_id:Number(s.submission_id)})]);
        const pending=list.filter(p=>!["approved","rejected"].includes(p.final_status));
-       photoStatus.textContent=list.length+" photographs · "+pending.length+" awaiting photo review";
-       const thumbs=el("div");thumbs.style.cssText="display:flex;gap:8px;flex-wrap:wrap";
-       for(const p of list.filter(p=>p.buyer_safe_url)){const img=el("img");img.src=p.buyer_safe_url;img.alt="Photograph "+p.image_position;img.loading="lazy";img.style.cssText="width:105px;height:75px;object-fit:contain;border:1px solid #555;border-radius:5px";thumbs.append(img);}
+       const originals=new Map((paths||[]).map(p=>[Number(p.image_id),p.original_storage_path]));
+       photoStatus.textContent=list.length+" photographs · "+pending.length+" awaiting approval";
+       const thumbs=el("div");thumbs.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,240px));gap:12px";
+       const loaded=new Set();let busy=false;
+       const approve=button("Approve original photographs →",async()=>{
+         if(busy||loaded.size!==pending.length||!pending.length)return;
+         if(!confirm("Publish the "+pending.length+" original photographs? Confirm you have inspected them and they contain no private details, unwanted branding or number plates requiring removal."))return;
+         busy=true;approve.disabled=true;photoStatus.textContent="Approving photographs…";
+         try{
+           const {data,error}=await client.functions.invoke("admin-approve-seller-originals",{body:{submission_id:Number(s.submission_id),confirmed_inspected:true}});
+           if(error||!data)throw Error(error?.message||"Approval not confirmed");
+           await updatePhotoSummary();
+           if(data.errors?.length)photoStatus.textContent=data.approved+" approved. "+data.errors.join(" · ");
+         }catch(e){photoStatus.textContent=e.message||"Approval failed";busy=false;approve.disabled=loaded.size!==pending.length;}
+       });
+       approve.style.cssText="background:#ed1c24;color:#fff;font-weight:bold;margin:10px 0";approve.disabled=true;
+       for(const p of list.filter(p=>p.final_status!=="rejected")){
+         const tile=el("div");tile.style.cssText="border:1px solid #555;border-radius:8px;padding:8px;background:#101010";
+         const waiting=pending.includes(p);
+         let url=p.buyer_safe_url;
+         if(waiting){const path=originals.get(Number(p.image_id));url=null;if(path){const {data,error}=await client.storage.from("seller-intake").createSignedUrl(path,600);if(!error)url=data?.signedUrl;}}
+         tile.append(el("strong","Photo "+p.image_position+" · "+(waiting?"Awaiting approval":"Approved")));
+         if(url){
+           const a=el("a");a.href=url;a.target="_blank";a.rel="noopener noreferrer";a.style.display="block";
+           const img=el("img");img.alt="Photograph "+p.image_position;img.style.cssText="width:100%;height:160px;object-fit:contain;margin:6px 0;background:#080808";
+           img.onload=()=>{if(waiting){loaded.add(Number(p.image_id));approve.disabled=busy||loaded.size!==pending.length;}};
+           img.onerror=()=>{if(waiting){loaded.delete(Number(p.image_id));approve.disabled=true;}img.alt="Preview unavailable — use photo tools";};
+           img.src=url;a.append(img);tile.append(a);
+         }else tile.append(el("p","Preview unavailable — use photo tools."));
+         thumbs.append(tile);
+       }
        photoTools.replaceChildren(thumbs);
+       if(pending.length){
+         photoTools.append(el("p","Click a photo to enlarge. Approve only if every pending original is suitable for the advert."));
+         photoTools.append(approve);
+       }
        return pending.length;
      };
-     const open=button("Review & approve photographs →",()=>{
+     const advanced=button("Photo editing tools (only if needed)",()=>{
        if(photoSection.querySelector("iframe"))return;
-       const frame=el("iframe");frame.title="Photograph review tools";frame.src="/admin-buyer-safe-images.html?submission="+Number(s.submission_id);frame.style.cssText="width:100%;height:680px;border:1px solid #555;border-radius:8px;margin:8px 0";
-       const close=button("Done reviewing photos · refresh status",async()=>{frame.remove();close.remove();open.disabled=false;try{await updatePhotoSummary();}catch(e){photoStatus.textContent="Could not refresh photograph status: "+e.message;}});
-       open.disabled=true;photoSection.append(frame,close);
+       const frame=el("iframe");frame.title="Advanced photograph editing";frame.src="/admin-buyer-safe-images.html?submission="+Number(s.submission_id);frame.style.cssText="width:100%;height:680px;border:1px solid #555;border-radius:8px;margin:8px 0";
+       const close=button("Close editing tools",async()=>{frame.remove();close.remove();advanced.disabled=false;try{await updatePhotoSummary();}catch(e){photoStatus.textContent="Could not refresh photograph status: "+e.message;}});
+       advanced.disabled=true;photoSection.append(frame,close);
      });
-     photoSection.append(photoStatus,photoTools,open);card.append(photoSection);
-     if(details[1].status==="fulfilled"){photoStatus.textContent=photos.length+" photographs · "+photos.filter(p=>!["approved","rejected"].includes(p.final_status)).length+" awaiting photo review";try{await updatePhotoSummary();}catch(e){photoStatus.textContent="Photo status could not be refreshed. Open photo tools to review.";}}else photoStatus.textContent="Photo status unavailable. Open photo tools to review.";
+     photoSection.append(photoStatus,photoTools,advanced);card.append(photoSection);
+     try{await updatePhotoSummary();}catch(e){photoStatus.textContent="Photo previews unavailable. "+(e.message||"Use photo editing tools.");photoTools.replaceChildren();}
     }
     const guidance=t.response_type==="sold"?"Use the existing withdrawal workflow before resolving. This does not mark a motorcycle as an agreed sale.":t.response_type==="update"?"Approve the three listing details when checked. Review photographs using the tools above. Description and condition changes are shown for review but are not automatically published. Active bidding remains protected.":"Record that availability was confirmed.";
     card.append(el("p",guidance));
