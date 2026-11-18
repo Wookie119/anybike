@@ -836,28 +836,12 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    'harley davidson':'https://commons.wikimedia.org/wiki/Special:FilePath/Harley%20Davidson%20orange%20logo.svg',
    'yamaha':'https://commons.wikimedia.org/wiki/Special:FilePath/Yamaha%20Motor%202025.svg'
   });
-  if(fig&&safePhoto(approvedHero)){
-   // Share/preview images are added only when the same exact-model photo
-   // passed the central image rights and identity checks.
-   let openGraphPhoto=document.querySelector('meta[property="og:image"]');
-   if(!openGraphPhoto){
-    openGraphPhoto=document.createElement('meta');
-    openGraphPhoto.setAttribute('property','og:image');
-    document.head.append(openGraphPhoto);
-   }
-   openGraphPhoto.content=approvedHero.image_url;
-   const img=fig.querySelector('img');img.src=approvedHero.image_url;
-   img.alt=str(approvedHero.title)||title+' motorcycle';
-   const caption=fig.querySelector('figcaption');
-   caption.textContent=str(approvedHero.attribution)+' · ';
-   sourceLink(caption,approvedHero.source_page_url,'Photograph attribution ↗');
-   sourceLink(caption,approvedHero.licence_url,' · Licence ↗');
-   fig.hidden=false;
-  }else if(fig){
+  const showRegisteredLogo=()=>{
+   if(!fig)return;
    const registeredLogo=registeredManufacturerLogos[normalize(make)];
+   if(!registeredLogo){fig.hidden=true;fig.dataset.anybikeHeroType='unavailable';return;}
    if(registeredLogo){
     const img=fig.querySelector('img');
-    img.src=registeredLogo;
     img.alt=make+' manufacturer logo';
     img.style.objectFit='contain';
     // Manufacturer marks with black/transparent artwork must remain legible
@@ -870,8 +854,30 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     fig.dataset.anybikeHeroType='manufacturer-logo';
     img.onerror=()=>{fig.hidden=true;fig.dataset.anybikeHeroType='unavailable'};
     fig.hidden=false;
+    img.src=registeredLogo;
    }
-  }
+  };
+  if(fig&&safePhoto(approvedHero)){
+   // Share/preview images are added only when the same exact-model photo
+   // passed the central image rights and identity checks.
+   let openGraphPhoto=document.querySelector('meta[property="og:image"]');
+   if(!openGraphPhoto){
+    openGraphPhoto=document.createElement('meta');
+    openGraphPhoto.setAttribute('property','og:image');
+    document.head.append(openGraphPhoto);
+   }
+   openGraphPhoto.content=approvedHero.image_url;
+   const img=fig.querySelector('img');
+   img.onerror=showRegisteredLogo;
+   img.alt=str(approvedHero.title)||title+' motorcycle';
+   const caption=fig.querySelector('figcaption');
+   caption.textContent=str(approvedHero.attribution)+' · ';
+   sourceLink(caption,approvedHero.source_page_url,'Photograph attribution ↗');
+   sourceLink(caption,approvedHero.licence_url,' · Licence ↗');
+   fig.dataset.anybikeHeroType='photograph';
+   fig.hidden=false;
+   img.src=approvedHero.image_url;
+  }else if(fig){showRegisteredLogo();}
   // Never repeat the hero as a gallery card or display the same image twice.
   const galleryUrls=new Set(safePhoto(approvedHero)?[approvedHero.image_url]:[]);
   const galleryItems=approvedGallery.filter(photo=>{
