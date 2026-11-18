@@ -116,23 +116,23 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
      photoSection.append(photoStatus,photoTools,advanced);card.append(photoSection);
      try{await updatePhotoSummary();}catch(e){photoStatus.textContent="Photo previews unavailable. "+(e.message||"Use photo editing tools.");photoTools.replaceChildren();}
     }
-    const guidance=t.response_type==="sold"?"Use the existing withdrawal workflow before resolving. This does not mark a motorcycle as an agreed sale.":t.response_type==="update"?"Approve the three listing details when checked. Review photographs using the tools above. Description and condition changes are shown for review but are not automatically published. Active bidding remains protected.":"Record that availability was confirmed.";
+    const guidance=t.response_type==="sold"?"The seller reports this motorcycle is no longer available. Trade bidding is paused. Confirm withdrawal below to remove the listing without recording an AnyBike sale.":t.response_type==="update"?"Approve the three listing details when checked. Review photographs using the tools above. Description and condition changes are shown for review but are not automatically published. Active bidding remains protected.":"Record that availability was confirmed.";
     card.append(el("p",guidance));
-    if(t.response_type==="sold"){const link=el("a","Open existing withdrawal workflow →");link.href="/admin-seller-underwrites.html?submission="+Number(s.submission_id);card.append(link);}
+    
     const label=el("label","Review note (optional)");const note=el("textarea");note.rows=2;note.maxLength=1000;note.style.cssText="display:block;width:100%;box-sizing:border-box;margin:5px 0;background:#101010;color:white;border:1px solid #555;border-radius:6px;padding:8px";label.append(note);card.append(label);
     const msg=el("p");msg.setAttribute("role","status");
     const actions=el("div");actions.style.cssText="display:flex;gap:8px;flex-wrap:wrap";
     const submit=async(outcome)=>{
      if(saving||loading)return;
      if(note.value.trim()&&note.value.trim().length<5){msg.textContent="Enter at least five characters or leave the note blank.";note.focus();return;}
-     if(outcome!=="apply_core"&&!confirm(outcome==="dismissed"?"Dismiss this response without applying changes?":"Record this response as reviewed without applying changes?"))return;
+     if(outcome!=="apply_core"&&outcome!=="withdrawn"&&!confirm(outcome==="dismissed"?"Dismiss this response without applying changes?":"Record this response as reviewed without applying changes?"))return;
      saving=true;panel.querySelectorAll("button").forEach(b=>b.disabled=true);msg.textContent="Saving review…";
-     try{const data=await rpc("admin_review_listing_refresh_v1",{p_request_id:Number(t.id),p_outcome:outcome,p_note:note.value.trim()||"Reviewed by Admin: "+outcome});if(!data?.success)throw Error("Review not confirmed");msg.textContent="Review saved.";saving=false;await load();if(onReviewed)try{await onReviewed();}catch(e){body.append(el("p","Review saved; refresh the desk to see updated listing details."));}const saved=el("p",(row?.submission_reference||row?.reference||"Submission "+s.submission_id)+" · "+(outcome==="apply_core"?"Listing details approved and saved.":"Review saved."));saved.setAttribute("role","status");saved.style.cssText="color:#91e9ac;font-weight:bold;border:1px solid #386446;border-radius:8px;padding:10px;margin:8px 0";body.prepend(saved);panel.open=true;}
+     try{const data=outcome==="withdrawn"?await rpc("admin_withdraw_sale_reported_listing_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||null}):await rpc("admin_review_listing_refresh_v1",{p_request_id:Number(t.id),p_outcome:outcome,p_note:note.value.trim()||"Reviewed by Admin: "+outcome});if(!data?.success)throw Error("Review not confirmed");msg.textContent="Review saved.";saving=false;await load();if(onReviewed)try{await onReviewed();}catch(e){body.append(el("p","Review saved; refresh the desk to see updated listing details."));}const saved=el("p",(row?.submission_reference||row?.reference||"Submission "+s.submission_id)+" · "+(outcome==="apply_core"?"Listing details approved and saved.":outcome==="withdrawn"?"Motorcycle withdrawn. Trade bidding stopped.":"Review saved."));saved.setAttribute("role","status");saved.style.cssText="color:#91e9ac;font-weight:bold;border:1px solid #386446;border-radius:8px;padding:10px;margin:8px 0";body.prepend(saved);panel.open=true;}
      catch(e){msg.textContent=e.message||"Review not saved";saving=false;panel.querySelectorAll("button").forEach(b=>b.disabled=false);}
     };
     if(t.response_type==="update"){const approve=button("Approve listing details →",()=>submit("apply_core"));approve.style.cssText="background:#ed1c24;color:white;font-weight:bold";actions.append(approve);}
     if(t.response_type!=="sold")actions.append(button("Acknowledge without applying",()=>submit("acknowledged")));
-    actions.append(button(t.response_type==="sold"?"Dismiss / resolve after withdrawal":"Dismiss response",()=>submit("dismissed")));
+    if(t.response_type==="sold"){const withdraw=button("Confirm withdrawal →",()=>submit("withdrawn"));withdraw.style.cssText="background:#ed1c24;color:#fff;font-weight:bold";actions.append(withdraw);}else actions.append(button("Dismiss response",()=>submit("dismissed")));
     card.append(actions,msg);body.append(card);
    }
   }catch(e){body.replaceChildren(el("p",e.message||"Unable to load approvals"),button("Retry",load));}
