@@ -1380,11 +1380,30 @@ let currentUser=null;
 let currentProfile=null;
 let openConversationKey=null;
 let customerLiveChatRefreshRunning=false;
+function listingRefreshInfo(message){
+ if(isCustomerMessageSender(message))return null;
+ const text=String(message.message||"").trim();
+ const legacy=text.match(/^Listing update request emailed to seller for (AB-S-\d+)\s/);
+ if(legacy)return {ref:legacy[1],legacy:true};
+ const heading=text.match(/^(Generate more trade offers for your motorcycle|Give your motorcycle the best chance of selling)\b/i);
+ const ref=text.match(/Listing reference:\s*(AB-S-\d+)\b/i);
+ if(!heading||!ref)return null;
+ const dealer=/^Generate more trade offers/i.test(heading[1]);
+ const bike=text.match(/Is your (.+?) still available(?: for trade offers)?\?/i)?.[1]||"motorcycle";
+ return {ref:ref[1],dealer,bike};
+}
 function listingRefreshActionHtml(message,threadId){
- if(isCustomerMessageSender(message))return "";
- const match=String(message.message||"").match(/^Listing update request emailed to seller for (AB-S-\d+)\s|\nListing reference: (AB-S-\d+)\s*$/);
- if(!match||!Number.isSafeInteger(Number(threadId))||Number(threadId)<=0)return "";
- return '<div style="margin:10px 0"><button type="button" class="mini-btn primary" data-listing-refresh-thread="'+Number(threadId)+'" data-listing-refresh-ref="'+(match[1]||match[2])+'" style="background:#ed1c24;color:#fff;border:0;border-radius:8px;padding:12px 18px;font-weight:bold;cursor:pointer">Update My Listing →</button><p data-listing-refresh-status role="status" style="margin:6px 0;font-size:13px"></p></div>';
+ const info=listingRefreshInfo(message);
+ if(!info||!Number.isSafeInteger(Number(threadId))||Number(threadId)<=0)return "";
+ const attrs=' data-listing-refresh-thread="'+Number(threadId)+'" data-listing-refresh-ref="'+info.ref+'"';
+ return '<div style="display:flex;flex-wrap:wrap;gap:9px;margin:12px 0 4px"><button type="button" class="mini-btn primary"'+attrs+' data-listing-action="update" style="background:#ed1c24;color:#fff;border:0;border-radius:8px;padding:12px 18px;font-weight:bold;cursor:pointer">Update My Listing →</button><button type="button" class="mini-btn"'+attrs+' data-listing-action="sold" style="background:#333;color:#fff;border:1px solid #666;border-radius:8px;padding:12px 18px;font-weight:bold;cursor:pointer">It’s Sold</button><p data-listing-refresh-status role="status" style="flex-basis:100%;margin:0;font-size:13px"></p></div>';
+}
+function listingRefreshMessageHtml(message){
+ const info=listingRefreshInfo(message);
+ if(!info||info.legacy)return candidateMessageHtml(message.message);
+ const heading=info.dealer?"Generate more trade offers":"Give your motorcycle the best chance of selling";
+ const body=info.dealer?"Update your underwrite with the latest mileage, description, photographs and confidential trade price. We can continue to generate trade offers free of charge.":"Refresh your existing advert with the latest details, photographs and confidential minimum price, free of charge.";
+ return '<div style="white-space:normal"><strong style="font-size:1.08em">'+safe(heading)+'</strong><p style="margin:9px 0">Is your '+safe(info.bike)+' still available'+(info.dealer?' for trade offers':'')+'?</p><p style="margin:8px 0">'+safe(body)+'</p><small style="display:block;margin-top:8px;color:inherit">Ref: '+safe(info.ref)+'</small></div>';
 }
 document.addEventListener("click",async e=>{
  const b=e.target.closest?.("button[data-listing-refresh-thread]");if(!b)return;
@@ -1394,7 +1413,13 @@ document.addEventListener("click",async e=>{
  try{
   const {data,error}=await sb.rpc("customer_open_listing_refresh_v1",{p_thread_id:Number(b.dataset.listingRefreshThread),p_reference:b.dataset.listingRefreshRef});
   if(error||!data?.token)throw Error(error?.message||"Unable to open listing.");
-  location.assign("/seller-update-listing.html#token="+encodeURIComponent(data.token));
+  if(b.dataset.listingAction==="sold"){
+   if(!confirm("Confirm that this motorcycle is sold or no longer available?")){status.textContent="";b.disabled=false;return;}
+   const response=await sb.rpc("seller_submit_listing_refresh_v1",{p_token:data.token,p_action:"sold",p_proposed:{}});
+   if(response.error||!response.data?.success)throw Error(response.error?.message||"Unable to confirm withdrawal.");
+   status.textContent="Thank you. AnyBike has received your withdrawal for urgent review.";
+   b.parentElement.querySelectorAll("button").forEach(button=>button.disabled=true);
+  }else location.assign("/seller-update-listing.html#token="+encodeURIComponent(data.token));
  }catch(err){status.textContent=err.message||"Unable to open listing. Please contact AnyBike.";b.disabled=false;}
 },true);
 
@@ -2993,7 +3018,7 @@ async function loadGlobalBuyerMessages(threadId){
     return `
       <div class="msg ${isCustomer?'customer':'admin'}">
         <strong>${safe(label)}</strong>
-        <div class="msg-text">${candidateMessageHtml(message.message)}</div>
+        <div class="msg-text">${listingRefreshMessageHtml(message)}</div>
         ${listingRefreshActionHtml(message,threadId)}
         ${customerMessageAttachmentsHtml(message.id,messageMatchAttachments)}
         <small>${message.created_at ? new Date(message.created_at).toLocaleString("en-GB") : ""}</small>
@@ -3119,7 +3144,7 @@ async function refreshOpenCustomerLiveChat(){
           return `
             <div class="msg ${isCustomer?'customer':'admin'}">
               <strong>${safe(label)}</strong>
-              <div class="msg-text">${candidateMessageHtml(message.message)}</div>
+              <div class="msg-text">${listingRefreshMessageHtml(message)}</div>
         ${listingRefreshActionHtml(message,threadId)}
               ${customerMessageAttachmentsHtml(message.id,liveMessageMatchAttachments)}
               <small>${message.created_at ? new Date(message.created_at).toLocaleString("en-GB") : ""}</small>
