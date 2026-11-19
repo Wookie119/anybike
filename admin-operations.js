@@ -605,7 +605,8 @@
       {label:"Receiver town / city",group:"receiver",value:fieldValue("ab-move-receiver-city-"+id),selector:"ab-move-receiver-city-"},
       {label:"Receiver postcode",group:"receiver",value:fieldValue("ab-move-receiver-postcode-"+id),selector:"ab-move-receiver-postcode-"},
       {label:"Sales price",group:"mandatory",value:fieldValue("ab-move-sales-price-"+id),selector:"ab-move-sales-price-"},
-      {label:"Price agreed with Move Motorcycles",group:"mandatory",value:fieldValue("ab-move-price-"+id),selector:"ab-move-price-"},
+      {label:"Shipment charge (GBP)",group:"mandatory",value:fieldValue("ab-move-price-"+id)!==""&&Number.isFinite(Number(fieldValue("ab-move-price-"+id)))&&Number(fieldValue("ab-move-price-"+id))>=0,selector:"ab-move-price-"},
+      {label:"Shipment payer",group:"mandatory",value:["Sender","Receiver"].includes(fieldValue("ab-move-payer-"+id)),selector:"ab-move-payer-"},
       {label:"Contact at dealer",group:"mandatory",value:fieldValue("ab-move-contact-at-"+id),selector:"ab-move-contact-at-"},
       {label:"Access / handover instructions",group:"mandatory",value:fieldValue("ab-move-instructions-"+id),selector:"ab-move-instructions-"}
     ];
@@ -861,9 +862,9 @@
         <div class="ab-move-field"><label>Shipping Mode *</label><input value="Up to 7 Working days from ready date" readonly></div>
         <div class="ab-move-field"><label>Vehicle Type *</label><input value="Motorcycle or Scooter" readonly></div>
         <div class="ab-move-field"><label>Currency *</label><input value="GBP" readonly></div>
-        <div class="ab-move-field"><label>Shipment Payer *</label><input value="Sender" readonly></div>
+        <div class="ab-move-field"><label>Shipment Payer *</label><select id="ab-move-payer-${id}"><option value="">Select payer</option><option value="Sender" ${data.move_payer==="Sender"?"selected":""}>Sender</option><option value="Receiver" ${data.move_payer==="Receiver"?"selected":""}>Receiver</option></select></div>
         <div class="ab-move-field"><label>Sales Price (£) *</label><input id="ab-move-sales-price-${id}" value="${esc(salesPrice)}" readonly></div>
-        <div class="ab-move-field"><label>Price Agreed with Move Motorcycles (£) *</label><input id="ab-move-price-${id}" type="number" min="0" step="0.01" value="${esc(movePrice)}" placeholder="0.00"></div>
+        <div class="ab-move-field"><label>Shipment Charge (GBP) *</label><input id="ab-move-price-${id}" type="number" min="0" step="0.01" value="${esc(movePrice)}" placeholder="0.00"></div>
         <div class="ab-move-field"><label>Buyer needs to pay for the bike — call</label><input value="Anybike 07949574299" readonly></div>
         <div class="ab-move-field"><label>Complete V5 required from seller</label><input value="Yes — buyer is trade" readonly></div>
         <div class="ab-move-field"><label>Contact at name Dealer? *</label><input id="ab-move-contact-at-${id}" value="${esc(moveContactAt)}"></div>
@@ -903,7 +904,7 @@
       "ab-move-sender-postcode-","ab-move-sender-country-","ab-move-sender-contact-",
       "ab-move-sender-phone-","ab-move-receiver-name-","ab-move-receiver-street-",
       "ab-move-receiver-city-","ab-move-receiver-postcode-","ab-move-price-",
-      "ab-move-contact-at-","ab-move-instructions-"
+      "ab-move-contact-at-","ab-move-instructions-","ab-move-payer-"
     ].forEach(function(prefix){
       const el=document.getElementById(prefix+id);
       if(el) el.addEventListener("input",function(){ updateMoveCollectionReadiness(id,data); });
@@ -990,7 +991,8 @@
       p_sms_mobile:smsMobile,
       p_move_price_agreed_gbp:fieldValue("ab-move-price-"+id)==="" ? null : Number(fieldValue("ab-move-price-"+id)),
       p_move_special_instructions:fieldValue("ab-move-instructions-"+id),
-      p_move_contact_at_name:fieldValue("ab-move-contact-at-"+id)
+      p_move_contact_at_name:fieldValue("ab-move-contact-at-"+id),
+      p_move_payer:fieldValue("ab-move-payer-"+id)
     };
   }
 
@@ -999,7 +1001,7 @@
     if(moveBookingSaving.has(key)) return false;
     moveBookingSaving.add(key);
     try{
-      const result=await client().rpc("admin_save_move_booking_draft_v1",moveDraftArgs(id));
+      const result=await client().rpc("admin_save_move_booking_draft_v2",moveDraftArgs(id));
       if(result.error) throw result.error;
       moveBookingCache.delete(key);
       if(!quiet){
