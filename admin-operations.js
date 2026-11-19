@@ -591,6 +591,7 @@
     const purchaseStatus=String(data?.purchase_status||"");
     const readyDate=String(data?.ready_date||"").trim();
     return [
+      {label:"Buyer deposit or full payment received",group:"mandatory",value:data?.auction_payment_gate?.eligible===true,selector:null},
       {label:"Seller proceeding confirmation",group:"seller",value:purchaseStatus==="proceeding_confirmed",selector:null},
       {label:"Ready From date",group:"seller",value:!!readyDate,selector:null},
       {label:"Seller / sender name",group:"seller",value:fieldValue("ab-move-sender-name-"+id),selector:"ab-move-sender-name-"},
@@ -858,6 +859,7 @@
         </div>
 
         <div class="ab-move-section" id="ab-move-section-mandatory-${id}">Mandatory Move shipment fields</div>
+        ${data.auction_payment_gate?.required?`<div class="ab-move-field" style="grid-column:1/-1"><label>Buyer payment</label><input readonly value="${data.auction_payment_gate.eligible?"Received — booking payment condition met":"Awaiting confirmed buyer deposit — booking locked"}"></div>`:""}
         <div class="ab-move-field"><label>Vehicle Ready Date *</label><input value="${esc(data.ready_date||"")}" readonly></div>
         <div class="ab-move-field"><label>Shipping Mode *</label><input value="Up to 7 Working days from ready date" readonly></div>
         <div class="ab-move-field"><label>Vehicle Type *</label><input value="Motorcycle or Scooter" readonly></div>
