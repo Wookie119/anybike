@@ -1139,7 +1139,7 @@
       },260);
     }catch(error){
       console.error("Move booking failed:",error);
-      alert("Move booking was not created.\n\n"+(error.message||error));
+      alert("Move booking could not be confirmed.\n\n"+(error.message||error)+"\n\nIf a shipment may have been submitted, check the Move Motorcycles account before trying again.");
     }
   }
 
