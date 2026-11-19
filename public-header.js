@@ -3181,3 +3181,6 @@ async function anybikeShowPublicSignedInIdentity(){
   document.head.append(facts);
  }
 })();
+
+/* Universal commercial placements — opt-in and non-blocking. */
+(function(){const path=location.pathname;if(!/^\/markets\/[a-z0-9-]+\.html$/i.test(path)&&!['/bmw-motorcycles.html','/harley-davidson-motorcycles.html'].includes(path))return;const start=()=>import('/advertising/universal-banner.mjs?v=20261119-2').then(m=>m.renderPublicPageAdvertising()).catch(()=>{});if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start()})();
