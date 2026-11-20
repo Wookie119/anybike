@@ -88,6 +88,37 @@ async function initQuotes(){
   if(error&&error.code!=='23505')throw error;
   await list();status('Advertising billing review prepared. No invoice has been issued.');
  }
+ async function previewAdvertisingBillingDraft(v){
+  const [quote,items,totals]=await Promise.all([
+   checked(db.from('advertising_quotations').select('*').eq('id',v.quotation_id).single()),
+   checked(db.from('advertising_quotation_items').select('*').eq('quotation_id',v.quotation_id).order('created_at')),
+   checked(db.from('admin_advertising_quotation_totals_v1').select('*').eq('id',v.quotation_id).single())
+  ]);
+  const win=window.open('','_blank');
+  if(!win)throw Error('Allow pop-ups to preview billing draft.');
+  const doc=win.document;
+  doc.title='Advertising billing draft — AB-ADQ-'+String(quote.quote_number).padStart(6,'0');
+  const style=doc.createElement('style');
+  style.textContent='@page{size:A4;margin:15mm}*{box-sizing:border-box}body{font:11pt Arial,sans-serif;color:#181818;margin:0;background:#eee}main{background:white;max-width:210mm;min-height:297mm;margin:0 auto;padding:18mm}header{border-bottom:4px solid #ed1c24;padding-bottom:12px;margin-bottom:20px}h1{margin:0;font-size:22pt}h2{font-size:14pt}p{line-height:1.5}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{text-align:left;padding:9px 7px;border-bottom:1px solid #ccc;vertical-align:top;overflow-wrap:anywhere}th{background:#eee}.total{font-weight:bold;font-size:15pt;border-top:2px solid #ed1c24;padding-top:12px}.warning{font-weight:bold;color:#a31319}button{border:0;background:#ed1c24;color:white;padding:10px 16px;cursor:pointer}footer{margin-top:30px;border-top:1px solid #ccc;padding-top:12px;font-size:10pt}@media print{body{background:white}main{padding:0;min-height:0}button{display:none}}';
+  doc.head.append(style);
+  const main=doc.createElement('main'),header=doc.createElement('header');
+  const title=doc.createElement('h1');title.textContent='AnyBike — Advertising billing draft';
+  const warn=doc.createElement('p');warn.textContent='DRAFT FOR INTERNAL REVIEW — NOT A VAT INVOICE — NOT ISSUED';warn.className='warning';
+  header.append(title,warn);main.append(header);
+  const ref='AB-ADQ-'+String(quote.quote_number).padStart(6,'0');
+  const para=doc.createElement('p');
+  para.textContent='Quotation: '+ref+' | Advertiser: '+quote.advertiser_name+' | Contact: '+(quote.contact_name||'Not supplied')+' | Email: '+(quote.contact_email||'Not supplied')+' | Audience: '+quote.audience+' | Duration: '+quote.duration_days+' days';
+  main.append(para);
+  const table=doc.createElement('table'),head=doc.createElement('tr');
+  for(const label of ['Advertising placement','Format','Qty','Unit ex VAT','Net']){const cell=doc.createElement('th');cell.textContent=label;head.append(cell)}
+  table.append(head);
+  for(const item of items){const tr=doc.createElement('tr');for(const val of [item.description,String(item.artwork_format).replaceAll('_',' '),String(item.quantity),money(item.unit_price_gbp),money(item.line_total_gbp)]){const cell=doc.createElement('td');cell.textContent=val;tr.append(cell)}table.append(tr)}
+  main.append(table);
+  for(const [label,value] of [['Subtotal',totals.subtotal_gbp],['Discount',totals.discount_gbp],['Net',totals.net_gbp],['VAT',totals.vat_gbp],['Total including VAT',totals.total_gbp]]){const p=doc.createElement('p');p.textContent=label+': '+money(value);if(label.startsWith('Total'))p.className='total';main.append(p)}
+  const foot=doc.createElement('footer');foot.textContent='Internal billing preparation only. Confirm the legal issuer, buyer billing address, VAT treatment, payment terms and invoice number before issuing a customer invoice.';
+  const print=doc.createElement('button');print.textContent='Print draft';print.onclick=()=>win.print();main.append(foot,print);
+  doc.body.append(main);
+ }
  async function billingReviews(){
   let container=$('advertisingBillingReviews');
   if(!container){container=el('div');container.id='advertisingBillingReviews';$('quotearea').append(container);}
@@ -97,6 +128,7 @@ async function initQuotes(){
   const table=el('table');row(table,['Advertiser','Total','Billing stage','Invoice reference','Actions']);
   for(const v of rows){
    const actions=el('div');actions.className='bar';
+   actions.append(button('Preview billing draft',run(()=>previewAdvertisingBillingDraft(v))));
    if(v.billing_status==='needs_review')actions.append(button('Mark ready',run(async()=>{
     if(!confirm('Confirm billing details have been checked? This still does not issue an invoice.'))return;
     const {error}=await db.from('advertising_billing_reviews').update({billing_status:'ready',updated_at:new Date().toISOString()}).eq('id',v.id).eq('billing_status','needs_review');
