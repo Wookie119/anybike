@@ -46,7 +46,7 @@ $("test3-preview").onclick=()=>{
  const {booking,fields,issues}=buildTest3();
  test3Fields=issues.length?null:booking;test3Ready=!issues.length;
  $("test3-submit").disabled=!test3Ready||test3Locked;
- $("test3-output").textContent=(issues.length?"NOT READY FOR LIVE TEST:\n- "+issues.join("\n- ")+"\n\n":"ALL REQUIRED PREVIEW FIELDS COMPLETED — NOT SUBMITTED.\n\n")+"Preview of documented Move API form fields:\n"+JSON.stringify(fields,null,2)+"\n\nMove Admin must manually enter Freight Charge and check payer. Move uses text notifications, not email booking confirmations.";
+ $("test3-output").textContent=(issues.length?("NOT READY FOR LIVE TEST:"+String.fromCharCode(10)+"- "+issues.join(String.fromCharCode(10)+"- ")+String.fromCharCode(10,10)):("ALL REQUIRED PREVIEW FIELDS COMPLETED — NOT SUBMITTED."+String.fromCharCode(10,10)))+"Preview of documented Move API form fields:"+String.fromCharCode(10)+JSON.stringify(fields,null,2)+String.fromCharCode(10,10)+"Move Admin must manually enter Freight Charge and check payer. Move uses text notifications, not email booking confirmations.";
 };
 $("test3-status").onclick=test3Status;
 $("test3-submit").onclick=async()=>{
