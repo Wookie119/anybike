@@ -164,16 +164,54 @@ async function initQuotes(){
   });
   panel.append(form);panel.scrollIntoView({behavior:'smooth',block:'nearest'});
  }
+ async function prepareAdvertisingInvoiceDraft(v){
+  if(v.billing_status!=='ready')throw Error('Confirm billing details before preparing an invoice draft.');
+  if(!confirm('Prepare an unissued advertising invoice draft for '+v.advertiser_name+'? No invoice number will be assigned and nothing will be emailed.'))return;
+  const {data,error}=await db.rpc('admin_prepare_advertising_invoice_draft_v1',{p_billing_review_id:v.id});
+  if(error)throw error;
+  if(!data)throw Error('Invoice draft could not be created.');
+  await billingReviews();
+  status('Advertising invoice draft prepared. No invoice number assigned, sent or issued.');
+ }
+ async function viewAdvertisingInvoiceDraft(v){
+  const win=window.open('','_blank');
+  if(!win)throw Error('Allow pop-ups to view an invoice draft.');
+  const {data,error}=await db.from('advertising_invoice_drafts').select('*').eq('billing_review_id',v.id).maybeSingle();
+  if(error){win.close();throw error;}
+  if(!data){win.close();throw Error('Prepare an advertising invoice draft first.');}
+  const doc=win.document;
+  doc.title='AnyBike advertising invoice draft';
+  const style=doc.createElement('style');
+  style.textContent='@page{size:A4;margin:15mm}*{box-sizing:border-box}body{font:11pt/1.5 Arial,sans-serif;color:#161616;background:#eee;margin:0}main{background:#fff;max-width:210mm;min-height:297mm;margin:auto;padding:17mm}h1{font-size:20pt;border-bottom:4px solid #ed1c24;padding-bottom:12px}h2{font-size:12pt;margin-bottom:5px}p{margin:6px 0}table{border-collapse:collapse;width:100%;margin-top:20px}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}th{background:#eee}.warning{font-weight:bold;color:#bd121a}.total{font-size:15pt;font-weight:bold;margin-top:18px}.columns{display:grid;grid-template-columns:1fr 1fr;gap:18px}button{background:#ed1c24;color:white;border:0;padding:9px 15px;margin-top:20px;cursor:pointer}@media print{body{background:#fff}main{padding:0;min-height:0}button{display:none}}';
+  doc.head.append(style);
+  const main=doc.createElement('main');const heading=doc.createElement('h1');heading.textContent='AnyBike advertising — Invoice draft';main.append(heading);
+  const warn=doc.createElement('p');warn.className='warning';warn.textContent='UNISSUED DRAFT — NOT A VAT INVOICE';main.append(warn);
+  const columns=doc.createElement('div');columns.className='columns';
+  const issuer=doc.createElement('div');const recipient=doc.createElement('div');
+  const addText=(node,label,value)=>{const p=doc.createElement('p');const strong=doc.createElement('strong');strong.textContent=label+': ';p.append(strong,doc.createTextNode(String(value||'—')));node.append(p)};
+  addText(issuer,'Issuer',data.issuer_name);addText(issuer,'Trading as',data.issuer_trading_name);addText(issuer,'Address',data.issuer_address);addText(issuer,'Company no.',data.issuer_company_number);addText(issuer,'VAT no.',data.issuer_vat_number);
+  addText(recipient,'Advertiser',data.advertiser_name);addText(recipient,'Billing contact',data.billing_contact);addText(recipient,'Billing address',data.billing_address);addText(recipient,'Country',data.billing_country);addText(recipient,'Email',data.billing_email);addText(recipient,'PO reference',data.purchase_order_reference);
+  columns.append(issuer,recipient);main.append(columns);
+  const tbl=doc.createElement('table');const tr=doc.createElement('tr');for(const label of ['Placement','Format','Quantity','Unit','Net']){const th=doc.createElement('th');th.textContent=label;tr.append(th)}tbl.append(tr);
+  for(const item of data.lines||[]){const line=doc.createElement('tr');for(const cellValue of [item.description,String(item.artwork_format||'').replaceAll('_',' '),item.quantity,money(item.unit_price_gbp),money(item.line_total_gbp)]){const td=doc.createElement('td');td.textContent=String(cellValue??'');line.append(td)}tbl.append(line)}main.append(tbl);
+  for(const [label,amount] of [['Subtotal',data.subtotal_gbp],['Discount',data.discount_gbp],['Net',data.net_gbp],['VAT ('+data.vat_rate_percent+'%)',data.vat_gbp],['Total including VAT',data.gross_gbp]]){const p=doc.createElement('p');p.textContent=label+': '+money(amount);if(label==='Total including VAT')p.className='total';main.append(p)}
+  addText(main,'Payment terms',data.payment_terms);
+  const foot=doc.createElement('p');foot.className='warning';foot.textContent='For internal verification only. Payment terms, VAT treatment and legal invoice number must be confirmed before any invoice is issued.';main.append(foot);
+  const print=doc.createElement('button');print.textContent='Print draft';print.onclick=()=>win.print();main.append(print);
+  doc.body.append(main);
+ }
  async function billingReviews(){
   let container=$('advertisingBillingReviews');
   if(!container){container=el('div');container.id='advertisingBillingReviews';$('quotearea').append(container);}
-  const rows=await checked(db.from('advertising_billing_reviews').select('id,quotation_id,advertiser_name,billing_contact_name,billing_email,billing_address,billing_country,purchase_order_reference,buyer_vat_number,total_gbp,billing_status,external_invoice_reference,created_at').order('created_at',{ascending:false}).limit(100));
+  const [rows,drafts]=await Promise.all([checked(db.from('advertising_billing_reviews').select('id,quotation_id,advertiser_name,billing_contact_name,billing_email,billing_address,billing_country,purchase_order_reference,buyer_vat_number,total_gbp,billing_status,external_invoice_reference,created_at').order('created_at',{ascending:false}).limit(100)),checked(db.from('advertising_invoice_drafts').select('id,billing_review_id,state'))]);const draftsByReview=new Map(drafts.map(d=>[d.billing_review_id,d]));
   if(!rows.length){container.replaceChildren();return;}
   const heading=el('h3','Advertising billing reviews — no invoice issued automatically');
   const table=el('table');row(table,['Advertiser','Total','Billing stage','Invoice reference','Actions']);
   for(const v of rows){
    const actions=el('div');actions.className='bar';
    actions.append(button('Preview billing draft',run(()=>previewAdvertisingBillingDraft(v))));
+   if(v.billing_status==='ready'&&!draftsByReview.has(v.id))actions.append(button('Create invoice draft',run(()=>prepareAdvertisingInvoiceDraft(v))));
+   if(draftsByReview.has(v.id))actions.append(button('View invoice draft',run(()=>viewAdvertisingInvoiceDraft(v))));
    if(v.billing_status==='needs_review')actions.append(button('Billing details',()=>editAdvertisingBillingDetails(v)));
    if(v.billing_status==='needs_review')actions.append(button('Mark ready',run(async()=>{
     if(!v.billing_contact_name?.trim()||!v.billing_email?.trim()||!v.billing_address?.trim()||!v.billing_country?.trim())throw Error('Save a verified billing contact, email, address and country before marking ready.');
