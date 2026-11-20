@@ -16,6 +16,15 @@ const mobile = (v) => text(v).replace(/[\s()-]/g, "");
 const validMobile = (v) => /^(?:\+44(?:7\d{9})|07\d{9})$/.test(mobile(v));
 const validEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text(v)) && text(v).length <= 254;
 const ukPostcode = (v) => /^(GIR0AA|(?:[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}))$/.test(postcode(v));
+// Certain island/overseas postcode prefixes are unambiguously outside UK mainland.
+// This list is intentionally not comprehensive: every other route must still
+// pass an authoritative mainland coverage check before booking.
+const definitelyExcluded = (v) => {
+  const code = postcode(v);
+  if (/^(?:BT|IM|JE|GY|HS|ZE)/.test(code)) return true;
+  const match = /^PO(\d{1,2})/.exec(code);
+  return !!match && Number(match[1]) >= 30 && Number(match[1]) <= 41;
+};
 const isoDate = (v) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(text(v))) return false;
   const d = new Date(v+"T12:00:00Z");
@@ -29,6 +38,7 @@ function validateParty(p, role, errors) {
   if (text(p.email) && !validEmail(p.email)) errors.push(role+".email invalid");
   if (text(p.mobile) && !validMobile(p.mobile)) errors.push(role+".mobile must be a UK mobile");
   if (text(p.postcode) && !ukPostcode(p.postcode)) errors.push(role+".postcode invalid");
+  if (text(p.postcode) && definitelyExcluded(p.postcode)) errors.push(role+".postcode is outside covered UK mainland");
   if (text(p.country).toUpperCase() !== "UNITED KINGDOM") errors.push(role+".country must be United Kingdom");
 }
 function pennyAmount(value) {
@@ -57,7 +67,7 @@ export function validateMotobidderBooking(booking) {
   if (booking.vat_included !== true) errors.push("vat_included must be true; all agreed rates include VAT");
   const pence = pennyAmount(booking.freight_inc_vat);
   if (pence === null) errors.push("freight_inc_vat must be a non-negative 2-decimal number");
-  const expected = RATE_INC_VAT[booking.rate_band];
+  const expected = Object.hasOwn(RATE_INC_VAT,booking.rate_band) ? RATE_INC_VAT[booking.rate_band] : undefined;
   if (expected === undefined) errors.push("rate_band must identify an agreed mainland rate");
   else if (pence !== null && pence !== expected*100) errors.push("freight_inc_vat does not match agreed inclusive-VAT rate band");
   // All islands are excluded; never automatically assert a mainland route
