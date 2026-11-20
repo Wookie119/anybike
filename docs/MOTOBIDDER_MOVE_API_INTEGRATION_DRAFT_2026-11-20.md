@@ -52,6 +52,19 @@ curl --request POST 'https://app.movemotorcycles.co.uk/api/shipment/create' \
 ```
 This is a **field-mapping illustration only**, not a runnable acceptance test.
 
+## Verified customer-account APIs and safe matching
+
+Official Logxa documentation supplied:
+
+- `GET /admin/customers?email=<urlencoded email>` (admin bearer authentication) searches existing **customer-role** users. Optional query keys: `name`, `email`, `phone`; at least one is required. Response: `{"status":"success","customers":[{"id":5821,"firstname":"John","lastname":"Smith","email":"john@example.com","phone":"07700900123"}]}`.
+- Lookup uses **partial matching**; an exact match must be established by normalising and comparing the returned email to the requested email (case-insensitive), and resolving any conflicting or multiple matches without guessing.
+- `POST /account/create` accepts JSON with required `title`, `firstname`, `lastname`, `phone`, unique `email`, `password`, `password_confirmation`, optional `country_code` and address. On success returns `user_id` and sends a 6-digit OTP to the new customer's email.
+- `POST /account/otp/verify` accepts JSON `{"user_id":5821,"otp":123456}`. The OTP belongs to that user, so only the recipient can complete verification. Do not ask Motobidder to store, read, or forward OTPs.
+- New account generation must use independent high-entropy passwords on the trusted Move integration server; never distribute or persist plaintext passwords, and confirm a supported password-setup/reset mechanism before enabling customer access.
+- Lookups should be made **separately for buyer and seller**. A known existing user ID can be used where the Logxa API specifically supports a `customer_id`; currently `POST /admin/shipments` documents one such customer field. The normal `POST /shipment/create` customer authentication and two-party account visibility still need verified permissions and a linkage mechanism.
+- When one party is already an existing Move customer and the other is new, only create the new one. If both are existing, create neither. If the same verified person is on both sides, do not create duplicate accounts.
+- Never send Logxa admin bearer tokens to Motobidder or place them in a browser request.
+
 ## Separate Logxa Admin API
 `POST /admin/shipments` (JSON) documents `customer_id`, `reference_no`, sender/receiver address fields, `custom_data`, and required `status`. The supplied admin endpoint documentation **does not list sender_email, receiver_email, payer or charges**. Do not switch to the admin endpoint without confirming full field support and restricted permissions.
 
