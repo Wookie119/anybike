@@ -19,7 +19,30 @@ async function initQuotes(){
  f.elements.advertiser_name.addEventListener('change',run(()=>contactOptions(true)));
  f.elements.contact_name.addEventListener('change',()=>{const name=f.elements.contact_name.value.trim().toLowerCase();const matches=quoteContacts.filter(c=>(c.name||c.email).toLowerCase()===name);if(matches.length===1&&matches[0].email)f.elements.contact_email.value=matches[0].email;else if(matches.length>1)status('Multiple matching contacts; enter the correct email manually')});
  function clearScope(){scope={page_paths:[],catalogue_model_ids:[],manufacturers:[]};$('quoteselectedcount').textContent='Manual quantity';lf.elements.manufacturer.value=''}
- async function list(){const data=await checked(db.from('admin_advertising_quotation_totals_v1').select('*').order('quote_number',{ascending:false}));const table=el('table');row(table,['Reference','Advertiser','Package','Audience','Placements','Total inc VAT','Status','']);for(const q of data)row(table,['AB-ADQ-'+String(q.quote_number).padStart(6,'0'),q.advertiser_name,q.title,q.audience,q.placement_quantity,money(q.total_gbp),q.status,button('Open',run(()=>open(q.id)))]);$('quotelist').replaceChildren(table)}
+ async function changeQuoteStatus(q,next){
+  const transitions={draft:['sent','cancelled'],sent:['accepted','declined','expired'],accepted:[],declined:[],expired:[],cancelled:[]};
+  if(!(transitions[q.status]||[]).includes(next))throw Error('This quotation cannot move from '+q.status+' to '+next);
+  if(next==='sent'&&!confirm('Only mark this quotation as sent AFTER you have actually sent the email to the customer. Continue?'))return;
+  if(next==='accepted'&&!confirm('Have you received and recorded the advertiser’s acceptance? This does not activate advertising or create an invoice.'))return;
+  if(next==='declined'&&!confirm('Record this quotation as declined?'))return;
+  if(next==='expired'&&!confirm('Mark this quotation expired?'))return;
+  if(next==='cancelled'&&!confirm('Cancel this draft quotation?'))return;
+  const {data,error}=await db.from('advertising_quotations').update({status:next,updated_at:new Date().toISOString()}).eq('id',q.id).eq('status',q.status).select('id');
+  if(error)throw error;if(!data?.length)throw Error('Quotation changed elsewhere. Refresh before updating.');
+  await list();status('Quotation AB-ADQ-'+String(q.quote_number).padStart(6,'0')+' marked '+next+'.');
+ }
+ async function list(){
+  const data=await checked(db.from('admin_advertising_quotation_totals_v1').select('*').order('quote_number',{ascending:false}));
+  const table=el('table');row(table,['Reference','Advertiser','Package','Audience','Placements','Total inc VAT','Status','Actions']);
+  for(const q of data){
+   const controls=el('div');controls.className='bar';controls.style.flexWrap='nowrap';
+   if(q.status==='draft'){controls.append(button('Open',run(()=>open(q.id))));if(Number(q.placement_quantity)>0)controls.append(button('Mark sent',run(()=>changeQuoteStatus(q,'sent'))));}
+   if(q.status==='sent'){controls.append(button('Accept',run(()=>changeQuoteStatus(q,'accepted'))),button('Decline',run(()=>changeQuoteStatus(q,'declined'))),button('Expire',run(()=>changeQuoteStatus(q,'expired'))));}
+   if(q.status==='accepted'){controls.append(el('span','Accepted — campaign setup pending'));}
+   row(table,['AB-ADQ-'+String(q.quote_number).padStart(6,'0'),q.advertiser_name,q.title,q.audience,q.placement_quantity,money(q.total_gbp),q.status,controls]);
+  }
+  $('quotelist').replaceChildren(table);
+ }
  function scopeSummary(l){const brands=l.manufacturers||[],models=l.catalogue_model_ids||[],pages=l.page_paths||[];return [brands.length?brands.join(', '):'',models.length?models.length+' model pages':'',pages.length?pages.length+' website pages':''].filter(Boolean).join(' · ')||'Manual placement'}
  async function lines(){const data=await checked(db.from('advertising_quotation_items').select('*').eq('quotation_id',qid).order('created_at'));const t=el('table');row(t,['Advert','Format','Targeted pages','Qty','Unit price','Net','']);for(const l of data)row(t,[l.description,l.artwork_format.replaceAll('_',' '),scopeSummary(l),l.quantity,money(l.unit_price_gbp),money(l.line_total_gbp),button('Remove',run(async()=>{if(!confirm('Remove this draft placement?'))return;await checked(db.from('advertising_quotation_items').delete().eq('id',l.id));await lines();await list()}))]);$('quotelines').replaceChildren(t);const q=await checked(db.from('admin_advertising_quotation_totals_v1').select('*').eq('id',qid).single());$('quotetotals').textContent='Subtotal '+money(q.subtotal_gbp)+' · Discount '+money(q.discount_gbp)+' · VAT '+money(q.vat_gbp)+' · Total '+money(q.total_gbp)}
  async function open(id){$('quoteemailpanel')?.remove();qid=id||null;advertiserOptions();f.reset();quoteContacts=[];contactRequest++;$('quoteContacts').replaceChildren();lf.reset();clearScope();$('quoteeditor').hidden=false;$('quotelinearea').hidden=!qid;const m=lf.elements.manufacturer;m.replaceChildren(new Option('Select manufacturer (optional)',''));for(const brand of [...new Set(coverage.map(x=>x.manufacturer))].sort())m.add(new Option(brand,brand));if(qid){const q=await checked(db.from('advertising_quotations').select('*').eq('id',qid).single());if(q.status!=='draft'){qid=null;$('quoteeditor').hidden=true;throw Error('Only draft quotations can be edited')}for(const field of f.elements)if(field.name&&q[field.name]!=null)field.value=q[field.name];$('quotetitle').textContent='AB-ADQ-'+String(q.quote_number).padStart(6,'0');await contactOptions();await lines()}else $('quotetitle').textContent='New quotation'}
