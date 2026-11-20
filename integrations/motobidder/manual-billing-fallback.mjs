@@ -1,8 +1,9 @@
 /**
  * Motobidder billing-review fallback.
  *
- * This uses only Logxa's documented shipment/create field names and the Move
- * tenant's documented custom-field IDs. The custom price IS NOT a shipping
+ * The date field mapping is an unverified candidate, and this returns a
+ * non-submittable draft until Move confirms the booking-date wire field.
+ * Other fields use Logxa shipment/create and the tenant custom IDs. The custom price IS NOT a shipping
  * charge and this module NEVER asserts that freight has been invoiced.
  *
  * Caller must run booking preflight, trusted geographic tariff review, durable
@@ -66,7 +67,9 @@ export function prepareManualBillingShipment(booking,{mainlandVerified=false,rat
  return {ok:true,status:"manual_billing_review_required",form:f,
   booking_reference:oneLine(booking.transport_booking_id),
   invoice_to:booking.payer,amount_inc_vat:booking.freight_inc_vat,
-  ready_to_submit:false,\n  ready_date_mapping_verified:false,\n  booking_date_field_candidate:"booking_date",
+  ready_to_submit:false,
+  ready_date_mapping_verified:false,
+  booking_date_field_candidate:"booking_date",
   reminder:"Do NOT submit before Move confirms booking_date writes the displayed booking date. Move staff must also confirm payer and freight charge; custom_field[11556] is NOT a freight ledger entry."
  };
 }
