@@ -21,6 +21,44 @@ Deno.serve(async(req)=>{
   if(body?.action==="status"){
    const db=createClient(url,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
    const {data:existing}=await db.from("anybike_move_test_submissions").select("state,external_shipment_id").eq("test_key",testKey).maybeSingle();
+   if(existing?.state==="review_required"&&!existing.external_shipment_id){
+    // Read-only recovery. The create response may fail even when Move creates the shipment.
+    try {
+     const email=Deno.env.get("MOVE_CUSTOMER_EMAIL")||"",password=Deno.env.get("MOVE_CUSTOMER_PASSWORD")||"";
+     if(email.toLowerCase()!=="sales@anybike.co.uk"||!password)throw Error("Move account unavailable");
+     const login=await fetch(root+"/account/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email,password}),signal:AbortSignal.timeout(12000)});
+     const ld=await login.json();if(!login.ok||ld?.status!=="success"||!ld.access_token)throw Error("Move login failed");
+     const bearer={Authorization:"Bearer "+ld.access_token,Accept:"application/json"};
+     const listing=await fetch(root+"/shipments",{headers:bearer,signal:AbortSignal.timeout(12000)});
+     const j=await listing.json();
+     const shipments=Array.isArray(j?.shipments)?j.shipments:Array.isArray(j?.data?.shipments)?j.data.shipments:[];
+     const candidates=shipments.slice(0,25);
+     const matches=[];
+     for(const row of candidates){
+      const id=Number(row?.id);
+      if(!Number.isSafeInteger(id)||id<=0)continue;
+      const tracking=String(row.tracking_no||"");
+      if(tracking==="115984"||tracking==="115977"||tracking==="115978")continue;
+      try{
+       const detail=await fetch(root+"/shipment/id/"+id,{headers:bearer,signal:AbortSignal.timeout(6500)});
+       const d=await detail.json(),sh=d?.data?.shipment;
+       if(!detail.ok||d?.status!=="success"||Number(sh?.id)!==id)continue;
+       const notes=JSON.stringify(sh?.custom_data??sh?.custom_fields??sh?.custom_field??sh?.instructions??sh?.notes??"");
+       if(!notes.includes("TEST 4"))continue;
+       matches.push({id,tracking_no:sh.tracking_no??tracking,booking_date:sh.booking_date??null,ready_date:sh.ready_date??null,type:sh.type??null,mode:sh.mode??null,payer:sh.payer??null,charges:sh.charges??null});
+      }catch{}
+     }
+     if(matches.length===1){
+      const found=matches[0];
+      const {error:updateError}=await db.from("anybike_move_test_submissions").update({state:"confirmed",external_shipment_id:found.id}).eq("test_key",testKey).eq("state","review_required").is("external_shipment_id",null);
+      if(updateError)throw Error("Could not save reconciliation");
+      return respond({success:true,test:4,verification:"confirmed_existing_move_booking",submission:{state:"confirmed",external_shipment_id:found.id},move:found,submit_enabled:false});
+     }
+     return respond({success:true,test:4,verification:"manual_review_needed",submission:existing,submit_enabled:false,possible_matches:matches,notice:"Move booking is visible in admin but API record cannot be safely matched; no retry."});
+    }catch {
+     return respond({success:true,test:4,verification:"remote_readback_unavailable",submission:existing,submit_enabled:false,notice:"Check latest Move booking; do not submit again."});
+    }
+   }
    return respond({success:true,test:4,submission:existing||null,submit_enabled:!existing});
   }
   if(body?.action!=="submit"||body?.confirmation!=="CREATE ONE TEST 4 SHIPMENT")return respond({error:"Explicit one-time confirmation required"},400);
