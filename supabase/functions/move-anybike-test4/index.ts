@@ -93,9 +93,9 @@ Deno.serve(async(req)=>{
     "pname[]":"Honda Forza 125","pquantity[]":"1",
     "custom_field[11548]":"Honda","custom_field[11549]":"Forza 125","custom_field[11550]":"HON125R",
     "custom_field[11556]":"180.00","custom_field[11557]":"TEST 4 — DO NOT DISPATCH OR INVOICE. READY DATE 2026-12-25. Receiver pays GBP 180 including VAT.",
-    "booking_date":"2026-12-25","ready_date":"2026-12-25",
+    "date":"2026-12-25",
     "type":"Motorcycle or Scooter","mode":"Up to 7 Working days from ready date",
-    "payer":"receiver","charges":JSON.stringify([{name:"Freight Charge",value:180}]),
+    "payer":"Receiver","charges":JSON.stringify([{name:"Freight Charge",value:180}]),
     "instructions":"TEST 4 ONLY - DO NOT DISPATCH OR INVOICE. Motorcycle ready and booking date 2026-12-25. Receiver pays GBP 180 incl VAT. Manual freight verification required."
    };
    for(const [k,v] of Object.entries(vals))form.set(k,v);
