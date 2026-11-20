@@ -173,19 +173,23 @@ async function initQuotes(){
   await billingReviews();
   status('Advertising invoice draft prepared. No invoice number assigned, sent or issued.');
  }
- async function viewAdvertisingInvoiceDraft(v){
+ async function viewAdvertisingInvoiceDraft(v,issued=false){
   const win=window.open('','_blank');
   if(!win)throw Error('Allow pop-ups to view an invoice draft.');
-  const {data,error}=await db.from('advertising_invoice_drafts').select('*').eq('billing_review_id',v.id).maybeSingle();
+  const {data:row,error}=issued
+   ?await db.from('advertising_issued_invoices').select('invoice_number,issued_at,invoice_snapshot').eq('billing_review_id',v.id).maybeSingle()
+   :await db.from('advertising_invoice_drafts').select('*').eq('billing_review_id',v.id).maybeSingle();
   if(error){win.close();throw error;}
-  if(!data){win.close();throw Error('Prepare an advertising invoice draft first.');}
+  if(!row){win.close();throw Error(issued?'Issued invoice not found.':'Prepare an advertising invoice draft first.');}
+  const data=issued?row.invoice_snapshot:row;
   const doc=win.document;
-  doc.title='AnyBike advertising invoice draft';
+  doc.title=issued?'AnyBike advertising invoice '+row.invoice_number:'AnyBike advertising invoice draft';
   const style=doc.createElement('style');
   style.textContent='@page{size:A4;margin:15mm}*{box-sizing:border-box}body{font:11pt/1.5 Arial,sans-serif;color:#161616;background:#eee;margin:0}main{background:#fff;max-width:210mm;min-height:297mm;margin:auto;padding:17mm}h1{font-size:20pt;border-bottom:4px solid #ed1c24;padding-bottom:12px}h2{font-size:12pt;margin-bottom:5px}p{margin:6px 0}table{border-collapse:collapse;width:100%;margin-top:20px}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}th{background:#eee}.warning{font-weight:bold;color:#bd121a}.total{font-size:15pt;font-weight:bold;margin-top:18px}.columns{display:grid;grid-template-columns:1fr 1fr;gap:18px}button{background:#ed1c24;color:white;border:0;padding:9px 15px;margin-top:20px;cursor:pointer}@media print{body{background:#fff}main{padding:0;min-height:0}button{display:none}}';
   doc.head.append(style);
-  const main=doc.createElement('main');const heading=doc.createElement('h1');heading.textContent='AnyBike advertising — Invoice draft';main.append(heading);
-  const warn=doc.createElement('p');warn.className='warning';warn.textContent='UNISSUED DRAFT — NOT A VAT INVOICE';main.append(warn);
+  const main=doc.createElement('main');const heading=doc.createElement('h1');heading.textContent=issued?'AnyBike — Advertising invoice':'AnyBike advertising — Invoice draft';main.append(heading);
+  if(issued){const p=doc.createElement('p');p.textContent='Invoice number: '+row.invoice_number+' | Issued: '+new Date(row.issued_at).toLocaleDateString('en-GB');main.append(p)}
+  else{const warn=doc.createElement('p');warn.className='warning';warn.textContent='UNISSUED DRAFT — NOT A VAT INVOICE';main.append(warn)}
   const columns=doc.createElement('div');columns.className='columns';
   const issuer=doc.createElement('div');const recipient=doc.createElement('div');
   const addText=(node,label,value)=>{const p=doc.createElement('p');const strong=doc.createElement('strong');strong.textContent=label+': ';p.append(strong,doc.createTextNode(String(value||'—')));node.append(p)};
@@ -196,7 +200,9 @@ async function initQuotes(){
   for(const item of data.lines||[]){const line=doc.createElement('tr');for(const cellValue of [item.description,String(item.artwork_format||'').replaceAll('_',' '),item.quantity,money(item.unit_price_gbp),money(item.line_total_gbp)]){const td=doc.createElement('td');td.textContent=String(cellValue??'');line.append(td)}tbl.append(line)}main.append(tbl);
   for(const [label,amount] of [['Subtotal',data.subtotal_gbp],['Discount',data.discount_gbp],['Net',data.net_gbp],['VAT ('+data.vat_rate_percent+'%)',data.vat_gbp],['Total including VAT',data.gross_gbp]]){const p=doc.createElement('p');p.textContent=label+': '+money(amount);if(label==='Total including VAT')p.className='total';main.append(p)}
   addText(main,'Payment terms',data.payment_terms);
-  const foot=doc.createElement('p');foot.className='warning';foot.textContent='For internal verification only. Payment terms, VAT treatment and legal invoice number must be confirmed before any invoice is issued.';main.append(foot);
+  addText(main,'Payment due',data.payment_due_on);
+  addText(main,'Service date',data.service_date);
+  if(!issued){const foot=doc.createElement('p');foot.className='warning';foot.textContent='For internal verification only. Payment terms, VAT treatment and legal invoice number must be confirmed before any invoice is issued.';main.append(foot)}
   const print=doc.createElement('button');print.textContent='Print draft';print.onclick=()=>win.print();main.append(print);
   doc.body.append(main);
  }
@@ -230,7 +236,7 @@ async function initQuotes(){
  }
  async function issueAdvertisingInvoice(v,draft){
   if(v.billing_status!=='ready')throw Error('Billing review must be ready.');
-  if(!draft.vat_review_confirmed||!draft.payment_due_on||!draft.service_date||!/[^ ]{8}/.test(draft.payment_terms||''))throw Error('Complete the final invoice review first.');
+  if(!draft.vat_review_confirmed||!draft.payment_due_on||!draft.service_date||String(draft.payment_terms||'').trim().length<8)throw Error('Complete the final invoice review first.');
   const entry=prompt('This will ISSUE a real numbered advertising invoice for '+v.advertiser_name+' ('+money(v.total_gbp)+'). It cannot be edited or undone. Nothing will be emailed. Type ISSUE to confirm:');
   if(entry!=='ISSUE')return;
   if(!confirm('Final confirmation: issue a permanent AnyBike advertising invoice now?'))return;
