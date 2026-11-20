@@ -77,7 +77,7 @@ $("test3-status").onclick=test3Status;
 async function checkTest4(){
  $("test4-result").textContent="Checking Test 4…";
  try{
-  const {data,error}=await db.functions.invoke("move-anybike-test4",{body:{action:"status"}});
+  const {data,error}=await db.functions.invoke("move-anybike-test4-proxy",{body:{action:"status"}});
   if(error)throw error;
   if(data?.submission){
    $("test4-submit").disabled=true;
@@ -99,7 +99,7 @@ $("test4-submit").onclick=async()=>{
  $("test4-submit").disabled=true;
  $("test4-result").textContent="Submitting ONE booking; no automatic retries…";
  try{
-  const {data,error}=await db.functions.invoke("move-anybike-test4",{body:{action:"submit",confirmation:"CREATE ONE TEST 4 SHIPMENT"}});
+  const {data,error}=await db.functions.invoke("move-anybike-test4-proxy",{body:{action:"submit",confirmation:"CREATE ONE TEST 4 SHIPMENT"}});
   if(error)throw error;
   $("test4-result").textContent=JSON.stringify(data,null,2)+"\nCheck the new Move booking record for Booking Date 25/12/2026. Do not dispatch or invoice.";
  }catch(e){
