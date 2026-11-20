@@ -75,39 +75,44 @@ $("test3-preview").onclick=()=>{
 };
 $("test3-status").onclick=test3Status;
 async function checkTest4(){
- $("test4-result").textContent="Checking Test 4…";
+ $("test4-result").textContent="Checking existing Test 4…";
  try{
   const {data,error}=await db.functions.invoke("move-anybike-test4",{body:{action:"status"}});
   if(error)throw error;
-  if(data?.submission){
-   $("test4-submit").disabled=true;
-   $("test4-result").textContent="Test 4 already attempted. Do not submit again.\n"+JSON.stringify(data,null,2);
-  }else{
-   $("test4-submit").disabled=false;
-   $("test4-result").textContent="Ready for ONE new booking. Saved Test 3 fields will be reused, with booking date 25/12/2026.\n"+JSON.stringify(data,null,2);
-  }
- }catch(e){
-  $("test4-submit").disabled=true;
-  $("test4-result").textContent="Unable to check previous Test 4 submissions. Booking locked. "+String(e.message||e);
- }
+  $("test4-result").textContent="Existing Move booking 115988 — no new submission.\n"+JSON.stringify(data,null,2);
+ }catch(e){$("test4-result").textContent="Could not read Test 4 status: "+String(e.message||e);}
 }
-$("test4-submit").disabled=true;
 $("test4-status").onclick=checkTest4;
-$("test4-submit").onclick=async()=>{
- if($("test4-submit").disabled)return;
- if(!window.confirm("Create ONE additional REAL Move test shipment with BOOKING DATE 25/12/2026, using saved Test 3 details? Do not dispatch or invoice."))return;
- $("test4-submit").disabled=true;
- $("test4-result").textContent="Submitting ONE booking; no automatic retries…";
+async function checkTest5(){
+ $("test5-submit").disabled=true;
+ $("test5-result").textContent="Checking whether Test 5 was already sent…";
  try{
-  const {data,error}=await db.functions.invoke("move-anybike-test4",{body:{action:"submit",confirmation:"CREATE ONE TEST 4 SHIPMENT"}});
+  const {data,error}=await db.functions.invoke("move-anybike-test5",{body:{action:"status"}});
   if(error)throw error;
-  $("test4-result").textContent=JSON.stringify(data,null,2)+"\nCheck the new Move booking record for Booking Date 25/12/2026. Do not dispatch or invoice.";
- }catch(e){
-  $("test4-result").textContent="Submission result uncertain. DO NOT retry. Inspect Move shipments first. "+String(e.message||e);
- }
+  if(data?.submission){
+   $("test5-result").textContent="Test 5 already attempted. Do not send again.\n"+JSON.stringify(data,null,2);
+  }else if(data?.success===true&&data?.submit_enabled===true){
+   $("test5-submit").disabled=false;
+   $("test5-result").textContent="READY: No Test 5 submission recorded. Date 2026-12-25, payer Receiver. Press Create once to send a REAL test shipment.";
+  }else{
+   $("test5-result").textContent="Submission remains disabled.\n"+JSON.stringify(data,null,2);
+  }
+ }catch(e){$("test5-result").textContent="Unable to verify Test 5 status; submission locked. "+String(e.message||e);}
+}
+$("test5-status").onclick=checkTest5;
+$("test5-submit").disabled=true;
+$("test5-submit").onclick=async()=>{
+ if($("test5-submit").disabled)return;
+ if(!window.confirm("Create ONE NEW Move TEST 5 booking using date=2026-12-25 and payer=Receiver? This will create an actual additional shipment, not for dispatch or invoicing."))return;
+ $("test5-submit").disabled=true;
+ $("test5-result").textContent="Sending one real booking; no automatic retries…";
+ try{
+  const {data,error}=await db.functions.invoke("move-anybike-test5",{body:{action:"submit",confirmation:"CREATE ONE TEST 5 SHIPMENT"}});
+  if(error)throw error;
+  $("test5-result").textContent=JSON.stringify(data,null,2)+"\nCheck Move Booking Date 2026-12-25. Do not dispatch or invoice.";
+ }catch(e){$("test5-result").textContent="Result uncertain. DO NOT RESUBMIT. Check Move Admin first. "+String(e.message||e);}
 };
-await checkTest4();
-
+await checkTest5();
 await test3Status();try{await loadTest3Draft();}catch(e){$("test3-result").textContent=String(e.message||e)+" — details not overwritten.";}
 for(const id of Object.values(draftInputIds)){
  $(id).addEventListener("change",async()=>{try{await saveTest3Draft();}catch(e){$("test3-result").textContent="Could not save Test 3 draft: "+String(e.message||e);}});
