@@ -65,6 +65,20 @@ Official Logxa documentation supplied:
 - When one party is already an existing Move customer and the other is new, only create the new one. If both are existing, create neither. If the same verified person is on both sides, do not create duplicate accounts.
 - Never send Logxa admin bearer tokens to Motobidder or place them in a browser request.
 
+## Verified shipment retrieval and reconciliation
+
+Logxa documents `GET /shipment/:type/:id` (customer API, bearer authentication) with two permitted lookup modes: `id` for the internal shipment ID and `tracking` for the public tracking number.
+
+Official illustrative response:
+```json
+{"status":"success","data":{"shipment":{"id":101,"tracking_no":"TRK101","status":"In Transit","products":[],"charges":[],"statuses":[],"comments":[]}}}
+```
+The values `101` and `TRK101` are documentation examples, **not** actual AnyBike shipments.
+
+After a successful create, read back `/shipment/id/{returned_id}` and verify shipment ID, tracking number, products, payment information and contacts wherever returned. If submission outcome is uncertain, perform a read-only check of the known existing shipment before any retry. For known Test 2 (tracking 115978), `GET /shipment/tracking/115978` is the documented read-only lookup route; verify the returned shipment ID and tracking match before reconciling the local record.
+
+A `charges:[]` response does not establish an actual freight charge. The response example does not document payer, sender email or receiver email fields, so whether those are stored and returned must be verified separately rather than inferred.
+
 ## Separate Logxa Admin API
 `POST /admin/shipments` (JSON) documents `customer_id`, `reference_no`, sender/receiver address fields, `custom_data`, and required `status`. The supplied admin endpoint documentation **does not list sender_email, receiver_email, payer or charges**. Do not switch to the admin endpoint without confirming full field support and restricted permissions.
 
