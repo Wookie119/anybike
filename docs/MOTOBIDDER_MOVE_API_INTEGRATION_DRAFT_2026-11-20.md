@@ -131,7 +131,7 @@ This section preserves the owner's operational meaning. **Do not replace the exi
 All islands are **excluded** from Move coverage; the integration must not accept a route including any excluded island. The owner's long-distance example **Truro to Wick** is covered by the £389 band. Exact postcode boundary logic for Glasgow/Edinburgh, 'above', and Inverness still needs a verified postcode-to-zone table before automated pricing; do not guess from postcode text or straight-line distance.
 
 ### Service-level commitment
-**Collect AND deliver within seven working days of the motorcycle ready date**, not within seven working days of the booking date. Confirm ready date on every booking and apply standard UK working-day and holiday handling consistently. Do not claim an automatically scheduled collection/delivery date solely from this service target.
+**Collect AND deliver within seven working days of the motorcycle ready date**, not within seven working days of the booking date. Motobidder supplies the ready date. **Move Motorcycles is responsible** for scheduling both collection and delivery, accounting for weekends, bank holidays and dealership closures. Motobidder's integration must not block the ready date merely because it falls on a public holiday or the dealer might be closed. The seven-working-day service commitment remains unchanged.
 
 ### Existing notifications
 Move staff use the **existing Quick Send text-message functionality** at the stated operational stages. No duplicate SMS system should be built in AnyBike or Motobidder.
