@@ -74,6 +74,40 @@ $("test3-preview").onclick=()=>{
  "\n\nThe ready date was supplied, but Move's Booking Date still showed the creation date. No new booking can be created from this page.";
 };
 $("test3-status").onclick=test3Status;
+async function checkTest4(){
+ $("test4-result").textContent="Checking Test 4…";
+ try{
+  const {data,error}=await db.functions.invoke("move-anybike-test4",{body:{action:"status"}});
+  if(error)throw error;
+  if(data?.submission){
+   $("test4-submit").disabled=true;
+   $("test4-result").textContent="Test 4 already attempted. Do not submit again.\n"+JSON.stringify(data,null,2);
+  }else{
+   $("test4-submit").disabled=false;
+   $("test4-result").textContent="Ready for ONE new booking. Saved Test 3 fields will be reused, with booking date 25/12/2026.\n"+JSON.stringify(data,null,2);
+  }
+ }catch(e){
+  $("test4-submit").disabled=true;
+  $("test4-result").textContent="Unable to check previous Test 4 submissions. Booking locked. "+String(e.message||e);
+ }
+}
+$("test4-submit").disabled=true;
+$("test4-status").onclick=checkTest4;
+$("test4-submit").onclick=async()=>{
+ if($("test4-submit").disabled)return;
+ if(!window.confirm("Create ONE additional REAL Move test shipment with BOOKING DATE 25/12/2026, using saved Test 3 details? Do not dispatch or invoice."))return;
+ $("test4-submit").disabled=true;
+ $("test4-result").textContent="Submitting ONE booking; no automatic retries…";
+ try{
+  const {data,error}=await db.functions.invoke("move-anybike-test4",{body:{action:"submit",confirmation:"CREATE ONE TEST 4 SHIPMENT"}});
+  if(error)throw error;
+  $("test4-result").textContent=JSON.stringify(data,null,2)+"\nCheck the new Move booking record for Booking Date 25/12/2026. Do not dispatch or invoice.";
+ }catch(e){
+  $("test4-result").textContent="Submission result uncertain. DO NOT retry. Inspect Move shipments first. "+String(e.message||e);
+ }
+};
+await checkTest4();
+
 await test3Status();try{await loadTest3Draft();}catch(e){$("test3-result").textContent=String(e.message||e)+" — details not overwritten.";}
 for(const id of Object.values(draftInputIds)){
  $(id).addEventListener("change",async()=>{try{await saveTest3Draft();}catch(e){$("test3-result").textContent="Could not save Test 3 draft: "+String(e.message||e);}});
