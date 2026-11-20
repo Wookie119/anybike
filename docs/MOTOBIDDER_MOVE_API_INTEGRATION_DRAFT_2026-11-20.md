@@ -146,6 +146,23 @@ Buyer is the shipment account holder; seller receives collection and completion 
 - A serving adapter must enforce HTTPS, inbound limits, audited authentication, secret rotation, and rate limits. Do not expose credentials in browser JavaScript. The Node handler does not itself configure a live Supabase Edge Function.
 - **Do not send this preflight handler to Motobidder as a live booking endpoint.**
 
+## Approved manual freight-charge workflow — owner confirmed 20 November 2026
+
+**Do not block the project waiting for Logxa's undocumented freight-charge encoding.** The owner confirms the existing **Price Agreed with Move Motorcycles** custom field (`custom_field[11556]`) already displays correctly on Move bookings. Move Admin can verify that price and **copy/paste it into the existing Freight Charge box**.
+
+1. Motobidder submits booking with VAT-inclusive agreed transport price and transport payer choice (**sender** or **receiver**), as well as both dealers, mobile numbers, motorcycle details and ready date.
+2. The shipment uses the buyer's Move account; seller must not get buyer-shipment access.
+3. Integration puts the agreed price in `custom_field[11556]` and puts the selected invoice payer visibly in notes/`instructions`. **Do not claim that notes or the custom field automatically create a ledger charge.**
+4. Move Admin reviews the submitted rate and service coverage, then pastes the approved amount into the existing **Freight Charge** box and selects/confirms the correct invoice party in Move.
+5. Move Admin transitions Pickup Request to Booking Received and handles existing Quick Send text notifications as usual.
+6. Integration billing state stays **needs_manual_charge** until staff verify that Move's Freight Charge box and invoice payer are correct. Keep the rate check as an intentional admin control.
+7. Motorcycle purchase funds remain separate: seller contacts buyer while Move driver is present, and confirms receipt before loading.
+
+### Deployment position
+- A locked-down table `public.anybike_motobidder_move_booking_queue` was created with unique `(source,external_booking_id)`, a single upstream Move shipment ID, manual billing states, and RLS; no public/authenticated grants. It is an intake/duplicate-protection foundation, **not** a live Motobidder integration.
+- Still needed: authenticated intake endpoint, authorised customer account matching/creation, approved postcode boundaries, readback, and controlled first end-to-end test.
+- Never automatically retry a shipment after a timeout without reconciling its status in Move.
+
 ## Known test results (DO NOT RETRY)
 - AnyBike customer account 13882; Honda Forza 125 (HON125R), test £180 receiver-pays intent.
 - Test 1: Move tracking `115977`, internal shipment ID `3457777`, confirmed. API readback gave `payer:null` and `charges:[]`.
@@ -155,7 +172,7 @@ Buyer is the shipment account holder; seller receives collection and completion 
 - The AnyBike test UI now locks live repeat submissions; follow-up reconciliation and a verified payment mapping are still outstanding.
 
 ## Release blockers — do not send final API pack until cleared
-1. **Logxa confirmation:** exact multipart encoding and permitted values of `payer` and `charges`, VAT/currency semantics, and how to read back or update existing shipment charges.
+1. **Manual-charge review:** Logxa's unknown payer/charges encoding is **not required** for the approved manual workflow. Integration must preserve selected payer, Price Agreed custom field and Move Admin rate-check/invoice confirmation.
 2. **Account onboarding:** documented endpoints/permissions for lookup, creation, activation and buyer-only shipment access and separate seller account onboarding. Confirm how email activation and customer-controlled password reset work securely.
 3. **Reconcile Test 2:** use tracking 115978 to establish its internal shipment ID without creating another shipment, then compare shipping-charge fields with the portal.
 4. **Actual end-to-end test:** verify sender/receiver emails, addresses, VIN/registration, payer, freight amount, customer access and notifications in the Move portal, using authorised test data and no unapproved chargeable shipment.
@@ -167,4 +184,4 @@ Buyer is the shipment account holder; seller receives collection and completion 
 **Documented:** upstream field names and official request examples supplied by Logxa.
 **Observed:** existing AnyBike test bookings and missing data.
 **Proposed:** Motobidder-facing contract, account onboarding, idempotency, reporting.
-**Unverified:** freight/payer wire format, new-account provisioning and activation end-to-end, postcode-zone boundary encoding and remaining legal/commercial SLA details.
+**Unverified:** automatic freight/payer ledger encoding (not needed for manual workflow), account provisioning and activation end-to-end, postcode-zone boundary encoding and remaining legal/commercial SLA details.
