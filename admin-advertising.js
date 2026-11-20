@@ -22,7 +22,16 @@ async function initQuotes(){
  async function changeQuoteStatus(q,next){
   const transitions={draft:['sent','cancelled'],sent:['accepted','declined','expired'],accepted:[],declined:[],expired:[],cancelled:[]};
   if(!(transitions[q.status]||[]).includes(next))throw Error('This quotation cannot move from '+q.status+' to '+next);
-  if(next==='sent'&&!confirm('Only mark this quotation as sent AFTER you have actually sent the email to the customer. Continue?'))return;
+  if(next==='sent'){
+   const deliveries=await checked(db.from('advertising_quotation_email_deliveries').select('delivery_status').eq('quotation_id',q.id).limit(1));
+   if(deliveries.length){
+    if(deliveries[0].delivery_status==='sent')throw Error('Direct email was accepted by the provider. Refresh the quotation status before marking it sent manually.');
+    throw Error('A direct email attempt is recorded ('+deliveries[0].delivery_status+'). Resolve delivery status before recording a manual send.');
+   }
+   const current=await checked(db.from('advertising_quotations').select('contact_email').eq('id',q.id).single());
+   if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(current.contact_email||'')))throw Error('Save a valid recipient email on the quotation first.');
+   if(!confirm('Only mark this quotation as sent AFTER actually sending the quotation externally to '+current.contact_email+'. This button does not send an email. Continue?'))return;
+  }
   if(next==='accepted'&&!confirm('Have you received and recorded the advertiser’s acceptance? This does not activate advertising or create an invoice.'))return;
   if(next==='declined'&&!confirm('Record this quotation as declined?'))return;
   if(next==='expired'&&!confirm('Mark this quotation expired?'))return;
@@ -193,7 +202,7 @@ async function initQuotes(){
   const table=el('table');row(table,['Reference','Advertiser','Package','Audience','Placements','Total inc VAT','Status','Email delivery','Actions']);
   for(const q of data){
    const controls=el('div');controls.className='bar';controls.style.flexWrap='nowrap';
-   if(q.status==='draft'){controls.append(button('Open',run(()=>open(q.id))));if(Number(q.placement_quantity)>0)controls.append(button('Mark sent',run(()=>changeQuoteStatus(q,'sent'))));}
+   if(q.status==='draft'){controls.append(button('Open',run(()=>open(q.id))));if(Number(q.placement_quantity)>0)controls.append(button('Record external send',run(()=>changeQuoteStatus(q,'sent'))));}
    if(q.status==='sent'){controls.append(button('Accept',run(()=>changeQuoteStatus(q,'accepted'))),button('Decline',run(()=>changeQuoteStatus(q,'declined'))),button('Expire',run(()=>changeQuoteStatus(q,'expired'))));}
    if(q.status==='accepted'){controls.append(button('Create campaign drafts',run(()=>convertQuoteToDraftCampaigns(q))),button('Prepare billing',run(()=>prepareAdvertisingBilling(q))));}
    const email=deliveries.get(q.id);
