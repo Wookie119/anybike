@@ -68,6 +68,26 @@ async function initQuotes(){
   await load();await list();
   status('Campaign conversion: '+created+' new draft(s), '+existing+' already linked. Check targeting, artwork, compliance and country rules before activation.');
  }
+ async function prepareAdvertisingBilling(q){
+  if(q.status!=='accepted')throw Error('Only accepted advertising quotations can be prepared for billing.');
+  const current=await checked(db.from('advertising_quotations').select('id,status,advertiser_name,contact_email').eq('id',q.id).single());
+  if(current.status!=='accepted')throw Error('Quotation must still be accepted.');
+  const totals=await checked(db.from('admin_advertising_quotation_totals_v1').select('*').eq('id',q.id).single());
+  const existing=await checked(db.from('advertising_billing_reviews').select('*').eq('quotation_id',q.id).limit(1));
+  if(existing.length){
+   status('Billing record already prepared for AB-ADQ-'+String(q.quote_number).padStart(6,'0')+'. Status: '+existing[0].billing_status+'. No duplicate created.');
+   return;
+  }
+  if(!Number(totals.placement_quantity))throw Error('Quotation has no placements.');
+  if(!confirm('Prepare advertising billing review for '+current.advertiser_name+' ('+money(totals.total_gbp)+')? This will NOT send or issue an invoice.'))return;
+  const {error}=await db.from('advertising_billing_reviews').insert({
+   quotation_id:q.id,advertiser_name:current.advertiser_name,billing_email:current.contact_email||null,
+   subtotal_gbp:totals.subtotal_gbp,discount_gbp:totals.discount_gbp,net_gbp:totals.net_gbp,
+   vat_gbp:totals.vat_gbp,total_gbp:totals.total_gbp,currency:'GBP',billing_status:'needs_review'
+  });
+  if(error&&error.code!=='23505')throw error;
+  await list();status('Advertising billing review prepared. No invoice has been issued.');
+ }
  async function list(){
   const data=await checked(db.from('admin_advertising_quotation_totals_v1').select('*').order('quote_number',{ascending:false}));
   const table=el('table');row(table,['Reference','Advertiser','Package','Audience','Placements','Total inc VAT','Status','Actions']);
@@ -75,7 +95,7 @@ async function initQuotes(){
    const controls=el('div');controls.className='bar';controls.style.flexWrap='nowrap';
    if(q.status==='draft'){controls.append(button('Open',run(()=>open(q.id))));if(Number(q.placement_quantity)>0)controls.append(button('Mark sent',run(()=>changeQuoteStatus(q,'sent'))));}
    if(q.status==='sent'){controls.append(button('Accept',run(()=>changeQuoteStatus(q,'accepted'))),button('Decline',run(()=>changeQuoteStatus(q,'declined'))),button('Expire',run(()=>changeQuoteStatus(q,'expired'))));}
-   if(q.status==='accepted'){controls.append(button('Create campaign drafts',run(()=>convertQuoteToDraftCampaigns(q))));}
+   if(q.status==='accepted'){controls.append(button('Create campaign drafts',run(()=>convertQuoteToDraftCampaigns(q))),button('Prepare billing',run(()=>prepareAdvertisingBilling(q))));}
    row(table,['AB-ADQ-'+String(q.quote_number).padStart(6,'0'),q.advertiser_name,q.title,q.audience,q.placement_quantity,money(q.total_gbp),q.status,controls]);
   }
   $('quotelist').replaceChildren(table);
