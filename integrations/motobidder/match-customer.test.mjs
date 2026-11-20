@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {resolveExistingMoveCustomer as lookup} from './match-customer.mjs';
+const query={email:' Buyer@Example.com ',phone:'07700900456'};
+const result={status:'success',customers:[{id:20,email:'someone-else@example.com',phone:'07700900456'},{id:21,email:'buyer@example.com',phone:'07700900456'}]};
+assert.deepEqual(lookup(query,result),{state:'existing',customer_id:21});
+assert.equal(lookup(query,{status:'success',customers:[{id:20,email:'otherbuyer@example.com'}]}).state,'new');
+assert.equal(lookup(query,{status:'success',customers:[{id:21,email:'buyer@example.com',phone:'07700900123'}]}).state,'review_required');
+assert.equal(lookup(query,{status:'success',customers:[{id:21,email:'buyer@example.com'},{id:22,email:'BUYER@example.com'}]}).state,'review_required');
+assert.equal(lookup(query,{status:'failure',customers:[]}).state,'lookup_failed');
+assert.equal(lookup({email:'invalid'},result).state,'invalid');
+console.log('Customer matching assertions passed.');
