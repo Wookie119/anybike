@@ -52,6 +52,16 @@ curl --request POST 'https://app.movemotorcycles.co.uk/api/shipment/create' \
 ```
 This is a **field-mapping illustration only**, not a runnable acceptance test.
 
+## BLOCKER: motorcycle ready-date mapping — confirmed on 20 Nov 2026
+
+- Test 3 created **Move tracking 115984**. Both sender/receiver email, phone, address and motorcycle fields arrived correctly, as confirmed in Move Admin. Price Agreed custom field 11556 displayed £180; actual payer and freight ledger remain empty and require approved manual action.
+- The web form submitted motorcycle ready date **2026-12-25** as an unverified `ready_date` key and in shipment instructions. Move Admin displayed **Booking Date 2026-11-20**, the date the shipment was created; ready date did not populate a dedicated visible field.
+- **The supplied 20-page Move Customer API Documentation, pages 13–15, does not document `ready_date`, `booking_date`, `expected_delivery`, or a booking-date override on `POST /shipment/create`.** It does document tenant custom fields via `custom_field[id]` but lists no Motorcycle Ready Date field.
+- Do **not** claim that setting `ready_date` in a multipart request changes the Booking Date or dispatch-scheduling date. Do not silently substitute shipment creation date for the ready date or claim the seven-day SLA is scheduled against that date.
+- **Required Move/Logxa API change:** supply an officially supported, writable field that appears prominently in Move shipment details as **Motorcycle Ready Date**, preferably the normal scheduling date field used by dispatch, with verified customer API creation/readback and an update route for existing shipment 115984. If the owner's requested mapping really requires the UI's **Booking Date** to equal the ready date, Logxa must explicitly confirm whether that system date is editable; it may be an immutable creation timestamp. No unsupported writes to that timestamp.
+- Until verified, new AnyBike Move test submissions **fail closed before creating another shipment**. The Test 3 server route accepts a named server-side configuration `MOVE_VERIFIED_READY_DATE_FIELD` only after the actual custom field ID and its use by dispatch have been verified; no guessed ID has been configured.
+- **Existing shipment 115984 must not be recreated.** Use the Move Edit page or a confirmed update API to correct its scheduling date after Move identifies the appropriate field. Preserve notes as supplementary information, not the scheduling source of truth.
+
 ## Verified customer-account APIs and safe matching
 
 Official Logxa documentation supplied:
