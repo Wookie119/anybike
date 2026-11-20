@@ -41,6 +41,24 @@ async function test3Status(){
   $("test3-result").textContent=JSON.stringify(data,null,2);
  }catch(e){$("test3-result").textContent="Could not check Test 3 status. Submission disabled. "+String(e.message||e);test3Locked=true;$("test3-submit").disabled=true;}
 }
+const draftInputIds={
+ sender_email:"test3-sender-email",receiver_email:"test3-receiver-email",
+ sender_street_address:"test3-sender-street",sender_city:"test3-sender-city",sender_code:"test3-sender-code",
+ receiver_street_address:"test3-receiver-street",receiver_city:"test3-receiver-city",receiver_code:"test3-receiver-code",ready_date:"test3-ready-date"
+};
+async function loadTest3Draft(){
+ const {data,error}=await db.functions.invoke("move-anybike-test3",{body:{action:"draft"}});
+ if(error||!data?.success)throw Error("Could not load saved Test 3 details");
+ for(const [field,id] of Object.entries(draftInputIds)){
+  if(typeof data.draft?.[field]==="string" && !$(id).value.trim())$(id).value=data.draft[field];
+ }
+ $("test3-preview").click();
+}
+async function saveTest3Draft(){
+ const booking=buildTest3().booking;
+ const {data,error}=await db.functions.invoke("move-anybike-test3",{body:{action:"save_draft",booking}});
+ if(error||!data?.saved)throw Error("Draft save did not complete");
+}
 let n=0;const timer=setInterval(async()=>{if(document.documentElement.classList.contains("admin-auth-pending")){if(++n>300)clearInterval(timer);return}clearInterval(timer);try{db=getAdminSupabaseClient();const {data,error}=await db.rpc("anybike_is_admin");if(error||data!==true)throw Error("Admin only");$("movetest").hidden=false;
 $("test3-preview").onclick=()=>{
  const {booking,fields,issues}=buildTest3();
@@ -64,4 +82,8 @@ $("test3-submit").onclick=async()=>{
   $("test3-result").textContent=JSON.stringify(data,null,2);
  }catch(e){$("test3-result").textContent="Submission outcome uncertain. Check Move before doing anything else. "+String(e.message||e);}
 };
-const selector=document.createElement("select");selector.setAttribute("aria-label","Test booking");selector.style.cssText="display:block;background:#303030;color:white;padding:10px;border:1px solid #666;margin:12px 0";selector.innerHTML='<option value="1">Test 1 — existing shipment (115977)</option><option value="2">Test 2 — existing shipment (115978; reconcile)</option>';$("movetest").insertBefore(selector,$("check"));selector.onchange=()=>{test=Number(selector.value);call("status")};$("check").onclick=()=>call("check");$("status").onclick=()=>call("status");$("submit").dataset.locked="yes";$("submit").disabled=true;$("submit").title="Both existing test shipments have already been created; do not submit again.";await call("status");await test3Status()}catch(e){$("gate").textContent=e.message}},100)})();
+const selector=document.createElement("select");selector.setAttribute("aria-label","Test booking");selector.style.cssText="display:block;background:#303030;color:white;padding:10px;border:1px solid #666;margin:12px 0";selector.innerHTML='<option value="1">Test 1 — existing shipment (115977)</option><option value="2">Test 2 — existing shipment (115978; reconcile)</option>';$("movetest").insertBefore(selector,$("check"));selector.onchange=()=>{test=Number(selector.value);call("status")};$("check").onclick=()=>call("check");$("status").onclick=()=>call("status");$("submit").dataset.locked="yes";$("submit").disabled=true;$("submit").title="Both existing test shipments have already been created; do not submit again.";await call("status");await test3Status();try{await loadTest3Draft();}catch(e){$("test3-result").textContent=String(e.message||e)+" — details not overwritten.";}
+for(const id of Object.values(draftInputIds)){
+ $(id).addEventListener("change",async()=>{try{await saveTest3Draft();}catch(e){$("test3-result").textContent="Could not save Test 3 draft: "+String(e.message||e);}});
+}
+}catch(e){$("gate").textContent=e.message}},100)})();
