@@ -115,14 +115,20 @@ async function initQuotes(){
   container.replaceChildren(heading,table);
  }
  async function list(){
-  const data=await checked(db.from('admin_advertising_quotation_totals_v1').select('*').order('quote_number',{ascending:false}));
-  const table=el('table');row(table,['Reference','Advertiser','Package','Audience','Placements','Total inc VAT','Status','Actions']);
+  const [data,attempts]=await Promise.all([
+   checked(db.from('admin_advertising_quotation_totals_v1').select('*').order('quote_number',{ascending:false})),
+   checked(db.from('advertising_quotation_email_deliveries').select('quotation_id,delivery_status,recipient_email,completed_at'))
+  ]);
+  const deliveries=new Map(attempts.map(a=>[a.quotation_id,a]));
+  const table=el('table');row(table,['Reference','Advertiser','Package','Audience','Placements','Total inc VAT','Status','Email delivery','Actions']);
   for(const q of data){
    const controls=el('div');controls.className='bar';controls.style.flexWrap='nowrap';
    if(q.status==='draft'){controls.append(button('Open',run(()=>open(q.id))));if(Number(q.placement_quantity)>0)controls.append(button('Mark sent',run(()=>changeQuoteStatus(q,'sent'))));}
    if(q.status==='sent'){controls.append(button('Accept',run(()=>changeQuoteStatus(q,'accepted'))),button('Decline',run(()=>changeQuoteStatus(q,'declined'))),button('Expire',run(()=>changeQuoteStatus(q,'expired'))));}
    if(q.status==='accepted'){controls.append(button('Create campaign drafts',run(()=>convertQuoteToDraftCampaigns(q))),button('Prepare billing',run(()=>prepareAdvertisingBilling(q))));}
-   row(table,['AB-ADQ-'+String(q.quote_number).padStart(6,'0'),q.advertiser_name,q.title,q.audience,q.placement_quantity,money(q.total_gbp),q.status,controls]);
+   const email=deliveries.get(q.id);
+   const deliveryLabel=email?email.delivery_status+(email.delivery_status==='sent'?' · '+email.recipient_email:' · check before retrying'):'Not sent directly';
+   row(table,['AB-ADQ-'+String(q.quote_number).padStart(6,'0'),q.advertiser_name,q.title,q.audience,q.placement_quantity,money(q.total_gbp),q.status,deliveryLabel,controls]);
   }
   $('quotelist').replaceChildren(table);
   await billingReviews();
