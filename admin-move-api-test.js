@@ -39,6 +39,14 @@ async function test3Status(){
   if(error)throw error;
   if(data.submission){test3Locked=true;$("test3-submit").disabled=true;}else{$("test3-submit").disabled=!test3Ready||test3Locked;}
   $("test3-result").textContent=JSON.stringify(data,null,2);
+  if(data?.submission){
+   const tracking=data?.move?.tracking_no||data?.tracking_no||"115984";
+   const ready=data?.move?.ready_date;
+   const statusText="TEST 3 ALREADY SUBMITTED — Move shipment "+tracking+".\n"+
+    (ready?"Ready date returned by Move: "+ready:"READY DATE NOT CONFIRMED IN MOVE — input was 25/12/2026.")+
+    "\nDo not create another booking. Use Check Test 3 submission status for read-only verification.";
+   $("test3-output").textContent=statusText;
+  }
  }catch(e){$("test3-result").textContent="Could not check Test 3 status. Submission disabled. "+String(e.message||e);test3Locked=true;$("test3-submit").disabled=true;}
 }
 const draftInputIds={
@@ -64,6 +72,7 @@ $("test3-preview").onclick=()=>{
  const {booking,fields,issues}=buildTest3();
  test3Fields=issues.length?null:booking;test3Ready=!issues.length;
  $("test3-submit").disabled=!test3Ready||test3Locked;
+ if(test3Locked){$("test3-output").textContent="TEST 3 ALREADY SUBMITTED — tracking 115984. Read-only status check available. Ready-date mapping is still unresolved.";return;}
  $("test3-output").textContent=(issues.length?("NOT READY FOR LIVE TEST:"+String.fromCharCode(10)+"- "+issues.join(String.fromCharCode(10)+"- ")+String.fromCharCode(10,10)):("ALL REQUIRED PREVIEW FIELDS COMPLETED — NOT SUBMITTED."+String.fromCharCode(10,10)))+"Preview of documented Move API form fields:"+String.fromCharCode(10)+JSON.stringify(fields,null,2)+String.fromCharCode(10,10)+"Move Admin must manually enter Freight Charge and check payer. Move uses text notifications, not email booking confirmations.";
 };
 $("test3-status").onclick=test3Status;
