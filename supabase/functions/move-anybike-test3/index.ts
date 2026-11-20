@@ -45,11 +45,34 @@ Deno.serve(async req=>{
   const {data:existing,error:readError}=await db.from("anybike_move_test_submissions").select("state,external_shipment_id").eq("test_key",key).maybeSingle();
   if(readError)return answer({error:"Unable to verify duplicate guard"},503);
   if(body.action==="status"){
-   if(!existing?.external_shipment_id)return answer({
-    success:true,test:3,submission:existing,submit_enabled:!existing,
-    verification:existing?"submission_record_exists_but_no_confirmed_move_id":"not_submitted",
-    ready_date_mapping:"unverified",ready_date_required:true
-   });
+   if(!existing)return answer({success:true,test:3,submission:null,submit_enabled:true,verification:"not_submitted",ready_date_mapping:"unverified"});
+   if(!existing.external_shipment_id){
+    // Test 3 reached Move (tracking 115984), but its create response timed out or was not parsed.
+    // Reconcile by read-only lookup; never create another shipment here.
+    try{
+     const email=Deno.env.get("MOVE_CUSTOMER_EMAIL")||"",password=Deno.env.get("MOVE_CUSTOMER_PASSWORD")||"";
+     if(email.toLowerCase()!=="sales@anybike.co.uk"||!password)throw Error("credentials");
+     const lr=await fetch(base+"/account/login",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({email,password}),signal:AbortSignal.timeout(12000)});
+     const ld=await lr.json();
+     if(!lr.ok||ld?.status!=="success"||typeof ld.access_token!=="string")throw Error("login");
+     const rr=await fetch(base+"/shipment/tracking/115984",{headers:{Authorization:"Bearer "+ld.access_token,Accept:"application/json"},signal:AbortSignal.timeout(12000)});
+     const jd=await rr.json(), sh=jd?.data?.shipment, shipmentId=Number(sh?.id);
+     if(!rr.ok||jd?.status!=="success"||String(sh?.tracking_no)!=="115984"||!Number.isSafeInteger(shipmentId)||shipmentId<=0)throw Error("tracking verification");
+     const sender=String(sh?.sender_name??sh?.sender?.name??"").toLowerCase().trim();
+     const receiver=String(sh?.receiver_name??sh?.receiver?.name??"").toLowerCase().trim();
+     if(sender && sender!=="james mitchell")throw Error("sender mismatch");
+     if(receiver && receiver!=="daniel carter")throw Error("receiver mismatch");
+     const {data:updated,error:upError}=await db.from("anybike_move_test_submissions").update({state:"confirmed",external_shipment_id:shipmentId}).eq("test_key",key).eq("state","review_required").is("external_shipment_id",null).select("state,external_shipment_id").maybeSingle();
+     if(upError||!updated)throw Error("guard reconciliation");
+     return answer({success:true,test:3,submission:updated,submit_enabled:false,tracking_no:"115984",
+      verification:"existing_move_shipment_reconciled",move_ready_date:sh.ready_date??sh.vehicle_ready_date??null,
+      submitted_ready_date:"2026-12-25",ready_date_verified:sh.ready_date==="2026-12-25"||sh.vehicle_ready_date==="2026-12-25",
+      scheduling_mapping:"NOT VERIFIED — Move booking date shown in admin is 2026-11-20; do not dispatch based on it.",
+      action:"No new booking needed. Confirm supported scheduling/booking date field with Move."});
+    }catch{
+     return answer({success:true,test:3,submission:existing,submit_enabled:false,verification:"read_only_reconciliation_unavailable",tracking_no:"115984",ready_date_mapping:"unverified"});
+    }
+   }
    const id=Number(existing.external_shipment_id);
    if(!Number.isSafeInteger(id)||id<=0)return answer({success:true,test:3,submission:existing,submit_enabled:false,verification:"invalid_internal_id"});
    try{
