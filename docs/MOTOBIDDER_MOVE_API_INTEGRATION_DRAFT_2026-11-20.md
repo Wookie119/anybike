@@ -139,6 +139,13 @@ Move staff use the **existing Quick Send text-message functionality** at the sta
 ### Account access boundary
 Buyer is the shipment account holder; seller receives collection and completion communications and may independently use their own Move account for **future** bookings. Seller must never see buyer's shipment, photos, payment details or history merely because they were the sender.
 
+## Implemented local preflight handler (20 November 2026)
+- `integrations/motobidder/preflight-handler.mjs` is a **framework-independent Node.js** validation handler, NOT a deployed HTTPS route. It checks a configured bearer secret, POST-only, request JSON, a 20 kB maximum body, and existing booking validations. It always responds `ready_to_submit:false` and never invokes Logxa, Supabase, Quick Send, or customer creation.
+- `integrations/motobidder/preflight-handler.test.mjs` exercises valid review, incorrect payer, excluded island, wrong token, wrong HTTP method, invalid JSON, oversized body and bad rate-band handling. Nine handler assertions passed locally against a copied validator implementation; CI/full-repo tests and live deployment are not claimed.
+- The returned `idempotency_key` is only a **candidate identifier**, not durable duplicate prevention. A database-backed unique constraint and state machine are required before any production booking attempts.
+- A serving adapter must enforce HTTPS, inbound limits, audited authentication, secret rotation, and rate limits. Do not expose credentials in browser JavaScript. The Node handler does not itself configure a live Supabase Edge Function.
+- **Do not send this preflight handler to Motobidder as a live booking endpoint.**
+
 ## Known test results (DO NOT RETRY)
 - AnyBike customer account 13882; Honda Forza 125 (HON125R), test £180 receiver-pays intent.
 - Test 1: Move tracking `115977`, internal shipment ID `3457777`, confirmed. API readback gave `payer:null` and `charges:[]`.
