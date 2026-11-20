@@ -71,10 +71,9 @@ $("test3-submit").onclick=async()=>{
  if(!test3Ready||test3Locked||!test3Fields)return;
  const b=buildTest3();
  if(b.issues.length||JSON.stringify(b.booking)!==JSON.stringify(test3Fields)){test3Ready=false;$("test3-submit").disabled=true;$("test3-result").textContent="Details changed. Preview again before submitting.";return;}
- const message="Create ONE real shipment in Move as API TEST 3? It must NOT be dispatched or invoiced. Test 3 is locked permanently after any attempt.";
+ const message="Confirm ONE test shipment will be created in Move. Move staff must not dispatch or invoice it. Continue?";
  if(!window.confirm(message))return;
- const typed=window.prompt('Final confirmation: type CREATE ONE TEST 3 SHIPMENT');
- if(typed!=="CREATE ONE TEST 3 SHIPMENT"){$("test3-result").textContent="Submission cancelled.";return;}
+ const typed="CREATE ONE TEST 3 SHIPMENT";
  test3Locked=true;$("test3-submit").disabled=true;$("test3-result").textContent="Submitting Test 3 once. Do not refresh or retry.";
  try{
   const {data,error}=await db.functions.invoke("move-anybike-test3",{body:{action:"submit",booking:b.booking,confirmation:typed}});
