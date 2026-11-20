@@ -21,7 +21,27 @@ Deno.serve(async req=>{
   if(ae||allowed!==true)return answer({error:"Admin only"},403);
   const db=createClient(url,role);
   const body=await req.json();
-  if(!["status","check","submit"].includes(body?.action))return answer({error:"Invalid action"},400);
+  if(!["status","check","submit","draft","save_draft"].includes(body?.action))return answer({error:"Invalid action"},400);
+  // Private, admin-only persisted Test 3 form. Never embed customer emails in public JavaScript.
+  const draftFields=["sender_email","receiver_email","sender_street_address","sender_city","sender_code","receiver_street_address","receiver_city","receiver_code","ready_date"];
+  if(body.action==="draft"){
+   const {data:d,error:e}=await db.from("anybike_move_test_drafts").select("booking_data").eq("test_key",key).maybeSingle();
+   if(e)return answer({error:"Could not retrieve saved draft"},503);
+   return answer({success:true,draft:d?.booking_data||{}});
+  }
+  if(body.action==="save_draft"){
+   const input=body.booking;
+   if(!input||typeof input!=="object"||Array.isArray(input))return answer({error:"Draft object required"},422);
+   const clean:Record<string,string>={};
+   for(const name of draftFields){
+    const value=str(input[name]);
+    if(value.length>254)return answer({error:"Draft field too long: "+name},422);
+    clean[name]=value;
+   }
+   const {error:e}=await db.from("anybike_move_test_drafts").upsert({test_key:key,booking_data:clean,updated_by:u.user.id,updated_at:new Date().toISOString()},{onConflict:"test_key"});
+   if(e)return answer({error:"Draft not saved"},503);
+   return answer({success:true,saved:true});
+  }
   const {data:existing,error:readError}=await db.from("anybike_move_test_submissions").select("state,external_shipment_id").eq("test_key",key).maybeSingle();
   if(readError)return answer({error:"Unable to verify duplicate guard"},503);
   if(body.action==="status"){
