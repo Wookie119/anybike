@@ -8,12 +8,22 @@ const respond=(o:Record<string,unknown>,status=200)=>new Response(JSON.stringify
 const clean=(x:unknown)=>typeof x==="string"?x.trim():"";
 Deno.serve(async(req)=>{
  if(req.method!=="POST")return respond({error:"POST required"},405);
- const secret=clean(req.headers.get("x-test4-once"));
- if(!/^[a-f0-9]{64}$/.test(secret))return respond({error:"Not authorised"},401);
  try{
-  const db=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-  const {data:auth}=await db.from("anybike_move_test_drafts").select("booking_data").eq("test_key",authKey).maybeSingle();
-  if(!auth||auth.booking_data?.nonce!==secret)return respond({error:"Not authorised"},401);
+  const token=req.headers.get("Authorization")||"";
+  const url=Deno.env.get("SUPABASE_URL")!,anon=Deno.env.get("SUPABASE_ANON_KEY")!;
+  const user=createClient(url,anon,{global:{headers:{Authorization:token}}});
+  const {data:identity,error:identityError}=await user.auth.getUser();
+  if(identityError||!identity?.user)return respond({error:"Admin authentication required"},401);
+  const {data:allowed,error:permissionError}=await user.rpc("anybike_is_admin");
+  if(permissionError||allowed!==true)return respond({error:"Admin access required"},403);
+  const body=await req.json().catch(()=>({}));
+  if(body?.action==="status"){
+   const db=createClient(url,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+   const {data:existing}=await db.from("anybike_move_test_submissions").select("state,external_shipment_id").eq("test_key",testKey).maybeSingle();
+   return respond({success:true,test:4,submission:existing||null,submit_enabled:!existing});
+  }
+  if(body?.action!=="submit"||body?.confirmation!=="CREATE ONE TEST 4 SHIPMENT")return respond({error:"Explicit one-time confirmation required"},400);
+  const db=createClient(url,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const {data:existing}=await db.from("anybike_move_test_submissions").select("state,external_shipment_id").eq("test_key",testKey).maybeSingle();
   if(existing)return respond({error:"Test4 already attempted. Never retry automatically.",state:existing.state,external_shipment_id:existing.external_shipment_id},409);
   const {data:source,error:draftErr}=await db.from("anybike_move_test_drafts").select("booking_data").eq("test_key",sourceKey).single();
@@ -22,8 +32,8 @@ Deno.serve(async(req)=>{
   if(b.ready_date!=="2026-12-25")return respond({error:"Date mismatch: booking must be 2026-12-25"},422);
   const required=["sender_email","receiver_email","sender_street_address","sender_city","sender_code","receiver_street_address","receiver_city","receiver_code"];
   if(required.some(x=>!clean(b[x])))return respond({error:"Missing saved contact details"},422);
-  const {data:previous}=await db.from("anybike_move_test_submissions").select("requested_by").eq("test_key",sourceKey).maybeSingle();
-  const {error:insertError}=await db.from("anybike_move_test_submissions").insert({test_key:testKey,state:"submitting",requested_by:previous?.requested_by});
+
+  const {error:insertError}=await db.from("anybike_move_test_submissions").insert({test_key:testKey,state:"submitting",requested_by:identity.user.id});
   if(insertError)return respond({error:"Submission already in progress or unsafe to create",code:insertError.code},409);
   try{
    const email=Deno.env.get("MOVE_CUSTOMER_EMAIL")||"",password=Deno.env.get("MOVE_CUSTOMER_PASSWORD")||"";
