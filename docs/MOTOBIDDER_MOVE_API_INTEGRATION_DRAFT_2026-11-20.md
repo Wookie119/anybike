@@ -163,6 +163,20 @@ Buyer is the shipment account holder; seller receives collection and completion 
 - Still needed: authenticated intake endpoint, authorised customer account matching/creation, approved postcode boundaries, readback, and controlled first end-to-end test.
 - Never automatically retry a shipment after a timeout without reconciling its status in Move.
 
+## Live restricted booking intake — deployed 20 November 2026
+
+Supabase Edge Function `motobidder-booking-intake` was deployed, version 1, alongside locked table `public.anybike_motobidder_move_booking_queue`.
+
+**This is a secure STAGING INTAKE ONLY, not the production booking endpoint.** It:
+- Requires `POST` with secret header `x-motobidder-api-key` against server-side `MOTOBIDDER_INTAKE_API_KEY` of >=32 characters, and fails closed if key not configured. The header/secret must NEVER go in public web JavaScript. The function intentionally uses its own secret authentication (instead of user JWT).
+- Validates required parties, mobile/email, bike, date, VAT-inclusive rate, payer and definite excluded islands, then stores a `pending_review` booking for staff verification.
+- Uses a unique `(source,external_booking_id)` database constraint; exact duplicate booking reference with changed contents gets HTTP 409; repeats of same stored booking return a status without creating a second record. Concurrent insertion conflicts return 409 for review, never duplicate a shipment.
+- Returns HTTP 202 indicating **accepted for review only**; it **does not** create Logxa shipment, create accounts, send text messages, or populate Move Freight Charge.
+- Must receive a securely configured distinct API key before Motobidder can call it. Do not issue credentials or describe it as ready for partner use before end-to-end verification. Geographic zone/postcode signoff, onboarding, admin approval and shipment creation remain unconnected.
+- Stores buyer/seller contact data with RLS enabled and no anon/authenticated grants; limit service-role access to the trusted Edge Function.
+
+The operational manual billing fallback records chosen sender/receiver payer and VAT-inclusive agreed price in Move custom field `11556` and notes, for **Move Admin to check and paste into Freight Charge** once actual shipment creation is connected. No unknown Logxa charge format is needed for that step.
+
 ## Known test results (DO NOT RETRY)
 - AnyBike customer account 13882; Honda Forza 125 (HON125R), test £180 receiver-pays intent.
 - Test 1: Move tracking `115977`, internal shipment ID `3457777`, confirmed. API readback gave `payer:null` and `charges:[]`.
@@ -178,7 +192,7 @@ Buyer is the shipment account holder; seller receives collection and completion 
 4. **Actual end-to-end test:** verify sender/receiver emails, addresses, VIN/registration, payer, freight amount, customer access and notifications in the Move portal, using authorised test data and no unapproved chargeable shipment.
 5. **Commercial documents:** owner's rates, VAT inclusion, island exclusions, ready-date SLA and payer choice are confirmed above. Remaining: exact machine-readable postcode bands, claims/escalation terms and rate validity before external release.
 6. **Access controls:** dedicated Motobidder API credential; prevent a customer API key or unrestricted admin credential from being embedded in Motobidder's website/client JavaScript.
-7. **Deployment:** build and verify Motobidder-facing integration endpoint; this file is documentation only. No endpoint is claimed live.
+7. **Deployment:** restricted staging intake Edge Function deployed but not commissioned; no Logxa creation, customer onboarding or invoicing is connected. Credential provisioning, rate/coverage verification, dashboard and controlled end-to-end test remain.
 
 ## Status language
 **Documented:** upstream field names and official request examples supplied by Logxa.
