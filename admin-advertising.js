@@ -200,6 +200,12 @@ async function initQuotes(){
   for(const item of data.lines||[]){const line=doc.createElement('tr');for(const cellValue of [item.description,String(item.artwork_format||'').replaceAll('_',' '),item.quantity,money(item.unit_price_gbp),money(item.line_total_gbp)]){const td=doc.createElement('td');td.textContent=String(cellValue??'');line.append(td)}tbl.append(line)}main.append(tbl);
   for(const [label,amount] of [['Subtotal',data.subtotal_gbp],['Discount',data.discount_gbp],['Net',data.net_gbp],['VAT ('+data.vat_rate_percent+'%)',data.vat_gbp],['Total including VAT',data.gross_gbp]]){const p=doc.createElement('p');p.textContent=label+': '+money(amount);if(label==='Total including VAT')p.className='total';main.append(p)}
   addText(main,'Payment terms',data.payment_terms);
+  const bank=doc.createElement('section');const bankHeading=doc.createElement('h2');bankHeading.textContent='Payment information';bank.append(bankHeading);
+  addText(bank,'Account name',data.issuer_bank_name);addText(bank,'Sort code',data.issuer_bank_sort_code);addText(bank,'Account number',data.issuer_bank_account_number);
+  if(data.issuer_bank_iban)addText(bank,'IBAN',data.issuer_bank_iban);
+  if(data.issuer_bank_bic)addText(bank,'BIC',data.issuer_bank_bic);
+  addText(bank,'Payment reference',issued?row.invoice_number:'Provided when invoice is issued');
+  main.append(bank);
   addText(main,'Payment due',data.payment_due_on);
   addText(main,'Service date',data.service_date);
   if(!issued){const foot=doc.createElement('p');foot.className='warning';foot.textContent='For internal verification only. Payment terms, VAT treatment and legal invoice number must be confirmed before any invoice is issued.';main.append(foot)}
