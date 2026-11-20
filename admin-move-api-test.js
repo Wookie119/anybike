@@ -8,9 +8,9 @@ $("test3-preview").onclick=()=>{
  if(!/^\d{4}-\d{2}-\d{2}$/.test(readyDate))problems.push("Choose the motorcycle ready date.");
  const fields={
   sender_name:"James Mitchell",sender_phone:"07772024763",sender_email:senderEmail,
-  sender_street_address:"[COLLECTION ADDRESS REQUIRED]",sender_city:"[CITY REQUIRED]",sender_code:"[POSTCODE REQUIRED]",sender_country:"United Kingdom",
+  sender_street_address:"[COLLECTION ADDRESS REQUIRED]",sender_city:"[CITY REQUIRED]",sender_code:"OX44 7RW",sender_country:"United Kingdom",
   receiver_name:"Daniel Carter",receiver_phone:"07949574299",receiver_email:receiverEmail,
-  receiver_street_address:"[DELIVERY ADDRESS REQUIRED]",receiver_city:"[CITY REQUIRED]",receiver_code:"[POSTCODE REQUIRED]",receiver_country:"United Kingdom",
+  receiver_street_address:"[DELIVERY ADDRESS REQUIRED]",receiver_city:"[CITY REQUIRED]",receiver_code:"TW13 5EL",receiver_country:"United Kingdom",
   "pname[]":"Honda Forza 125","pquantity[]":"1",
   "custom_field[11548]":"Honda","custom_field[11549]":"Forza 125","custom_field[11550]":"HON125R","custom_field[11556]":"180",
   "custom_field[11557]":"TEST 3 — DO NOT DISPATCH OR INVOICE. Agreed transport price GBP 180 including VAT. Invoice payer: RECEIVER. Move Admin to check price and manually enter Freight Charge.",
