@@ -228,7 +228,14 @@ async function initQuotes(){
  send.disabled=true;status('Submitting quotation email…');
  try{
   const {data,error}=await db.functions.invoke('admin-send-advertising-quotation',{body:{quotation_id:id}});
-  if(error||!data?.success)throw Error(data?.error||error?.message||'Delivery not confirmed; check before retrying');
+  let details=data;
+  if(error&&error.context&&typeof error.context.json==='function'){
+   try{details=await error.context.json();}catch{}
+  }
+  if(error||!details?.success){
+   try{await list();}catch{}
+   throw Error(details?.error||error?.message||'Delivery not confirmed; check the delivery audit before retrying');
+  }
   $('quoteeditor').hidden=true;await list();status('Quotation '+ref+' emailed to '+email+'. Provider acceptance recorded.');
  }finally{send.disabled=false;}
 }));
