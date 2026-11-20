@@ -132,8 +132,8 @@ Deno.serve(async req=>{
   // real destination field has been verified by Move. Sending an unknown ready_date
   // parameter or instructions-only is NOT safe for dispatch scheduling.
   const confirmedReadyField=str(Deno.env.get("MOVE_VERIFIED_READY_DATE_FIELD"));
-  if(!confirmedReadyField)return answer({error:"Motorcycle ready date has no verified Move booking field. Shipment creation is blocked until field mapping is confirmed.",ready_date:v.ready_date,required_action:"Confirm supported Move API field and readback, then configure MOVE_VERIFIED_READY_DATE_FIELD."},422);
-  if(!/^custom_field\\[\\d+\\]$/.test(confirmedReadyField))return answer({error:"Ready-date configuration invalid; supported field id must be verified by Move."},503);
+  if(!confirmedReadyField)return answer({error:"Move Booking Date mapping not verified. No shipment will be created.",ready_date:v.ready_date,required_action:"Confirm the exact parameter for Move Booking Date; configure MOVE_VERIFIED_READY_DATE_FIELD only after verifying readback."},422);
+  if(!/^(booking_date|custom_field\[\d+\])$/.test(confirmedReadyField))return answer({error:"Ready-date configuration invalid; supported field id must be verified by Move."},503);
   if(body.confirmation!=="CREATE ONE TEST 3 SHIPMENT")return answer({error:"Explicit Test 3 confirmation required"},400);
   const {error:guard}=await db.from("anybike_move_test_submissions").insert({test_key:key,state:"submitting",requested_by:u.user.id});
   if(guard)return answer({error:"A prior or concurrent submission may exist. Check status; do not retry."},409);
@@ -152,11 +152,13 @@ Deno.serve(async req=>{
     sender_name:"James Mitchell",sender_phone:"07772024763",sender_email:v.sender_email,sender_street_address:v.sender_street_address,sender_city:v.sender_city,sender_code:v.sender_code,sender_country:"United Kingdom",
     receiver_name:"Daniel Carter",receiver_phone:"07949574299",receiver_email:v.receiver_email,receiver_street_address:v.receiver_street_address,receiver_city:v.receiver_city,receiver_code:v.receiver_code,receiver_country:"United Kingdom",
     "pname[]":"Honda Forza 125","pquantity[]":"1",
+    type:"Motorcycle or Scooter",mode:"Up to 7 Working days from ready date",
     "custom_field[11548]":"Honda","custom_field[11549]":"Forza 125","custom_field[11550]":"HON125R","custom_field[11556]":"180",
-    ready_date:v.ready_date,
     "custom_field[11557]":"TEST 3 — DO NOT DISPATCH OR INVOICE. AGREED PRICE £180 incl VAT. Receiver is invoice payer. Move Admin must manually set Freight Charge and invoice payer. READY DATE "+v.ready_date,
     instructions:"API TEST 3 ONLY — DO NOT DISPATCH OR INVOICE. Receiver pays transport £180 including VAT. Move Admin review freight charge. READY DATE "+v.ready_date
    };
+   // Send the source motorcycle ready date as the Move Booking Date only via
+   // a deliberately verified tenant field. Never substitute request time.
    data[confirmedReadyField]=v.ready_date;
    // Intentionally NOT sending undocumented payer and charges wire formats.
    for(const [k,value] of Object.entries(data))form.set(k,value);
@@ -172,7 +174,14 @@ Deno.serve(async req=>{
    try{
     const read=await fetch(base+"/shipment/id/"+id,{headers:bearer,signal:AbortSignal.timeout(12000)});
     const json=await read.json(),s=json?.data?.shipment;
-    return answer({success:true,shipment_id:id,tracking_no:read.ok&&Number(s?.id)===id?s.tracking_no:null,details_readback_confirmed:read.ok&&Number(s?.id)===id,manual_freight_charge_required:true,do_not_dispatch:true});
+    const returnedBookingDate=str(s?.booking_date??s?.bookingDate);
+    const dateMatches=read.ok&&Number(s?.id)===id&&returnedBookingDate===v.ready_date;
+    return answer({success:true,shipment_id:id,tracking_no:read.ok&&Number(s?.id)===id?s.tracking_no:null,
+      details_readback_confirmed:read.ok&&Number(s?.id)===id,
+      move_booking_date:returnedBookingDate||null,
+      requested_booking_date:v.ready_date,booking_date_verified:dateMatches,
+      scheduling_status:dateMatches?"verified":"NEEDS MOVE ADMIN VERIFICATION — DATE NOT CONFIRMED",
+      manual_freight_charge_required:true,do_not_dispatch:true});
    }catch{return answer({success:true,shipment_id:id,details_readback_confirmed:false,manual_freight_charge_required:true,do_not_dispatch:true});}
   }catch{
    await db.from("anybike_move_test_submissions").update({state:"review_required"}).eq("test_key",key);
