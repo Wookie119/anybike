@@ -24,7 +24,51 @@ Deno.serve(async req=>{
   if(!["status","check","submit"].includes(body?.action))return answer({error:"Invalid action"},400);
   const {data:existing,error:readError}=await db.from("anybike_move_test_submissions").select("state,external_shipment_id").eq("test_key",key).maybeSingle();
   if(readError)return answer({error:"Unable to verify duplicate guard"},503);
-  if(body.action==="status")return answer({success:true,test:3,submission:existing,submit_enabled:!existing});
+  if(body.action==="status"){
+   if(!existing?.external_shipment_id)return answer({
+    success:true,test:3,submission:existing,submit_enabled:!existing,
+    verification:existing?"submission_record_exists_but_no_confirmed_move_id":"not_submitted"
+   });
+   const id=Number(existing.external_shipment_id);
+   if(!Number.isSafeInteger(id)||id<=0)return answer({success:true,test:3,submission:existing,submit_enabled:false,verification:"invalid_internal_id"});
+   try{
+    const email=Deno.env.get("MOVE_CUSTOMER_EMAIL")||"",password=Deno.env.get("MOVE_CUSTOMER_PASSWORD")||"";
+    if(email.toLowerCase()!=="sales@anybike.co.uk"||!password)throw Error("credentials");
+    const login=await fetch(base+"/account/login",{
+     method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},
+     body:JSON.stringify({email,password}),signal:AbortSignal.timeout(12000)
+    });
+    const ld=await login.json();
+    if(!login.ok||ld?.status!=="success"||typeof ld.access_token!=="string")throw Error("login");
+    const read=await fetch(base+"/shipment/id/"+id,{
+     headers:{Authorization:"Bearer "+ld.access_token,Accept:"application/json"},
+     signal:AbortSignal.timeout(12000)
+    });
+    const j=await read.json(),sh=j?.data?.shipment;
+    if(!read.ok||j?.status!=="success"||Number(sh?.id)!==id)
+     return answer({success:true,test:3,submission:existing,submit_enabled:false,verification:"move_readback_failed"});
+    // Only fields actually documented in response and returned by Logxa are reported.
+    // Never infer that an absent field was successfully stored in Move.
+    const info:Record<string,unknown>={
+     shipment_id:id,
+     tracking_no:sh.tracking_no??null,
+     status:sh.status??null,
+     charges:Array.isArray(sh.charges)?sh.charges:[],
+     payer:sh.payer??null,
+     ready_date:sh.ready_date??sh.vehicle_ready_date??null,
+     source_fields:{
+      sender_email:sh.sender_email??sh.sender?.email??null,
+      receiver_email:sh.receiver_email??sh.receiver?.email??null,
+      sender_phone:sh.sender_phone??sh.sender?.phone??null,
+      receiver_phone:sh.receiver_phone??sh.receiver?.phone??null
+     }
+    };
+    return answer({success:true,test:3,submission:existing,submit_enabled:false,verification:"move_readback_confirmed",move:info,
+      note:"Null means the customer readback did not expose a value, not necessarily that Move did not save it. Confirm in the Move portal."});
+   }catch{
+    return answer({success:true,test:3,submission:existing,submit_enabled:false,verification:"move_readback_unavailable",note:"Do not retry submission; inspect Move portal."});
+   }
+  }
   if(existing)return answer({success:true,test:3,submission:existing,submit_enabled:false,message:"Already attempted: do not submit again. Check Move portal."});
   const b=body?.booking||{};
   const fields=["sender_email","receiver_email","sender_street_address","sender_city","sender_code","receiver_street_address","receiver_city","receiver_code","ready_date"];
