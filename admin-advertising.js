@@ -115,7 +115,7 @@ async function initQuotes(){
   header.append(title,warn);main.append(header);
   const ref='AB-ADQ-'+String(quote.quote_number).padStart(6,'0');
   const para=doc.createElement('p');
-  para.textContent='Quotation: '+ref+' | Advertiser: '+quote.advertiser_name+' | Contact: '+(quote.contact_name||'Not supplied')+' | Email: '+(quote.contact_email||'Not supplied')+' | Audience: '+quote.audience+' | Duration: '+quote.duration_days+' days';
+  para.textContent='Quotation: '+ref+' | Advertiser: '+quote.advertiser_name+' | Billing contact: '+(v.billing_contact_name||'Not confirmed')+' | Billing email: '+(v.billing_email||'Not confirmed')+' | Billing address: '+(v.billing_address||'Not confirmed')+' | Billing country: '+(v.billing_country||'Not confirmed')+' | Buyer VAT number: '+(v.buyer_vat_number||'Not supplied')+' | Purchase order: '+(v.purchase_order_reference||'Not supplied')+' | Audience: '+quote.audience+' | Duration: '+quote.duration_days+' days';
   main.append(para);
   const table=doc.createElement('table'),head=doc.createElement('tr');
   for(const label of ['Advertising placement','Format','Qty','Unit ex VAT','Net']){const cell=doc.createElement('th');cell.textContent=label;head.append(cell)}
