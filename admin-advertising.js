@@ -200,10 +200,48 @@ async function initQuotes(){
   const print=doc.createElement('button');print.textContent='Print draft';print.onclick=()=>win.print();main.append(print);
   doc.body.append(main);
  }
+ async function reviewAdvertisingInvoiceDraft(v,draft){
+  const host=$('advertisingBillingReviews');
+  let panel=$('advertisingInvoiceReviewPanel');
+  if(!panel){panel=el('div');panel.id='advertisingInvoiceReviewPanel';panel.style.cssText='padding:16px;margin:14px 0;border:1px solid #666;border-radius:8px;background:#242424';host.prepend(panel)}
+  panel.replaceChildren(el('h3','Final invoice review — '+v.advertiser_name));
+  const form=el('form');form.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px';
+  const defs=[['service_date','Advertising service date','date'],['payment_due_on','Payment due date','date'],['payment_terms','Advertising payment terms','textarea'],['vat_review_notes','VAT treatment review / approval notes','textarea']];
+  const inputs={};
+  for(const [key,label,type] of defs){const wrap=el('label',label),input=el(type==='textarea'?'textarea':'input');input.name=key;if(type!=='textarea')input.type=type;input.value=draft[key]||'';input.required=true;input.style.width='100%';if(type==='textarea')input.rows=3;wrap.append(input);form.append(wrap);inputs[key]=input}
+  const checkWrap=el('label');checkWrap.style.cssText='grid-column:1/-1;display:flex;align-items:flex-start;gap:8px';
+  const check=el('input');check.type='checkbox';check.checked=!!draft.vat_review_confirmed;
+  checkWrap.append(check,el('span','I have reviewed the advertising VAT treatment and confirmed the invoice values and jurisdiction.'));form.append(checkWrap);
+  const bar=el('div');bar.className='bar';bar.style.gridColumn='1/-1';
+  const save=el('button','Save final review');save.type='submit';const close=button('Close',()=>panel.remove());bar.append(save,close);form.append(bar);
+  form.onsubmit=run(async()=>{
+   const updates=Object.fromEntries(Object.entries(inputs).map(([k,v])=>[k,v.value.trim()]));
+   updates.vat_review_confirmed=check.checked;
+   if(updates.vat_review_notes.length<10&&check.checked)throw Error('Explain the VAT review in at least 10 characters.');
+   if(updates.payment_terms.length<8||/to be agreed/i.test(updates.payment_terms))throw Error('Enter specific advertising payment terms.');
+   if(!updates.payment_due_on||!updates.service_date)throw Error('Service date and payment due date are required.');
+   const already=await checked(db.from('advertising_issued_invoices').select('id').eq('draft_id',draft.id).limit(1));
+   if(already.length)throw Error('Invoice already issued; these details are frozen.');
+   const {data,error}=await db.from('advertising_invoice_drafts').update({...updates,updated_at:new Date().toISOString()}).eq('id',draft.id).eq('state','draft').select('id');
+   if(error)throw error;if(!data?.length)throw Error('Draft no longer editable.');
+   panel.remove();await billingReviews();status('Final invoice details saved. Invoice remains unissued.');
+  });
+  panel.append(form);panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+ }
+ async function issueAdvertisingInvoice(v,draft){
+  if(v.billing_status!=='ready')throw Error('Billing review must be ready.');
+  if(!draft.vat_review_confirmed||!draft.payment_due_on||!draft.service_date||!/[^ ]{8}/.test(draft.payment_terms||''))throw Error('Complete the final invoice review first.');
+  const entry=prompt('This will ISSUE a real numbered advertising invoice for '+v.advertiser_name+' ('+money(v.total_gbp)+'). It cannot be edited or undone. Nothing will be emailed. Type ISSUE to confirm:');
+  if(entry!=='ISSUE')return;
+  if(!confirm('Final confirmation: issue a permanent AnyBike advertising invoice now?'))return;
+  const {data,error}=await db.rpc('admin_issue_advertising_invoice_v1',{p_draft_id:draft.id});
+  if(error)throw error;
+  await billingReviews();status('Issued advertising invoice '+data+'. No email has been sent.');
+ }
  async function billingReviews(){
   let container=$('advertisingBillingReviews');
   if(!container){container=el('div');container.id='advertisingBillingReviews';$('quotearea').append(container);}
-  const [rows,drafts]=await Promise.all([checked(db.from('advertising_billing_reviews').select('id,quotation_id,advertiser_name,billing_contact_name,billing_email,billing_address,billing_country,purchase_order_reference,buyer_vat_number,total_gbp,billing_status,external_invoice_reference,created_at').order('created_at',{ascending:false}).limit(100)),checked(db.from('advertising_invoice_drafts').select('id,billing_review_id,state'))]);const draftsByReview=new Map(drafts.map(d=>[d.billing_review_id,d]));
+  const [rows,drafts,issued]=await Promise.all([checked(db.from('advertising_billing_reviews').select('id,quotation_id,advertiser_name,billing_contact_name,billing_email,billing_address,billing_country,purchase_order_reference,buyer_vat_number,total_gbp,billing_status,external_invoice_reference,created_at').order('created_at',{ascending:false}).limit(100)),checked(db.from('advertising_invoice_drafts').select('*')),checked(db.from('advertising_issued_invoices').select('draft_id,invoice_number'))]);const draftsByReview=new Map(drafts.map(d=>[d.billing_review_id,d]));const issuedByDraft=new Map(issued.map(i=>[i.draft_id,i]));
   if(!rows.length){container.replaceChildren();return;}
   const heading=el('h3','Advertising billing reviews — no invoice issued automatically');
   const table=el('table');row(table,['Advertiser','Total','Billing stage','Invoice reference','Actions']);
@@ -211,7 +249,12 @@ async function initQuotes(){
    const actions=el('div');actions.className='bar';
    actions.append(button('Preview billing draft',run(()=>previewAdvertisingBillingDraft(v))));
    if(v.billing_status==='ready'&&!draftsByReview.has(v.id))actions.append(button('Create invoice draft',run(()=>prepareAdvertisingInvoiceDraft(v))));
-   if(draftsByReview.has(v.id))actions.append(button('View invoice draft',run(()=>viewAdvertisingInvoiceDraft(v))));
+   const draft=draftsByReview.get(v.id);
+   const issuedDoc=draft&&issuedByDraft.get(draft.id);
+   if(draft&&!issuedDoc)actions.append(button('View invoice draft',run(()=>viewAdvertisingInvoiceDraft(v))));
+   if(draft&&!issuedDoc&&v.billing_status==='ready')actions.append(button('Final review',()=>reviewAdvertisingInvoiceDraft(v,draft)));
+   if(draft&&!issuedDoc&&v.billing_status==='ready')actions.append(button('Issue invoice',run(()=>issueAdvertisingInvoice(v,draft))));
+   if(issuedDoc)actions.append(button('View issued invoice',run(()=>viewAdvertisingInvoiceDraft(v,true))));
    if(v.billing_status==='needs_review')actions.append(button('Billing details',()=>editAdvertisingBillingDetails(v)));
    if(v.billing_status==='needs_review')actions.append(button('Mark ready',run(async()=>{
     if(!v.billing_contact_name?.trim()||!v.billing_email?.trim()||!v.billing_address?.trim()||!v.billing_country?.trim())throw Error('Save a verified billing contact, email, address and country before marking ready.');
@@ -219,7 +262,7 @@ async function initQuotes(){
     const {error}=await db.from('advertising_billing_reviews').update({billing_status:'ready',updated_at:new Date().toISOString()}).eq('id',v.id).eq('billing_status','needs_review');
     if(error)throw error;await billingReviews();status('Billing marked ready for invoice preparation.');
    })));
-   if(v.billing_status==='ready')actions.append(button('Record issued invoice',run(async()=>{
+   if(v.billing_status==='ready'&&!draft)actions.append(button('Record external invoice',run(async()=>{
     const ref=prompt('Enter the genuine invoice reference AFTER the invoice has been issued in your invoicing system:');
     if(ref===null)return;
     if(ref.trim().length<3)throw Error('A valid issued invoice reference is required.');
