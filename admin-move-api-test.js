@@ -1,4 +1,4 @@
-(()=>{"use strict";const $=x=>document.getElementById(x);let db;let test=1;async function call(action){const buttons=[...document.querySelectorAll("#movetest button,#movetest select")];buttons.forEach(x=>x.disabled=true);$("result").textContent="Connecting…";try{const {data,error}=await db.functions.invoke("move-anybike-booking-test",{body:{action,test,...(action==="submit"?{confirmation:test===2?"SUBMIT SECOND TEST":"SUBMIT HON125R"}:{})}});if(error)throw error;$("result").textContent=JSON.stringify(data,null,2);if(data.submission||data.shipment_id||data.error&&action==="submit")$("submit").dataset.locked="yes"}catch(e){$("result").textContent=String(e.message||e)+" — if a submission was attempted, check Move before retrying.";if(action==="submit")$("submit").dataset.locked="yes"}finally{buttons.forEach(x=>x.disabled=false);if($("submit").dataset.locked)$("submit").disabled=true}}let test3Ready=false,test3Locked=false,test3Fields=null;
+(()=>{"use strict";const $=x=>document.getElementById(x);let db;let test=1;async function call(action){const buttons=[...document.querySelectorAll("#movetest > button,#movetest > select")];buttons.forEach(x=>x.disabled=true);$("result").textContent="Connecting…";try{const {data,error}=await db.functions.invoke("move-anybike-booking-test",{body:{action,test,...(action==="submit"?{confirmation:test===2?"SUBMIT SECOND TEST":"SUBMIT HON125R"}:{})}});if(error)throw error;$("result").textContent=JSON.stringify(data,null,2);if(data.submission||data.shipment_id||data.error&&action==="submit")$("submit").dataset.locked="yes"}catch(e){$("result").textContent=String(e.message||e)+" — if a submission was attempted, check Move before retrying.";if(action==="submit")$("submit").dataset.locked="yes"}finally{buttons.forEach(x=>x.disabled=false);if($("submit").dataset.locked)$("submit").disabled=true}}let test3Ready=false,test3Locked=false,test3Fields=null;
 function buildTest3(){
  const get=id=>$(id).value.trim();
  const senderEmail=get("test3-sender-email"),receiverEmail=get("test3-receiver-email"),readyDate=get("test3-ready-date");
@@ -37,7 +37,7 @@ async function test3Status(){
  try{
   const {data,error}=await db.functions.invoke("move-anybike-test3",{body:{action:"status"}});
   if(error)throw error;
-  if(data.submission){test3Locked=true;$("test3-submit").disabled=true;}
+  if(data.submission){test3Locked=true;$("test3-submit").disabled=true;}else{$("test3-submit").disabled=!test3Ready||test3Locked;}
   $("test3-result").textContent=JSON.stringify(data,null,2);
  }catch(e){$("test3-result").textContent="Could not check Test 3 status. Submission disabled. "+String(e.message||e);test3Locked=true;$("test3-submit").disabled=true;}
 }
