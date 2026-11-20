@@ -89,13 +89,13 @@ async function initQuotes(){
   await list();status('Advertising billing review prepared. No invoice has been issued.');
  }
  async function previewAdvertisingBillingDraft(v){
+  const win=window.open('','_blank');
+  if(!win)throw Error('Allow pop-ups to preview billing draft.');
   const [quote,items,totals]=await Promise.all([
    checked(db.from('advertising_quotations').select('*').eq('id',v.quotation_id).single()),
    checked(db.from('advertising_quotation_items').select('*').eq('quotation_id',v.quotation_id).order('created_at')),
    checked(db.from('admin_advertising_quotation_totals_v1').select('*').eq('id',v.quotation_id).single())
   ]);
-  const win=window.open('','_blank');
-  if(!win)throw Error('Allow pop-ups to preview billing draft.');
   const doc=win.document;
   doc.title='Advertising billing draft — AB-ADQ-'+String(quote.quote_number).padStart(6,'0');
   const style=doc.createElement('style');
