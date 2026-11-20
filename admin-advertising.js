@@ -31,6 +31,43 @@ async function initQuotes(){
   if(error)throw error;if(!data?.length)throw Error('Quotation changed elsewhere. Refresh before updating.');
   await list();status('Quotation AB-ADQ-'+String(q.quote_number).padStart(6,'0')+' marked '+next+'.');
  }
+ async function convertQuoteToDraftCampaigns(q){
+  if(q.status!=='accepted')throw Error('Only accepted quotations can be converted.');
+  const quote=await checked(db.from('advertising_quotations').select('*').eq('id',q.id).single());
+  if(quote.status!=='accepted')throw Error('Quotation status changed. Refresh.');
+  const partner=partners.find(p=>p.id===quote.partner_id)||partners.find(p=>p.name.trim().toLowerCase()===quote.advertiser_name.trim().toLowerCase());
+  if(!partner)throw Error('Create the advertiser as an Advertising partner before converting this quotation.');
+  const items=await checked(db.from('advertising_quotation_items').select('*').eq('quotation_id',quote.id).order('created_at'));
+  if(!items.length)throw Error('Add advertising placements before converting.');
+  if(!confirm('Create up to '+items.length+' advertising campaign drafts from this accepted quotation? No adverts will be activated or invoices issued.'))return;
+  let created=0,existing=0;
+  for(const item of items){
+   const prior=await checked(db.from('advertising_campaigns').select('id').eq('source_quotation_item_id',item.id).limit(1));
+   if(prior.length){existing++;continue;}
+   const selectedIds=new Set((item.catalogue_model_ids||[]).map(String));
+   const selectedModels=coverage.filter(m=>selectedIds.has(String(m.model_id)));
+   const manufacturers=[...new Set([...(item.manufacturers||[]),...selectedModels.map(m=>m.manufacturer)])];
+   const models=[...new Set(selectedModels.map(m=>m.model))];
+   if(selectedIds.size!==selectedModels.length)throw Error('Model catalogue changed. Please refresh coverage and review this quotation before converting.');
+   const formatPlacement=item.artwork_format==='stock_card'?'stock_card':'below_hero';
+   const desc=[item.description, 'Quotation AB-ADQ-'+String(quote.quote_number).padStart(6,'0'),'Artwork format: '+item.artwork_format.replaceAll('_',' '),'Quoted quantity: '+item.quantity,'Audience: '+quote.audience,'Configure and approve artwork and exact territory before activation'].join(' | ');
+   const record={
+    source_quotation_item_id:item.id,partner_id:partner.id,
+    name:quote.title+' — '+item.description, status:'draft',
+    campaign_category:partner.kind==='transport'&&partner.name.toLowerCase()==='move motorcycles'?'house':'external',
+    placement:formatPlacement, headline_template:item.description,
+    subheading:desc, cta_text:'Learn more', disclosure:'Advertisement',
+    duration_days:quote.duration_days||30,priority:0,revenue_model:'fixed',
+    manufacturers,models,page_paths:item.page_paths||[],
+    countries:quote.audience==='UK'?['GB']:[]
+   };
+   const {error}=await db.from('advertising_campaigns').insert(record);
+   if(error){if(error.code==='23505'){existing++;continue;}throw Error('Created '+created+' draft(s) before error: '+error.message);}
+   created++;
+  }
+  await load();await list();
+  status('Campaign conversion: '+created+' new draft(s), '+existing+' already linked. Check targeting, artwork, compliance and country rules before activation.');
+ }
  async function list(){
   const data=await checked(db.from('admin_advertising_quotation_totals_v1').select('*').order('quote_number',{ascending:false}));
   const table=el('table');row(table,['Reference','Advertiser','Package','Audience','Placements','Total inc VAT','Status','Actions']);
@@ -38,7 +75,7 @@ async function initQuotes(){
    const controls=el('div');controls.className='bar';controls.style.flexWrap='nowrap';
    if(q.status==='draft'){controls.append(button('Open',run(()=>open(q.id))));if(Number(q.placement_quantity)>0)controls.append(button('Mark sent',run(()=>changeQuoteStatus(q,'sent'))));}
    if(q.status==='sent'){controls.append(button('Accept',run(()=>changeQuoteStatus(q,'accepted'))),button('Decline',run(()=>changeQuoteStatus(q,'declined'))),button('Expire',run(()=>changeQuoteStatus(q,'expired'))));}
-   if(q.status==='accepted'){controls.append(el('span','Accepted — campaign setup pending'));}
+   if(q.status==='accepted'){controls.append(button('Create campaign drafts',run(()=>convertQuoteToDraftCampaigns(q))));}
    row(table,['AB-ADQ-'+String(q.quote_number).padStart(6,'0'),q.advertiser_name,q.title,q.audience,q.placement_quantity,money(q.total_gbp),q.status,controls]);
   }
   $('quotelist').replaceChildren(table);
