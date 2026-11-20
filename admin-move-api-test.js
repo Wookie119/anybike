@@ -4,8 +4,8 @@ $("test3-preview").onclick=()=>{
  const senderEmail=get("test3-sender-email"),receiverEmail=get("test3-receiver-email"),readyDate=get("test3-ready-date");
  const senderStreet=get("test3-sender-street"),senderCity=get("test3-sender-city"),senderCode=get("test3-sender-code").toUpperCase();
  const receiverStreet=get("test3-receiver-street"),receiverCity=get("test3-receiver-city"),receiverCode=get("test3-receiver-code").toUpperCase();
- const validEmail=v=>/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(v)&&!v.toLowerCase().endsWith(".invalid");
- const validPostcode=v=>/^[A-Z]{1,2}\\d[A-Z\\d]?\\s?\\d[A-Z]{2}$/.test(v);
+ const validEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)&&!v.toLowerCase().endsWith(".invalid");
+ const validPostcode=v=>/^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/.test(v);
  const problems=[];
  if(!validEmail(senderEmail))problems.push("Sender email required for account and invoicing.");
  if(!validEmail(receiverEmail))problems.push("Receiver email required for account and invoicing.");
@@ -16,7 +16,7 @@ $("test3-preview").onclick=()=>{
  if(!receiverCity)problems.push("Enter the delivery town or city.");
  if(!validPostcode(receiverCode))problems.push("Enter a valid delivery postcode.");
  const parsed=readyDate?new Date(readyDate+"T12:00:00Z"):null;
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(readyDate)||!parsed||Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==readyDate)problems.push("Choose a valid motorcycle ready date.");
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(readyDate)||!parsed||Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==readyDate)problems.push("Choose a valid motorcycle ready date.");
  const fields={
   sender_name:"James Mitchell",sender_phone:"07772024763",sender_email:senderEmail,
   sender_street_address:senderStreet,sender_city:senderCity,sender_code:senderCode,sender_country:"United Kingdom",
@@ -28,5 +28,5 @@ $("test3-preview").onclick=()=>{
   ready_date:readyDate,
   instructions:"TEST 3 — DO NOT DISPATCH OR INVOICE. READY DATE "+readyDate+". Invoice payer RECEIVER. Motorcycle payment must be confirmed with seller before loading."
  };
- $("test3-output").textContent=(problems.length?"NOT READY FOR LIVE TEST:\\n- "+problems.join("\\n- ")+"\\n\\n":"ALL REQUIRED PREVIEW FIELDS COMPLETED — STILL NOT SUBMITTED.\\n\\n")+"Preview of documented Move API form fields (NOT SUBMITTED):\\n"+JSON.stringify(fields,null,2)+"\\n\\nNo payer/charges API fields sent: Move Admin enters the freight charge and confirms invoice payer. No confirmation emails are sent by Move.";
+ $("test3-output").textContent=(problems.length?"NOT READY FOR LIVE TEST:\n- "+problems.join("\n- ")+"\n\n":"ALL REQUIRED PREVIEW FIELDS COMPLETED — STILL NOT SUBMITTED.\n\n")+"Preview of documented Move API form fields (NOT SUBMITTED):\n"+JSON.stringify(fields,null,2)+"\n\nNo payer/charges API fields sent: Move Admin enters the freight charge and confirms invoice payer. No confirmation emails are sent by Move.";
 };const selector=document.createElement("select");selector.setAttribute("aria-label","Test booking");selector.style.cssText="display:block;background:#303030;color:white;padding:10px;border:1px solid #666;margin:12px 0";selector.innerHTML='<option value="1">Test 1 — existing shipment (115977)</option><option value="2">Test 2 — existing shipment (115978; reconcile)</option>';$("movetest").insertBefore(selector,$("check"));selector.onchange=()=>{test=Number(selector.value);call("status")};$("check").onclick=()=>call("check");$("status").onclick=()=>call("status");$("submit").dataset.locked="yes";$("submit").disabled=true;$("submit").title="Both existing test shipments have already been created; do not submit again.";await call("status")}catch(e){$("gate").textContent=e.message}},100)})();
