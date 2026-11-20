@@ -1,4 +1,4 @@
-(()=>{"use strict";const $=x=>document.getElementById(x);let db;let test=1;async function call(action){const buttons=[...document.querySelectorAll("#movetest > button,#movetest > select")];buttons.forEach(x=>x.disabled=true);$("result").textContent="Connecting…";try{const {data,error}=await db.functions.invoke("move-anybike-booking-test",{body:{action,test,...(action==="submit"?{confirmation:test===2?"SUBMIT SECOND TEST":"SUBMIT HON125R"}:{})}});if(error)throw error;$("result").textContent=JSON.stringify(data,null,2);if(data.submission||data.shipment_id||data.error&&action==="submit")$("submit").dataset.locked="yes"}catch(e){$("result").textContent=String(e.message||e)+" — if a submission was attempted, check Move before retrying.";if(action==="submit")$("submit").dataset.locked="yes"}finally{buttons.forEach(x=>x.disabled=false);if($("submit").dataset.locked)$("submit").disabled=true}}let test3Ready=false,test3Locked=false,test3Fields=null;
+(()=>{"use strict";const $=x=>document.getElementById(x);let db;let test3Ready=false,test3Locked=true,test3Fields=null;
 function buildTest3(){
  const get=id=>$(id).value.trim();
  const senderEmail=get("test3-sender-email"),receiverEmail=get("test3-receiver-email"),readyDate=get("test3-ready-date");
@@ -34,20 +34,19 @@ function buildTest3(){
  return {booking,fields,issues};
 }
 async function test3Status(){
+ $("test3-result").textContent="Checking existing Move shipment 115984…";
  try{
   const {data,error}=await db.functions.invoke("move-anybike-test3",{body:{action:"status"}});
   if(error)throw error;
-  if(data.submission){test3Locked=true;$("test3-submit").disabled=true;}else{$("test3-submit").disabled=!test3Ready||test3Locked;}
   $("test3-result").textContent=JSON.stringify(data,null,2);
-  if(data?.submission){
-   const tracking=data?.move?.tracking_no||data?.tracking_no||"115984";
-   const ready=data?.move?.ready_date;
-   const statusText="TEST 3 ALREADY SUBMITTED — Move shipment "+tracking+".\n"+
-    (ready?"Ready date returned by Move: "+ready:"READY DATE NOT CONFIRMED IN MOVE — input was 25/12/2026.")+
-    "\nDo not create another booking. Use Check Test 3 submission status for read-only verification.";
-   $("test3-output").textContent=statusText;
-  }
- }catch(e){$("test3-result").textContent="Could not check Test 3 status. Submission disabled. "+String(e.message||e);test3Locked=true;$("test3-submit").disabled=true;}
+  const tracking=data?.move?.tracking_no||data?.tracking_no||"115984";
+  const ready=data?.move?.ready_date;
+  $("test3-output").textContent="EXISTING TEST BOOKING "+tracking+" — DO NOT DISPATCH OR INVOICE.\n"+
+   (ready?"Move ready-date API value: "+ready:"Motorcycle ready date 25/12/2026 not confirmed in Move's scheduling fields.")+
+   "\nThis page cannot submit another booking.";
+ }catch(e){
+  $("test3-result").textContent="Status check failed: "+String(e.message||e);
+ }
 }
 const draftInputIds={
  sender_email:"test3-sender-email",receiver_email:"test3-receiver-email",
@@ -69,28 +68,13 @@ async function saveTest3Draft(){
 }
 let n=0;const timer=setInterval(async()=>{if(document.documentElement.classList.contains("admin-auth-pending")){if(++n>300)clearInterval(timer);return}clearInterval(timer);try{db=getAdminSupabaseClient();const {data,error}=await db.rpc("anybike_is_admin");if(error||data!==true)throw Error("Admin only");$("movetest").hidden=false;
 $("test3-preview").onclick=()=>{
- const {booking,fields,issues}=buildTest3();
- test3Fields=issues.length?null:booking;test3Ready=!issues.length;
- $("test3-submit").disabled=!test3Ready||test3Locked;
- if(test3Locked){$("test3-output").textContent="TEST 3 ALREADY SUBMITTED — tracking 115984. Read-only status check available. Ready-date mapping is still unresolved.";return;}
- $("test3-output").textContent=(issues.length?("NOT READY FOR LIVE TEST:"+String.fromCharCode(10)+"- "+issues.join(String.fromCharCode(10)+"- ")+String.fromCharCode(10,10)):("ALL REQUIRED PREVIEW FIELDS COMPLETED — NOT SUBMITTED."+String.fromCharCode(10,10)))+"Preview of documented Move API form fields:"+String.fromCharCode(10)+JSON.stringify(fields,null,2)+String.fromCharCode(10,10)+"Move Admin must manually enter Freight Charge and check payer. Move uses text notifications, not email booking confirmations.";
+ const {fields,issues}=buildTest3();
+ $("test3-output").textContent=(issues.length?"Saved fields need checking:\n- "+issues.join("\n- ")+"\n\n":"SAVED TEST 3 DETAILS — EXISTING SHIPMENT 115984.\n\n")+
+ "Test 3 fields originally submitted:\n"+JSON.stringify(fields,null,2)+
+ "\n\nThe ready date was supplied, but Move's Booking Date still showed the creation date. No new booking can be created from this page.";
 };
 $("test3-status").onclick=test3Status;
-$("test3-submit").onclick=async()=>{
- if(!test3Ready||test3Locked||!test3Fields)return;
- const b=buildTest3();
- if(b.issues.length||JSON.stringify(b.booking)!==JSON.stringify(test3Fields)){test3Ready=false;$("test3-submit").disabled=true;$("test3-result").textContent="Details changed. Preview again before submitting.";return;}
- const message="Confirm ONE test shipment will be created in Move. Move staff must not dispatch or invoice it. Continue?";
- if(!window.confirm(message))return;
- const typed="CREATE ONE TEST 3 SHIPMENT";
- test3Locked=true;$("test3-submit").disabled=true;$("test3-result").textContent="Submitting Test 3 once. Do not refresh or retry.";
- try{
-  const {data,error}=await db.functions.invoke("move-anybike-test3",{body:{action:"submit",booking:b.booking,confirmation:typed}});
-  if(error)throw error;
-  $("test3-result").textContent=JSON.stringify(data,null,2);
- }catch(e){$("test3-result").textContent="Submission outcome uncertain. Check Move before doing anything else. "+String(e.message||e);}
-};
-const selector=document.createElement("select");selector.setAttribute("aria-label","Test booking");selector.style.cssText="display:block;background:#303030;color:white;padding:10px;border:1px solid #666;margin:12px 0";selector.innerHTML='<option value="1">Test 1 — existing shipment (115977)</option><option value="2">Test 2 — existing shipment (115978; reconcile)</option>';$("movetest").insertBefore(selector,$("check"));selector.onchange=()=>{test=Number(selector.value);call("status")};$("check").onclick=()=>call("check");$("status").onclick=()=>call("status");$("submit").dataset.locked="yes";$("submit").disabled=true;$("submit").title="Both existing test shipments have already been created; do not submit again.";await call("status");await test3Status();try{await loadTest3Draft();}catch(e){$("test3-result").textContent=String(e.message||e)+" — details not overwritten.";}
+await test3Status();try{await loadTest3Draft();}catch(e){$("test3-result").textContent=String(e.message||e)+" — details not overwritten.";}
 for(const id of Object.values(draftInputIds)){
  $(id).addEventListener("change",async()=>{try{await saveTest3Draft();}catch(e){$("test3-result").textContent="Could not save Test 3 draft: "+String(e.message||e);}});
 }
