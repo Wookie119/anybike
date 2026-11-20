@@ -47,7 +47,8 @@ Deno.serve(async req=>{
   if(body.action==="status"){
    if(!existing?.external_shipment_id)return answer({
     success:true,test:3,submission:existing,submit_enabled:!existing,
-    verification:existing?"submission_record_exists_but_no_confirmed_move_id":"not_submitted"
+    verification:existing?"submission_record_exists_but_no_confirmed_move_id":"not_submitted",
+    ready_date_mapping:"unverified",ready_date_required:true
    });
    const id=Number(existing.external_shipment_id);
    if(!Number.isSafeInteger(id)||id<=0)return answer({success:true,test:3,submission:existing,submit_enabled:false,verification:"invalid_internal_id"});
@@ -104,6 +105,12 @@ Deno.serve(async req=>{
   if(errors.length)return answer({error:"Invalid test fields",details:errors},422);
   const dryRun={...v,sender_name:"James Mitchell",sender_phone:"07772024763",receiver_name:"Daniel Carter",receiver_phone:"07949574299",product:"Honda Forza 125",registration:"HON125R",agreed_price:"180",payer_note:"Receiver pays — Move admin to enter freight charge manually"};
   if(body.action==="check")return answer({success:true,test:3,fields:dryRun,verified:false,warning:"Dry run only, no Move shipment submitted"});
+  // Critical transport scheduling date: reject new shipments unless this tenant's
+  // real destination field has been verified by Move. Sending an unknown ready_date
+  // parameter or instructions-only is NOT safe for dispatch scheduling.
+  const confirmedReadyField=str(Deno.env.get("MOVE_VERIFIED_READY_DATE_FIELD"));
+  if(!confirmedReadyField)return answer({error:"Motorcycle ready date has no verified Move booking field. Shipment creation is blocked until field mapping is confirmed.",ready_date:v.ready_date,required_action:"Confirm supported Move API field and readback, then configure MOVE_VERIFIED_READY_DATE_FIELD."},422);
+  if(!/^custom_field\\[\\d+\\]$/.test(confirmedReadyField))return answer({error:"Ready-date configuration invalid; supported field id must be verified by Move."},503);
   if(body.confirmation!=="CREATE ONE TEST 3 SHIPMENT")return answer({error:"Explicit Test 3 confirmation required"},400);
   const {error:guard}=await db.from("anybike_move_test_submissions").insert({test_key:key,state:"submitting",requested_by:u.user.id});
   if(guard)return answer({error:"A prior or concurrent submission may exist. Check status; do not retry."},409);
@@ -127,6 +134,7 @@ Deno.serve(async req=>{
     "custom_field[11557]":"TEST 3 — DO NOT DISPATCH OR INVOICE. AGREED PRICE £180 incl VAT. Receiver is invoice payer. Move Admin must manually set Freight Charge and invoice payer. READY DATE "+v.ready_date,
     instructions:"API TEST 3 ONLY — DO NOT DISPATCH OR INVOICE. Receiver pays transport £180 including VAT. Move Admin review freight charge. READY DATE "+v.ready_date
    };
+   data[confirmedReadyField]=v.ready_date;
    // Intentionally NOT sending undocumented payer and charges wire formats.
    for(const [k,value] of Object.entries(data))form.set(k,value);
    const posted=await fetch(base+"/shipment/create",{method:"POST",headers:bearer,body:form,signal:AbortSignal.timeout(25000)});
