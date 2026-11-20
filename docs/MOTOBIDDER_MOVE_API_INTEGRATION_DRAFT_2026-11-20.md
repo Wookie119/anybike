@@ -79,6 +79,14 @@ After a successful create, read back `/shipment/id/{returned_id}` and verify shi
 
 A `charges:[]` response does not establish an actual freight charge. The response example does not document payer, sender email or receiver email fields, so whether those are stored and returned must be verified separately rather than inferred.
 
+## Customer login and shipment-list access (documented)
+
+- `POST /account/login` authenticates an **activated** customer with email and password, returning `access_token` and `expires_at`. Tokens carry role scope, must be kept private, and must never be shared between the buyer and seller.
+- `GET /shipments` with the logged-in customer's bearer token returns shipments **belonging to that authenticated customer**, newest first. Documented fields include `id`, `tracking_no`, `reference_no`, `receiver_name`, `status`, `is_paid`, and `expected_delivery`.
+- Sample: `{"shipments":[{"id":101,"tracking_no":"TRK101","reference_no":"REF55","receiver_name":"Sara Khan","status":"In Transit","is_paid":0,"expected_delivery":"2026-06-10"}]}`. These are sample values, not test results.
+- **Not yet established:** whether Logxa can associate the same shipment with two customer IDs. Its documented admin create endpoint exposes one `customer_id`, and customer shipment listing is scoped to the authenticated account. Do not claim both dealerships automatically see the shipment. Instead use a verified, permission-limited tracking link or notifications for the non-owning party unless Logxa confirms dual association.
+- Do not return the authenticated buyer's `GET /shipments` results to the seller, or vice versa.
+
 ## Separate Logxa Admin API
 `POST /admin/shipments` (JSON) documents `customer_id`, `reference_no`, sender/receiver address fields, `custom_data`, and required `status`. The supplied admin endpoint documentation **does not list sender_email, receiver_email, payer or charges**. Do not switch to the admin endpoint without confirming full field support and restricted permissions.
 
