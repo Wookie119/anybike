@@ -3,7 +3,6 @@ import {createClient} from "npm:@supabase/supabase-js@2.49.8";
 const root="https://app.movemotorcycles.co.uk/api";
 const testKey="forza125-readydate-test4-20261120";
 const sourceKey="forza125-complete-contacts-test-3-20261120";
-const authKey="forza125-test4-one-time-authorization";
 const cors={"access-control-allow-origin":"https://www.anybike.co.uk","access-control-allow-methods":"POST, OPTIONS","access-control-allow-headers":"authorization, apikey, x-client-info, content-type","access-control-max-age":"600"};
 const respond=(o:Record<string,unknown>,status=200)=>new Response(JSON.stringify(o),{status,headers:{...cors,"content-type":"application/json","cache-control":"no-store"}});
 const clean=(x:unknown)=>typeof x==="string"?x.trim():"";
