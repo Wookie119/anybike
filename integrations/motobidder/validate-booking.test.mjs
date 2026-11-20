@@ -22,4 +22,10 @@ assert.equal(validate({...sample,ready_date:'2026-02-30'}).valid,false);
 assert.equal(validate({...sample,vat_included:false}).valid,false);
 assert.equal(validate({...sample,sender:{...sample.sender,country:'Isle of Man'}}).valid,false);
 assert.equal(validate({...sample,transport_booking_id:''}).valid,false);
-console.log('Motobidder preflight tests passed (11 cases).');
+assert.equal(validate({...sample,receiver:{...sample.receiver,postcode:'PO30 1AA'}}).valid,false); // Isle of Wight
+assert.equal(validate({...sample,receiver:{...sample.receiver,postcode:'JE2 4AA'}}).valid,false); // Jersey
+assert.equal(validate({...sample,receiver:{...sample.receiver,postcode:'BT1 5AA'}}).valid,false); // Northern Ireland is not mainland GB
+assert.equal(validate({...sample,rate_band:'__proto__'}).valid,false);
+assert.equal(validate({...sample,sender:{...sample.sender,postcode:'HS1 2AA'}}).valid,false); // Hebrides
+
+console.log('Motobidder preflight tests passed (16 scenarios plus baseline assertions).');
