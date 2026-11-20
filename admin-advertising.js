@@ -39,6 +39,15 @@ async function initQuotes(){
   if(!partner)throw Error('Create the advertiser as an Advertising partner before converting this quotation.');
   const items=await checked(db.from('advertising_quotation_items').select('*').eq('quotation_id',quote.id).order('created_at'));
   if(!items.length)throw Error('Add advertising placements before converting.');
+  // Preflight all lines before writing any campaigns; the current creative selector
+  // matches manufacturer and model lists independently, not exact make/model pairs.
+  for(const item of items){
+   const ids=new Set((item.catalogue_model_ids||[]).map(String));
+   const exact=coverage.filter(m=>ids.has(String(m.model_id)));
+   if(ids.size!==exact.length)throw Error('Model catalogue changed for '+item.description+'. Refresh coverage before converting.');
+   const brands=[...new Set([...(item.manufacturers||[]),...exact.map(m=>m.manufacturer)])];
+   if(ids.size&&brands.length>1)throw Error('Placement "'+item.description+'" selects models from multiple manufacturers. Create one quotation placement per manufacturer to prevent advertising on unintended models.');
+  }
   if(!confirm('Create up to '+items.length+' advertising campaign drafts from this accepted quotation? No adverts will be activated or invoices issued.'))return;
   let created=0,existing=0;
   for(const item of items){
@@ -48,7 +57,6 @@ async function initQuotes(){
    const selectedModels=coverage.filter(m=>selectedIds.has(String(m.model_id)));
    const manufacturers=[...new Set([...(item.manufacturers||[]),...selectedModels.map(m=>m.manufacturer)])];
    const models=[...new Set(selectedModels.map(m=>m.model))];
-   if(selectedIds.size!==selectedModels.length)throw Error('Model catalogue changed. Please refresh coverage and review this quotation before converting.');
    const formatPlacement=item.artwork_format==='stock_card'?'stock_card':'below_hero';
    const desc=[item.description, 'Quotation AB-ADQ-'+String(quote.quote_number).padStart(6,'0'),'Artwork format: '+item.artwork_format.replaceAll('_',' '),'Quoted quantity: '+item.quantity,'Audience: '+quote.audience,'Configure and approve artwork and exact territory before activation'].join(' | ');
    const record={
