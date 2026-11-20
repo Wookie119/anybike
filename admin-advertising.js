@@ -127,17 +127,47 @@ async function initQuotes(){
   const print=doc.createElement('button');print.textContent='Print draft';print.onclick=()=>win.print();main.append(foot,print);
   doc.body.append(main);
  }
+ async function editAdvertisingBillingDetails(record){
+  const host=$('advertisingBillingReviews');
+  let panel=$('advertisingBillingEditor');
+  if(!panel){panel=el('div');panel.id='advertisingBillingEditor';panel.style.cssText='padding:14px;margin:12px 0;border:1px solid #666;border-radius:8px;background:#242424';host.prepend(panel);}
+  panel.replaceChildren(el('h3','Confirm billing details — '+record.advertiser_name));
+  const form=el('form');form.className='fields';form.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px';
+  const names=[['billing_contact_name','Billing contact'],['billing_email','Billing email'],['billing_address','Full billing address'],['billing_country','Billing country'],['purchase_order_reference','Purchase order reference (optional)'],['buyer_vat_number','Buyer VAT number (optional)']];
+  const controls={};
+  for(const [key,label] of names){
+   const wrap=el('label',label),input=el(key==='billing_address'?'textarea':'input');
+   input.name=key;input.value=record[key]||'';input.style.cssText='width:100%;min-width:0';
+   if(key==='billing_email')input.type='email';if(key==='billing_address')input.rows=3;
+   if(['billing_contact_name','billing_email','billing_address','billing_country'].includes(key))input.required=true;
+   wrap.append(input);form.append(wrap);controls[key]=input;
+  }
+  const bar=el('div');bar.className='bar';bar.style.gridColumn='1 / -1';
+  const saveBtn=el('button','Save billing details');saveBtn.className='primary';saveBtn.type='submit';
+  const cancel=button('Close',()=>panel.remove());bar.append(saveBtn,cancel);form.append(bar);
+  form.onsubmit=run(async()=>{
+   const updates=Object.fromEntries(Object.entries(controls).map(([key,input])=>[key,input.value.trim()]));
+   if(!updates.billing_email.match(/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/))throw Error('Enter a valid billing email.');
+   if(updates.billing_address.length<10)throw Error('Enter the complete billing address.');
+   updates.updated_at=new Date().toISOString();
+   const {error}=await db.from('advertising_billing_reviews').update(updates).eq('id',record.id).eq('billing_status','needs_review');
+   if(error)throw error;await billingReviews();status('Billing details saved for review; invoice not issued.');
+  });
+  panel.append(form);panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+ }
  async function billingReviews(){
   let container=$('advertisingBillingReviews');
   if(!container){container=el('div');container.id='advertisingBillingReviews';$('quotearea').append(container);}
-  const rows=await checked(db.from('advertising_billing_reviews').select('id,quotation_id,advertiser_name,billing_email,total_gbp,billing_status,external_invoice_reference,created_at').order('created_at',{ascending:false}).limit(100));
+  const rows=await checked(db.from('advertising_billing_reviews').select('id,quotation_id,advertiser_name,billing_contact_name,billing_email,billing_address,billing_country,purchase_order_reference,buyer_vat_number,total_gbp,billing_status,external_invoice_reference,created_at').order('created_at',{ascending:false}).limit(100));
   if(!rows.length){container.replaceChildren();return;}
   const heading=el('h3','Advertising billing reviews — no invoice issued automatically');
   const table=el('table');row(table,['Advertiser','Total','Billing stage','Invoice reference','Actions']);
   for(const v of rows){
    const actions=el('div');actions.className='bar';
    actions.append(button('Preview billing draft',run(()=>previewAdvertisingBillingDraft(v))));
+   if(v.billing_status==='needs_review')actions.append(button('Billing details',()=>editAdvertisingBillingDetails(v)));
    if(v.billing_status==='needs_review')actions.append(button('Mark ready',run(async()=>{
+    if(!v.billing_contact_name?.trim()||!v.billing_email?.trim()||!v.billing_address?.trim()||!v.billing_country?.trim())throw Error('Save a verified billing contact, email, address and country before marking ready.');
     if(!confirm('Confirm billing details have been checked? This still does not issue an invoice.'))return;
     const {error}=await db.from('advertising_billing_reviews').update({billing_status:'ready',updated_at:new Date().toISOString()}).eq('id',v.id).eq('billing_status','needs_review');
     if(error)throw error;await billingReviews();status('Billing marked ready for invoice preparation.');
