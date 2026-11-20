@@ -105,6 +105,40 @@ The integration should:
 9. Notify buyer and seller about their respective collection/delivery arrangements; separate transactional notifications from optional marketing consent.
 10. Log booking source as Motobidder; report new dealer accounts separately from repeat account usage and measure repeat jobs.
 
+## Confirmed Motobidder operating procedure and commercial schedule (owner approved 20 November 2026)
+
+This section preserves the owner's operational meaning. **Do not replace the existing Move staff workflow or build a second SMS system.**
+
+1. Motobidder books transport in the **buyer's / receiving dealer's Move account** when the auction sale completes. Both buying and selling dealerships must be matched to existing Move customer accounts or onboarded for possible future business. The seller must **not** see the buyer's shipment or buyer's confidential information.
+2. Every booking needs motorcycle details, full collection and delivery details, valid **mobile numbers at both ends**, and the **motorcycle ready date**.
+3. Move receives the job in **Pickup Request**, then staff change status to **Booking Received**. Move sends its existing **Quick Send** texts to buyer and seller; no new notification platform is required.
+4. Move sends the seller a text with the collecting driver's mobile number the day before collection. On the day, the driver calls with an ETA; if unanswered, the driver still attends the dealership.
+5. **Payment for the motorcycle itself** is made directly between buying and selling dealerships while the Move driver is at collection. The seller speaks to the buyer; the buyer may call or WhatsApp the driver and ask for photos. The driver must **not load the motorcycle until the seller confirms payment has been received**. This motorcycle payment is completely separate from the transport invoice.
+6. Once payment is confirmed, driver loads the motorcycle, uploads collection pictures to the **buyer's shipment**, and marks it **Collected**. Move Quick Send sends the buyer a collection notification and can refer them to `https://www.movemotorcycles.co.uk/delivery-tracking`.
+7. Before delivery, Move sends the receiver a Quick Send text with the scheduled day, driver's name and mobile. On the day the driver calls the receiving dealership with an ETA, and still attends if there is no answer.
+8. Driver marks the motorcycle **Delivered**, uploads delivery pictures to the buyer's Move shipment, and Move Quick Send sends the selling dealership a completion message.
+9. **Transport invoicing:** Move invoices whichever party Motobidder selected as `payer` **at booking time** — sender or receiver. This is separate from the motorcycle purchase payment. A seller payer does **not** acquire access to the buyer's shipment.
+
+### Agreed transport tariff — ALL PRICES INCLUDE VAT
+
+| Area / distance band as described by owner | Rate inc VAT |
+| --- | ---: |
+| Standard UK mainland | £199 |
+| Glasgow and Edinburgh | £299 |
+| Above Glasgow and Edinburgh | £349 |
+| Above Inverness | £389 |
+
+All islands are **excluded** from Move coverage; the integration must not accept a route including any excluded island. The owner's long-distance example **Truro to Wick** is covered by the £389 band. Exact postcode boundary logic for Glasgow/Edinburgh, 'above', and Inverness still needs a verified postcode-to-zone table before automated pricing; do not guess from postcode text or straight-line distance.
+
+### Service-level commitment
+**Collect AND deliver within seven working days of the motorcycle ready date**, not within seven working days of the booking date. Confirm ready date on every booking and apply standard UK working-day and holiday handling consistently. Do not claim an automatically scheduled collection/delivery date solely from this service target.
+
+### Existing notifications
+Move staff use the **existing Quick Send text-message functionality** at the stated operational stages. No duplicate SMS system should be built in AnyBike or Motobidder.
+
+### Account access boundary
+Buyer is the shipment account holder; seller receives collection and completion communications and may independently use their own Move account for **future** bookings. Seller must never see buyer's shipment, photos, payment details or history merely because they were the sender.
+
 ## Known test results (DO NOT RETRY)
 - AnyBike customer account 13882; Honda Forza 125 (HON125R), test £180 receiver-pays intent.
 - Test 1: Move tracking `115977`, internal shipment ID `3457777`, confirmed. API readback gave `payer:null` and `charges:[]`.
@@ -115,10 +149,10 @@ The integration should:
 
 ## Release blockers — do not send final API pack until cleared
 1. **Logxa confirmation:** exact multipart encoding and permitted values of `payer` and `charges`, VAT/currency semantics, and how to read back or update existing shipment charges.
-2. **Account onboarding:** documented endpoints/permissions for lookup, creation, activation and two-dealer visibility. Confirm how email activation is sent securely.
+2. **Account onboarding:** documented endpoints/permissions for lookup, creation, activation and buyer-only shipment access and separate seller account onboarding. Confirm how email activation and customer-controlled password reset work securely.
 3. **Reconcile Test 2:** use tracking 115978 to establish its internal shipment ID without creating another shipment, then compare shipping-charge fields with the portal.
 4. **Actual end-to-end test:** verify sender/receiver emails, addresses, VIN/registration, payer, freight amount, customer access and notifications in the Move portal, using authorised test data and no unapproved chargeable shipment.
-5. **Commercial documents:** approved Motobidder shipping tariff, VAT/exclusions, SLA, claims/escalation terms, billing responsibility and rate validity. Older zone-price notes are not an approved current Motobidder tariff.
+5. **Commercial documents:** owner's rates, VAT inclusion, island exclusions, ready-date SLA and payer choice are confirmed above. Remaining: exact machine-readable postcode bands, claims/escalation terms and rate validity before external release.
 6. **Access controls:** dedicated Motobidder API credential; prevent a customer API key or unrestricted admin credential from being embedded in Motobidder's website/client JavaScript.
 7. **Deployment:** build and verify Motobidder-facing integration endpoint; this file is documentation only. No endpoint is claimed live.
 
@@ -126,4 +160,4 @@ The integration should:
 **Documented:** upstream field names and official request examples supplied by Logxa.
 **Observed:** existing AnyBike test bookings and missing data.
 **Proposed:** Motobidder-facing contract, account onboarding, idempotency, reporting.
-**Unverified:** freight/payer wire format, actual dual-account linkage, tariff/SLA.
+**Unverified:** freight/payer wire format, new-account provisioning and activation end-to-end, postcode-zone boundary encoding and remaining legal/commercial SLA details.
