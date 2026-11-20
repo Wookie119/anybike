@@ -88,6 +88,32 @@ async function initQuotes(){
   if(error&&error.code!=='23505')throw error;
   await list();status('Advertising billing review prepared. No invoice has been issued.');
  }
+ async function billingReviews(){
+  let container=$('advertisingBillingReviews');
+  if(!container){container=el('div');container.id='advertisingBillingReviews';$('quotearea').append(container);}
+  const rows=await checked(db.from('advertising_billing_reviews').select('id,quotation_id,advertiser_name,billing_email,total_gbp,billing_status,external_invoice_reference,created_at').order('created_at',{ascending:false}).limit(100));
+  if(!rows.length){container.replaceChildren();return;}
+  const heading=el('h3','Advertising billing reviews — no invoice issued automatically');
+  const table=el('table');row(table,['Advertiser','Total','Billing stage','Invoice reference','Actions']);
+  for(const v of rows){
+   const actions=el('div');actions.className='bar';
+   if(v.billing_status==='needs_review')actions.append(button('Mark ready',run(async()=>{
+    if(!confirm('Confirm billing details have been checked? This still does not issue an invoice.'))return;
+    const {error}=await db.from('advertising_billing_reviews').update({billing_status:'ready',updated_at:new Date().toISOString()}).eq('id',v.id).eq('billing_status','needs_review');
+    if(error)throw error;await billingReviews();status('Billing marked ready for invoice preparation.');
+   })));
+   if(v.billing_status==='ready')actions.append(button('Record issued invoice',run(async()=>{
+    const ref=prompt('Enter the genuine invoice reference AFTER the invoice has been issued in your invoicing system:');
+    if(ref===null)return;
+    if(ref.trim().length<3)throw Error('A valid issued invoice reference is required.');
+    if(!confirm('Confirm invoice '+ref.trim()+' was actually issued? This records the reference only; it does not send an invoice.'))return;
+    const {error}=await db.from('advertising_billing_reviews').update({billing_status:'invoiced',external_invoice_reference:ref.trim(),updated_at:new Date().toISOString()}).eq('id',v.id).eq('billing_status','ready');
+    if(error)throw error;await billingReviews();status('Issued invoice reference recorded.');
+   })));
+   row(table,[v.advertiser_name,money(v.total_gbp),v.billing_status,v.external_invoice_reference||'—',actions]);
+  }
+  container.replaceChildren(heading,table);
+ }
  async function list(){
   const data=await checked(db.from('admin_advertising_quotation_totals_v1').select('*').order('quote_number',{ascending:false}));
   const table=el('table');row(table,['Reference','Advertiser','Package','Audience','Placements','Total inc VAT','Status','Actions']);
@@ -99,6 +125,7 @@ async function initQuotes(){
    row(table,['AB-ADQ-'+String(q.quote_number).padStart(6,'0'),q.advertiser_name,q.title,q.audience,q.placement_quantity,money(q.total_gbp),q.status,controls]);
   }
   $('quotelist').replaceChildren(table);
+  await billingReviews();
  }
  function scopeSummary(l){const brands=l.manufacturers||[],models=l.catalogue_model_ids||[],pages=l.page_paths||[];return [brands.length?brands.join(', '):'',models.length?models.length+' model pages':'',pages.length?pages.length+' website pages':''].filter(Boolean).join(' · ')||'Manual placement'}
  async function lines(){const data=await checked(db.from('advertising_quotation_items').select('*').eq('quotation_id',qid).order('created_at'));const t=el('table');row(t,['Advert','Format','Targeted pages','Qty','Unit price','Net','']);for(const l of data)row(t,[l.description,l.artwork_format.replaceAll('_',' '),scopeSummary(l),l.quantity,money(l.unit_price_gbp),money(l.line_total_gbp),button('Remove',run(async()=>{if(!confirm('Remove this draft placement?'))return;await checked(db.from('advertising_quotation_items').delete().eq('id',l.id));await lines();await list()}))]);$('quotelines').replaceChildren(t);const q=await checked(db.from('admin_advertising_quotation_totals_v1').select('*').eq('id',qid).single());$('quotetotals').textContent='Subtotal '+money(q.subtotal_gbp)+' · Discount '+money(q.discount_gbp)+' · VAT '+money(q.vat_gbp)+' · Total '+money(q.total_gbp)}
