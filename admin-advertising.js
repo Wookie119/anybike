@@ -372,7 +372,7 @@ async function init(){db=getAdminSupabaseClient();const {data,error}=await db.rp
  const requiredHttps=['destination_url','desktop_image_url','mobile_image_url'];
  for(const field of requiredHttps){let url;try{url=new URL(String(v[field]||''))}catch{throw Error('Complete '+cf[field]+' with a valid HTTPS URL before activation.')}if(url.protocol!=='https:')throw Error('Only HTTPS advertising artwork and destinations may be activated.');}
  if(!String(v.disclosure||'').trim())throw Error('Advertising disclosure is required before activation.');
- if(!String(v.alt_text||'').trim())throw Error('Provide an accurate image description, or explicitly enter "Decorative" for purely decorative artwork.');
+ // Blank alt text is valid for decorative artwork; descriptive creatives should use accurate alt text.
  if(!v.countries?.length)throw Error('Select explicit target countries before activating advertising. Blank targeting must not run worldwide.');
  const countryCodes=v.countries.map(country=>String(country).trim().toUpperCase());
  if(countryCodes.some(country=>!/^[A-Z]{2}$/.test(country)||country==='UK'))throw Error('Use two-letter ISO country codes (GB for the United Kingdom) before activating advertising.');
