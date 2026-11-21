@@ -22,17 +22,17 @@ const isPublicUkCustomerPage=()=>{
  if(/\/(?:login|logout|register|forgot-password|reset-password|privacy-policy|cookie-policy|terms-and-conditions)\.html$/.test(path))return false;
  return true;
 };
-function buildMoveHouseCard(ad){
+function buildMoveHouseCard(ad,companion=false){
  const stock=ad.placement_key==='stock_grid';
  const destination=https(ad.destination_url);
- const desktop=https(stock?ad.stock_card_image_url:(ad.slim_image_url||ad.desktop_image_url));
+ const desktop=https(stock?ad.stock_card_image_url:(ad.creative_format==='large_landscape'?ad.desktop_image_url:(ad.slim_image_url||ad.desktop_image_url)));
  const mobile=https(stock?ad.stock_card_image_url:(ad.compact_image_url||ad.mobile_image_url));
  if(!destination||!desktop||!mobile)return null;
  const card=node(stock?'article':'aside');
- card.id=moveHouseMarker;
+ card.id=companion?'anybike-managed-companion-ad':moveHouseMarker;
  card.dataset.adPlacementKey=ad.placement_key;
  card.dataset.adCampaignId=ad.id;
- card.dataset.adSlotCode=templateAdSlotCode(ad);
+ card.dataset.adSlotCode=templateAdSlotCode(ad)+(companion?'-B':'-A');
  card.setAttribute('aria-label','Advertisement: '+String(ad.partner_name||'Move Motorcycles'));
  card.className=stock?'card anybike-move-stock-ad':'anybike-move-house-banner';
  card.style.cssText=stock
@@ -218,6 +218,16 @@ function adoptLegacyMove(ad){
   note.textContent=ad.disclosure||'Advertisement · '+String(ad.partner_name||'Advertiser');
   note.style.cssText='display:block;font:10px/1.35 Arial,sans-serif;color:#aaa;padding:3px 2px 0;margin:0;background:transparent';
   attachLegacyTracking(link,ad);
+  if(ad.paired_layout&&ad.companion&&!link.closest('.anybike-ad-pair')){
+   const secondary=buildMoveHouseCard({...ad.companion,placement_key:ad.placement_key,
+    creative_format:ad.creative_format,slot_code:templateAdSlotCode(ad)},true);
+   if(secondary){
+    ensurePairStyles();
+    const pair=node('div');pair.className='anybike-ad-pair';pair.dataset.adSlotCode=templateAdSlotCode(ad);
+    const primary=node('div');primary.style.cssText='width:100%;min-width:0';
+    link.before(pair);primary.append(link,note);pair.append(primary,secondary);
+   }
+  }
  });
  return true;
 }
@@ -245,6 +255,15 @@ async function validateAdvertArtwork(ad){
   img.src=url;
  });
 }
+async function verifiedCompanion(ad){
+ if(!ad.companion)return ad;
+ const candidate={...ad.companion,placement_key:ad.placement_key,creative_format:ad.creative_format};
+ if(!await validateAdvertArtwork(candidate)){
+  console.warn('Companion artwork not ready for approved slot',ad.slot_code);
+  return {...ad,companion:null};
+ }
+ return ad;
+}
 function setupStockAdvertRedraw(ad){
  if(ad.placement_key!=='stock_grid')return;
  const grid=document.getElementById('stockGrid');if(!grid||grid.__anybikeStockAdvertObserver)return;
@@ -271,6 +290,17 @@ function placementMatchesTemplate(ad){
  if(key==='main_end')return path!='/available-stock.html'&&!main.querySelector('#databaseHeroPhoto');
  return false;
 }
+function pairedManagedCard(ad){
+ const primary=buildMoveHouseCard(ad);if(!primary)return null;
+ if(!ad.paired_layout||!ad.companion||ad.placement_key==='stock_grid')return primary;
+ const secondary=buildMoveHouseCard({...ad.companion,placement_key:ad.placement_key,
+  creative_format:ad.creative_format,slot_code:templateAdSlotCode(ad)},true);
+ if(!secondary)return primary;
+ ensurePairStyles();
+ const pair=node('div');pair.className='anybike-ad-pair';pair.dataset.adSlotCode=templateAdSlotCode(ad);
+ pair.append(primary,secondary);
+ return pair;
+}
 function installMoveHouse(ad){
  if(!isPublicUkCustomerPage()||!ad)return false;
  // Adopt the exact position of existing approved Move artwork in dealer,
@@ -289,7 +319,7 @@ function installMoveHouse(ad){
   return true;
  }
  const main=document.querySelector('main');if(!main)return false;
- const card=buildMoveHouseCard(ad);if(!card)return false;
+ const card=pairedManagedCard(ad);if(!card)return false;
  switch(ad.placement_key){
   case 'before_sources':positionModelMoveAdvert(main,card);break;
   case 'about_wrap':positionEditorialMoveAdvert(main,card);break;
@@ -331,8 +361,9 @@ export async function renderMoveHouseOnUkPage(options={}){
  try{
   const result=await send(request);
   if(!result?.ad||!await validateAdvertArtwork(result.ad))return;
-  setupStockAdvertRedraw(result.ad);
-  installMoveHouse(result.ad);
+  const ad=await verifiedCompanion(result.ad);
+  setupStockAdvertRedraw(ad);
+  installMoveHouse(ad);
  }catch(error){console.warn('Move advertising campaign could not be verified',error);}
 }
 
@@ -349,8 +380,9 @@ export async function renderAdvertising(context){
    {action:'select_page',page_path:context.pagePath,country:context.country});
   if(n!==generation||!ad)return;
   if(!await validateAdvertArtwork(ad))return;
-  setupStockAdvertRedraw(ad);
-  installMoveHouse(ad);
+  const ready=await verifiedCompanion(ad);
+  setupStockAdvertRedraw(ready);
+  installMoveHouse(ready);
  }catch(error){console.warn('Managed advertising unavailable',error);}
 }
 
