@@ -346,7 +346,7 @@ function renderContactCards(shown){
      '<div><span>Last invitation</span><strong>'+esc(contactDate(r))+'</strong></div>'+
      '<div><span>Invitation permission</span><strong>'+esc(consent?'Approved':'Not approved')+'</strong></div>'+
     '</div><div class="dealer-contact-actions">'+
-     '<button type="button" data-card-channel="both"'+(prohibited?' disabled':'')+'>Review</button>'+
+     '<button type="button" data-card-channel="both"'+(registered?' disabled':'')+'>'+(consent?'Review':'Review permission')+'</button>'+
      '<button type="button" data-card-channel="email"'+(prohibited||!emailOK?' disabled title="Approved permission and valid email required"':'')+'>Email invitation</button>'+
      '<button type="button" data-card-channel="sms"'+(prohibited||!smsOK?' disabled title="'+(registered?'Already registered':!smsOK?'No valid UK 07 mobile recorded':'Review and approve invitation permission first')+'"':'')+'>SMS invitation</button>'+
      '<button type="button" data-card-edit="'+id+'">Edit contact</button>'+
@@ -405,6 +405,8 @@ function renderContactCards(shown){
   const fresh=$('contactCards').querySelector('[data-card-id="'+id+'"]');
   if(!fresh)return;
   const channel=button.dataset.cardChannel,buttons=[...fresh.querySelectorAll('[data-card-channel]')];
+  const recordForPermission=items.find(x=>x.id===id);
+  if(channel==='both'&&recordForPermission&&!recordForPermission.approved_for_invitation&&!isAlreadyRegisteredContact(recordForPermission)){recentlySavedContactId=null;edit(id,{inCard:true});return;}
   buttons.forEach(b=>b.disabled=true);
   try{await reviewSingleQuickInvite(channel,{card:true});}
   finally{
@@ -413,8 +415,8 @@ function renderContactCards(shown){
     target.querySelectorAll('[data-card-channel]').forEach(b=>{
      const n=String(record.phone||'').replace(/\s/g,'');
      const e=String(record.email||'');
-     b.disabled=!record.approved_for_invitation||
-      ['registered','approved'].includes(contactRecruitmentStatus(record))||
+     b.disabled=isAlreadyRegisteredContact(record)||
+      (b.dataset.cardChannel!=='both'&&!record.approved_for_invitation)||
       (b.dataset.cardChannel==='sms'&&!/^07\d{9}$/.test(n))||
       (b.dataset.cardChannel==='email'&&(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)||/^unknown@/i.test(e)||/@app\.movemotorcycles\.co\.uk$/i.test(e)));
     });
