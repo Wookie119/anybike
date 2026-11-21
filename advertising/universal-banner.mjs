@@ -52,6 +52,12 @@ function buildMoveHouseCard(ad,companion=false){
  img.loading='lazy';img.decoding='async';img.style.cssText=stock
   ?'display:block;position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:contain;object-position:center;border-radius:12px'
   :'display:block;width:100%;height:auto;max-width:100%;aspect-ratio:auto;object-fit:contain;border-radius:12px';
+ if(stock){
+  // Background extends the extra height. Foreground remains uncropped.
+  link.style.backgroundImage='url('+JSON.stringify(desktop)+')';
+  link.style.backgroundSize='cover';
+  link.style.backgroundPosition='center';
+ }
  picture.append(source,img);link.append(picture);card.append(link);
  const disclosure=node('small',ad.disclosure||'Advertisement · '+String(ad.partner_name||'Advertiser'));
  disclosure.style.cssText='display:block;clear:both;font:11px/1.35 Arial,sans-serif;color:#aaa;padding:4px 2px 0;margin:0;background:transparent;border:0;white-space:normal;position:static';
@@ -298,14 +304,57 @@ async function verifiedCompanion(ad){
  }
  return ad;
 }
+// Synchronise the advert with a real motorcycle card, including Firefox zoom.
+// Keep the approved image intact while its background fills any spare space.
+function syncStockCardHeight(grid){
+ const ad=grid.querySelector('.anybike-move-stock-ad');
+ const bike=grid.querySelector(':scope > article.card:not(.anybike-move-stock-ad)');
+ if(!ad||!bike)return;
+ const link=ad.querySelector(':scope > a');
+ const note=ad.querySelector(':scope > small');
+ if(!link||!note)return;
+ const height=Math.ceil(bike.getBoundingClientRect().height);
+ const caption=Math.ceil(note.getBoundingClientRect().height);
+ if(height<100)return;
+ const artworkHeight=Math.max(100,height-caption);
+ ad.style.setProperty('height',height+'px','important');
+ ad.style.setProperty('min-height',height+'px','important');
+ link.style.setProperty('height',artworkHeight+'px','important');
+ link.style.setProperty('min-height',artworkHeight+'px','important');
+ link.style.setProperty('flex','0 0 auto','important');
+}
+function scheduleStockCardHeight(grid){
+ if(grid.__anybikeStockSizePending)return;
+ grid.__anybikeStockSizePending=true;
+ requestAnimationFrame(()=>{grid.__anybikeStockSizePending=false;syncStockCardHeight(grid)});
+}
+function watchStockCardSize(grid){
+ const bike=grid.querySelector(':scope > article.card:not(.anybike-move-stock-ad)');
+ if(!bike)return;
+ if(grid.__anybikeStockMeasuredBike===bike)return;
+ grid.__anybikeStockMeasuredBike=bike;
+ grid.__anybikeStockSizeObserver?.disconnect();
+ if(typeof ResizeObserver==='function'){
+  grid.__anybikeStockSizeObserver=new ResizeObserver(()=>scheduleStockCardHeight(grid));
+  grid.__anybikeStockSizeObserver.observe(bike);
+ }
+ if(!grid.__anybikeStockWindowResize){
+  grid.__anybikeStockWindowResize=true;
+  window.addEventListener('resize',()=>scheduleStockCardHeight(grid),{passive:true});
+ }
+ scheduleStockCardHeight(grid);
+}
 function setupStockAdvertRedraw(ad){
  if(ad.placement_key!=='stock_grid')return;
  const grid=document.getElementById('stockGrid');if(!grid||grid.__anybikeStockAdvertObserver)return;
  const watch=new MutationObserver(()=>{
   if(!document.getElementById(moveHouseMarker))installMoveHouse(ad);
+  watchStockCardSize(grid);
+  scheduleStockCardHeight(grid);
  });
  watch.observe(grid,{childList:true});
  grid.__anybikeStockAdvertObserver=watch;
+ watchStockCardSize(grid);
 }
 // Exact page/template slot contract. A missing or mismatched anchor means NO
 // advert; never guess or insert into a random section of a model template.
@@ -350,6 +399,8 @@ function installMoveHouse(ad){
   if(!children.length)return false;
   const card=buildMoveHouseCard(ad);if(!card)return false;
   children[Math.min(children.length,6)-1].after(card);
+  watchStockCardSize(grid);
+  scheduleStockCardHeight(grid);
   return true;
  }
  const main=document.querySelector('main');if(!main)return false;
