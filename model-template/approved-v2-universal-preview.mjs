@@ -296,7 +296,7 @@ function organiseUniversalFactoryResearch(body){
 async function isConfirmedUkVisitor(){
  try{
   const response=await fetch(ENDPOINT+'/functions/v1/visitor-market-country',
-   {method:'GET',cache:'no-store'});
+   {method:'GET',cache:'no-store',signal:AbortSignal.timeout(4500)});
   if(!response.ok)return false;
   const result=await response.json();
   return String(result?.country_code||'').toUpperCase()==='GB';
@@ -743,7 +743,10 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // Guest requests do not depend on a successful optional login check.
   const optionalVisitorToken=async()=>{
    try{
-    const session=await client?.auth?.getSession?.();
+    const session=await Promise.race([
+     Promise.resolve(client?.auth?.getSession?.()),
+     new Promise(resolve=>setTimeout(()=>resolve(null),2000))
+    ]);
     return typeof session?.data?.session?.access_token==='string'?session.data.session.access_token:null;
    }catch(error){console.warn('Optional visitor session unavailable; continuing as guest');return null;}
   };
@@ -1395,7 +1398,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   try{
    const token=await optionalVisitorToken();
    const res=await fetch(ENDPOINT+'/functions/v1/international-public-stock',
-    {cache:'no-store',headers:token?{Authorization:'Bearer '+token}:{}});
+    {cache:'no-store',signal:AbortSignal.timeout(11000),headers:token?{Authorization:'Bearer '+token}:{}});
    if(res.status===401||res.status===403){
     feedState='restricted';
    }else if(!res.ok){
