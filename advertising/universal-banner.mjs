@@ -218,11 +218,18 @@ function adoptLegacyMove(ad){
   link.style.cssText='display:block;width:100%;height:auto;min-width:0;border-radius:12px;overflow:hidden;background:#101010;text-decoration:none';
   const picture=link.querySelector('picture');
   if(picture){picture.style.cssText='display:block;width:100%;height:auto;min-width:0;overflow:hidden;border-radius:12px';
+   // Older dashboard CSS forced fixed mobile picture ratios. The approved
+   // artwork now owns the aspect ratio on every device, without cropping.
+   picture.style.setProperty('aspect-ratio','auto','important');
+   picture.style.setProperty('height','auto','important');
    for(const source of picture.querySelectorAll('source'))source.srcset=urls.mobile;
   }
   const image=link.querySelector('img');
   if(image){image.src=urls.desktop;image.alt=typeof ad.alt_text==='string'?ad.alt_text:'';
-   image.style.cssText='display:block;width:100%;height:auto;max-width:100%;object-fit:contain;border-radius:12px';}
+   image.style.cssText='display:block;width:100%;height:auto;max-width:100%;object-fit:contain;border-radius:12px';
+   image.style.setProperty('aspect-ratio','auto','important');
+   image.style.setProperty('height','auto','important');
+   image.style.setProperty('object-fit','contain','important');}
   let note=link.nextElementSibling;
   if(!note||!note.matches('[data-anybike-ad-disclosure]')){
    const oldNote=[...link.parentElement.children].find(x=>x!==link&&
@@ -233,7 +240,7 @@ function adoptLegacyMove(ad){
    note=node('small');note.dataset.anybikeAdDisclosure='1';link.after(note);
   }
   note.textContent=ad.disclosure||'Advertisement · '+String(ad.partner_name||'Advertiser');
-  note.style.cssText='display:block;font:10px/1.35 Arial,sans-serif;color:#aaa;padding:3px 2px 0;margin:0;background:transparent';
+  note.style.cssText='display:block;font:11px/1.35 Arial,sans-serif;color:#aaa;padding:3px 2px 0;margin:0;background:transparent';
   attachLegacyTracking(link,ad);
   if(ad.paired_layout&&ad.companion&&!link.closest('.anybike-ad-pair')){
    const secondary=buildMoveHouseCard({...ad.companion,placement_key:ad.placement_key,
