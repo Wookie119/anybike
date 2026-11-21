@@ -106,7 +106,7 @@ function positionExportMoveAdvert(main,card){
  if(!container){
   container=node('div');
   container.id='anybike-move-export-wrap';
-  container.style.cssText='width:100%;max-width:1320px;margin:22px auto 28px;padding:0 24px;box-sizing:border-box;min-width:0';
+  container.style.cssText='max-width:1200px;margin:22px auto 28px;padding:0 24px;box-sizing:content-box;min-width:0';
   main.append(container);
  }
  container.append(card);
