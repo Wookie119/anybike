@@ -398,7 +398,7 @@ export async function renderMoveHouseOnUkPage(options={}){
   const id=Number(identity?.model_id);
   request=Number.isSafeInteger(id)&&id>0?
    {action:'select',model_id:id,country:'GB'}:
-   {action:'select_page',page_path:location.pathname==='/'?'/index.html':location.pathname,country:'GB'};
+   {action:'select_page',page_path:location.pathname==='/'?'/index.html':/^\/uk\/vmoto\.html$/i.test(location.pathname)?'/vmoto.html':location.pathname,country:'GB'};
  }catch{return;}
  try{
   const result=await send(request);
