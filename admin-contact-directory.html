@@ -778,23 +778,20 @@ function richInvitationHtml(r){
   return '<p>'+html+'</p>';
  }).join('')+'</div>';
 }
-function downloadOutlookHtmlDraft(r){
-  const subject=invitationSubject(r);
-  const body='<!doctype html><html><head><meta charset="utf-8"></head><body>'+richInvitationHtml(r)+'</body></html>';
-  // MIME base64 prevents Outlook from mangling non-ASCII punctuation and HTML.
-  const base64=btoa(Array.from(new TextEncoder().encode(body),byte=>String.fromCharCode(byte)).join(''));
-  const subject64=btoa(Array.from(new TextEncoder().encode(subject),byte=>String.fromCharCode(byte)).join(''));
-  const encodedBody=base64.match(/.{1,76}/g).join('\r\n');
-  const email=String(r.email||'').replace(/[\r\n]/g,'').trim();
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))throw Error('Invalid recipient email');
-  const eml=['X-Unsent: 1','To: '+email,'Subject: =?UTF-8?B?'+subject64+'?=','MIME-Version: 1.0','Content-Type: text/html; charset=UTF-8','Content-Transfer-Encoding: base64','',''+encodedBody,''].join('\r\n');
-  const file=new Blob([eml],{type:'message/rfc822'});
-  const url=URL.createObjectURL(file);
-  const link=document.createElement('a');
-  link.href=url;link.download='AnyBike-invitation-'+r.id+'.eml';document.body.append(link);link.click();link.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),60000);
- }
-
+async function openOutlookFormattedDraft(r){
+ const email=String(r.email||'').replace(/[\r\n]/g,'').trim();
+ if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))throw Error('Invalid recipient email.');
+ if(!window.ClipboardItem||!navigator.clipboard?.write)throw Error('Formatted clipboard unavailable. Click Copy formatted email and paste into Outlook.');
+ // The mailto protocol cannot transport HTML. Copy the genuine HTML button
+ // first, then open the user's default Outlook compose window with recipient
+ // and subject but NO misleading plain-text replacement body.
+ await navigator.clipboard.write([new ClipboardItem({
+  'text/html':new Blob([richInvitationHtml(r)],{type:'text/html'}),
+  'text/plain':new Blob([emailBody(r)],{type:'text/plain'})
+ })]);
+ window.location.href='mailto:'+encodeURIComponent(email)+'?subject='+encodeURIComponent(invitationSubject(r));
+ return 'Outlook draft requested. Press Ctrl+V in the blank message body to insert the formatted AnyBike invitation with its red button. Check From: sales@anybike.co.uk and the button before sending. Nothing sent automatically.';
+}
 let smsHistory=new Map();
 async function refreshContactSmsSummary(){lastSmsByContact=new Map();for(let offset=0;;offset+=750){const {data,error}=await db.from('anybike_invitation_sms_log').select('contact_id,status,requested_at,sent_at').order('requested_at',{ascending:false}).range(offset,offset+749);if(error)throw error;for(const s of data||[]){if(s.contact_id&&!lastSmsByContact.has(s.contact_id)&&['sent','submitted','delivered'].includes(String(s.status||'').toLowerCase()))lastSmsByContact.set(s.contact_id,s)}if(!data||data.length<750)break}}
 async function refreshSmsHistory({savedSmsOnly=false,onlyContactId=null}={}){
@@ -827,7 +824,7 @@ async function reviewInvitations({savedSmsOnly=false,channel='both',onlyContactI
  const canEmail=queue.some(t=>t.id===r.id),canSms=smsQueue.some(t=>t.id===r.id),alreadyEmail=!!r.email_invite_sent_at;
  return '<article data-review-contact="'+r.id+'" style="border:1px solid #555;border-radius:9px;padding:14px;background:#191919"><h3>'+esc(r.company||'Dealership')+' — '+esc([r.first_name,r.last_name].filter(Boolean).join(' ')||'Contact')+'</h3><button type="button" data-skip-review="'+r.id+'" style="background:#333;border:1px solid #777;margin:3px 0 9px" title="Skip this contact for now without changing any records">Skip this contact →</button>'+
   (canSms?'<details open style="margin:12px 0;border-top:1px solid #555;padding:10px 0"><summary style="cursor:pointer;font-weight:700">SMS invitation to '+esc(r.phone)+' — ready to review'+'</summary><div>'+(smsHistory.has(r.id)?'<p style="color:#a7e7ab">Previous SMS: '+esc(smsHistory.get(r.id).status)+' · '+esc(smsHistory.get(r.id).sent_at||smsHistory.get(r.id).requested_at||'')+' · Ref '+esc(smsHistory.get(r.id).provider_message_id||smsHistory.get(r.id).id)+'</p>':'<p>No SMS invitation recorded.</p>')+'<pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:13px Arial;background:#fff;color:#222;padding:12px;border-radius:6px">'+esc(smsMessage(r))+'</pre>'+ '<button type="button" data-send-sms="'+r.id+'" '+(smsHistory.has(r.id)&&['sending','submitted','delivered'].includes(smsHistory.get(r.id).status)?'disabled title="Previous SMS recorded — check status before resending"':'')+' style="background:#ad252d;color:white;border-color:#d54049">'+(smsHistory.has(r.id)&&['sending','submitted','delivered'].includes(smsHistory.get(r.id).status)?'SMS already submitted — check history':'Send SMS from AnyBike')+'</button><p data-sms-status="'+r.id+'" role="status" style="font-size:13px;color:#ddd;margin:8px 0">Approved contact. Sending requires your final confirmation.</p><button type="button" data-preview-sms-link="'+r.id+'">Open invitation link</button><button data-open-sms="'+r.id+'">Open SMS draft</button><button data-copy-sms="'+r.id+'">Copy SMS text</button><p style="font-size:12px;color:#bbb">The recipient gets a tappable website link in the text; graphic buttons are not supported by standard SMS.</p></div></details>':'')+
- (canEmail?'<div style="margin:12px 0"><b>Email to: '+esc(r.email)+'</b>'+(alreadyEmail?'<p style="color:#a7e7ab">✓ Sent in Outlook (manually confirmed): '+esc(new Date(r.email_invite_sent_at).toLocaleString('en-GB'))+'</p>':'<p>Not recorded as sent.</p>')+'<p><b>Subject:</b> '+esc(invitationSubject(r))+'</p><div style="background:#fff;color:#222;padding:14px;border-radius:6px">'+richInvitationHtml(r)+'</div><button data-copy-rich="'+r.id+'">Copy formatted email (with button)</button><p data-email-draft-status="'+r.id+'" role="status" style="font-size:12px;color:#ddd">Use Download Outlook draft to keep the red button. Ordinary mailto drafts only support plain text.</p><button data-confirm-email="'+r.id+'" '+(alreadyEmail?'disabled':'')+' style="background:#20582f;border-color:#328447">'+(alreadyEmail?'✓ Email sent recorded':'Confirm sent in Outlook')+'</button><button data-open-email="'+r.id+'" style="background:#9c2630;color:white;border:1px solid #b44">Download Outlook draft with button</button></div>':'')+
+ (canEmail?'<div style="margin:12px 0"><b>Email to: '+esc(r.email)+'</b>'+(alreadyEmail?'<p style="color:#a7e7ab">✓ Sent in Outlook (manually confirmed): '+esc(new Date(r.email_invite_sent_at).toLocaleString('en-GB'))+'</p>':'<p>Not recorded as sent.</p>')+'<p><b>Subject:</b> '+esc(invitationSubject(r))+'</p><div style="background:#fff;color:#222;padding:14px;border-radius:6px">'+richInvitationHtml(r)+'</div><button data-copy-rich="'+r.id+'">Copy formatted email (with button)</button><p data-email-draft-status="'+r.id+'" role="status" style="font-size:12px;color:#ddd">Click Open Outlook, then press Ctrl+V in the message body to insert the red AnyBike button. Outlook will not paste it automatically.</p><button data-confirm-email="'+r.id+'" '+(alreadyEmail?'disabled':'')+' style="background:#20582f;border-color:#328447">'+(alreadyEmail?'✓ Email sent recorded':'Confirm sent in Outlook')+'</button><button data-open-email="'+r.id+'" style="background:#9c2630;color:white;border:1px solid #b44">Open Outlook — paste invitation</button></div>':'')+
  '</article>';
  }).join('');
  $('invitePreviews').querySelectorAll('[data-skip-review]').forEach(btn=>btn.onclick=()=>{const card=btn.closest('[data-review-contact]');if(!card)return;const id=Number(btn.dataset.skipReview),next=card.nextElementSibling;chosen.delete(id);queue=queue.filter(r=>r.id!==id);smsQueue=smsQueue.filter(r=>r.id!==id);card.remove();document.querySelectorAll('[data-card-select="'+id+'"], [data-pick="'+id+'"]').forEach(input=>{input.checked=false;input.closest('[data-card-id]')?.classList.remove('is-selected')});updateQuickInviteSelection();updateBulkContactReview();refreshBulkPreviewSummary();$('queue').textContent='Skipped one contact; all other selections are retained. No invitation sent.';if(next)next.scrollIntoView({behavior:'smooth',block:'nearest'});});
@@ -840,17 +837,17 @@ async function reviewInvitations({savedSmsOnly=false,channel='both',onlyContactI
  Object.assign(r,data);chosen.delete(r.id);smsChosen.delete(r.id);queue=queue.filter(t=>t.id!==r.id);smsQueue=smsQueue.filter(t=>t.id!==r.id);btn.textContent='✓ Email sent recorded';$('queue').textContent='Outlook sending manually confirmed for '+r.email+'. Receipt/delivery not verified.';const reviewCard=btn.closest('[data-review-contact]');if(reviewCard&&$('bulkReviewResults')&&!$('bulkReviewResults').hidden){reviewCard.remove();refreshBulkPreviewSummary();}render();
  });
  $('invitePreviews').querySelectorAll('[data-copy-rich]').forEach(btn=>btn.onclick=async()=>{const r=queue.find(x=>x.id===Number(btn.dataset.copyRich));const html=richInvitationHtml(r);try{if(!window.ClipboardItem||!navigator.clipboard?.write)throw Error('Rich clipboard unsupported');await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([emailBody(r)],{type:'text/plain'})})]);$('queue').textContent='Formatted email copied for '+r.email+'. Open a new message FROM sales@anybike.co.uk, address it to '+r.email+', and paste with Ctrl+V. The red button should be included. Your Outlook signature can stay underneath.'}catch(e){$('queue').textContent='Could not copy formatted HTML. Please try Edge or Chrome over HTTPS. Nothing sent.'}});
- $('invitePreviews').querySelectorAll('[data-open-email]').forEach(btn=>btn.onclick=()=>{
+ $('invitePreviews').querySelectorAll('[data-open-email]').forEach(btn=>btn.onclick=async()=>{
   const r=queue.find(x=>x.id===Number(btn.dataset.openEmail));if(!r)return;
   if(r.email_invite_sent_at&&!confirm('This contact already has a confirmed sent email. Prepare another draft?'))return;
   const status=btn.closest('[data-review-contact]')?.querySelector('[data-email-draft-status]');
   const report=t=>{if(status)status.textContent=t;$('queue').textContent=t;};
-  try{
-   downloadOutlookHtmlDraft(r);
-   report('Formatted Outlook email downloaded with the red AnyBike button. Open the .eml file in Outlook, check the From account and button, then send manually. If Outlook opens it read-only, use Copy formatted email and paste into a new Outlook message.');
-  }catch(e){report('Could not prepare the HTML draft: '+e.message+'. Use Copy formatted email and paste it into a new Outlook email. Nothing sent.');}
+  btn.disabled=true;
+  try{report(await openOutlookFormattedDraft(r));}
+  catch(e){report('Unable to open a formatted draft: '+e.message+' No file downloaded. Use Copy formatted email, open Outlook, and press Ctrl+V.');}
+  finally{btn.disabled=false;}
  });
-  $('invitePreviews').querySelectorAll('[data-send-sms]').forEach(btn=>btn.onclick=async()=>{
+ $('invitePreviews').querySelectorAll('[data-send-sms]').forEach(btn=>btn.onclick=async()=>{
   const r=smsQueue.find(x=>x.id===Number(btn.dataset.sendSms));
   const message=btn.closest('[data-review-contact]')?.querySelector('[data-sms-status]');
   const report=text=>{if(message)message.textContent=text;const queueStatus=$('queue');if(queueStatus)queueStatus.textContent=text;};
@@ -1013,6 +1010,6 @@ $('simpleContactReset').onclick=()=>{cardQuickFilter='all';$('simpleContactQuery
 document.querySelectorAll('[data-recruitment-go]').forEach(btn=>btn.addEventListener('click',()=>{const status=btn.getAttribute('data-recruitment-go');$('recruitmentFilter').value=status;$('emailSentFilter').value='all';page=0;render();$('recruitmentQuickStatus').textContent=status==='invited'?'Showing invited contacts awaiting registration. Check their history before contacting them again.':status==='not_invited'?'Showing contacts without a recorded invitation. Permission is required before preparing an invitation.':'Showing registered dealer contacts awaiting approval.';($('directoryTable').hidden?$('contactCards'):$('directoryTable')).scrollIntoView({behavior:'smooth',block:'start'});}));
 
 $('smsDraft').onclick=()=>{if(smsPos>=smsQueue.length)return;const r=smsQueue[smsPos],number=String(r.phone||'').replace(/\s/g,'');if(!/^07\d{9}$/.test(number)){alert('A valid UK mobile is required.');return;}const msg=smsMessage(r);if(msg.length>160){alert('Message too long for one SMS');return;}if(!confirm('SMS preview:\\n\\n'+msg+'\\n\\nOpen an SMS draft for '+(r.first_name||r.email)+' at '+number+'? You will review and send it in your messaging app.'))return;smsPos++;$('queue').textContent='SMS draft '+smsPos+'/'+smsQueue.length+' opened for '+number+'. Review and send it in your SMS app; sending is not tracked automatically.';window.location.href='sms:'+number+'?body='+encodeURIComponent(msg);$('smsDraft').disabled=smsPos===smsQueue.length};
-$('draft').onclick=()=>{if(pos>=queue.length)return;const r=queue[pos];try{downloadOutlookHtmlDraft(r);pos++;$('queue').textContent='Formatted HTML Outlook draft downloaded for '+r.email+'. Open the .eml file in Outlook, verify the red button and From account before sending.';$('draft').disabled=pos>=queue.length;}catch(e){$('queue').textContent='Draft could not be downloaded: '+e.message+'. No email sent.'}};
+$('draft').onclick=async()=>{if(pos>=queue.length)return;const r=queue[pos];try{$('queue').textContent=await openOutlookFormattedDraft(r);pos++;$('draft').disabled=pos>=queue.length;}catch(e){$('queue').textContent='Cannot open formatted Outlook draft: '+e.message+'. Use Copy formatted email and paste it into a new Outlook message. Nothing sent.'}};
 (async()=>{try{if(!await requireAdminSession())return;document.documentElement.classList.remove('admin-auth-pending');await load()}catch(e){document.documentElement.classList.remove('admin-auth-pending');$('status').textContent=e.message}})();
 </script></body></html>
