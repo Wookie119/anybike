@@ -1467,7 +1467,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   showUniversalVerification(make,model,canonicalId);
   done();
   // Isolated optional advertising; failure must not alter the approved model renderer.
-  if(hasCanonicalId) import('/advertising/universal-banner.mjs?v=20261122-stock-full-bleed13').then(m=>m.renderMoveHouseOnUkPage()).catch(()=>{});
+  if(hasCanonicalId) import('/advertising/universal-banner.mjs?v=20261122-unified-disclosure14').then(m=>m.renderMoveHouseOnUkPage()).catch(()=>{});
  }catch(error){
   console.error('Universal V2 master failed safely',error);
   // Never leave a permanent stock-loading message after another RPC fails.
