@@ -3182,5 +3182,5 @@ async function anybikeShowPublicSignedInIdentity(){
  }
 })();
 
-/* Universal commercial placements — opt-in and non-blocking. */
-(function(){const path=location.pathname;if(!/^\/markets\/[a-z0-9-]+\.html$/i.test(path)&&!['/bmw-motorcycles.html','/harley-davidson-motorcycles.html'].includes(path))return;const start=()=>import('/advertising/universal-banner.mjs?v=20261121-4').then(m=>m.renderPublicPageAdvertising()).catch(()=>{});if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start()})();
+/* Shared UK-facing Move advert, available to guests and signed-in customers. */
+(function(){const path=location.pathname;if(/^\/(?:admin(?:-|\/)|markets\/|international-)/i.test(path))return;const start=()=>import('/advertising/universal-banner.mjs?v=20261121-5').then(m=>m.renderMoveHouseOnUkPage()).catch(()=>{});if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start()})();
