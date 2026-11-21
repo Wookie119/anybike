@@ -8,7 +8,6 @@ let generation=0,observer=null;
 // Uses the approved five-size blue/gold Move artwork without changing model files.
 // This UK house placement does not depend on customer login.
 const moveHouseMarker='anybike-move-universal-house-ad';
-let moveHouseReady=null;
 const legacyMoveAnchors=()=>[...document.querySelectorAll('a[href*="movemotorcycles.co.uk"]')].filter(a=>!!a.querySelector('img,picture')&&!a.closest('#'+moveHouseMarker));
 const existingMoveAdvert=()=>legacyMoveAnchors().some(a=>a.getClientRects().length>0);
 const isPublicUkCustomerPage=()=>{
@@ -354,17 +353,8 @@ function installMoveHouse(ad){
 // This transitional bridge prevents unapproved static artwork from bypassing Admin.
 export async function renderMoveHouseOnUkPage(options={}){
  if(!isPublicUkCustomerPage())return;
- if(moveHouseReady===null){
-  moveHouseReady=(async()=>{
-   try{
-    const res=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/visitor-market-country',{cache:'no-store',signal:AbortSignal.timeout(4500)});
-    if(!res.ok)return false;
-    const data=await res.json();
-    return data?.country_code==='GB';
-   }catch{return false;}
-  })();
- }
- if(!await moveHouseReady)return;
+ // The advertising Edge Function verifies the visitor country itself.
+ // An extra browser-side geo request can stall or incorrectly suppress ads.
  // The advertising service, not this browser bundle, decides whether
  // a campaign and its placement are actually eligible.
  let request;
