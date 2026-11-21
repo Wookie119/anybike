@@ -73,14 +73,18 @@ Deno.serve(async req=>{
  if(!contact.sms_invite_selected||!contact.sms_permission_verified_at||String(contact.sms_marketing_permission||"").trim().length<12)return send(origin,{success:false,error:"Recorded SMS marketing permission is required before sending a text"},409);
  const phone=String(contact.phone||"").replace(/\s/g,"");
  if(!/^07\d{9}$/.test(phone))return send(origin,{success:false,error:"Contact requires a valid UK mobile"},400);
- const {data:recent,error:re}=await db.from("anybike_invitation_sms_log").select("id,requested_at,status").eq("contact_id",id).in("status",["sending","submitted"]).gte("requested_at",new Date(Date.now()-24*3600*1000).toISOString()).order("requested_at",{ascending:false}).limit(1);
+ // A contact or phone already sent an invitation must never be invited again,
+ // even after a day or via a duplicate imported contact row.
+ const recipient="+44"+phone.substring(1);
+ const {data:recent,error:re}=await db.from("anybike_invitation_sms_log")
+  .select("id,requested_at,status").eq("recipient",recipient)
+  .in("status",["sending","submitted","sent","delivered"]).order("requested_at",{ascending:false}).limit(1);
  if(re)throw re;
- if(recent?.length&&!payload.force)return send(origin,{success:false,error:"An invitation was already submitted in the last 24 hours. Check the log before trying again."},409);
+ if(recent?.length)return send(origin,{success:false,error:"An SMS invitation is already recorded for this mobile. No duplicate text was sent."},409);
  // The actual provider message is generated on the server, not accepted as
  // arbitrary client text. Both is suitable for unclassified contacts and
  // never addresses recipients as dealership contacts without evidence.
  const text=invitationText(invitationType);
- const recipient="+44"+phone.substring(1);
  const {data:log,error:le}=await db.from("anybike_invitation_sms_log").insert({contact_id:id,recipient,message_body:text,sent_by:user.id}).select("id").single();
  if(le||!log)throw le||Error("Unable to record sending attempt");
  try{
