@@ -147,8 +147,8 @@ assert(page.includes("view().slice(page*pageSize(),page*pageSize()+pageSize()).f
  'Select visible must never select unrelated directory pages');
 assert(page.includes('updateBulkContactReview()'),
  'Current selected counts must update without opening the dense directory');
-assert(page.includes("await reviewInvitations({channel:'email'})"),
- 'Multi-contact review prepares email drafts and never sends them');
+assert(page.includes("await reviewInvitations({channel:'both',includeSmsDrafts:true})"),
+ 'Multi-contact review includes gated SMS and email drafts without sending');
 assert(page.includes("slot.replaceChildren(preview)"),
  'Bulk preview must move the existing guarded previews, not copy send handlers');
 assert(page.includes("const approved=items.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r)&&(savedSmsOnly||matchingIds.has(r.id))&&(onlyContactId===null||r.id===onlyContactId)&&invitationAudienceMatches(r))"),
@@ -177,8 +177,8 @@ assert(page.includes("$('bulkReviewContacts').disabled=!selected.length"),
  'Ten selected contacts must have an enabled review action even with zero approvals');
 assert(page.includes("needsReview.length?'Review permission ('+needsReview.length+')'"),
  'Button should show bulk review rather than one-by-one permissions');
-assert(page.includes("await reviewInvitations({channel:'email'})"),
- 'After saved bulk review, email drafts remain separately prepared, never sent automatically');
+assert(page.includes("await reviewInvitations({channel:'both',includeSmsDrafts:true})"),
+ 'After saved bulk review, drafts are separately prepared, never sent automatically');
 assert(page.includes("marketing_permission:note"),
  'Bulk permission must record review evidence alongside approval');
 
@@ -311,10 +311,18 @@ assert(page.includes("AnyBike invitation — motorcycles for owners and dealers"
 assert(page.includes("https://www.anybike.co.uk/sell-your-motorcycle.html"),'Combined invitation must include free selling');
 assert(page.includes("https://www.anybike.co.uk/uk-dealer-welcome.html"),'Combined invitation must include dealer registration');
 assert(page.includes("kind==='both'?[['https://www.anybike.co.uk/sell-your-motorcycle.html'"),'Combined email HTML must render two CTAs');
-assert(page.includes("invitationTypeFor(r)!=='dealer'?'disabled"),'Combined invitation must not use dealer-only direct SMS sender');
+assert(page.includes("body:{contact_id:r.id,confirm_send:true,invitation_type:invitationTypeFor(r)}"),'Direct SMS sending must use the reviewed dealer/private/both invitation type');
 assert(page.includes("#bulkPreviewSlot{display:grid;gap:12px;max-height:72vh;overflow-y:auto"),'Bulk previews need a bounded vertical scroll area');
 assert(page.includes('aria-label="Scrollable invitation drafts"'),'Preview list must be accessible to keyboard scrolling');
 assert(page.includes("Scroll inside the invitation list to review the next contact"),'The review must explain where to scroll');
+assert(page.includes("includeSmsDrafts=false"),'SMS previews must be opt-in for bulk review, not silently added to individual email actions');
+assert(page.includes("(r.sms_invite_selected||includeSmsDrafts)"),'Bulk preview must offer SMS draft option for approved mobile contacts');
+assert(page.includes('data-activate-sms'), 'SMS sending must require separate activation for each contact');
+assert(page.includes("update({sms_invite_selected:true})"),'SMS activation records a choice before sending');
+assert(page.includes("if(!r||!r.sms_invite_selected)"),'SMS sender must reject contacts without a saved SMS choice');
+assert(page.includes("if(!confirm('Send this SMS now to '"),'Sending a chargeable SMS requires final confirmation');
+assert(page.includes("data-send-sms"),'Visible SMS send button must exist in each eligible preview');
+assert(page.includes("SMS invitation to '+esc(r.phone)"),'SMS section should be clearly labelled in the same email preview');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
