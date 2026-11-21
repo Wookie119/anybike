@@ -29,7 +29,7 @@ async function initQuotes(){
     throw Error('A direct email attempt is recorded ('+deliveries[0].delivery_status+'). Resolve delivery status before recording a manual send.');
    }
    const current=await checked(db.from('advertising_quotations').select('contact_email').eq('id',q.id).single());
-   if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(current.contact_email||'')))throw Error('Save a valid recipient email on the quotation first.');
+   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(current.contact_email||'')))throw Error('Save a valid recipient email on the quotation first.');
    if(!confirm('Only mark this quotation as sent AFTER actually sending the quotation externally to '+current.contact_email+'. This button does not send an email. Continue?'))return;
   }
   if(next==='accepted'&&!confirm('Have you received and recorded the advertiser’s acceptance? This does not activate advertising or create an invoice.'))return;
