@@ -57,8 +57,10 @@ function installMoveHouse(){
  if(!main)return false;
  // Retain the approved template: add a single optional advert after its hero
  // (or first heading), rather than editing the bike's model content.
- const anchor=main.querySelector(':scope > .hero,:scope > .hero-section,:scope > section.hero,:scope > h1, :scope > header')||
-  main.querySelector('h1,.hero,.hero-section')||main.firstElementChild;
+ // The advert belongs BETWEEN complete page sections, never inside a two-column
+ // manufacturer, model or editorial panel. Prefer the full top-level hero.
+ const anchor=main.querySelector(':scope > .manufacturer-hero,:scope > .hero,:scope > .hero-section,:scope > section.hero,:scope > h1,:scope > header')||
+  main.querySelector(':scope > section,:scope > article,:scope > div')||main.firstElementChild;
  if(!anchor)return false;
  anchor.after(buildMoveHouseCard(false));
  // Some dealer dashboards insert their approved Move creative after async loading.
