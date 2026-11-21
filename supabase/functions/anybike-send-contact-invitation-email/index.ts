@@ -44,6 +44,18 @@ Deno.serve(async req=>{
   const {data:admin,error:adminError}=await db.from("admin_users").select("user_id").eq("user_id",user.id).eq("active",true).maybeSingle();
   if(adminError||!admin)return reply(origin,{success:false,error:"Administrator access required"},403);
   const payload=await req.json().catch(()=>({}));
+  // Admin-only preview, delivered ONLY to the fixed owner test inbox.
+  // Never reads/changes customer approval, contact or invitation log.
+  if(payload.action==="send_test"){
+   const type=String(payload.invitation_type||"");
+   if(!["dealer","private","both"].includes(type)||payload.confirm_send!==true)return reply(origin,{success:false,error:"Confirm a valid invitation type for the test"},400);
+   const testTo="mocp@hotmail.co.uk";
+   const letter=content(type,"");
+   const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+resend,"Content-Type":"application/json"},body:JSON.stringify({from:"AnyBike <sales@anybike.co.uk>",to:[testTo],subject:"[TEST] "+letter.subject,html:letter.html,text:letter.plain,reply_to:"sales@anybike.co.uk",tags:[{name:"campaign",value:"contact-invitation-test"}]})});
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok||!result?.id)return reply(origin,{success:false,error:"Test email provider error: "+String(result?.message||response.status).slice(0,200)},502);
+   return reply(origin,{success:true,submitted:true,test:true,recipient:testTo,message_id:String(result.id),note:"Provider accepted test email; inbox delivery not yet verified. No customer record changed."});
+  }
   const id=Number(payload.contact_id),type=String(payload.invitation_type||"");
   if(!Number.isSafeInteger(id)||id<1||!["dealer","private","both"].includes(type)||payload.confirm_send!==true)return reply(origin,{success:false,error:"Choose a valid contact, invitation type and confirm sending"},400);
   const {data:contact,error:contactError}=await db.from("anybike_master_contacts").select("id,first_name,company,email,approved_for_invitation,marketing_permission,email_invite_sent_at").eq("id",id).maybeSingle();
