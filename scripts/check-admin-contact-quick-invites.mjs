@@ -165,26 +165,26 @@ assert(page.includes("updateQuickInviteSelection();updateBulkContactReview()"),'
 assert(page.includes('id="bulkReviewContacts" disabled'),
  'Selected contacts need a visible review action even when none are approved');
 assert(page.includes("$('bulkReviewContacts').onclick=()=>"),
- 'Selected-contact review button must open the permission queue');
-assert(page.includes("edit(r.id,{inCard:true})"),
- 'Bulk selection should open the existing individual contact editor');
+ 'Selected-contact review button must open the bulk-review panel');
+assert(page.includes('id="bulkPermissionPanel" hidden'),
+ 'Bulk selection should open an evidence-based group permission review panel');
 assert(page.includes("!r.approved_for_invitation&&"),
  'Permission review queue should only include contacts needing individual review');
-assert(page.includes("Click Review selected contacts again for the next contact."),
- 'Permission queue must advance by explicit admin action, not automatically approve');
+assert(page.includes("if(!confirm('Approve invitation eligibility for '+candidates.length"),
+ 'Bulk permission must require explicit confirmation before saving');
 
 assert(page.includes("$('bulkReviewContacts').disabled=!selected.length"),
  'Ten selected contacts must have an enabled review action even with zero approvals');
-assert(page.includes("pending.length?'Review '+pending.length+' selected permissions'"),
- 'The button must explain that consent review is the current next step');
-assert(page.includes("if(approved.length){$('bulkReviewSelected').click();return;}"),
- 'Once individually approved, selected contacts can progress to individual email drafts');
-assert(page.includes("edit(r.id,{inCard:true})"),
- 'Contact permission review uses the existing individual editor');
+assert(page.includes("pending.length?'Bulk review '+pending.length+' selected permissions'"),
+ 'Button should show bulk review rather than one-by-one permissions');
+assert(page.includes("await reviewInvitations({channel:'email'})"),
+ 'After saved bulk review, email drafts remain separately prepared, never sent automatically');
+assert(page.includes("marketing_permission:note"),
+ 'Bulk permission must record review evidence alongside approval');
 
 // Everyday selection and review must be visible without an accordion.
-assert(page.includes('id="bulkReviewContacts" disabled>Review selected contacts'),
- 'Selection review button belongs in the always-visible card toolbar');
+assert(page.includes('id="bulkReviewContacts" disabled>Bulk review selected'),
+ 'Bulk permission review is accessible from always-visible selection toolbar');
 assert(page.includes('id="bulkReviewResults" hidden'),
  'Prepared individual drafts expand directly inside the visible selection toolbar');
 assert(page.includes('Advanced invitation history and draft tools'),
@@ -258,6 +258,13 @@ assert(page.includes("function refreshBulkPreviewSummary()"),'Preview draft coun
 assert(page.includes("chosen.delete(id);queue=queue.filter(r=>r.id!==id);smsQueue=smsQueue.filter(r=>r.id!==id)"),'Skip must only deselect one contact');
 assert(page.includes("reviewCard.remove();refreshBulkPreviewSummary();"),'Confirmed Outlook emails must disappear from the draft list');
 assert(page.includes("if(count===0)closeBulkPreviewPanel();"),'Empty preview must close automatically');
+assert(page.includes("if(candidates.length>100)"),'Batch permission review must cap writes to 100 at a time');
+assert(page.includes("!contactLastSent(r)&&hasInvitationEmail(r)"),'Batch review must exclude previously contacted and invalid email recipients');
+assert(page.includes("!isAlreadyRegisteredContact(r)"),'Batch review must exclude previously registered users');
+assert(page.includes('id="bulkPermissionEvidence"'),'Batch permission requires an evidence source');
+assert(page.includes('id="bulkPermissionConfirmed"'),'Batch permission requires an explicit checked attestation');
+assert(page.includes("for(let offset=0;offset<candidates.length;offset+=25)"),'Bulk review should save manageable checked batches');
+assert(!page.includes("Click Review selected contacts again for the next contact."),'Old one-by-one permission workflow must not return');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
