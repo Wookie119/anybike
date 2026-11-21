@@ -116,7 +116,7 @@ let pages=[];const selectedPages=new Set();function matchingPages(){const q=$('p
  for(const item of layouts){
   const campaign=campaigns.find(item.find);
   const card=el('article');card.className='paired-ad-card';
-  const src=campaign?.compact_image_url||campaign?.slim_image_url||campaign?.desktop_image_url;
+  const src=campaign?.slim_image_url||campaign?.compact_image_url||campaign?.desktop_image_url;
   if(typeof src==='string'&&/^https:\/\//.test(src)){
    const img=el('img');img.src=src;img.alt=item.name+' draft creative preview';img.loading='lazy';card.append(img);
   }else{const placeholder=el('div',item.name);placeholder.className='paired-placeholder';card.append(placeholder)}
