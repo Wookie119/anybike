@@ -711,25 +711,55 @@ function updateBatchSend(){
  $('bulkSendNow').disabled=batchSending||!selected.length||selected.length>100||!(nEmail+nSms);
 }
 ['bulkSendEmail','bulkSendSms'].forEach(id=>$(id).addEventListener('change',()=>{$('bulkExactPreview').hidden=true;updateBulkContactReview();}));
+async function showRecentInvitationSuccess({announce=true}={}){
+ const since=new Date(Date.now()-90*60*1000).toISOString();
+ const [email,sms]=await Promise.all([
+  db.from('anybike_contact_invitation_email_log').select('status,contact_id,created_at,submitted_at').gte('created_at',since).order('created_at',{ascending:false}).limit(1000),
+  db.from('anybike_invitation_sms_log').select('status,contact_id,requested_at,sent_at').gte('requested_at',since).order('requested_at',{ascending:false}).limit(1000)
+ ]);
+ if(email.error||sms.error)throw Error(email.error?.message||sms.error?.message);
+ const e=email.data||[],t=sms.data||[];
+ const accepted=rows=>rows.filter(r=>['submitted','sent','delivered'].includes(String(r.status||'').toLowerCase())).length;
+ const outstanding=[...e,...t].filter(r=>String(r.status||'').toLowerCase()==='sending').length;
+ const failed=[...e,...t].filter(r=>String(r.status||'').toLowerCase()==='failed').length;
+ // Pull accepted/pending receipts into session state. They are excluded
+ // from invitation selection even if the contact table update was delayed.
+ const successful=new Set();
+ for(const entry of e){
+  if(!entry.contact_id||!['sending','submitted','sent','delivered'].includes(String(entry.status||'').toLowerCase()))continue;
+  if(!lastEmailByContact.has(entry.contact_id))lastEmailByContact.set(entry.contact_id,entry);
+  successful.add(entry.contact_id);
+ }
+ for(const entry of t){
+  if(!entry.contact_id||!['sending','submitted','sent','delivered'].includes(String(entry.status||'').toLowerCase()))continue;
+  if(!lastSmsByContact.has(entry.contact_id))lastSmsByContact.set(entry.contact_id,entry);
+  successful.add(entry.contact_id);
+ }
+ for(const id of successful)chosen.delete(id);
+ const emailCount=accepted(e),smsCount=accepted(t);
+ const button=$('bulkSuccessButton');
+ button.hidden=!(emailCount||smsCount);
+ if(!button.hidden){
+  button.textContent=(outstanding===0?'✓ Invitations accepted':'◷ Invitations being processed')+
+   ' — '+emailCount+' email · '+smsCount+' SMS';
+  button.style.background=outstanding===0?'#1b653b':'#6b4b1e';
+ }
+ if(announce){
+  $('bulkSendResult').textContent=emailCount+' emails accepted · '+smsCount+' SMS accepted over the last 90 minutes. '+
+   (outstanding?outstanding+' sending/uncertain. ':'No messages currently recorded as sending. ')+
+   (failed?failed+' failed. ':'')+
+   'These are provider submissions, not delivery confirmation. Previously contacted recipients are excluded from future batches.';
+ }
+ render();
+ return {emailCount,smsCount,outstanding,failed};
+}
+$('bulkSuccessButton').onclick=()=>{$('bulkCheckSent').click();};
 $('bulkCheckSent').onclick=async()=>{
- const button=$('bulkCheckSent'),status=$('bulkSendResult');
- button.disabled=true;status.textContent='Checking AnyBike email and SMS submission records…';
- try{
-  const since=new Date(Date.now()-60*60*1000).toISOString();
-  const [email,sms]=await Promise.all([
-   db.from('anybike_contact_invitation_email_log').select('status,contact_id,created_at').gte('created_at',since).limit(1000),
-   db.from('anybike_invitation_sms_log').select('status,contact_id,requested_at').gte('requested_at',since).limit(1000)
-  ]);
-  if(email.error||sms.error)throw Error(email.error?.message||sms.error?.message);
-  const e=email.data||[],t=sms.data||[];
-  const submitted=rows=>rows.filter(r=>['submitted','delivered','sent'].includes(String(r.status||'').toLowerCase())).length;
-  const failed=rows=>rows.filter(r=>String(r.status||'').toLowerCase()==='failed').length;
-  const pending=rows=>rows.filter(r=>String(r.status||'').toLowerCase()==='sending').length;
-  status.textContent='AnyBike records from the last 60 minutes (all invitation batches): '+
-   submitted(e)+' emails accepted, '+submitted(t)+' SMS accepted, '+
-   (failed(e)+failed(t))+' failed, '+(pending(e)+pending(t))+' in progress/uncertain. '+
-   'These are provider submissions, not confirmed inbox or handset deliveries. Do not send duplicates.';
- }catch(e){status.textContent='Could not check submission records: '+e.message+'. Do not resend until records have been checked.';}
+ const button=$('bulkCheckSent');
+ button.disabled=true;
+ $('bulkSendResult').textContent='Checking recorded email and SMS provider submissions…';
+ try{await showRecentInvitationSuccess();}
+ catch(error){$('bulkSendResult').textContent='Could not verify sending results: '+error.message+'. Do not resend without checking history.';}
  finally{button.disabled=false;}
 };
 $('bulkSendStop').onclick=()=>{batchStop=true;$('bulkSendResult').textContent='Stop requested. Current submission may finish; no further contacts will be submitted.';};
@@ -817,6 +847,8 @@ $('bulkSendNow').onclick=async()=>{
  const stopped=batchStop;batchSending=false;$('bulkSendStop').hidden=true;
  $('bulkSendResult').textContent=(stopped?'Batch stopped. ':'Batch finished. ')+emailAccepted+' emails accepted · '+smsAccepted+' SMS accepted · '+skipped+' skipped · '+failed+' errors.'+
   (errors.length?' '+errors.slice(0,3).join(' | '):'')+' Acceptance is not delivery. Check provider history before retrying errors.';
+ try{await showRecentInvitationSuccess({announce:!failed&&!stopped});}
+ catch(error){$('bulkSendResult').textContent+=' Unable to refresh provider records: '+error.message;}
  updateBatchSend();
 };
 $('bulkRecipientList').addEventListener('change',event=>{
