@@ -245,3 +245,18 @@
   });
 
 })();
+
+/* Shared VMoto advertising bootstrap. VMoto uses this tracker rather than
+ * public-header.js, so one central entrypoint is needed for its planner slot.
+ * No VMoto page or approved design files are changed. */
+(function(){
+  if(!/^\/(?:uk\/)?vmoto\.html$/i.test(location.pathname))return;
+  const start=()=>{
+    if(!document.querySelector('main'))return;
+    import('/advertising/universal-banner.mjs?v=20261122-unified-layout10')
+      .then(module=>module.renderMoveHouseOnUkPage())
+      .catch(error=>console.warn('VMoto managed advertising unavailable',error));
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
+  else start();
+})();
