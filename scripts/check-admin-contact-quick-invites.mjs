@@ -77,8 +77,8 @@ assert(page.includes("!/^unknown@/i.test(email)"),
  'Imported placeholder email addresses cannot be invited');
 assert(page.includes("const prohibited=!consent||registered"),
  'Unapproved and already registered contacts must not get active invitation buttons');
-assert(page.includes('id="pageSize"><option value="12" selected>12'),
- 'The open directory must show a manageable number of cards per page');
+assert(page.includes('id="pageSize"><option value="12">12')&&page.includes('<option value="50" selected>50'),
+ 'The directory must default to 50 contacts per page and retain compact options');
 
 
 assert(page.includes('class="dealer-card-filters"'),
@@ -151,8 +151,8 @@ assert(page.includes("await reviewInvitations({channel:'email'})"),
  'Multi-contact review prepares email drafts and never sends them');
 assert(page.includes("slot.replaceChildren(preview)"),
  'Bulk preview must move the existing guarded previews, not copy send handlers');
-assert(page.includes("const approved=items.filter(r=>r.approved_for_invitation&&!['registered','approved'].includes(contactRecruitmentStatus(r)))"),
- 'Registered dealers and unapproved contacts cannot enter the invitation preview');
+assert(page.includes("const approved=items.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r)&&(savedSmsOnly||matchingIds.has(r.id)))"),
+ 'Registered private and dealer accounts or contacts outside current filters cannot enter invitation preview');
 assert(page.includes("chosen.has(r.id)&&/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test"),
  'Bulk email invitations require valid email addresses');
 assert(!page.includes('bulkSendSelected'),
@@ -196,26 +196,26 @@ assert(page.includes("$('prev').disabled=page===0")&&page.includes("$('next').di
 
 assert((page.match(/id="hideUnknown"/g)||[]).length===1,
  'Keep one Hide unknown email addresses filter, not duplicate inputs');
-assert(page.indexOf('id="hideUnknown"')>page.indexOf('class="dealer-card-filters"')&&
- page.indexOf('id="hideUnknown"')<page.indexOf('id="simpleContactMessage"'),
- 'Unknown email filter must stay visible in the everyday contact search');
+assert(page.indexOf('id="hideUnknown"')>page.indexOf('Contact invitations — trade and private')&&
+ page.indexOf('id="hideUnknown"')<page.indexOf('id="bulkContactReview"'),
+ 'Unknown email filter must be visible immediately above the invitation cards');
 assert(page.includes("$('hideUnknown').onchange=()=>{page=0;render()}"),
  'Hide unknown emails must continue to re-render the cards immediately');
 assert((page.match(/id="onlyMobile"/g)||[]).length===1,
  'Keep only one UK mobile filter checkbox');
 assert(page.indexOf('id="onlyMobile"')>page.indexOf('id="hideUnknown"')&&
- page.indexOf('id="onlyMobile"')<page.indexOf('id="simpleContactMessage"'),
- 'UK mobile filter must appear immediately after Hide unknown emails');
+ page.indexOf('id="onlyMobile"')<page.indexOf('id="bulkContactReview"'),
+ 'UK mobile filter must remain beside email and invitation exclusions');
 assert(page.includes("$('onlyMobile').onchange=()=>{page=0;render()}"),
  'Mobile filter must update results immediately');
-assert(page.includes('let cardsShown=cardMode?v:shown'),
- 'Every filtered dealer must appear on the same card page, not just the first 12');
+assert(page.includes('let cardsShown=shown;'),
+ 'The cards must show the chosen 12, 25, 50 or 100 contacts per page');
 assert(page.includes("renderContactCards(cardsShown)"),
  'The everyday card renderer must receive all matching contacts');
-assert(page.includes("$('contactPager').hidden=cardMode"),
- 'Pagination must disappear in everyday dealer card view');
-assert(page.includes("($('directoryTable').hidden?view():view().slice(page*pageSize(),page*pageSize()+pageSize())).forEach(r=>chosen.add(r.id))"),
- 'Select matching must cover all visible cards rather than a hidden first page');
+assert(page.includes("$('contactPager').hidden=false;"),
+ 'Pagination must remain available in everyday card view');
+assert(page.includes("view().slice(page*pageSize(),page*pageSize()+pageSize()).forEach(r=>chosen.add(r.id))"),
+ 'Bulk selection must select the visible page only');
 assert(page.includes("if(!cardsShown.some(r=>r.id===pending.id))cardsShown=[pending,...cardsShown]"),
  'Saving permission must keep edited card visible on the same page');
 assert(page.includes('.dealer-contact-card{content-visibility:auto;contain-intrinsic-size:auto 260px}'),
@@ -238,6 +238,14 @@ assert(page.includes("This approves this individual contact for invitations, but
  'Approval must not be confused with sending');
 assert(page.includes("input.checked=!approved;input.disabled=false"),
  'Save failures must restore the checkbox and allow retry');
+
+// Invitation shortlist filters: clear email, valid mobile, explicit trade grouping,
+// and safe default exclusions for previously invited and registered contacts.
+assert(page.includes('id="tradeContactFilter"')&&page.includes('id="cardPageSize"'),'Visible trade filter and page size are required');
+assert(page.includes('id="excludeInvited" type="checkbox" checked')&&page.includes('id="excludeRegistered" type="checkbox" checked'),'Previously invited and registered users must be excluded by default');
+assert(page.includes("!contactLastSent(r)")&&page.includes("!isAlreadyRegisteredContact(r)"),'Sent and registered exclusions must drive the actual contact query');
+assert(page.includes('const matchingIds=new Set(view().map(r=>r.id))'),'Bulk drafts must respect active contact filters');
+assert(page.includes("if(channel==='both'&&recordForPermission&&!recordForPermission.approved_for_invitation"),'Review permission must open the individual editor rather than silently approve');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
