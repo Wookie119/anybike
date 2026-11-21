@@ -234,7 +234,7 @@ function adoptLegacyMove(ad){
    outer.dataset.anybikeAdAuthorized='1';
    // Existing house placements also follow the approved contained banner size.
    // No individual homepage/dealer page styling or artwork edits.
-   outer.style.setProperty('width','min(100% - 28px, 1200px)','important');
+   outer.style.setProperty('width','min(1200px, calc(100% - 28px))','important');
    outer.style.setProperty('max-width','1200px','important');
    outer.style.setProperty('margin-left','auto','important');
    outer.style.setProperty('margin-right','auto','important');
@@ -371,6 +371,15 @@ function installMoveHouse(ad){
   case 'main_end':positionManufacturerMoveAdvert(main,card);break;
   default:return false; // Never guess a position for an unconfigured page.
  }
+ // Final central layout contract runs AFTER page-family positioning, because
+ // legacy positioning functions may replace cssText and reset earlier limits.
+ // Preserve the approved 3:1/1:1 artwork without cropping or stretching.
+ card.style.setProperty('max-width','1200px','important');
+ card.style.setProperty('width','100%','important');
+ card.style.setProperty('min-width','0','important');
+ card.style.setProperty('margin-left','auto','important');
+ card.style.setProperty('margin-right','auto','important');
+ card.style.setProperty('box-sizing','border-box','important');
  return true;
 }
 // Legacy house adverts are subject to the SAME active-campaign and page-inventory
