@@ -19,7 +19,7 @@ assert(page.includes("btn.closest('tr').after(tr)"),
  'Inline invitation controls must appear immediately below the contact');
 assert(page.includes("activeInlineInviteId=id;render();"),
  'Opening an inline invitation must preserve other contact ticks');
-assert(page.includes("reviewSingleQuickInvite(button.dataset.inlineChannel,{inline:true})"),
+assert(page.includes("reviewSingleQuickInvite(button.dataset.inlineChannel,{inline:true,contactId:id})"),
  'Inline controls must reuse the existing guarded invitation review');
 assert(page.includes("target.replaceChildren(preview)"),
  'Reviewed email/SMS card and original send handlers must be moved, not re-created');
@@ -63,7 +63,7 @@ assert(page.includes("renderContactCards(shown)"),
  'The normal directory refresh must update the card view');
 assert(page.includes('data-card-channel="email"')&&page.includes('data-card-channel="sms"'),
  'Each card must expose email and SMS invitation review together');
-assert(page.includes("reviewSingleQuickInvite(channel,{card:true})"),
+assert(page.includes("reviewSingleQuickInvite(channel,{card:true,contactId:id})"),
  'Card invitations must use the original guarded preview/send handlers');
 assert(page.includes("target.replaceChildren(preview)"),
  'A new card preview must move the existing source reviewed message');
