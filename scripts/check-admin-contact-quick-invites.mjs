@@ -151,7 +151,7 @@ assert(page.includes("await reviewInvitations({channel:'email'})"),
  'Multi-contact review prepares email drafts and never sends them');
 assert(page.includes("slot.replaceChildren(preview)"),
  'Bulk preview must move the existing guarded previews, not copy send handlers');
-assert(page.includes("const approved=items.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r)&&(savedSmsOnly||matchingIds.has(r.id))&&(onlyContactId===null||r.id===onlyContactId))"),
+assert(page.includes("const approved=items.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r)&&(savedSmsOnly||matchingIds.has(r.id))&&(onlyContactId===null||r.id===onlyContactId)&&invitationAudienceMatches(r))"),
  'Registered private and dealer accounts or contacts outside current filters cannot enter invitation preview');
 assert(page.includes("(onlyContactId!==null?r.id===onlyContactId:chosen.has(r.id))&&/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test"),
  'Bulk email invitations require valid email addresses');
@@ -276,6 +276,17 @@ assert(page.includes("chosen=new Set(ids)"),'Bulk email batch must contain preci
 assert(page.includes("if(changeCount&&!confirm("),'Replacing ticks outside a batch must require confirmation');
 assert(page.includes("if(channel==='email'&&!savedSmsOnly){smsHistory=new Map();}"),'Email-only draft preparation must not depend on SMS history');
 assert(page.includes("const eligible=selected.filter(r=>r.approved_for_invitation&&canSelectForEmailReview(r))"),'Only approved usable email recipients can prepare email drafts');
+assert(page.includes('id="invitationAudience"'),'Invitation type must be selectable');
+assert(page.includes("function explicitInvitationKind(r)"),'Combined invitation must require explicit contact classification');
+assert(page.includes("if(mode==='both')return explicitInvitationKind(r);"),'Mixed batches must not guess unknown contact classifications');
+assert(page.includes("&&invitationAudienceMatches(r)"),'Prepared invitations must obey chosen audience');
+assert(page.includes("function invitationSubject(r)"),'Subjects must distinguish private and trade messages');
+assert(page.includes("Sell your motorcycle free with AnyBike"),'Private email must focus on free selling');
+assert(page.includes("https://www.anybike.co.uk/sell-your-motorcycle.html"),'Private CTA must point to the free motorcycle selling page');
+assert(page.includes("function richInvitationHtml(r)"),'Private and dealer invitations must have HTML buttons');
+assert(page.includes("const subject=invitationSubject(r);"),'Outlook drafts must use the correct subject');
+assert(page.includes("const r=queue[pos],body=emailBody(r),subject=invitationSubject(r);"),'Legacy draft action must also use recipient-specific text');
+assert(page.includes("if(invitationTypeFor(r)==='private')return 'Hi '"),'Private SMS draft must not use dealer wording');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
