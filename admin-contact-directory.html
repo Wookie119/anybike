@@ -1022,14 +1022,15 @@ $('toggleDetailedColumns').onclick=()=>{
 
 $('simpleInviteReview').onclick=async()=>{const selected=items.filter(r=>chosen.has(r.id));const status=$('simpleInviteStatus');if(selected.length!==1){status.textContent=selected.length?'Please select only one contact for this simple review.':'Select one contact using the checkbox in the results table first.';return;}const r=selected[0];if(!invitationAudienceMatches(r)){status.textContent='This contact does not match the selected invitation type. Choose the correct audience first.';return;}if(contactRecruitmentStatus(r)==='approved'||contactRecruitmentStatus(r)==='registered'){status.textContent='This contact is already registered. Use Onboarding rather than sending another recruitment invitation.';return;}if(contactLastSent(r)){status.textContent='An invitation has already been recorded for this contact. Check their history before preparing a reminder.';return;}if(/@app\.movemotorcycles\.co\.uk$/i.test(String(r.email||''))){status.textContent='This is an imported Move Motorcycles app address, not a verified customer inbox. Do not prepare an email invitation to it.';return;}if(!r.approved_for_invitation){status.textContent='Invitation permission has not been approved for this contact. Review the source and marketing eligibility first; do not tick permission without evidence.';return;}status.textContent='Permission flag present. Verify the recipient is eligible for this marketing message and check the preview before sending.';$('advancedInvitations').open=true;await reviewInvitations();$('invitePreviews').scrollIntoView({behavior:'smooth',block:'start'});};
 
-function runSimpleContactSearch(){const value=$('simpleContactQuery').value.trim();$('q').value=value;$('dealerSearch').value='';$('tagSearch').value='';$('postcodeSearch').value='';$('emailSentFilter').value='all';$('recruitmentFilter').value='all';page=0;render();$('simpleContactMessage').textContent=value?'Showing contacts matching “'+value+'”. Select a row to review it.':'Showing all contacts.';($('directoryTable').hidden?$('contactCards'):$('directoryTable')).scrollIntoView({behavior:'smooth',block:'start'});}
+function runSimpleContactSearch(){const value=$('simpleContactQuery').value.trim();if(value)$('excludeInvited').checked=false;$('q').value=value;$('dealerSearch').value='';$('tagSearch').value='';$('postcodeSearch').value='';$('emailSentFilter').value='all';$('recruitmentFilter').value='all';page=0;render();$('simpleContactMessage').textContent=value?'Showing contacts matching “'+value+'”. Select a row to review it.':'Showing all contacts.';($('directoryTable').hidden?$('contactCards'):$('directoryTable')).scrollIntoView({behavior:'smooth',block:'start'});}
 $('simpleContactQuery').addEventListener('input',()=>{
+ if($('simpleContactQuery').value.trim())$('excludeInvited').checked=false;
  $('q').value=$('simpleContactQuery').value.trim();
  $('dealerSearch').value='';$('tagSearch').value='';$('postcodeSearch').value='';
  $('emailSentFilter').value='all';$('recruitmentFilter').value='all';
  page=0;render();
  $('simpleContactMessage').textContent=$('simpleContactQuery').value.trim()
-  ?'Results for “'+$('simpleContactQuery').value.trim()+'”. You can invite directly from a contact card.'
+  ?'Results for “'+$('simpleContactQuery').value.trim()+'”, including previously emailed contacts. SMS permission is separate from email approval.'
   :'Showing contacts. Search by name, dealership, town, address, email or phone.';
 });
 document.querySelectorAll('[data-card-filter]').forEach(b=>b.onclick=()=>{
