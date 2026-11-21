@@ -8,8 +8,13 @@ let generation=0,observer=null;
 // Uses the previously approved red artwork until the five-size blue/gold artwork
 // is uploaded and approved. It does not depend on login or edit individual models.
 const MOVE_SITE='https://www.movemotorcycles.co.uk/';
-const MOVE_WIDE='/assets/move-advert-landscape.webp';
-const MOVE_MOBILE='/assets/move-advert-portrait.webp';
+// Uploaded, user-approved five-size blue/gold house artworks. The old approved
+// red adverts remain in /assets unchanged. One central renderer chooses formats.
+const MOVE_WIDE="https://tuehtnezhdnkqbbhttgp.supabase.co/storage/v1/object/public/advertising-creatives/campaigns/95c5d74b-1048-44fc-b22a-37683c4380e8/ee2fd6aa-8ba2-47ad-aad8-ce4c78360cbc-move-motorcycles-large-landscape.webp";
+const MOVE_MOBILE="https://tuehtnezhdnkqbbhttgp.supabase.co/storage/v1/object/public/advertising-creatives/campaigns/95c5d74b-1048-44fc-b22a-37683c4380e8/1abcc788-066d-410a-a662-ecf0b4c63566-move-motorcycles-large-portrait.webp";
+const MOVE_SLIM="https://tuehtnezhdnkqbbhttgp.supabase.co/storage/v1/object/public/advertising-creatives/campaigns/95c5d74b-1048-44fc-b22a-37683c4380e8/4879fae8-f9bc-44c1-8404-59923273e6df-move-motorcycles-slim-landscape.webp";
+const MOVE_COMPACT="https://tuehtnezhdnkqbbhttgp.supabase.co/storage/v1/object/public/advertising-creatives/campaigns/95c5d74b-1048-44fc-b22a-37683c4380e8/5adcb2e3-2328-4952-9ac0-bdc3f0ded849-move-motorcycles-compact-mobile.webp";
+const MOVE_STOCK="https://tuehtnezhdnkqbbhttgp.supabase.co/storage/v1/object/public/advertising-creatives/campaigns/95c5d74b-1048-44fc-b22a-37683c4380e8/0002606a-3a94-4d6c-adbd-370714fbea3d-move-motorcycles-stock-card.webp";
 const moveHouseMarker='anybike-move-universal-house-ad';
 let moveHouseReady=null;
 const existingMoveAdvert=()=>[...document.querySelectorAll('a[href*="movemotorcycles.co.uk"]')]
@@ -32,8 +37,8 @@ function buildMoveHouseCard(stock=false){
  link.setAttribute('aria-label','Move Motorcycles - nationwide motorcycle collection and delivery');
  link.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px;background:#101010;text-decoration:none';
  const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px';
- const source=node('source');source.media='(max-width:650px)';source.srcset=MOVE_MOBILE;
- const img=node('img');img.src=stock?MOVE_MOBILE:MOVE_WIDE;img.alt='Move Motorcycles - nationwide motorcycle collection and delivery';
+ const source=node('source');source.media='(max-width:650px)';source.srcset=stock?MOVE_STOCK:MOVE_COMPACT;
+ const img=node('img');img.src=stock?MOVE_STOCK:(location.pathname.toLowerCase().includes('model')||/^\/models\//.test(location.pathname.toLowerCase())?MOVE_SLIM:MOVE_WIDE);img.alt='Move Motorcycles - nationwide motorcycle collection and delivery';
  img.loading='lazy';img.decoding='async';img.style.cssText=stock
   ?'display:block;width:100%;aspect-ratio:4/3;object-fit:contain;border-radius:12px'
   :'display:block;width:100%;height:auto;max-height:250px;object-fit:contain;border-radius:12px';
