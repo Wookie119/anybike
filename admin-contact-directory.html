@@ -226,7 +226,6 @@
   <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap;margin:9px 0">
    <label><input type="checkbox" id="bulkSendEmail"> Branded email with logo and button</label>
    <label><input type="checkbox" id="bulkSendSms"> SMS — authorised UK mobile contacts</label>
-   <label><input type="checkbox" id="bulkSendConfirmed"> I confirm the ticked contacts have authorised these invitations</label>
   </div>
   <div class="row" style="align-items:center;gap:9px;flex-wrap:wrap">
    <button type="button" id="bulkSendNow" disabled style="background:#ed1c24;color:#fff;font-weight:700">Send selected batch</button>
@@ -468,7 +467,7 @@ function renderContactCards(shown){
   const prohibited=!consent||registered;
   const smsProhibited=registered;
   return '<article class="dealer-contact-card'+(active?' is-active':'')+(saved?' is-saved':'')+(selected?' is-selected':'')+'" data-card-id="'+id+'">'+
-    '<div class="dealer-contact-head"><div><label class="dealer-card-select"><input type="checkbox" data-card-select="'+id+'" '+(chosen.has(id)?'checked':'')+' aria-label="Select '+esc(company)+' — '+esc(name)+' for invitation review"> Select for review</label><h3>'+esc(company)+'</h3><p class="dealer-contact-person">'+esc(name)+'</p></div>'+
+    '<div class="dealer-contact-head"><div><label class="dealer-card-select"><input type="checkbox" data-card-select="'+id+'" '+(chosen.has(id)?'checked':'')+' aria-label="Select '+esc(company)+' — '+esc(name)+' for invitation review"> Select to invite</label><h3>'+esc(company)+'</h3><p class="dealer-contact-person">'+esc(name)+'</p></div>'+
     '<span class="dealer-contact-state '+stateStyle+'">'+esc(state)+'</span></div>'+
     '<div class="dealer-contact-meta">'+
      '<div><span>Email</span><strong>'+esc(email||'Not supplied')+'</strong></div>'+
@@ -667,21 +666,20 @@ function updateBatchSend(){
  const {selected,email,sms}=eligibleBatchRecipients();
  const nEmail=$('bulkSendEmail').checked?email.length:0,nSms=$('bulkSendSms').checked?sms.length:0;
  $('bulkSendCount').textContent=selected.length+' contacts selected · '+nEmail+' eligible emails · '+nSms+' eligible SMS · maximum 100';
- $('bulkSendNow').disabled=batchSending||!selected.length||selected.length>100||!(nEmail+nSms)||!$('bulkSendConfirmed').checked;
+ $('bulkSendNow').disabled=batchSending||!selected.length||selected.length>100||!(nEmail+nSms);
 }
 ['bulkSendEmail','bulkSendSms'].forEach(id=>$(id).addEventListener('change',updateBulkContactReview));
-$('bulkSendConfirmed').addEventListener('change',updateBatchSend);
 $('bulkSendStop').onclick=()=>{batchStop=true;$('bulkSendResult').textContent='Stop requested. Current submission may finish; no further contacts will be submitted.';};
 $('bulkSendNow').onclick=async()=>{
  if(batchSending)return;
  const {selected,email,sms}=eligibleBatchRecipients();
  const jobs=($('bulkSendEmail').checked?email.map(r=>({r,channel:'email'})):[])
   .concat($('bulkSendSms').checked?sms.map(r=>({r,channel:'sms'})):[]);
- if(!selected.length||selected.length>100||!jobs.length||!$('bulkSendConfirmed').checked){
+ if(!selected.length||selected.length>100||!jobs.length){
   $('bulkSendResult').textContent='Select up to 100 eligible contacts, choose channels, then authorise. No messages sent.';return;
  }
  const nEmail=jobs.filter(j=>j.channel==='email').length,nSms=jobs.length-nEmail;
- if(!confirm('SEND '+nEmail+' REAL branded AnyBike emails and '+nSms+' CHARGEABLE SMS messages to '+new Set(jobs.map(j=>j.r.id)).size+' selected contacts? This cannot be undone.'))return;
+ if(!confirm('I confirm the selected contacts have authorised these invitations. SEND '+nEmail+' REAL branded AnyBike emails and '+nSms+' CHARGEABLE SMS messages to '+new Set(jobs.map(j=>j.r.id)).size+' contacts now? This cannot be undone.'))return;
  batchSending=true;batchStop=false;$('bulkSendStop').hidden=false;updateBatchSend();
  let emailAccepted=0,smsAccepted=0,skipped=0,failed=0;const errors=[];
  for(let i=0;i<jobs.length;i++){
@@ -723,7 +721,7 @@ $('bulkSendNow').onclick=async()=>{
    if(failed>=3){batchStop=true;break;}
   }
  }
- const stopped=batchStop;batchSending=false;$('bulkSendStop').hidden=true;$('bulkSendConfirmed').checked=false;
+ const stopped=batchStop;batchSending=false;$('bulkSendStop').hidden=true;
  $('bulkSendResult').textContent=(stopped?'Batch stopped. ':'Batch finished. ')+emailAccepted+' emails accepted · '+smsAccepted+' SMS accepted · '+skipped+' skipped · '+failed+' errors.'+
   (errors.length?' '+errors.slice(0,3).join(' | '):'')+' Acceptance is not delivery. Check provider history before retrying errors.';
  updateBatchSend();
