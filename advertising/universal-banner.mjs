@@ -48,8 +48,26 @@ function buildMoveHouseCard(stock=false){
  card.append(disclosure);
  return card;
 }
+function isUniversalModelPage(main){
+ return !!(main&&main.querySelector('#databaseHeroPhoto')&&main.querySelector('#nextAction'));
+}
+function positionModelMoveAdvert(main,card){
+ // One optional placement near the end of the approved V2 model master:
+ // after research/enquiry and before source references, never inside the hero.
+ const sources=main.querySelector(':scope > #modelSources');
+ if(sources)main.insertBefore(card,sources);else main.append(card);
+ card.style.maxWidth='none';
+ card.style.width='100%';
+ card.style.margin='16px 0 20px';
+}
 function installMoveHouse(){
- if(!isPublicUkCustomerPage()||document.getElementById(moveHouseMarker)||existingMoveAdvert())return false;
+ if(!isPublicUkCustomerPage()||existingMoveAdvert())return false;
+ const existing=document.getElementById(moveHouseMarker);
+ const targetMain=document.querySelector('main');
+ if(existing){
+  if(isUniversalModelPage(targetMain))positionModelMoveAdvert(targetMain,existing);
+  return true;
+ }
  const stock=location.pathname.toLowerCase()==='/available-stock.html';
  if(stock){
   const grid=document.getElementById('stockGrid');
@@ -60,6 +78,11 @@ function installMoveHouse(){
  }
  const main=document.querySelector('main');
  if(!main)return false;
+ if(isUniversalModelPage(main)){
+  const card=buildMoveHouseCard(false);
+  positionModelMoveAdvert(main,card);
+  return true;
+ }
  // Retain the approved template: add a single optional advert after its hero
  // (or first heading), rather than editing the bike's model content.
  // The advert belongs BETWEEN complete page sections, never inside a two-column
