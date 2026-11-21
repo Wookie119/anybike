@@ -382,6 +382,13 @@ assert(page.includes("functions.invoke('anybike-send-contact-invitation-email',{
 assert(page.includes("functions.invoke('anybike-send-dealer-invitation-sms',{body:{action:'preview',invitation_type:type}})"),'SMS preview must fetch the actual server template');
 assert(page.includes("$('bulkExactPreview').hidden=true;"),'Changing invitation audience or channels must hide stale previews');
 assert(page.includes("Each email may use the contact’s first name in its greeting"),'Preview must warn about recipient-specific greeting differences');
+assert(page.includes('id="bulkRecipientChecklist"'),'Selected contacts must be reviewable in a checklist above the send actions');
+assert(page.includes("reviewBatchIds=[...ids]"),'Selecting 100 must retain the original cohort when recipients are unticked');
+assert(page.includes('data-batch-recipient'), 'Each recipient needs an independently untickable checkbox');
+assert(page.includes('The original 100 remain visible even after you untick them'), 'Recipient list must explain unticking does not send');
+assert(page.includes('if(input.checked)chosen.add(id);else chosen.delete(id);'),'Unticking must remove the contact from the actual send selection');
+assert(page.includes('updateBulkContactReview();'),'Unticking must update email and SMS eligible counters');
+assert(page.includes("reviewBatchIds=[];"),'Clear selection must clear the persistent review checklist');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
