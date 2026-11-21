@@ -9,10 +9,13 @@ let generation=0,observer=null;
 // This UK house placement does not depend on customer login.
 const moveHouseMarker='anybike-move-universal-house-ad';
 let moveHouseReady=null;
-const existingMoveAdvert=()=>[...document.querySelectorAll('a[href*="movemotorcycles.co.uk"]')]
- .some(a=>!a.closest('#'+moveHouseMarker)&&!!a.querySelector('img,picture')&&a.getClientRects().length>0);
+const legacyMoveAnchors=()=>[...document.querySelectorAll('a[href*="movemotorcycles.co.uk"]')].filter(a=>!!a.querySelector('img,picture')&&!a.closest('#'+moveHouseMarker));
+const existingMoveAdvert=()=>legacyMoveAnchors().some(a=>a.getClientRects().length>0);
 const isPublicUkCustomerPage=()=>{
  const path=location.pathname.toLowerCase();
+ // UK dealer/private customer workspaces are approved advertising surfaces;
+ // account status never controls whether an eligible UK advert can be shown.
+ if(['/customer-dashboard.html','/my-selling.html','/my-dealership.html','/my-purchases.html'].includes(path))return true;
  if(/^\/(?:admin(?:-|\/)|markets\/|international-)/.test(path))return false;
  // Account, transactional and private workflow pages are not public advert inventory.
  if(/^\/(?:customer-|my-|dealer-manage-|dealer-connect-|shipper-|seller-|private-dashboard|dashboard|underwrite|proforma|purchase-order|final-invoice|verify-account|confirm-email|authorised-stock-test|international-stock-preview)/.test(path))return false;
@@ -29,6 +32,7 @@ function buildMoveHouseCard(ad){
  card.id=moveHouseMarker;
  card.dataset.adPlacementKey=ad.placement_key;
  card.dataset.adCampaignId=ad.id;
+ card.dataset.adSlotCode=templateAdSlotCode(ad);
  card.setAttribute('aria-label','Advertisement: '+String(ad.partner_name||'Move Motorcycles'));
  card.className=stock?'card anybike-move-stock-ad':'anybike-move-house-banner';
  card.style.cssText=stock
@@ -168,6 +172,55 @@ function positionSellMotorcycleMoveAdvert(main,card){
 // The display contract is reusable for every advertiser. Validate the
 // actual browser-selected artwork before insertion; never crop a bad creative.
 const formatRatio={stock_card:4/3,slim_landscape:3,large_landscape:16/9,compact_mobile:1};
+const templateAdSlotCode=ad=>String(ad?.slot_code||'AB-UK-UNASSIGNED');
+function ensurePairStyles(){
+ if(document.getElementById('anybike-ad-pair-styles'))return;
+ const style=node('style');style.id='anybike-ad-pair-styles';
+ style.textContent='.anybike-ad-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;width:100%;min-width:0;align-items:start}.anybike-ad-pair>*,.anybike-ad-pair>.anybike-move-house-banner{width:100%;min-width:0;margin:0!important}@media(max-width:700px){.anybike-ad-pair{grid-template-columns:minmax(0,1fr)}}';
+ document.head.append(style);
+}
+function managedAdCreative(ad){
+ const stock=ad?.placement_key==='stock_grid';
+ return {desktop:https(stock?ad.stock_card_image_url:ad.creative_format==='large_landscape'?ad.desktop_image_url:(ad.slim_image_url||ad.desktop_image_url)),mobile:https(stock?ad.stock_card_image_url:(ad.compact_image_url||ad.mobile_image_url))};
+}
+function attachLegacyTracking(link,ad){
+ if(link.dataset.anybikeAdTracked===ad.token)return;
+ link.dataset.anybikeAdTracked=ad.token||'';
+ let seen=false,clicked=false;
+ const emit=type=>{const payload={action:'event',event_type:type,token:ad.token};send(payload,true).catch(()=>{});};
+ const impression=()=>{if(seen)return;seen=true;emit('impression')};
+ const click=()=>{if(clicked)return;clicked=true;impression();emit('click')};
+ link.addEventListener('click',click);link.addEventListener('auxclick',e=>{if(e.button===1)click()});
+ if('IntersectionObserver'in window){const observer=new IntersectionObserver(entries=>{
+  if(entries.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();observer.disconnect()}
+ },{threshold:.5});observer.observe(link)}else impression();
+}
+function adoptLegacyMove(ad){
+ const anchors=legacyMoveAnchors();if(!anchors.length)return false;
+ const urls=managedAdCreative(ad),destination=https(ad.destination_url);
+ if(!urls.desktop||!urls.mobile||!destination)return false;
+ anchors.forEach((link,index)=>{
+  link.href=destination;link.rel='noopener sponsored';link.target='_blank';
+  link.dataset.adSlotCode=templateAdSlotCode(ad)+(anchors.length>1?'-'+String(index+1).padStart(2,'0'):'');
+  link.dataset.adCampaignId=ad.id;
+  link.style.cssText='display:block;width:100%;height:auto;min-width:0;border-radius:12px;overflow:hidden;background:#101010;text-decoration:none';
+  const picture=link.querySelector('picture');
+  if(picture){picture.style.cssText='display:block;width:100%;height:auto;min-width:0;overflow:hidden;border-radius:12px';
+   for(const source of picture.querySelectorAll('source'))source.srcset=urls.mobile;
+  }
+  const image=link.querySelector('img');
+  if(image){image.src=urls.desktop;image.alt=typeof ad.alt_text==='string'?ad.alt_text:'';
+   image.style.cssText='display:block;width:100%;height:auto;max-width:100%;object-fit:contain;border-radius:12px';}
+  let note=link.nextElementSibling;
+  if(!note||!note.matches('[data-anybike-ad-disclosure]')){
+   note=node('small');note.dataset.anybikeAdDisclosure='1';link.after(note);
+  }
+  note.textContent=ad.disclosure||'Advertisement · '+String(ad.partner_name||'Advertiser');
+  note.style.cssText='display:block;font:10px/1.35 Arial,sans-serif;color:#aaa;padding:3px 2px 0;margin:0;background:transparent';
+  attachLegacyTracking(link,ad);
+ });
+ return true;
+}
 async function validateAdvertArtwork(ad){
  const stock=ad.placement_key==='stock_grid';
  const compact=typeof matchMedia==='function'&&matchMedia('(max-width:650px)').matches;
@@ -208,6 +261,7 @@ function placementMatchesTemplate(ad){
  const main=document.querySelector('main');
  if(!main)return false;
  if(key==='stock_grid')return path==='/available-stock.html'&&!!document.getElementById('stockGrid');
+ if(key==='existing_house')return legacyMoveAnchors().length>0;
  if(key==='before_sources')return !!main.querySelector('#databaseHeroPhoto')&&
   !!main.querySelector('#nextAction')&&!!main.querySelector('#modelSources');
  if(key==='about_wrap')return path==='/about-us.html';
@@ -218,7 +272,11 @@ function placementMatchesTemplate(ad){
  return false;
 }
 function installMoveHouse(ad){
- if(!isPublicUkCustomerPage()||existingMoveAdvert()||!placementMatchesTemplate(ad))return false;
+ if(!isPublicUkCustomerPage()||!ad)return false;
+ // Adopt the exact position of existing approved Move artwork in dealer,
+ // private, home and editorial pages instead of moving it to another section.
+ if(legacyMoveAnchors().length)return adoptLegacyMove(ad);
+ if(!placementMatchesTemplate(ad))return false;
  if(document.getElementById(moveHouseMarker))return true;
  const stock=ad.placement_key==='stock_grid';
  if(stock){
@@ -247,7 +305,7 @@ function installMoveHouse(ad){
 // controls as paid advertising. A stored draft creative is NEVER live inventory.
 // This transitional bridge prevents unapproved static artwork from bypassing Admin.
 export async function renderMoveHouseOnUkPage(options={}){
- if(!isPublicUkCustomerPage()||existingMoveAdvert())return;
+ if(!isPublicUkCustomerPage())return;
  if(moveHouseReady===null){
   moveHouseReady=(async()=>{
    try{
@@ -281,7 +339,7 @@ export async function renderMoveHouseOnUkPage(options={}){
 // All campaigns use the SAME placement engine. Do not add per-page fallback
 // insertion after a hero: that was responsible for inconsistent locations.
 export async function renderAdvertising(context){
- if(!context||context.country!=='GB'||document.getElementById(moveHouseMarker)||existingMoveAdvert())return;
+ if(!context||context.country!=='GB'||document.getElementById(moveHouseMarker))return;
  const n=++generation;
  const isModel=Number.isSafeInteger(context.modelId)&&context.modelId>0;
  if(!isModel&&!context.pagePath)return;
