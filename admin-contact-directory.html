@@ -217,6 +217,16 @@
    <button type="button" id="bulkReviewSelected" disabled>Prepare invitations</button>
   </div>
  </div>
+ <div id="bulkClassifyPanel" hidden style="border-top:1px solid #555;margin-top:10px;padding-top:12px">
+  <strong>Identify your selected contacts</strong>
+  <p id="bulkClassifyCount" role="status" style="font-size:13px;color:#bbb"></p>
+  <div class="row" style="align-items:end;gap:10px;flex-wrap:wrap">
+   <label>These contacts are <select id="bulkClassifyKind"><option value="">Choose type</option><option value="dealer">Motorcycle dealers</option><option value="private">Private motorcycle owners</option></select></label>
+   <button type="button" id="bulkClassifySave">Save contact type (no invitation sent)</button>
+   <button type="button" id="bulkClassifyClose">Close</button>
+  </div>
+  <p id="bulkClassifyStatus" role="status" style="color:#ccc;font-size:13px"></p>
+ </div>
  <p id="invitationAudienceNote" role="status" style="font-size:12px;color:#bbb;margin:6px 0 2px">Dealer messages are for business-identified contacts only. Check they are motorcycle dealers before sending.</p>
  <div id="bulkPermissionPanel" hidden style="border-top:1px solid #555;margin-top:12px;padding-top:12px">
  <div class="row" style="align-items:center;justify-content:space-between;gap:8px"><strong>Bulk invitation permission review</strong><button type="button" id="closeBulkPermission">Close review (keep selections)</button></div>
@@ -339,19 +349,39 @@ function closeBulkPreviewPanel(){
  const summary=$('bulkReviewSummary');if(summary)summary.textContent='';
 }
 function canSelectForEmailReview(r){return invitationAudienceMatches(r)&&hasInvitationEmail(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r);}
+function selectedUnclassifiedContacts(){
+ const matching=new Set(view().map(r=>r.id));
+ return items.filter(r=>chosen.has(r.id)&&matching.has(r.id)&&explicitInvitationKind(r)==='unknown'&&hasInvitationEmail(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r));
+}
+function refreshBulkClassifyPanel(){
+ const needs=selectedUnclassifiedContacts(),panel=$('bulkClassifyPanel');
+ if($('invitationAudience').value!=='both'||!needs.length){panel.hidden=true;return;}
+ panel.hidden=false;
+ $('bulkClassifyCount').textContent=needs.length+' selected contacts need their type checked before AnyBike can choose a dealer or private invitation. Classification does not grant marketing permission.';
+}
 function select100UsableContacts(){
- const candidates=view().filter(canSelectForEmailReview);
+ const both=$('invitationAudience').value==='both';
+ let candidates=view().filter(canSelectForEmailReview);
+ let reviewingTypes=false;
+ if(!candidates.length&&both){
+  // Imported contacts may have no saved classification. Select them for
+  // explicit admin classification; never silently guess a type or queue a send.
+  candidates=view().filter(r=>hasInvitationEmail(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&explicitInvitationKind(r)==='unknown');
+  reviewingTypes=true;
+ }
  const preserved=candidates.filter(r=>chosen.has(r.id)).map(r=>r.id);
  const extra=candidates.filter(r=>!chosen.has(r.id)).map(r=>r.id);
  const ids=[...preserved,...extra].slice(0,100);
- if(!ids.length){$('bulkSelectionStatus').textContent='No uninvited, unregistered contacts with usable email addresses match these filters.';return;}
+ if(!ids.length){$('bulkSelectionStatus').textContent='No contacts with usable email addresses match these filters. Untick unnecessary filters or choose a different invitation type.';return;}
  const changeCount=[...chosen].filter(id=>!ids.includes(id)).length;
- if(changeCount&&!confirm('Replace '+changeCount+' existing ticks that are outside this 100-contact email batch? This changes selections only. No approvals or messages.'))return;
+ if(changeCount&&!confirm('Replace '+changeCount+' existing ticks with this 100-contact batch? This only changes selection; no permission or messages.'))return;
  chosen=new Set(ids);
  closeBulkPreviewPanel();
  $('bulkPermissionPanel').hidden=true;
  render();
- $('bulkSelectionStatus').textContent=ids.length+' contacts with usable email addresses selected across matching pages. Invitation permission must still be reviewed where needed. Nothing sent.';
+ if(reviewingTypes)$('bulkSelectionStatus').textContent=ids.length+' contacts selected for dealer/private classification. Choose their type below. Nothing approved or sent.';
+ else $('bulkSelectionStatus').textContent=ids.length+' usable contacts selected across matching pages. Review permission before preparing invitations. Nothing sent.';
+ refreshBulkClassifyPanel();
 }
 function updateBulkContactReview(){
  const matching=new Set(view().map(r=>r.id)), selected=items.filter(r=>chosen.has(r.id)&&matching.has(r.id));
@@ -368,9 +398,11 @@ function updateBulkContactReview(){
  $('bulkReviewContacts').disabled=!selected.length;
  $('bulkReviewContacts').textContent=needsReview.length?'Review permission ('+needsReview.length+')':approved.length?'Permission reviewed':'Review permission';
  const total=view().filter(canSelectForEmailReview).length;
+ const unclassified=$('invitationAudience').value==='both'?view().filter(r=>explicitInvitationKind(r)==='unknown'&&hasInvitationEmail(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)).length:0;
  $('bulkSelectVisible').textContent='Select up to 100 contacts';
- $('bulkSelectVisible').title='Build a batch of up to 100 uninvited, unregistered contacts with usable emails across matching pages ('+total+' matching). Does not grant permission or send messages.';
- $('bulkSelectVisible').disabled=total===0;
+ $('bulkSelectVisible').title=total?'Select up to 100 eligible contacts for invitation review.':unclassified?'Select up to 100 contacts needing dealer/private classification. No marketing permissions or messages.':'No usable contacts match these filters.';
+ $('bulkSelectVisible').disabled=total===0&&unclassified===0;
+ if($('bulkClassifyPanel')&&!$('bulkClassifyPanel').hidden)refreshBulkClassifyPanel();
 }
 function renderContactCards(shown){
  const host=$('contactCards');if(!host)return;
@@ -579,12 +611,33 @@ function render(){
  closeBulkPreviewPanel();
  updateBulkContactReview();
  const mode=$('invitationAudience').value;
+ $('bulkClassifyPanel').hidden=true;
  $('invitationAudienceNote').textContent=mode==='private'
  ?'Private invitations highlight selling a motorcycle through AnyBike for free. Only individual/business-unidentified contacts are candidates; check each contact is actually private before sending.'
  :mode==='both'
  ?'AnyBike prepares the correct message for identified dealers or private customers. Contacts we cannot identify are left out for review.'
  :'Dealer invitations are for business-identified contacts. Check they are UK motorcycle dealers before sending.';
 };$('emailSentFilter').onchange=()=>{page=0;render()};$('pageSize').onchange=()=>{$('cardPageSize').value=$('pageSize').value;page=0;render()};$('columnMode').onchange=()=>{page=0;render()};$('prev').onclick=()=>{page=Math.max(0,page-1);render()};$('next').onclick=()=>{page=Math.max(0,Math.min(Math.ceil(view().length/pageSize())-1,page+1));render()};$('reload').onclick=load;$('bulkSelectVisible').onclick=select100UsableContacts;
+$('bulkClassifyClose').onclick=()=>{$('bulkClassifyPanel').hidden=true;};
+$('bulkClassifySave').onclick=async()=>{
+ const kind=$('bulkClassifyKind').value,records=selectedUnclassifiedContacts(),status=$('bulkClassifyStatus');
+ if(!['dealer','private'].includes(kind)){status.textContent='Choose whether the group is dealers or private motorcycle owners.';return;}
+ if(!records.length){status.textContent='No unclassified eligible contacts remain selected.';return;}
+ if(records.length>100){status.textContent='Please classify up to 100 contacts at a time.';return;}
+ if(!confirm('Have you checked ALL '+records.length+' selected records are '+(kind==='dealer'?'motorcycle dealers':'private motorcycle owners')+'? This saves their contact type only. It does not approve marketing or send messages.'))return;
+ const button=$('bulkClassifySave');button.disabled=true;status.textContent='Saving contact types…';let count=0;
+ try{
+  for(let offset=0;offset<records.length;offset+=25){
+   const group=records.slice(offset,offset+25),ids=group.map(r=>r.id);
+   const {data,error}=await db.from('anybike_master_contacts').update({segment:kind}).in('id',ids).select();
+   if(error||!data||data.length!==ids.length)throw Error(error?.message||'Could not verify every record in batch');
+   const byId=new Map(data.map(r=>[r.id,r]));group.forEach(r=>Object.assign(r,byId.get(r.id)||{}));count+=data.length;
+  }
+  $('bulkClassifyPanel').hidden=true;render();
+  $('bulkSelectionStatus').textContent=count+' contacts classified as '+(kind==='dealer'?'dealers':'private owners')+'. Permission is still a separate check. No messages sent.';
+ }catch(err){status.textContent='Stopped after '+count+' classifications: '+err.message+' Refresh before retrying. No messages sent.';render();}
+ finally{button.disabled=false;}
+};
 $('closeBulkPreviews').onclick=()=>{closeBulkPreviewPanel();updateBulkContactReview();$('bulkSelectionStatus').textContent='Invitation previews closed. Other selected contacts stay ticked; no messages sent.';};
 $('bulkClearSelected').onclick=()=>{
  chosen.clear();
