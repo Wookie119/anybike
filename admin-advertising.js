@@ -278,13 +278,28 @@ async function initQuotes(){
   });
   host.append(heading,form);$('advertisingBillingReviews').prepend(host);host.scrollIntoView({block:'nearest'});
 }
+async function sendIssuedAdvertisingInvoice(invoice){
+ if(!invoice?.id)throw Error('A numbered, issued advertising invoice is required.');
+ const issued=await checked(db.from('advertising_issued_invoices').select('invoice_number,invoice_snapshot').eq('id',invoice.id).single());
+ const recipient=String(issued.invoice_snapshot?.billing_email||'').trim();
+ if(!recipient||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(recipient))throw Error('The issued invoice has no valid saved billing email.');
+ const typed=prompt('This sends the REAL issued invoice '+issued.invoice_number+' to '+recipient+'. Nothing will be sent unless you type SEND:');
+ if(typed!=='SEND')return;
+ if(!confirm('Final confirmation: email invoice '+issued.invoice_number+' to '+recipient+' now?'))return;
+ const result=await db.functions.invoke('admin-send-advertising-invoice',{body:{invoice_id:invoice.id}});
+ if(result.error||!result.data?.success){
+  await billingReviews();
+  throw Error(result.data?.error||'Invoice email status not confirmed. Check delivery log; do not retry automatically.');
+ }
+ await billingReviews();status('Invoice '+issued.invoice_number+' email accepted for delivery to '+recipient+'.');
+}
 async function billingReviews(){
   let container=$('advertisingBillingReviews');
   if(!container){container=el('div');container.id='advertisingBillingReviews';$('quotearea').append(container);}
-  const [rows,drafts,issued,payments]=await Promise.all([checked(db.from('advertising_billing_reviews').select('id,quotation_id,advertiser_name,billing_contact_name,billing_email,billing_address,billing_country,purchase_order_reference,buyer_vat_number,total_gbp,billing_status,external_invoice_reference,created_at').order('created_at',{ascending:false}).limit(100)),checked(db.from('advertising_invoice_drafts').select('*')),checked(db.from('advertising_issued_invoices').select('id,billing_review_id,draft_id,invoice_number')),checked(db.from('advertising_invoice_payments').select('invoice_id,amount_gbp'))]);const draftsByReview=new Map(drafts.map(d=>[d.billing_review_id,d]));const issuedByDraft=new Map(issued.map(i=>[i.draft_id,i]));const receivedByInvoice=new Map();for(const payment of payments)receivedByInvoice.set(payment.invoice_id,(receivedByInvoice.get(payment.invoice_id)||0)+Number(payment.amount_gbp));
+  const [rows,drafts,issued,payments,invoiceDeliveries]=await Promise.all([checked(db.from('advertising_billing_reviews').select('id,quotation_id,advertiser_name,billing_contact_name,billing_email,billing_address,billing_country,purchase_order_reference,buyer_vat_number,total_gbp,billing_status,external_invoice_reference,created_at').order('created_at',{ascending:false}).limit(100)),checked(db.from('advertising_invoice_drafts').select('*')),checked(db.from('advertising_issued_invoices').select('id,billing_review_id,draft_id,invoice_number')),checked(db.from('advertising_invoice_payments').select('invoice_id,amount_gbp')),checked(db.from('advertising_invoice_email_deliveries').select('invoice_id,recipient_email,delivery_status,completed_at'))]);const invoiceEmailById=new Map(invoiceDeliveries.map(x=>[x.invoice_id,x]));const draftsByReview=new Map(drafts.map(d=>[d.billing_review_id,d]));const issuedByDraft=new Map(issued.map(i=>[i.draft_id,i]));const receivedByInvoice=new Map();for(const payment of payments)receivedByInvoice.set(payment.invoice_id,(receivedByInvoice.get(payment.invoice_id)||0)+Number(payment.amount_gbp));
   if(!rows.length){container.replaceChildren();return;}
   const heading=el('h3','Advertising billing reviews — no invoice issued automatically');
-  const table=el('table');row(table,['Advertiser','Total','Billing stage','Invoice reference','Received / outstanding','Actions']);
+  const table=el('table');row(table,['Advertiser','Total','Billing stage','Invoice reference','Invoice email','Received / outstanding','Actions']);
   for(const v of rows){
    const actions=el('div');actions.className='bar';
    actions.append(button('Preview billing draft',run(()=>previewAdvertisingBillingDraft(v))));
@@ -294,7 +309,7 @@ async function billingReviews(){
    if(draft&&!issuedDoc)actions.append(button('View invoice draft',run(()=>viewAdvertisingInvoiceDraft(v))));
    if(draft&&!issuedDoc&&v.billing_status==='ready')actions.append(button('Final review',()=>reviewAdvertisingInvoiceDraft(v,draft)));
    if(draft&&!issuedDoc&&v.billing_status==='ready')actions.append(button('Issue invoice',run(()=>issueAdvertisingInvoice(v,draft))));
-   if(issuedDoc){actions.append(button('View issued invoice',run(()=>viewAdvertisingInvoiceDraft(v,true))));const remaining=Math.max(0,Math.round((Number(v.total_gbp)-Number(receivedByInvoice.get(issuedDoc.id)||0))*100)/100);if(remaining>0)actions.append(button('Record payment',()=>recordAdvertisingPayment(issuedDoc,remaining)));}
+   if(issuedDoc){actions.append(button('View issued invoice',run(()=>viewAdvertisingInvoiceDraft(v,true))));if(!invoiceEmailById.has(issuedDoc.id))actions.append(button('Email issued invoice',run(()=>sendIssuedAdvertisingInvoice(issuedDoc))));const remaining=Math.max(0,Math.round((Number(v.total_gbp)-Number(receivedByInvoice.get(issuedDoc.id)||0))*100)/100);if(remaining>0)actions.append(button('Record payment',()=>recordAdvertisingPayment(issuedDoc,remaining)));}
    if(v.billing_status==='needs_review')actions.append(button('Billing details',()=>editAdvertisingBillingDetails(v)));
    if(v.billing_status==='needs_review')actions.append(button('Mark ready',run(async()=>{
     if(!v.billing_contact_name?.trim()||!v.billing_email?.trim()||!v.billing_address?.trim()||!v.billing_country?.trim())throw Error('Save a verified billing contact, email, address and country before marking ready.');
@@ -310,7 +325,7 @@ async function billingReviews(){
     const {error}=await db.from('advertising_billing_reviews').update({billing_status:'invoiced',external_invoice_reference:ref.trim(),updated_at:new Date().toISOString()}).eq('id',v.id).eq('billing_status','ready');
     if(error)throw error;await billingReviews();status('Issued invoice reference recorded.');
    })));
-   const received=issuedDoc?Number(receivedByInvoice.get(issuedDoc.id)||0):0;const balance=issuedDoc?Math.max(0,Number(v.total_gbp)-received):null;row(table,[v.advertiser_name,money(v.total_gbp),issuedDoc?(balance<0.005?'Paid':received>0?'Part paid':'Awaiting payment'):v.billing_status,v.external_invoice_reference||issuedDoc?.invoice_number||'—',issuedDoc?money(received)+' / '+money(balance):'—',actions]);
+   const received=issuedDoc?Number(receivedByInvoice.get(issuedDoc.id)||0):0;const balance=issuedDoc?Math.max(0,Number(v.total_gbp)-received):null;row(table,[v.advertiser_name,money(v.total_gbp),issuedDoc?(balance<0.005?'Paid':received>0?'Part paid':'Awaiting payment'):v.billing_status,v.external_invoice_reference||issuedDoc?.invoice_number||'—',issuedDoc?(invoiceEmailById.get(issuedDoc.id)?.delivery_status||'Not sent'):'—',issuedDoc?money(received)+' / '+money(balance):'—',actions]);
   }
   container.replaceChildren(heading,table);
  }
