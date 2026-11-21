@@ -21,6 +21,15 @@ const isPublicUkCustomerPage=()=>{
  if(/\/(?:login|logout|register|forgot-password|reset-password|privacy-policy|cookie-policy|terms-and-conditions)\.html$/.test(path))return false;
  return true;
 };
+// One disclosure standard for every centrally managed advert and legacy slot.
+// Advertiser identity comes from the approved campaign, never hardcoded per page.
+function advertDisclosure(ad){
+ const name=String(ad?.partner_name||'Advertiser').trim()||'Advertiser';
+ return 'Advertisement · '+name;
+}
+function styleAdvertDisclosure(note){
+ note.style.cssText='display:block;clear:both;font:11px/1.35 Arial,sans-serif;color:#aaa;padding:4px 2px 0;margin:0;background:transparent;border:0;white-space:normal;position:static';
+}
 function buildMoveHouseCard(ad,companion=false){
  const stock=ad.placement_key==='stock_grid';
  const destination=https(ad.destination_url);
@@ -59,8 +68,9 @@ function buildMoveHouseCard(ad,companion=false){
   img.style.setProperty('object-fit','fill','important');
  }
  picture.append(source,img);link.append(picture);card.append(link);
- const disclosure=node('small',ad.disclosure||'Advertisement · '+String(ad.partner_name||'Advertiser'));
- disclosure.style.cssText='display:block;clear:both;font:11px/1.35 Arial,sans-serif;color:#aaa;padding:4px 2px 0;margin:0;background:transparent;border:0;white-space:normal;position:static';
+ const disclosure=node('small',advertDisclosure(ad));
+ disclosure.dataset.anybikeAdDisclosure='1';
+ styleAdvertDisclosure(disclosure);
  card.append(disclosure);
  let seen=false,clicked=false;
  const track=type=>{
@@ -272,8 +282,8 @@ function adoptLegacyMove(ad){
   if(!note||!note.matches('[data-anybike-ad-disclosure]')){
    note=node('small');note.dataset.anybikeAdDisclosure='1';link.after(note);
   }
-  note.textContent=ad.disclosure||'Advertisement · '+String(ad.partner_name||'Advertiser');
-  note.style.cssText='display:block;font:11px/1.35 Arial,sans-serif;color:#aaa;padding:3px 2px 0;margin:0;background:transparent';
+  note.textContent=advertDisclosure(ad);
+  styleAdvertDisclosure(note);
   attachLegacyTracking(link,ad);
   if(ad.paired_layout&&ad.companion&&!link.closest('.anybike-ad-pair')){
    const secondary=buildMoveHouseCard({...ad.companion,placement_key:ad.placement_key,
