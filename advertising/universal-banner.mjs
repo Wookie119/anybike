@@ -97,9 +97,9 @@ function positionModelMoveAdvert(main,card){
  // after research/enquiry and before source references, never inside the hero.
  const sources=main.querySelector(':scope > #modelSources');
  if(sources)main.insertBefore(card,sources);else main.append(card);
- card.style.maxWidth='none';
- card.style.width='100%';
- card.style.margin='16px 0 20px';
+ card.style.maxWidth='1200px';
+ card.style.width='min(100%, 1200px)';
+ card.style.margin='16px auto 20px';
 }
 function isManufacturerPage(main){
  const path=location.pathname.toLowerCase();
@@ -109,9 +109,9 @@ function positionManufacturerMoveAdvert(main,card){
  // Manufacturer adverts follow the complete model directory and supporting
  // sections. Never interrupt the manufacturer introduction or brand cards.
  main.append(card);
- card.style.width='100%';
- card.style.maxWidth='none';
- card.style.margin='18px 0 20px';
+ card.style.width='min(100%, 1200px)';
+ card.style.maxWidth='1200px';
+ card.style.margin='18px auto 20px';
 }
 function isEditorialInfoPage(){
  return ['/anybike-connect.html','/about-us.html'].includes(location.pathname.toLowerCase());
@@ -129,13 +129,13 @@ function positionEditorialMoveAdvert(main,card){
    main.append(wrap);
   }
   wrap.append(card);
-  card.style.cssText='width:100%;max-width:none;margin:0;min-width:0;box-sizing:border-box;overflow:visible;border-radius:12px';
+  card.style.cssText='width:100%;max-width:1200px;margin:0;min-width:0;box-sizing:border-box;overflow:visible;border-radius:12px';
   return;
  }
  main.append(card);
- card.style.width='100%';
- card.style.maxWidth='none';
- card.style.margin='20px 0 24px';
+ card.style.width='min(100%, 1200px)';
+ card.style.maxWidth='1200px';
+ card.style.margin='20px auto 24px';
 }
 function isExportServicesPage(){
  return location.pathname.toLowerCase()==='/export-services.html';
@@ -151,7 +151,7 @@ function positionExportMoveAdvert(main,card){
   main.append(container);
  }
  container.append(card);
- card.style.cssText='margin:0;width:100%;max-width:none;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
+ card.style.cssText='margin:0;width:100%;max-width:1200px;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
 }
 function isFreightForwardersPage(){
  return location.pathname.toLowerCase()==='/freight-forwarders.html';
@@ -168,7 +168,7 @@ function positionFreightMoveAdvert(main,card){
   main.append(container);
  }
  container.append(card);
- card.style.cssText='margin:0;width:100%;max-width:none;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
+ card.style.cssText='margin:0;width:100%;max-width:1200px;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
 }
 function isSellMotorcyclePage(){
  return location.pathname.toLowerCase()==='/sell-your-motorcycle.html';
@@ -184,7 +184,7 @@ function positionSellMotorcycleMoveAdvert(main,card){
   main.append(container);
  }
  container.append(card);
- card.style.cssText='margin:0;width:100%;max-width:none;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
+ card.style.cssText='margin:0;width:100%;max-width:1200px;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
 }
 // The display contract is reusable for every advertiser. Validate the
 // actual browser-selected artwork before insertion; never crop a bad creative.
@@ -345,6 +345,14 @@ function installMoveHouse(ad){
  }
  const main=document.querySelector('main');if(!main)return false;
  const card=pairedManagedCard(ad);if(!card)return false;
+ // A single central size contract applies to every large page/template slot.
+ // Never allow full-bleed sections to stretch a 3:1 advert across the screen.
+ card.style.setProperty('width','min(100%, 1200px)');
+ card.style.setProperty('max-width','1200px');
+ card.style.setProperty('margin-left','auto');
+ card.style.setProperty('margin-right','auto');
+ card.style.setProperty('min-width','0');
+ card.style.setProperty('box-sizing','border-box');
  switch(ad.placement_key){
   case 'before_sources':positionModelMoveAdvert(main,card);break;
   case 'about_wrap':positionEditorialMoveAdvert(main,card);break;
