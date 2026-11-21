@@ -28,7 +28,7 @@ function advertDisclosure(ad){
  return 'Advertisement · '+name;
 }
 function styleAdvertDisclosure(note){
- note.style.cssText='display:block;clear:both;font:11px/1.35 Arial,sans-serif;color:#aaa;padding:4px 2px 0;margin:0;background:transparent;border:0;white-space:normal;position:static';
+ note.style.cssText='display:block;clear:both;width:100%;box-sizing:border-box;text-align:center;font:11px/1.35 Arial,sans-serif;color:#aaa;padding:4px 2px 0;margin:0;background:transparent;border:0;white-space:normal;position:static';
 }
 function buildMoveHouseCard(ad,companion=false){
  const stock=ad.placement_key==='stock_grid';
