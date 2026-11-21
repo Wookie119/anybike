@@ -778,6 +778,23 @@ function richInvitationHtml(r){
   return '<p>'+html+'</p>';
  }).join('')+'</div>';
 }
+function downloadOutlookHtmlDraft(r){
+  const subject=invitationSubject(r);
+  const body='<!doctype html><html><head><meta charset="utf-8"></head><body>'+richInvitationHtml(r)+'</body></html>';
+  // MIME base64 prevents Outlook from mangling non-ASCII punctuation and HTML.
+  const base64=btoa(Array.from(new TextEncoder().encode(body),byte=>String.fromCharCode(byte)).join(''));
+  const subject64=btoa(Array.from(new TextEncoder().encode(subject),byte=>String.fromCharCode(byte)).join(''));
+  const encodedBody=base64.match(/.{1,76}/g).join('\r\n');
+  const email=String(r.email||'').replace(/[\r\n]/g,'').trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))throw Error('Invalid recipient email');
+  const eml=['X-Unsent: 1','To: '+email,'Subject: =?UTF-8?B?'+subject64+'?=','MIME-Version: 1.0','Content-Type: text/html; charset=UTF-8','Content-Transfer-Encoding: base64','',''+encodedBody,''].join('\r\n');
+  const file=new Blob([eml],{type:'message/rfc822'});
+  const url=URL.createObjectURL(file);
+  const link=document.createElement('a');
+  link.href=url;link.download='AnyBike-invitation-'+r.id+'.eml';document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+ }
+
 let smsHistory=new Map();
 async function refreshContactSmsSummary(){lastSmsByContact=new Map();for(let offset=0;;offset+=750){const {data,error}=await db.from('anybike_invitation_sms_log').select('contact_id,status,requested_at,sent_at').order('requested_at',{ascending:false}).range(offset,offset+749);if(error)throw error;for(const s of data||[]){if(s.contact_id&&!lastSmsByContact.has(s.contact_id)&&['sent','submitted','delivered'].includes(String(s.status||'').toLowerCase()))lastSmsByContact.set(s.contact_id,s)}if(!data||data.length<750)break}}
 async function refreshSmsHistory({savedSmsOnly=false,onlyContactId=null}={}){
@@ -823,22 +840,6 @@ async function reviewInvitations({savedSmsOnly=false,channel='both',onlyContactI
  Object.assign(r,data);chosen.delete(r.id);smsChosen.delete(r.id);queue=queue.filter(t=>t.id!==r.id);smsQueue=smsQueue.filter(t=>t.id!==r.id);btn.textContent='✓ Email sent recorded';$('queue').textContent='Outlook sending manually confirmed for '+r.email+'. Receipt/delivery not verified.';const reviewCard=btn.closest('[data-review-contact]');if(reviewCard&&$('bulkReviewResults')&&!$('bulkReviewResults').hidden){reviewCard.remove();refreshBulkPreviewSummary();}render();
  });
  $('invitePreviews').querySelectorAll('[data-copy-rich]').forEach(btn=>btn.onclick=async()=>{const r=queue.find(x=>x.id===Number(btn.dataset.copyRich));const html=richInvitationHtml(r);try{if(!window.ClipboardItem||!navigator.clipboard?.write)throw Error('Rich clipboard unsupported');await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([emailBody(r)],{type:'text/plain'})})]);$('queue').textContent='Formatted email copied for '+r.email+'. Open a new message FROM sales@anybike.co.uk, address it to '+r.email+', and paste with Ctrl+V. The red button should be included. Your Outlook signature can stay underneath.'}catch(e){$('queue').textContent='Could not copy formatted HTML. Please try Edge or Chrome over HTTPS. Nothing sent.'}});
- function downloadOutlookHtmlDraft(r){
-  const subject=invitationSubject(r);
-  const body='<!doctype html><html><head><meta charset="utf-8"></head><body>'+richInvitationHtml(r)+'</body></html>';
-  // MIME base64 prevents Outlook from mangling non-ASCII punctuation and HTML.
-  const base64=btoa(Array.from(new TextEncoder().encode(body),byte=>String.fromCharCode(byte)).join(''));
-  const subject64=btoa(Array.from(new TextEncoder().encode(subject),byte=>String.fromCharCode(byte)).join(''));
-  const encodedBody=base64.match(/.{1,76}/g).join('\r\n');
-  const email=String(r.email||'').replace(/[\r\n]/g,'').trim();
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))throw Error('Invalid recipient email');
-  const eml=['X-Unsent: 1','To: '+email,'Subject: =?UTF-8?B?'+subject64+'?=','MIME-Version: 1.0','Content-Type: text/html; charset=UTF-8','Content-Transfer-Encoding: base64','',''+encodedBody,''].join('\r\n');
-  const file=new Blob([eml],{type:'message/rfc822'});
-  const url=URL.createObjectURL(file);
-  const link=document.createElement('a');
-  link.href=url;link.download='AnyBike-invitation-'+r.id+'.eml';document.body.append(link);link.click();link.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),60000);
- }
  $('invitePreviews').querySelectorAll('[data-open-email]').forEach(btn=>btn.onclick=()=>{
   const r=queue.find(x=>x.id===Number(btn.dataset.openEmail));if(!r)return;
   if(r.email_invite_sent_at&&!confirm('This contact already has a confirmed sent email. Prepare another draft?'))return;
@@ -1012,6 +1013,6 @@ $('simpleContactReset').onclick=()=>{cardQuickFilter='all';$('simpleContactQuery
 document.querySelectorAll('[data-recruitment-go]').forEach(btn=>btn.addEventListener('click',()=>{const status=btn.getAttribute('data-recruitment-go');$('recruitmentFilter').value=status;$('emailSentFilter').value='all';page=0;render();$('recruitmentQuickStatus').textContent=status==='invited'?'Showing invited contacts awaiting registration. Check their history before contacting them again.':status==='not_invited'?'Showing contacts without a recorded invitation. Permission is required before preparing an invitation.':'Showing registered dealer contacts awaiting approval.';($('directoryTable').hidden?$('contactCards'):$('directoryTable')).scrollIntoView({behavior:'smooth',block:'start'});}));
 
 $('smsDraft').onclick=()=>{if(smsPos>=smsQueue.length)return;const r=smsQueue[smsPos],number=String(r.phone||'').replace(/\s/g,'');if(!/^07\d{9}$/.test(number)){alert('A valid UK mobile is required.');return;}const msg=smsMessage(r);if(msg.length>160){alert('Message too long for one SMS');return;}if(!confirm('SMS preview:\\n\\n'+msg+'\\n\\nOpen an SMS draft for '+(r.first_name||r.email)+' at '+number+'? You will review and send it in your messaging app.'))return;smsPos++;$('queue').textContent='SMS draft '+smsPos+'/'+smsQueue.length+' opened for '+number+'. Review and send it in your SMS app; sending is not tracked automatically.';window.location.href='sms:'+number+'?body='+encodeURIComponent(msg);$('smsDraft').disabled=smsPos===smsQueue.length};
-$('draft').onclick=()=>{if(pos>=queue.length)return;const r=queue[pos],body=emailBody(r),subject=invitationSubject(r);window.location.href='mailto:'+encodeURIComponent(r.email)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);pos++;$('queue').textContent='Desktop email draft requested for '+r.email+'. Verify From is sales@anybike.co.uk before sending. If Outlook does not open, set the Windows MAILTO default app to Outlook.';$('draft').disabled=pos===queue.length};
+$('draft').onclick=()=>{if(pos>=queue.length)return;const r=queue[pos];try{downloadOutlookHtmlDraft(r);pos++;$('queue').textContent='Formatted HTML Outlook draft downloaded for '+r.email+'. Open the .eml file in Outlook, verify the red button and From account before sending.';$('draft').disabled=pos>=queue.length;}catch(e){$('queue').textContent='Draft could not be downloaded: '+e.message+'. No email sent.'}};
 (async()=>{try{if(!await requireAdminSession())return;document.documentElement.classList.remove('admin-auth-pending');await load()}catch(e){document.documentElement.classList.remove('admin-auth-pending');$('status').textContent=e.message}})();
 </script></body></html>
