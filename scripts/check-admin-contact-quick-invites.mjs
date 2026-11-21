@@ -368,6 +368,13 @@ assert(page.includes("Admin confirmed marketing SMS authorisation during AnyBike
 assert(page.includes("if(failed>=3){batchStop=true;break;}"),'Batch must stop after repeated provider errors');
 assert(page.includes("id=\"bulkSendStop\""),'Bulk sender must provide a stop control');
 assert(page.includes("sms_permission_verified_at"),'SMS provider eligibility must be recorded separately');
+assert(page.includes("Send private invitation test — email + SMS"),'A single test action must cover both the owner email and mobile');
+assert(page.includes("one REAL private invitation email to mocp@hotmail.co.uk")||page.includes("ONE REAL private invitation email to mocp@hotmail.co.uk"),'Combined test must explicitly confirm the owner inbox');
+assert(page.includes("ONE chargeable AnyBike SMS to 07772024763"),'Combined test must explicitly confirm the owner mobile');
+assert(page.includes("functions.invoke('anybike-send-dealer-invitation-sms',{body:{action:'send_test',invitation_type:'private',confirm_send:true}})"),'SMS test must invoke dedicated fixed-number provider action');
+assert(page.includes("functions.invoke('anybike-send-contact-invitation-email',{body:{action:'send_test',invitation_type:'private',confirm_send:true}})"),'Email test must use the same HTML email service as real invitations');
+assert(page.includes("outcomes.push('Email FAILED: '"),'Email test failure must be visible independently');
+assert(page.includes("outcomes.push('SMS FAILED: '"),'SMS test failure must be visible independently');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
