@@ -901,10 +901,10 @@ async function reviewInvitations({savedSmsOnly=false,channel='both',onlyContactI
    // SMS permission is verified separately; never infer it from email approval.
    const smsFields={sms_invite_selected:true};
    if(!savedPermission){smsFields.sms_marketing_permission=evidence;smsFields.sms_permission_verified_at=new Date().toISOString();}
-   const {data:saved,error:approvalError}=await db.from('anybike_master_contacts')
+   const {data:smsSaved,error:approvalError}=await db.from('anybike_master_contacts')
     .update(smsFields).eq('id',r.id).select().single();
-   if(approvalError||!saved)throw Error('Unable to save separate SMS permission: '+(approvalError?.message||'Contact unavailable'));
-   Object.assign(r,saved);smsChosen.add(r.id);
+   if(approvalError||!smsSaved)throw Error('Unable to save separate SMS permission: '+(approvalError?.message||'Contact unavailable'));
+   Object.assign(r,smsSaved);smsChosen.add(r.id);
    const {data,error}=await db.functions.invoke('anybike-send-dealer-invitation-sms',{body:{contact_id:r.id,confirm_send:true,invitation_type:invitationTypeFor(r)}});
    if(error)throw Error(data?.error||error.message||'SMS sending failed');
    if(!data?.success)throw Error(data?.error||'SMS not accepted by provider');
