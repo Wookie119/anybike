@@ -422,7 +422,10 @@ async function initQuotes(){
    const selectedModels=coverage.filter(m=>selectedIds.has(String(m.model_id)));
    const manufacturers=[...new Set([...(item.manufacturers||[]),...selectedModels.map(m=>m.manufacturer)])];
    const models=[...new Set(selectedModels.map(m=>m.model))];
-   const formatPlacement=item.artwork_format==='stock_card'?'stock_card':'below_hero';
+   // Artwork size belongs to the centrally managed page slot, not the campaign
+   // delivery action. A stock_card campaign with placement='stock_card' could
+   // never match the single below_hero selector used by the public service.
+   const formatPlacement='below_hero';
    const desc=[item.description, 'Quotation AB-ADQ-'+String(quote.quote_number).padStart(6,'0'),'Artwork format: '+item.artwork_format.replaceAll('_',' '),'Quoted quantity: '+item.quantity,'Audience: '+quote.audience,'Configure and approve artwork and exact territory before activation'].join(' | ');
    const record={
     source_quotation_item_id:item.id,partner_id:partner.id,
