@@ -370,6 +370,11 @@ function select100UsableContacts(){
   $('bulkSelectionStatus').textContent='No contacts available. Check the email, mobile and invitation filters above. No changes made.';
   return;
  }
+ const alreadySelected=ids.length&&ids.every(id=>chosen.has(id))&&[...chosen].every(id=>ids.includes(id));
+ if(alreadySelected){
+  $('bulkSelectionStatus').textContent='All '+ids.length+' matching contacts are already selected. To find more, change the filters or invitation type above. You can prepare '+ids.filter(id=>{const contact=items.find(r=>r.id===id);return contact&&contact.approved_for_invitation&&canSelectForEmailReview(contact)}).length+' approved invitations now. Nothing sent.';
+  return;
+ }
  const changeCount=[...chosen].filter(id=>!ids.includes(id)).length;
  if(changeCount&&!confirm('Replace '+changeCount+' existing ticks with a new 100-contact selection? This only changes ticks.'))return;
  chosen=new Set(ids);
@@ -397,13 +402,17 @@ function updateBulkContactReview(){
  $('bulkReviewSelected').textContent=approved.length?'Prepare invitations ('+approved.length+')':'Prepare invitations';
  $('bulkReviewSelected').title=approved.length?'Prepare Outlook drafts for '+approved.length+' individually approved eligible contacts. Nothing is sent.':'Review and save appropriate invitation permission before preparing email drafts.';
  $('bulkReviewContacts').disabled=!selected.length;
- $('bulkReviewContacts').textContent=unknown?'Identify '+unknown+' contacts':needsReview.length?'Review permission ('+needsReview.length+')':approved.length?'Permission reviewed':'Review permission';
+ $('bulkReviewContacts').textContent=unknown?'Identify '+unknown+' contacts':needsReview.length?'Review permission ('+needsReview.length+')':approved.length?'Permission already reviewed':'Review permission';
+ $('bulkReviewContacts').disabled=!selected.length||(!unknown&&!needsReview.length);
  const both=$('invitationAudience').value==='both';
  const total=view().filter(r=>hasInvitationEmail(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&(both||invitationAudienceMatches(r))).length;
  const unclassified=both?view().filter(r=>explicitInvitationKind(r)==='unknown'&&hasInvitationEmail(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)).length:0;
- $('bulkSelectVisible').textContent='Select up to 100 contacts';
- $('bulkSelectVisible').title=total?'Select up to 100 eligible contacts for invitation review.':unclassified?'Select up to 100 contacts needing dealer/private classification. No marketing permissions or messages.':'No usable contacts match these filters.';
+ const eligibleRecords=view().filter(r=>hasInvitationEmail(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&(both||invitationAudienceMatches(r)));
+ const batch=eligibleRecords.slice(0,100),allTicked=batch.length>0&&batch.every(r=>chosen.has(r.id));
+ $('bulkSelectVisible').textContent=allTicked?'All '+batch.length+' matching selected':'Select '+Math.min(100,total)+' matching contacts';
+ $('bulkSelectVisible').title=allTicked?'All '+batch.length+' available contacts are already ticked. Change filters or invitation type to see more; no messages sent.':total?'Select up to 100 eligible contacts for invitation review ('+total+' match your filters).':unclassified?'Select contacts needing dealer/private classification. No messages sent.':'No usable contacts match these filters.';
  $('bulkSelectVisible').disabled=total===0&&unclassified===0;
+ const feedback=$('cardPageFeedback');if(feedback){feedback.title=total+' contacts are available for invitations under the selected filters.';}
  if($('bulkClassifyPanel')&&!$('bulkClassifyPanel').hidden)refreshBulkClassifyPanel();
 }
 function renderContactCards(shown){
