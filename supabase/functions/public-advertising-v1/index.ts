@@ -9,7 +9,21 @@ const key=await crypto.subtle.importKey("raw",enc.encode(secret+"|anybike-ad-eve
 const b64=(x:Uint8Array)=>btoa(String.fromCharCode(...x)).replaceAll("+","-").replaceAll("/","_").replaceAll("=","");
 const un64=(x:string)=>Uint8Array.from(atob(x.replaceAll("-","+").replaceAll("_","/")),c=>c.charCodeAt(0));
 async function sign(p:Record<string,unknown>){const body=b64(enc.encode(JSON.stringify(p)));return body+"."+b64(new Uint8Array(await crypto.subtle.sign("HMAC",key,enc.encode(body))))}
-async function decode(token:string){if(token.length>2048)return null;const [body,sig,extra]=token.split(".");if(!body||!sig||extra||!await crypto.subtle.verify("HMAC",key,un64(sig),enc.encode(body)))return null;const p=JSON.parse(new TextDecoder().decode(un64(body)));return Number(p.exp)>Date.now()?p:null}
+async function decode(token:string){
+ try{
+  if(typeof token!=="string"||token.length>2048)return null;
+  const [body,sig,extra]=token.split(".");
+  if(!body||!sig||extra)return null;
+  if(!await crypto.subtle.verify("HMAC",key,un64(sig),enc.encode(body)))return null;
+  const p=JSON.parse(new TextDecoder().decode(un64(body)));
+  if(!p||typeof p!=="object"||typeof p.cid!=="string"||typeof p.nonce!=="string")return null;
+  if(p.cid.length!==36||p.nonce.length!==36||!Number.isFinite(p.exp))return null;
+  if(p.exp<=Date.now()||p.exp>Date.now()+3600000)return null;
+  if(p.mid!==null&&(!Number.isSafeInteger(p.mid)||p.mid<=0))return null;
+  if(p.path!==undefined&&(typeof p.path!=="string"||p.path.length>200||!p.path.startsWith("/")||!p.path.endsWith(".html")||p.path.includes("..")))return null;
+  return p;
+ }catch{return null}
+}
 const match=(a:string[]|null,v:string)=>!a?.length||a.some(x=>String(x).trim().toLowerCase()===v.trim().toLowerCase());
 const matchCountry=(a:string[]|null,v:string)=>!!a?.length&&a.some(x=>String(x).trim().toUpperCase()===v);
 const verifiedCountry=async(req:Request)=>{
