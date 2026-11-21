@@ -271,7 +271,7 @@ assert(page.includes("$('bulkPermissionEvidence').focus();"),'Missing bulk permi
 assert(page.includes("approved.length?'Prepare invitations ('+approved.length+'"),'Approved draft count must be clear before preview');
 assert(page.includes("No approved contacts yet. Review and save the permission evidence"),'Unapproved contacts must receive a useful explanation');
 assert(page.includes("function select100UsableContacts()"),'Bulk email selection must fill up to 100 across filtered pages');
-assert(page.includes("const candidates=view().filter(r=>hasInvitationEmail(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&(both||invitationAudienceMatches(r)))"),'Bulk selection must exclude unusable emails and registered or previously invited contacts');
+assert(page.includes("const candidates=view().filter(canSelectForBatch)"),'Bulk selection must use channel-specific eligibility and exclude registered or previously invited contacts');
 assert(page.includes("chosen=new Set(ids)"),'Bulk email batch must contain precisely the selected usable contacts');
 assert(page.includes("if(changeCount&&!confirm("),'Replacing ticks outside a batch must require confirmation');
 assert(page.includes("if(channel==='email'&&!savedSmsOnly){smsHistory=new Map();}"),'Email-only draft preparation must not depend on SMS history');
@@ -359,6 +359,15 @@ assert(page.includes("SMS marketing permission evidence"),'SMS must use explicit
 assert(page.includes("channel==='sms'&&onlyContactId!==null"),'Previously emailed contacts can open individual SMS previews');
 assert(page.includes("if(channel!=='sms'&&!r.approved_for_invitation)"),'Email approval remains required while SMS uses separate recorded permission');
 assert(page.includes("if($('simpleContactQuery').value.trim())$('excludeInvited').checked=false"),'Explicit contact search can locate a previously emailed recipient');
+assert(page.includes('id="bulkSendEmail"'),'Batch must have a separate branded email checkbox');
+assert(page.includes('id="bulkSendSms"'),'Batch must have a separate SMS checkbox');
+assert(page.includes('id="bulkSendConfirmed"'),'Real bulk sends must require explicit authorisation');
+assert(page.includes("!selected.length||selected.length>100"),'Batch sender must cap selection at 100 recipients');
+assert(page.includes("if(!confirm('SEND '"),'A final confirmation must state counts before sending');
+assert(page.includes("Admin confirmed marketing SMS authorisation during AnyBike invitation batch"),'Batch SMS authorisation must be recorded against each recipient');
+assert(page.includes("if(failed>=3){batchStop=true;break;}"),'Batch must stop after repeated provider errors');
+assert(page.includes("id=\"bulkSendStop\""),'Bulk sender must provide a stop control');
+assert(page.includes("sms_permission_verified_at"),'SMS provider eligibility must be recorded separately');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
