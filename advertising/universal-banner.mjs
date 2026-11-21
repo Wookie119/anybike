@@ -201,6 +201,9 @@ function adoptLegacyMove(ad){
  if(!urls.desktop||!urls.mobile||!destination)return false;
  anchors.forEach((link,index)=>{
   link.href=destination;link.rel='noopener sponsored';link.target='_blank';
+  link.dataset.anybikeAdAuthorized='1';
+  const outer=link.closest('section#moveMotorcyclesAdvert,aside.move-dealer-promo,aside[aria-label*="Move Motorcycles"],section[aria-label*="Move Motorcycles"]');
+  if(outer)outer.dataset.anybikeAdAuthorized='1';
   link.dataset.adSlotCode=templateAdSlotCode(ad)+(anchors.length>1?'-'+String(index+1).padStart(2,'0'):'');
   link.dataset.adCampaignId=ad.id;
   link.style.cssText='display:block;width:100%;height:auto;min-width:0;border-radius:12px;overflow:hidden;background:#101010;text-decoration:none';
@@ -212,6 +215,11 @@ function adoptLegacyMove(ad){
   if(image){image.src=urls.desktop;image.alt=typeof ad.alt_text==='string'?ad.alt_text:'';
    image.style.cssText='display:block;width:100%;height:auto;max-width:100%;object-fit:contain;border-radius:12px';}
   let note=link.nextElementSibling;
+  if(!note||!note.matches('[data-anybike-ad-disclosure]')){
+   const oldNote=[...link.parentElement.children].find(x=>x!==link&&
+    !x.querySelector('a,img,picture')&&/^Advertisement\s*[·:-]/i.test((x.textContent||'').trim()));
+   if(oldNote){note=oldNote;note.dataset.anybikeAdDisclosure='1';}
+  }
   if(!note||!note.matches('[data-anybike-ad-disclosure]')){
    note=node('small');note.dataset.anybikeAdDisclosure='1';link.after(note);
   }
