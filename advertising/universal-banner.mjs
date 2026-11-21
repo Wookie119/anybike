@@ -83,6 +83,22 @@ function positionEditorialMoveAdvert(main,card){
  card.style.maxWidth='none';
  card.style.margin='20px 0 24px';
 }
+function isExportServicesPage(){
+ return location.pathname.toLowerCase()==='/export-services.html';
+}
+function positionExportMoveAdvert(main,card){
+ // Export service customers should see the full editorial and enquiry route
+ // first. Contain the banner in the same centered width as the page sections.
+ let container=document.getElementById('anybike-move-export-wrap');
+ if(!container){
+  container=node('div');
+  container.id='anybike-move-export-wrap';
+  container.style.cssText='width:100%;max-width:1320px;margin:22px auto 28px;padding:0 24px;box-sizing:border-box;min-width:0';
+  main.append(container);
+ }
+ container.append(card);
+ card.style.cssText='margin:0;width:100%;max-width:none;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
+}
 function installMoveHouse(){
  if(!isPublicUkCustomerPage()||existingMoveAdvert())return false;
  const existing=document.getElementById(moveHouseMarker);
@@ -91,6 +107,7 @@ function installMoveHouse(){
   if(isUniversalModelPage(targetMain))positionModelMoveAdvert(targetMain,existing);
   else if(isManufacturerPage(targetMain))positionManufacturerMoveAdvert(targetMain,existing);
   else if(isEditorialInfoPage()&&targetMain)positionEditorialMoveAdvert(targetMain,existing);
+  else if(isExportServicesPage()&&targetMain)positionExportMoveAdvert(targetMain,existing);
   return true;
  }
  const stock=location.pathname.toLowerCase()==='/available-stock.html';
@@ -114,6 +131,10 @@ function installMoveHouse(){
  }
  if(isEditorialInfoPage()){
   positionEditorialMoveAdvert(main,buildMoveHouseCard(false));
+  return true;
+ }
+ if(isExportServicesPage()){
+  positionExportMoveAdvert(main,buildMoveHouseCard(false));
   return true;
  }
  // Retain the approved template: add a single optional advert after its hero
