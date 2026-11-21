@@ -327,7 +327,9 @@ function updateBulkContactReview(){
  $('bulkSelectionStatus').textContent=selected.length
   ?eligible.length+' approved for invitation · '+(selected.length-eligible.length)+' not yet eligible. No messages sent.'
   :'Tick contacts on their cards to review invitations together. Nothing is sent automatically.';
- $('bulkReviewSelected').disabled=!eligible.length;
+ $('bulkReviewSelected').disabled=!selected.length;
+ $('bulkReviewSelected').textContent=eligible.length?'Prepare '+eligible.length+' approved email draft'+(eligible.length===1?'':'s'):'Prepare email drafts (review permission first)';
+ $('bulkReviewSelected').title=eligible.length?'Prepare individual Outlook drafts for '+eligible.length+' approved contacts. Nothing is sent.':'Selected contacts are not yet approved. Click to open the bulk permission review; nothing will be sent.';
  $('bulkReviewContacts').disabled=!selected.length;
  const pending=selected.filter(r=>!r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
  $('bulkReviewContacts').textContent=pending.length?'Bulk review '+pending.length+' selected permissions':eligible.length?'Review '+eligible.length+' approved contacts':'Bulk review selected';
@@ -575,7 +577,7 @@ $('saveBulkPermission').onclick=async()=>{
    const byId=new Map(data.map(r=>[r.id,r]));batch.forEach(r=>Object.assign(r,byId.get(r.id)));updated+=data.length;
   }
   $('bulkPermissionPanel').hidden=true;render();
-  $('bulkSelectionStatus').textContent=updated+' contacts reviewed with recorded evidence. No invitations sent. Prepare approved drafts when ready.';
+  $('bulkSelectionStatus').textContent=updated+' contacts reviewed with recorded evidence. No invitations sent. Click Prepare approved email drafts to preview '+updated+' contacts.';
  }catch(error){status.textContent='Stopped after '+updated+' saved: '+error.message+' No invitations sent. Refresh before retrying.';}
  finally{button.disabled=false;}
 };
@@ -583,7 +585,9 @@ $('bulkReviewSelected').onclick=async()=>{
  const matchingIds=new Set(view().map(r=>r.id));const selected=items.filter(r=>chosen.has(r.id)&&matchingIds.has(r.id));
  const eligible=selected.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
  if(!eligible.length){
-  $('bulkSelectionStatus').textContent='Selected contacts need approved invitation permission before review.';
+  $('bulkSelectionStatus').textContent='No approved contacts yet. Review and save the permission evidence for your selected group first. No emails will be sent.';
+  $('bulkReviewContacts').click();
+  if(!$('bulkPermissionPanel').hidden)$('bulkPermissionEvidence').focus();
   return;
  }
  const button=$('bulkReviewSelected');
