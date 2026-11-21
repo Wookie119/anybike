@@ -163,6 +163,42 @@ function positionSellMotorcycleMoveAdvert(main,card){
  container.append(card);
  card.style.cssText='margin:0;width:100%;max-width:none;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
 }
+// The display contract is reusable for every advertiser. Validate the
+// actual browser-selected artwork before insertion; never crop a bad creative.
+const formatRatio={stock_card:4/3,slim_landscape:3,large_landscape:16/9,compact_mobile:1};
+async function validateAdvertArtwork(ad){
+ const stock=ad.placement_key==='stock_grid';
+ const compact=typeof matchMedia==='function'&&matchMedia('(max-width:650px)').matches;
+ const format=stock?'stock_card':(compact&&ad.compact_image_url?'compact_mobile':ad.creative_format||'slim_landscape');
+ const source=stock?ad.stock_card_image_url:
+  compact&&ad.compact_image_url?ad.compact_image_url:
+  ad.creative_format==='large_landscape'?ad.desktop_image_url:
+  ad.slim_image_url||ad.desktop_image_url;
+ const url=https(source),ratio=formatRatio[format];
+ if(!url||!ratio)return false;
+ return new Promise(resolve=>{
+  const img=new Image();let settled=false;
+  const done=ok=>{if(settled)return;settled=true;clearTimeout(timeout);resolve(ok)};
+  const timeout=setTimeout(()=>done(false),8000);
+  img.onload=()=>{
+   const actual=img.naturalWidth/img.naturalHeight;
+   const valid=Number.isFinite(actual)&&Math.abs(actual/ratio-1)<=0.035;
+   if(!valid)console.warn('Advert creative does not match its approved slot',ad.id,format);
+   done(valid);
+  };
+  img.onerror=()=>done(false);
+  img.src=url;
+ });
+}
+function setupStockAdvertRedraw(ad){
+ if(ad.placement_key!=='stock_grid')return;
+ const grid=document.getElementById('stockGrid');if(!grid||grid.__anybikeStockAdvertObserver)return;
+ const watch=new MutationObserver(()=>{
+  if(!document.getElementById(moveHouseMarker))installMoveHouse(ad);
+ });
+ watch.observe(grid,{childList:true});
+ grid.__anybikeStockAdvertObserver=watch;
+}
 function installMoveHouse(ad){
  if(!isPublicUkCustomerPage()||existingMoveAdvert())return false;
  if(document.getElementById(moveHouseMarker))return true;
@@ -192,7 +228,6 @@ function installMoveHouse(ad){
 // Legacy house adverts are subject to the SAME active-campaign and page-inventory
 // controls as paid advertising. A stored draft creative is NEVER live inventory.
 // This transitional bridge prevents unapproved static artwork from bypassing Admin.
-const APPROVED_MOVE_CAMPAIGN_ID='95c5d74b-1048-44fc-b22a-37683c4380e8';
 export async function renderMoveHouseOnUkPage(options={}){
  if(!isPublicUkCustomerPage()||existingMoveAdvert())return;
  if(moveHouseReady===null){
@@ -219,43 +254,29 @@ export async function renderMoveHouseOnUkPage(options={}){
  }catch{return;}
  try{
   const result=await send(request);
-  if(result?.ad?.id!==APPROVED_MOVE_CAMPAIGN_ID)return;
-  if(result.ad.placement_key==='stock_grid'){
-   const grid=document.getElementById('stockGrid');if(!grid)return;
-   // Filtering and sorting replace all motorcycle cards. The same approved
-   // campaign must be reinserted after each redraw, without duplicate adverts.
-   if(!grid.__anybikeStockAdvertObserver){
-    const watch=new MutationObserver(()=>{
-     if(!document.getElementById(moveHouseMarker))installMoveHouse(result.ad);
-    });
-    watch.observe(grid,{childList:true});
-    grid.__anybikeStockAdvertObserver=watch;
-   }
-  }
+  if(!result?.ad||!await validateAdvertArtwork(result.ad))return;
+  setupStockAdvertRedraw(result.ad);
   installMoveHouse(result.ad);
  }catch(error){console.warn('Move advertising campaign could not be verified',error);}
 }
 
-export async function renderAdvertising(context){if(document.getElementById(moveHouseMarker)||existingMoveAdvert())return;const n=++generation;observer?.disconnect();document.getElementById('anybike-ad-below-hero')?.remove();if(!context||context.country!=='GB')return;const isModel=Number.isSafeInteger(context.modelId);if(!isModel&&!context.pagePath)return;try{const {ad}=await send(isModel?{action:'select',model_id:context.modelId,country:context.country}:{action:'select_page',page_path:context.pagePath,country:context.country});if(n!==generation||!ad)return;const anchor=document.querySelector('main .hero')||(!isModel?document.querySelector('main .hero-section,main section:first-of-type'):null);const href=https(ad.destination_url);const desktop=https(ad.desktop_image_url),mobile=https(ad.mobile_image_url);if(!anchor||!href||!desktop||!mobile)return;
-const box=node('aside');box.id='anybike-ad-below-hero';box.className='anybike-advertising-banner';box.setAttribute('aria-label','Advertisement: '+ad.partner_name);box.style.cssText='margin:12px 0;display:block';
-const link=node('a');link.href=href;link.target='_blank';link.rel='noopener sponsored';link.style.cssText='display:block;width:100%;background:#040c34;color:#fff;border:1px solid #686868;border-radius:12px;padding:0;text-decoration:none;overflow:hidden;min-width:0';
-const copy=node('div');copy.style.cssText='flex:1;min-width:0';const label=node('span','Advertisement · '+ad.partner_name);label.style.cssText='display:block;font:600 11px Arial;color:#d8cba7;margin-bottom:3px';const title=node('strong',ad.headline);title.style.cssText='display:block;font:700 clamp(14px,2vw,19px) Arial;line-height:1.2';const subtitle=node('div',ad.subheading);subtitle.style.cssText='font:13px Arial;line-height:1.35;margin:4px 0;color:#f1f1f1';const cta=node('span',ad.cta_text||'Find out more');cta.style.cssText='display:inline-block;background:#a08c59;color:#040c34;font:700 12px Arial;padding:6px 9px;border-radius:3px;margin-top:3px';copy.append(label,title,subtitle,cta);const picture=node('picture');picture.style.cssText='display:block;width:100%;min-width:0;border-radius:10px;overflow:hidden';const source=node('source');source.media='(max-width:650px)';source.srcset=mobile;const img=node('img');img.src=desktop;img.alt=typeof ad.alt_text==='string'?ad.alt_text:'';img.loading='lazy';img.style.cssText='display:block;width:100%;height:auto;max-width:100%;aspect-ratio:auto;object-fit:contain;border-radius:10px';picture.append(source,img);link.append(picture);
-// Model photos require explicit advertising-use rights; use approved campaign artwork until those rights are recorded.
-
-box.append(link);if(ad.disclosure){const disclosure=node('small',ad.disclosure);disclosure.style.cssText='display:block;margin-top:4px;color:#aaa;font:11px Arial';box.append(disclosure)}img.addEventListener('error',()=>{box.remove();observer?.disconnect()},{once:true});anchor.after(box);
-let seen=false,clicked=false;
-const track=type=>{
- const body={action:'event',event_type:type,token:ad.token};
- // sendBeacon is designed for navigation-time delivery. Keep fetch as fallback.
- if(type==='click'&&typeof navigator.sendBeacon==='function'){
-  try{if(navigator.sendBeacon(endpoint,new Blob([JSON.stringify(body)],{type:'text/plain;charset=UTF-8'})))return}catch{}
- }
- send(body,true).catch(()=>{});
-};
-const impression=()=>{if(seen)return;seen=true;track('impression')};
-const recordClick=()=>{if(clicked)return;clicked=true;impression();track('click')};
-link.addEventListener('click',recordClick);
-link.addEventListener('auxclick',event=>{if(event.button===1)recordClick()});if('IntersectionObserver'in window){observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();observer.disconnect()}},{threshold:.5});observer.observe(box)}else{impression()}}catch{/* advertising must never interrupt model pages */}}
+// All campaigns use the SAME placement engine. Do not add per-page fallback
+// insertion after a hero: that was responsible for inconsistent locations.
+export async function renderAdvertising(context){
+ if(!context||context.country!=='GB'||document.getElementById(moveHouseMarker)||existingMoveAdvert())return;
+ const n=++generation;
+ const isModel=Number.isSafeInteger(context.modelId)&&context.modelId>0;
+ if(!isModel&&!context.pagePath)return;
+ try{
+  const {ad}=await send(isModel?
+   {action:'select',model_id:context.modelId,country:context.country}:
+   {action:'select_page',page_path:context.pagePath,country:context.country});
+  if(n!==generation||!ad)return;
+  if(!await validateAdvertArtwork(ad))return;
+  setupStockAdvertRedraw(ad);
+  installMoveHouse(ad);
+ }catch(error){console.warn('Managed advertising unavailable',error);}
+}
 
 // The shared header calls this only on known public non-model routes. No layout is changed when no campaign is eligible.
 export async function renderPublicPageAdvertising(){try{const path=location.pathname;if(!/^\/markets\/[a-z0-9-]+\.html$/i.test(path)&&!['/bmw-motorcycles.html','/harley-davidson-motorcycles.html'].includes(path))return;if(!document.querySelector('main .hero,main .hero-section,main section:first-of-type'))return;const r=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/visitor-market-country',{cache:'no-store'});if(!r.ok)return;const g=await r.json();if(g.country_code==='GB')await renderAdvertising({pagePath:path,country:'GB'})}catch{/* never impede public content */}}
