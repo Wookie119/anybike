@@ -351,7 +351,7 @@ assert(page.includes("confirm_send:true"),'Each provider submission requires a s
 assert(page.includes("Send the formatted AnyBike invitation to "), 'Sending an actual email must prompt for confirmation');
 assert(page.includes("if(!r||!r.approved_for_invitation||r.email_invite_sent_at)"), 'Email action blocks unapproved and already-sent recipients');
 assert(page.includes("Email NOT confirmed as submitted:"), 'Email submission failures must be visible beside recipient preview');
-assert(page.includes("Email accepted")||page.includes("AnyBike email accepted"), 'Submitted email must report provider receipt rather than claimed delivery');
+assert(page.includes("Accepted by AnyBike email service for"), 'Submitted email must report provider acceptance rather than claimed inbox delivery');
 assert(page.includes("Other email options (Outlook/manual)"), 'Manual Outlook must be secondary to direct sending');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
