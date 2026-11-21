@@ -307,6 +307,38 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
  if(requested.toLowerCase()==="harley-davidson" || requested.toLowerCase()==="harley davidson"){location.replace("/harley-davidson-motorcycles.html");return;}
  const key=Object.keys(guides).find(x=>x.toLowerCase()===requested.toLowerCase());
  const make=key||requested;
+  // One manufacturer-identity lookup for the universal brand page.
+  // Use the manufacturer's real logo where source-verified, never AnyBike's logo.
+  const manufacturerLogoByName={
+    'triumph':{
+      src:'https://upload.wikimedia.org/wikipedia/commons/b/b2/Triumph_Motorcycles_logo_and_claim_2015.svg',
+      alt:'Triumph Motorcycles logo'
+    }
+  };
+  const brandLogo=manufacturerLogoByName[make.toLowerCase()];
+  const heroBrandImage=document.querySelector('.manufacturer-hero .hero-visual img');
+  if(heroBrandImage){
+    if(brandLogo){
+      heroBrandImage.src=brandLogo.src;heroBrandImage.alt=brandLogo.alt;
+      heroBrandImage.style.filter='invert(1)';
+      heroBrandImage.onerror=()=>{
+        // Never replace a missing manufacturer logo with the AnyBike logo.
+        heroBrandImage.remove();
+        const wordmark=document.createElement('strong');
+        wordmark.textContent=make.toUpperCase();
+        wordmark.style.cssText='font:800 clamp(24px,4vw,52px) Arial,sans-serif;color:#fff;letter-spacing:.04em';
+        document.querySelector('.manufacturer-hero .hero-visual')?.append(wordmark);
+      };
+    }else{
+      // A generic AnyBike logo falsely identifies another motorcycle manufacturer.
+      // Use honest manufacturer text pending verified logo artwork.
+      heroBrandImage.remove();
+      const wordmark=document.createElement('strong');
+      wordmark.textContent=make.toUpperCase();
+      wordmark.style.cssText='font:800 clamp(24px,4vw,52px) Arial,sans-serif;color:#fff;letter-spacing:.04em';
+      document.querySelector('.manufacturer-hero .hero-visual')?.append(wordmark);
+    }
+  }
  // Unknown manufacturer names are enquiry routes, not indexable catalogue pages.
  const indexedManufacturerNames=["AJS","Aprilia","Benelli","Beta","Bimota","BSA","CCM","CFMOTO","Ducati","Fantic","GASGAS","Herald","Honda","Husqvarna","Indian Motorcycle","Italjet","Kawasaki","Keeway","KOVE","KTM","Kymco","Lambretta","Lexmoto","Maeving","MGB","Moto Guzzi","Moto Morini","Mugen","Mutt Motorcycles","MV Agusta","NIU","Norton","Peugeot Motocycles","Piaggio","QJMotor","Rieju","Royal Alloy","Royal Enfield","Surron","Suzuki","SYM","Talaria","Triumph","Vespa","Vmoto","Voge","Yamaha","Zero Motorcycles","Zontes"];
  const knownBrand=indexedManufacturerNames.some(name=>name.toLowerCase()===make.toLowerCase())||Boolean(key)||Array.from(document.querySelectorAll('.brand-directory-links a[data-brand]')).some(a=>a.dataset.brand.toLowerCase()===make.toLowerCase());
