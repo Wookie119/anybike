@@ -220,15 +220,19 @@ export async function renderMoveHouseOnUkPage(options={}){
  try{
   const result=await send(request);
   if(result?.ad?.id!==APPROVED_MOVE_CAMPAIGN_ID)return;
-  if(installMoveHouse(result.ad))return;
-  if(location.pathname.toLowerCase()==='/available-stock.html'){
+  if(result.ad.placement_key==='stock_grid'){
    const grid=document.getElementById('stockGrid');if(!grid)return;
-   const watch=new MutationObserver(()=>{
-    if(document.getElementById(moveHouseMarker)){watch.disconnect();return;}
-    if(installMoveHouse(result.ad))watch.disconnect();
-   });
-   watch.observe(grid,{childList:true});
+   // Filtering and sorting replace all motorcycle cards. The same approved
+   // campaign must be reinserted after each redraw, without duplicate adverts.
+   if(!grid.__anybikeStockAdvertObserver){
+    const watch=new MutationObserver(()=>{
+     if(!document.getElementById(moveHouseMarker))installMoveHouse(result.ad);
+    });
+    watch.observe(grid,{childList:true});
+    grid.__anybikeStockAdvertObserver=watch;
+   }
   }
+  installMoveHouse(result.ad);
  }catch(error){console.warn('Move advertising campaign could not be verified',error);}
 }
 
