@@ -20,6 +20,29 @@ function validateCreativeDimensions(width,height,field,label){
    (expected===3?'3:1':expected===4/3?'4:3':expected===16/9?'16:9':expected===4/5?'4:5':'1:1')+
    '). Upload artwork designed for this size. AnyBike never crops advertising.');
 }
+async function validateCreativeUrl(url,field){
+ return new Promise((resolve,reject)=>{
+  const img=new Image();let settled=false;
+  const finish=error=>{if(settled)return;settled=true;clearTimeout(timer);error?reject(error):resolve()};
+  const timer=setTimeout(()=>finish(Error(cf[field]+': image verification timed out.')),9000);
+  img.onload=()=>{
+   try{validateCreativeDimensions(img.naturalWidth,img.naturalHeight,field,cf[field]);finish()}
+   catch(error){finish(error)}
+  };
+  img.onerror=()=>finish(Error(cf[field]+': image could not be loaded.'));
+  img.src=url;
+ });
+}
+async function validateCampaignArtwork(v){
+ const formats=Object.keys(creativeSlotRatio);
+ // Each active campaign is verified at save time, including pasted URLs.
+ for(const field of formats){
+  if(!v[field])continue;
+  let url;try{url=new URL(String(v[field]))}catch{throw Error(cf[field]+': HTTPS artwork URL required.')}
+  if(url.protocol!=='https:')throw Error(cf[field]+': HTTPS artwork URL required.');
+  await validateCreativeUrl(url.href,field);
+ }
+}
 async function validateUploadedCreative(file,field){
  let bitmap;
  try{
@@ -552,6 +575,7 @@ panel.append(to,sub,area,copy,launch,send,el('p','Direct sending uses the saved 
  await list()
 }
 async function init(){db=getAdminSupabaseClient();const {data,error}=await db.rpc('anybike_is_admin');if(error||data!==true)throw Error('Admin database permission required');$('adcontent').hidden=false;$('newcampaign').onclick=()=>openCampaign();$('newpartner').onclick=()=>openPartner();$('closepartner').onclick=()=>$('partnerform').hidden=true;$('newcommission').onclick=()=>{fields('commissionfields',lf,{currency:'GBP',entry_type:'earned'});$('commissionform').hidden=false};$('closecommission').onclick=()=>$('commissionform').hidden=true;$('closeeditor').onclick=()=>$('editor').hidden=true;$('previewad').onclick=preview;$('uploadCreativeFiles').onclick=run(uploadCreativeSizes);$('previewCreativeSizes').onclick=showCreativeSizes;$('refreshads').onclick=run(load);$('exportcountryads').onclick=run(exportCountryAdvertisingReport);$('coverageload').onclick=run(loadCoverage);$('coveragequery').oninput=$('coveragefilter').onchange=()=>{modelPage=0;renderCoverage()};$('selectcoverage').onclick=()=>{for(const r of matchingCoverage())selectedModels.add(r.model_id);renderCoverage()};$('clearcoverage').onclick=()=>{selectedModels.clear();renderCoverage()};$('assigncoverage').onclick=run(()=>changeCoverage('assign'));$('excludecoverage').onclick=run(()=>changeCoverage('exclude'));$('resetcoverage').onclick=run(()=>changeCoverage('reset'));$('campaignform').onsubmit=run(async()=>{const v=values($('campaignform'),cf);if(!v.name||!v.partner_id)throw Error('Name and partner required');if(v.status==='active'&&!v.starts_at)v.starts_at=new Date().toISOString();if(v.status==='active'&&v.duration_days&&!v.ends_at)v.ends_at=new Date(Date.parse(v.starts_at)+v.duration_days*86400000).toISOString();if(v.starts_at&&v.ends_at&&Date.parse(v.ends_at)<=Date.parse(v.starts_at))throw Error('End date must follow start date');if(v.status==='active'){
+ await validateCampaignArtwork(v);
  if(v.is_test)throw Error('Test campaigns remain drafts for safe artwork and placement previews. Untick Test campaign only after full approval and targeting review.');
  const requiredHttps=['destination_url','desktop_image_url','mobile_image_url'];
  for(const field of requiredHttps){let url;try{url=new URL(String(v[field]||''))}catch{throw Error('Complete '+cf[field]+' with a valid HTTPS URL before activation.')}if(url.protocol!=='https:')throw Error('Only HTTPS advertising artwork and destinations may be activated.');}
