@@ -221,6 +221,14 @@
    <button type="button" id="bulkReviewSelected" disabled>Prepare invitations</button>
   </div>
  </div>
+ <div id="bulkRecipientChecklist" hidden style="border-top:1px solid #444;padding:12px 0 8px;margin-top:10px">
+  <div class="row" style="align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+   <strong>Review selected contacts — untick anyone you do not want to message</strong>
+   <span id="bulkRecipientListCount" role="status" style="font-size:13px"></span>
+  </div>
+  <p style="font-size:12px;color:#ccc;margin:5px 0 9px">The original 100 remain visible even after you untick them. Only ticked contacts can receive the batch.</p>
+  <div id="bulkRecipientList" style="max-height:390px;overflow-y:auto;border:1px solid #555;border-radius:7px;padding:5px 9px" role="group" aria-label="Review 100 contacts and untick unwanted recipients"></div>
+ </div>
  <div id="bulkSendPanel" style="border-top:1px solid #444;padding:12px 0 2px;margin-top:10px">
   <strong>Send selected invitations — up to 100 contacts per batch</strong>
   <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap;margin:9px 0">
@@ -392,6 +400,26 @@ function canSelectForBatch(r){
  const emailSelected=$('bulkSendEmail').checked,smsSelected=$('bulkSendSms').checked;
  return emailSelected||smsSelected?(emailSelected&&emailEligible)||(smsSelected&&smsEligible):emailEligible;
 }
+// Retain the complete 100-contact review list when individual contacts are unticked.
+let reviewBatchIds=[];
+function updateRecipientChecklist(){
+ const panel=$('bulkRecipientChecklist'),host=$('bulkRecipientList');
+ if(!panel||!host)return;
+ const records=reviewBatchIds.map(id=>items.find(r=>r.id===id)).filter(Boolean);
+ panel.hidden=records.length===0;
+ if(!records.length){host.replaceChildren();$('bulkRecipientListCount').textContent='';return;}
+ const checked=records.filter(r=>chosen.has(r.id)).length;
+ $('bulkRecipientListCount').textContent=checked+' of '+records.length+' ticked to send';
+ host.innerHTML=records.map(r=>{
+  const id=Number(r.id),name=[r.first_name,r.last_name].filter(Boolean).join(' ').trim()||r.company||'Contact '+id;
+  const company=r.company&&r.company!==name?' · '+esc(r.company):'';
+  const email=hasInvitationEmail(r)?esc(r.email):'No email';
+  const number=/^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,''))?esc(r.phone):'No UK mobile';
+  return '<label style="display:flex;align-items:center;gap:11px;padding:8px 4px;border-bottom:1px solid #353535;cursor:pointer;line-height:1.4">'+
+    '<input type="checkbox" data-batch-recipient="'+id+'" '+(chosen.has(id)?'checked':'')+' aria-label="Include '+esc(name)+' in invitations" style="width:19px;height:19px;flex-shrink:0">'+
+    '<span><strong>'+esc(name)+'</strong>'+company+'<span style="display:block;color:#bbb;font-size:12px">'+email+' · '+number+'</span></span></label>';
+ }).join('');
+}
 function select100UsableContacts(){
  const both=$('invitationAudience').value==='both';
  // "Both" first selects valid contacts for review, even where old imports
@@ -411,6 +439,7 @@ function select100UsableContacts(){
  const changeCount=[...chosen].filter(id=>!ids.includes(id)).length;
  if(changeCount&&!confirm('Replace '+changeCount+' existing ticks with a new 100-contact selection? This only changes ticks.'))return;
  chosen=new Set(ids);
+ reviewBatchIds=[...ids];
  closeBulkPreviewPanel();
  $('bulkPermissionPanel').hidden=true;
  render();
@@ -443,6 +472,7 @@ function updateBulkContactReview(){
  $('bulkSelectVisible').disabled=total===0&&unclassified===0;
  const feedback=$('cardPageFeedback');if(feedback){feedback.title=total+' contacts are available for invitations under the selected filters.';}
  $('bulkClassifyPanel').hidden=true;
+ updateRecipientChecklist();
  updateBatchSend();
 }
 function renderContactCards(shown){
@@ -764,6 +794,21 @@ $('bulkSendNow').onclick=async()=>{
   (errors.length?' '+errors.slice(0,3).join(' | '):'')+' Acceptance is not delivery. Check provider history before retrying errors.';
  updateBatchSend();
 };
+$('bulkRecipientList').addEventListener('change',event=>{
+ const input=event.target.closest('[data-batch-recipient]');
+ if(!input)return;
+ const id=Number(input.dataset.batchRecipient);
+ if(!reviewBatchIds.includes(id))return;
+ if(input.checked)chosen.add(id);else chosen.delete(id);
+ // Keep other contact views and any prepared previews in sync.
+ document.querySelectorAll('[data-card-select="'+id+'"],[data-pick="'+id+'"]').forEach(other=>{
+  other.checked=input.checked;
+  other.closest('[data-card-id]')?.classList.toggle('is-selected',input.checked);
+ });
+ const preview=$('bulkPreviewSlot')?.querySelector('[data-review-contact="'+id+'"]');
+ if(preview&&!input.checked){queue=queue.filter(r=>r.id!==id);smsQueue=smsQueue.filter(r=>r.id!==id);preview.remove();refreshBulkPreviewSummary();}
+ updateBulkContactReview();
+});
 $('bulkSelectVisible').onclick=select100UsableContacts;
 $('bulkClassifyClose').onclick=()=>{$('bulkClassifyPanel').hidden=true;};
 $('bulkClassifySave').onclick=async()=>{
@@ -788,6 +833,7 @@ $('bulkClassifySave').onclick=async()=>{
 $('closeBulkPreviews').onclick=()=>{closeBulkPreviewPanel();updateBulkContactReview();$('bulkSelectionStatus').textContent='Invitation previews closed. Other selected contacts stay ticked; no messages sent.';};
 $('bulkClearSelected').onclick=()=>{
  chosen.clear();
+ reviewBatchIds=[];
  closeBulkPreviewPanel();
  render();
 };
