@@ -2927,7 +2927,7 @@ async function anybikeShowPublicSignedInIdentity(){
 
 
 /* PROTECTED MODEL GALLERY: preserve real-stock priority, model-specific year cards, branding, and quick enquiry. Before edits run: node scripts/check-shared-model-guide-routes.mjs. Never replace with generic placeholders or remove cards during sourcing-link changes. */
-/* International model stock and guest enquiries: model guides only.
+/* Shared model stock and guest enquiries: model guides only.
    Shared international model presentation. Approved dedicated model galleries
    (R 1300 GS / R 1250 GS) keep their original rendering. */
 (function(){
@@ -2952,10 +2952,10 @@ async function anybikeShowPublicSignedInIdentity(){
   section.dataset.anybikeModelStock='1';
   section.style.cssText='background:#171717;color:#fff;border:1px solid #ed1c24;border-radius:11px;margin:20px 0;padding:20px';
   const title=document.createElement('h2');
-  title.textContent=make+' '+model+' motorcycles available internationally';
+  title.textContent=make+' '+model+' motorcycles in Available Stock';
   const note=document.createElement('p');
   note.style.cssText='color:#ddd;line-height:1.65';
-  note.textContent='AnyBike displays a selection of published UK motorcycles. Listings are for this exact model only. If none are shown, you can ask AnyBike to find one.';
+  note.textContent='Published stock matching this exact model appears here when eligible for your market. If none is shown, you can ask AnyBike to find one.';
   const stockGrid=document.createElement('div');
   stockGrid.className='anybike-model-stock-grid';
   stockGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px';
