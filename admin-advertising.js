@@ -250,13 +250,41 @@ async function initQuotes(){
   if(error)throw error;
   await billingReviews();status('Issued advertising invoice '+data+'. No email has been sent.');
  }
- async function billingReviews(){
+ async function recordAdvertisingPayment(invoice,remaining){
+  if(!(remaining>0))throw Error('This invoice has no outstanding balance.');
+  let host=$('advertisingPaymentPanel');
+  if(host)host.remove();
+  host=el('div');host.id='advertisingPaymentPanel';host.style.cssText='padding:12px;border:1px solid #555;border-radius:8px;background:#252525;margin:10px 0';
+  const heading=el('h3','Record payment — '+invoice.invoice_number+' · outstanding '+money(remaining));
+  const form=el('form');form.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px';
+  const entries=[['amount_gbp','Amount received (£)','number',String(remaining)],['paid_on','Date received','date',new Date().toISOString().slice(0,10)],['payment_reference','Bank / payment reference','text','']];
+  const fields={};
+  for(const [name,label,type,value] of entries){const wrap=el('label',label),input=el('input');input.name=name;input.type=type;input.value=value;input.required=true;if(name==='amount_gbp'){input.min='0.01';input.max=String(remaining);input.step='0.01'}wrap.append(input);form.append(wrap);fields[name]=input;}
+  const methodWrap=el('label','Payment method'),method=el('select');
+  for(const [value,label] of [['bank_transfer','Bank transfer'],['card','Card'],['cheque','Cheque'],['cash','Cash'],['other','Other']]){const opt=el('option',label);opt.value=value;method.append(opt)}methodWrap.append(method);form.append(methodWrap);
+  const actions=el('div');actions.className='bar';actions.style.gridColumn='1/-1';
+  const save=el('button','Record confirmed payment');save.type='submit';save.className='primary';
+  actions.append(save,button('Cancel',()=>host.remove()));form.append(actions);
+  form.onsubmit=run(async()=>{
+    const amount=Number(fields.amount_gbp.value),ref=fields.payment_reference.value.trim(),paidOn=fields.paid_on.value;
+    if(!Number.isFinite(amount)||amount<=0||amount>remaining||Math.round(amount*100)!==amount*100)throw Error('Enter a valid payment up to the outstanding balance.');
+    if(ref.length<3)throw Error('Enter the actual payment reference.');
+    if(!paidOn||paidOn>new Date().toISOString().slice(0,10))throw Error('Payment date cannot be in the future.');
+    if(!confirm('Confirm '+money(amount)+' has actually reached the AnyBike account for '+invoice.invoice_number+'? Payment entries are permanent.'))return;
+    save.disabled=true;
+    try{const {error}=await db.from('advertising_invoice_payments').insert({invoice_id:invoice.id,amount_gbp:amount,paid_on:paidOn,payment_method:method.value,payment_reference:ref});
+      if(error)throw error;await billingReviews();status('Payment recorded against '+invoice.invoice_number+'. No invoice or email sent.');
+    }finally{save.disabled=false}
+  });
+  host.append(heading,form);$('advertisingBillingReviews').prepend(host);host.scrollIntoView({block:'nearest'});
+}
+async function billingReviews(){
   let container=$('advertisingBillingReviews');
   if(!container){container=el('div');container.id='advertisingBillingReviews';$('quotearea').append(container);}
-  const [rows,drafts,issued]=await Promise.all([checked(db.from('advertising_billing_reviews').select('id,quotation_id,advertiser_name,billing_contact_name,billing_email,billing_address,billing_country,purchase_order_reference,buyer_vat_number,total_gbp,billing_status,external_invoice_reference,created_at').order('created_at',{ascending:false}).limit(100)),checked(db.from('advertising_invoice_drafts').select('*')),checked(db.from('advertising_issued_invoices').select('draft_id,invoice_number'))]);const draftsByReview=new Map(drafts.map(d=>[d.billing_review_id,d]));const issuedByDraft=new Map(issued.map(i=>[i.draft_id,i]));
+  const [rows,drafts,issued,payments]=await Promise.all([checked(db.from('advertising_billing_reviews').select('id,quotation_id,advertiser_name,billing_contact_name,billing_email,billing_address,billing_country,purchase_order_reference,buyer_vat_number,total_gbp,billing_status,external_invoice_reference,created_at').order('created_at',{ascending:false}).limit(100)),checked(db.from('advertising_invoice_drafts').select('*')),checked(db.from('advertising_issued_invoices').select('id,billing_review_id,draft_id,invoice_number')),checked(db.from('advertising_invoice_payments').select('invoice_id,amount_gbp'))]);const draftsByReview=new Map(drafts.map(d=>[d.billing_review_id,d]));const issuedByDraft=new Map(issued.map(i=>[i.draft_id,i]));const receivedByInvoice=new Map();for(const payment of payments)receivedByInvoice.set(payment.invoice_id,(receivedByInvoice.get(payment.invoice_id)||0)+Number(payment.amount_gbp));
   if(!rows.length){container.replaceChildren();return;}
   const heading=el('h3','Advertising billing reviews — no invoice issued automatically');
-  const table=el('table');row(table,['Advertiser','Total','Billing stage','Invoice reference','Actions']);
+  const table=el('table');row(table,['Advertiser','Total','Billing stage','Invoice reference','Received / outstanding','Actions']);
   for(const v of rows){
    const actions=el('div');actions.className='bar';
    actions.append(button('Preview billing draft',run(()=>previewAdvertisingBillingDraft(v))));
@@ -266,7 +294,7 @@ async function initQuotes(){
    if(draft&&!issuedDoc)actions.append(button('View invoice draft',run(()=>viewAdvertisingInvoiceDraft(v))));
    if(draft&&!issuedDoc&&v.billing_status==='ready')actions.append(button('Final review',()=>reviewAdvertisingInvoiceDraft(v,draft)));
    if(draft&&!issuedDoc&&v.billing_status==='ready')actions.append(button('Issue invoice',run(()=>issueAdvertisingInvoice(v,draft))));
-   if(issuedDoc)actions.append(button('View issued invoice',run(()=>viewAdvertisingInvoiceDraft(v,true))));
+   if(issuedDoc){actions.append(button('View issued invoice',run(()=>viewAdvertisingInvoiceDraft(v,true))));const remaining=Math.max(0,Math.round((Number(v.total_gbp)-Number(receivedByInvoice.get(issuedDoc.id)||0))*100)/100);if(remaining>0)actions.append(button('Record payment',()=>recordAdvertisingPayment(issuedDoc,remaining)));}
    if(v.billing_status==='needs_review')actions.append(button('Billing details',()=>editAdvertisingBillingDetails(v)));
    if(v.billing_status==='needs_review')actions.append(button('Mark ready',run(async()=>{
     if(!v.billing_contact_name?.trim()||!v.billing_email?.trim()||!v.billing_address?.trim()||!v.billing_country?.trim())throw Error('Save a verified billing contact, email, address and country before marking ready.');
@@ -282,7 +310,7 @@ async function initQuotes(){
     const {error}=await db.from('advertising_billing_reviews').update({billing_status:'invoiced',external_invoice_reference:ref.trim(),updated_at:new Date().toISOString()}).eq('id',v.id).eq('billing_status','ready');
     if(error)throw error;await billingReviews();status('Issued invoice reference recorded.');
    })));
-   row(table,[v.advertiser_name,money(v.total_gbp),v.billing_status,v.external_invoice_reference||'—',actions]);
+   const received=issuedDoc?Number(receivedByInvoice.get(issuedDoc.id)||0):0;const balance=issuedDoc?Math.max(0,Number(v.total_gbp)-received):null;row(table,[v.advertiser_name,money(v.total_gbp),issuedDoc?(balance<0.005?'Paid':received>0?'Part paid':'Awaiting payment'):v.billing_status,v.external_invoice_reference||issuedDoc?.invoice_number||'—',issuedDoc?money(received)+' / '+money(balance):'—',actions]);
   }
   container.replaceChildren(heading,table);
  }
