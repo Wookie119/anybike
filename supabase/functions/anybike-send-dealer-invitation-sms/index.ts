@@ -1,6 +1,13 @@
 import {createClient} from "npm:@supabase/supabase-js@2";
 const origins=new Set(["https://www.anybike.co.uk","https://anybike.co.uk"]);
 const send=(origin:string,data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json","cache-control":"no-store","access-control-allow-origin":origins.has(origin)?origin:"https://www.anybike.co.uk","access-control-allow-methods":"POST,OPTIONS","access-control-allow-headers":"authorization,apikey,content-type,x-client-info",vary:"Origin"}});
+function invitationText(type:string){
+ return type==="both"
+  ?"AnyBike invitation: Sell your motorcycle for free or join the UK motorcycle dealer network. Find out more: https://www.anybike.co.uk"
+  :type==="private"
+   ?"AnyBike invitation: Sell your motorcycle for free, with no obligation to accept an offer. Find out more: https://www.anybike.co.uk/sell-your-motorcycle.html"
+   :"AnyBike invitation: UK motorcycle dealers can register free to explore trade opportunities. https://www.anybike.co.uk/uk-dealer-welcome.html";
+}
 Deno.serve(async req=>{
  const origin=req.headers.get("origin")||"";
  if(req.method==="OPTIONS")return send(origin,{},200);
@@ -17,6 +24,12 @@ Deno.serve(async req=>{
  const {data:admin,error:ae}=await db.from("admin_users").select("user_id").eq("user_id",user.id).eq("active",true).maybeSingle();
  if(ae||!admin)return send(origin,{success:false,error:"Admin access required"},403);
  const payload=await req.json();
+ if(payload.action==="preview"){
+  const type=String(payload.invitation_type||"");
+  if(!["dealer","private","both"].includes(type))return send(origin,{success:false,error:"Invalid invitation type"},400);
+  return send(origin,{success:true,text:invitationText(type),not_sent:true});
+ }
+
  const username=Deno.env.get("CLICKSEND_USERNAME")||"",apikey=Deno.env.get("CLICKSEND_API_KEY")||"";
  if(payload.action==="status")return send(origin,{success:true,configured:!!(username&&apikey)});
  if(payload.action==="send_test"){
@@ -26,7 +39,7 @@ Deno.serve(async req=>{
   if(payload.invitation_type!=="private"||payload.confirm_send!==true)return send(origin,{success:false,error:"Confirm the private AnyBike SMS test"},400);
   if(!username||!apikey)return send(origin,{success:false,error:"SMS provider is not configured"},503);
   const recipient="+447772024763";
-  const messageBody="AnyBike invitation: Sell your motorcycle for free, with no obligation to accept an offer. Find out more: https://www.anybike.co.uk/sell-your-motorcycle.html";
+  const messageBody=invitationText("private");
   const since=new Date(Date.now()-10*60*1000).toISOString();
   const {data:previous,error:previousError}=await db.from("anybike_contact_invitation_sms_test_log").select("id,status,requested_at").gte("requested_at",since).in("status",["sending","submitted"]).limit(1);
   if(previousError)throw previousError;
@@ -66,11 +79,7 @@ Deno.serve(async req=>{
  // The actual provider message is generated on the server, not accepted as
  // arbitrary client text. Both is suitable for unclassified contacts and
  // never addresses recipients as dealership contacts without evidence.
- const text=invitationType==="both"
-  ?"AnyBike invitation: Sell your motorcycle for free or join the UK motorcycle dealer network. Find out more: https://www.anybike.co.uk"
-  :invitationType==="private"
-   ?"AnyBike invitation: Sell your motorcycle for free, with no obligation to accept an offer. Find out more: https://www.anybike.co.uk/sell-your-motorcycle.html"
-   :"AnyBike invitation: UK motorcycle dealers can register free to explore trade opportunities. https://www.anybike.co.uk/uk-dealer-welcome.html";
+ const text=invitationText(invitationType);
  const recipient="+44"+phone.substring(1);
  const {data:log,error:le}=await db.from("anybike_invitation_sms_log").insert({contact_id:id,recipient,message_body:text,sent_by:user.id}).select("id").single();
  if(le||!log)throw le||Error("Unable to record sending attempt");
