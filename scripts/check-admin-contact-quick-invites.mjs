@@ -175,7 +175,7 @@ assert(page.includes("if(!confirm('Approve invitation eligibility for '+candidat
 
 assert(page.includes("$('bulkReviewContacts').disabled=!selected.length"),
  'Ten selected contacts must have an enabled review action even with zero approvals');
-assert(page.includes("needsReview.length?'Bulk review '+needsReview.length+' selected permissions'"),
+assert(page.includes("needsReview.length?'Review permission ('+needsReview.length+')'"),
  'Button should show bulk review rather than one-by-one permissions');
 assert(page.includes("await reviewInvitations({channel:'email'})"),
  'After saved bulk review, email drafts remain separately prepared, never sent automatically');
@@ -183,7 +183,7 @@ assert(page.includes("marketing_permission:note"),
  'Bulk permission must record review evidence alongside approval');
 
 // Everyday selection and review must be visible without an accordion.
-assert(page.includes('id="bulkReviewContacts" disabled>Bulk review selected'),
+assert(page.includes('id="bulkReviewContacts" disabled>Review permission'),
  'Bulk permission review is accessible from always-visible selection toolbar');
 assert(page.includes('id="bulkReviewResults" hidden'),
  'Prepared individual drafts expand directly inside the visible selection toolbar');
@@ -268,7 +268,7 @@ assert(!page.includes("Click Review selected contacts again for the next contact
 assert(page.includes("$('bulkReviewSelected').disabled=!selected.length"),'Preparing drafts should explain missing approval instead of being inert for selected contacts');
 assert(page.includes("$('bulkReviewContacts').click();"),'Unapproved selection must open the existing bulk permission review');
 assert(page.includes("$('bulkPermissionEvidence').focus();"),'Missing bulk permission evidence must be brought into focus');
-assert(page.includes("approved.length?'Prepare '+approved.length+' approved email draft"),'Approved draft count must be clear before preview');
+assert(page.includes("approved.length?'Prepare invitations ('+approved.length+'"),'Approved draft count must be clear before preview');
 assert(page.includes("No approved contacts yet. Review and save the permission evidence"),'Unapproved contacts must receive a useful explanation');
 assert(page.includes("function select100UsableContacts()"),'Bulk email selection must fill up to 100 across filtered pages');
 assert(page.includes("const candidates=view().filter(canSelectForEmailReview)"),'Bulk selection must exclude unusable emails and registered or previously invited contacts');
@@ -291,6 +291,9 @@ assert(page.includes('id="cardPageSize"')&&page.includes('<option value="500" se
 assert(page.includes("function inviteIntro(r){return ''}"),'SMS and email invite templates must not add personal or transport business intros');
 assert(page.includes("AnyBike invitation — UK motorcycle dealers"),'Dealer subject must use AnyBike invitation branding');
 assert(!page.includes('Andy Gifford at Move Motorcycles personally thought'),'Outgoing invitations must not use personal naming');
+assert(page.includes('<details id="simpleContactSearch"'),'Specific-contact search must be collapsed by default');
+assert(page.includes('<details id="advancedDirectoryFilters"'),'Advanced search remains optional');
+assert(page.includes('Prepare invitations</button>'),'Primary invite workflow has a short action label');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
