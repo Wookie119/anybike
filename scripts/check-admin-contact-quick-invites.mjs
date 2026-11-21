@@ -265,6 +265,11 @@ assert(page.includes('id="bulkPermissionEvidence"'),'Batch permission requires a
 assert(page.includes('id="bulkPermissionConfirmed"'),'Batch permission requires an explicit checked attestation');
 assert(page.includes("for(let offset=0;offset<candidates.length;offset+=25)"),'Bulk review should save manageable checked batches');
 assert(!page.includes("Click Review selected contacts again for the next contact."),'Old one-by-one permission workflow must not return');
+assert(page.includes("$('bulkReviewSelected').disabled=!selected.length"),'Preparing drafts should explain missing approval instead of being inert for selected contacts');
+assert(page.includes("$('bulkReviewContacts').click();"),'Unapproved selection must open the existing bulk permission review');
+assert(page.includes("$('bulkPermissionEvidence').focus();"),'Missing bulk permission evidence must be brought into focus');
+assert(page.includes("eligible.length?'Prepare '+eligible.length+' approved email draft"),'Approved draft count must be clear before preview');
+assert(page.includes("No approved contacts yet. Review and save the permission evidence"),'Unapproved contacts must receive a useful explanation');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
