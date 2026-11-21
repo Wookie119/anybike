@@ -55,7 +55,7 @@ function buildMoveHouseCard(ad,companion=false){
  link.dataset.anybikeAdAuthorized='1';
  link.setAttribute('aria-label',String(ad.partner_name||'Advertiser')+' — view website');
  link.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px;background:#101010;text-decoration:none'+(stock?';position:relative;aspect-ratio:auto;height:auto;flex:1 1 auto;min-height:0;border:1px solid #555;box-sizing:border-box;background:#101010':'');
- const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px'+(stock?';position:absolute;inset:0;width:100%;height:100%;background:#101010':'');
+ const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px'+(stock?';position:absolute;inset:0;width:100%;height:100%;background:transparent!important;pointer-events:none':'');
  const source=node('source');source.media='(max-width:650px)';source.srcset=mobile;
  const img=node('img');img.src=desktop;img.alt=typeof ad.alt_text==='string'?ad.alt_text:'';
  img.loading='lazy';img.decoding='async';img.style.cssText=stock
@@ -70,6 +70,7 @@ function buildMoveHouseCard(ad,companion=false){
   const fillFromLoadedImage=()=>{
    const src=https(img.currentSrc||img.src);
    if(!src)return;
+   picture.style.setProperty('background','transparent','important');
    link.style.setProperty('background-image','url('+JSON.stringify(src)+')','important');
    link.style.setProperty('background-size','100% 100%','important');
    link.style.setProperty('background-position','center','important');
