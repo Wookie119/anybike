@@ -354,6 +354,17 @@ let permanentRouteModelId=null;
    wantMake=identity.make;wantModel=identity.model;
    permanentRouteModelId=identity.model_id;
    approvedDedicatedRoute=location.pathname;
+   // Permanent SEO routes already embed a checked-in, immutable model identity.
+   // Paint only its make/model immediately while live catalogue and editorial
+   // requests validate the full page. Never publish provisional specifications.
+   const initialHeading=$('heading');
+   if(initialHeading)initialHeading.textContent=wantMake+' '+wantModel;
+   const initialSummary=$('summary');
+   if(initialSummary&&!initialSummary.textContent.trim())
+    initialSummary.textContent='Loading verified motorcycle information…';
+   const initialYears=$('years');
+   if(initialYears&&!initialYears.textContent.trim())
+    initialYears.textContent='Model details are being checked.';
   }catch(error){
    console.warn('Permanent model route rejected',error);
    wantMake='';wantModel='';
