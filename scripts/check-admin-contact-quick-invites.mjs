@@ -303,6 +303,10 @@ assert(page.includes('id="bulkClassifyKind"'),'Review must ask whether selected 
 assert(page.includes("if(unclassified){\n  refreshBulkClassifyPanel();"),'Unclassified combined selections must open the classification panel');
 assert(page.includes("if($('invitationAudience').value==='both'&&unclassified.length){refreshBulkClassifyPanel();"),'Review permissions must route unknown recipients to classification first');
 assert(page.includes("chosen=new Set(ids);"),'Bulk selection must retain selected ids');
+assert(page.includes("if(alreadySelected){"),'Selecting all filtered contacts again must produce feedback rather than appear inert');
+assert(page.includes("All '+batch.length+' matching selected"),'Select button must show the actual available filtered count');
+assert(page.includes("To find more, change the filters or invitation type above"),'Insufficient contacts must be explained without changing criteria automatically');
+assert(page.includes("(!unknown&&!needsReview.length)"),'Already reviewed contacts must not offer an inert permission review button');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
