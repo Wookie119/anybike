@@ -77,8 +77,8 @@ assert(page.includes("!/^unknown@/i.test(email)"),
  'Imported placeholder email addresses cannot be invited');
 assert(page.includes("const prohibited=!consent||registered"),
  'Unapproved and already registered contacts must not get active invitation buttons');
-assert(page.includes('id="pageSize"><option value="12">12')&&page.includes('<option value="50" selected>50'),
- 'The directory must default to 50 contacts per page and retain compact options');
+assert(page.includes('id="pageSize"><option value="12">12')&&page.includes('<option value="500" selected>500'),
+ 'The directory must default to 500 contacts per page and retain compact options');
 
 
 assert(page.includes('class="dealer-card-filters"'),
@@ -281,12 +281,16 @@ assert(page.includes("function explicitInvitationKind(r)"),'Combined invitation 
 assert(page.includes("if(mode==='both')return explicitInvitationKind(r);"),'Mixed batches must not guess unknown contact classifications');
 assert(page.includes("&&invitationAudienceMatches(r)"),'Prepared invitations must obey chosen audience');
 assert(page.includes("function invitationSubject(r)"),'Subjects must distinguish private and trade messages');
-assert(page.includes("Sell your motorcycle free with AnyBike"),'Private email must focus on free selling');
+assert(page.includes("AnyBike invitation — sell your motorcycle free"),'Private email must focus on free selling');
 assert(page.includes("https://www.anybike.co.uk/sell-your-motorcycle.html"),'Private CTA must point to the free motorcycle selling page');
 assert(page.includes("function richInvitationHtml(r)"),'Private and dealer invitations must have HTML buttons');
 assert(page.includes("const subject=invitationSubject(r);"),'Outlook drafts must use the correct subject');
 assert(page.includes("const r=queue[pos],body=emailBody(r),subject=invitationSubject(r);"),'Legacy draft action must also use recipient-specific text');
 assert(page.includes("if(invitationTypeFor(r)==='private')return 'Hi '"),'Private SMS draft must not use dealer wording');
+assert(page.includes('id="cardPageSize"')&&page.includes('<option value="500" selected>500'),'Cards must also default to 500 per page');
+assert(page.includes("function inviteIntro(r){return ''}"),'SMS and email invite templates must not add personal or transport business intros');
+assert(page.includes("AnyBike invitation — UK motorcycle dealers"),'Dealer subject must use AnyBike invitation branding');
+assert(!page.includes('Andy Gifford at Move Motorcycles personally thought'),'Outgoing invitations must not use personal naming');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
