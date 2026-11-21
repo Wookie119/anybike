@@ -22,6 +22,8 @@ const existingMoveAdvert=()=>[...document.querySelectorAll('a[href*="movemotorcy
 const isPublicUkCustomerPage=()=>{
  const path=location.pathname.toLowerCase();
  if(/^\/(?:admin(?:-|\/)|markets\/|international-)/.test(path))return false;
+ // Account, transactional and private workflow pages are not public advert inventory.
+ if(/^\/(?:customer-|my-|dealer-manage-|dealer-connect-|shipper-|seller-|private-dashboard|dashboard|underwrite|proforma|purchase-order|final-invoice|verify-account|confirm-email|authorised-stock-test|international-stock-preview)/.test(path))return false;
  if(/\/(?:login|logout|register|forgot-password|reset-password|privacy-policy|cookie-policy|terms-and-conditions)\.html$/.test(path))return false;
  return true;
 };
