@@ -24,9 +24,9 @@ Deno.serve(async req=>{
  if(!Number.isSafeInteger(id)||id<1||payload.confirm_send!==true)return send(origin,{success:false,error:"Contact and send confirmation are required"},400);
  const invitationType=String(payload.invitation_type||"dealer");
  if(!["dealer","private","both"].includes(invitationType))return send(origin,{success:false,error:"Unsupported invitation type"},400);
- const {data:contact,error:ce}=await db.from("anybike_master_contacts").select("id,first_name,company,phone,approved_for_invitation,sms_invite_selected,personal_intro").eq("id",id).maybeSingle();
+ const {data:contact,error:ce}=await db.from("anybike_master_contacts").select("id,first_name,company,phone,sms_invite_selected,sms_marketing_permission,sms_permission_verified_at,personal_intro").eq("id",id).maybeSingle();
  if(ce||!contact)return send(origin,{success:false,error:"Contact not found"},404);
- if(!contact.approved_for_invitation||!contact.sms_invite_selected)return send(origin,{success:false,error:"Contact is not approved and selected for SMS invitations"},409);
+ if(!contact.sms_invite_selected||!contact.sms_permission_verified_at||String(contact.sms_marketing_permission||"").trim().length<12)return send(origin,{success:false,error:"Recorded SMS marketing permission is required before sending a text"},409);
  const phone=String(contact.phone||"").replace(/\s/g,"");
  if(!/^07\d{9}$/.test(phone))return send(origin,{success:false,error:"Contact requires a valid UK mobile"},400);
  const {data:recent,error:re}=await db.from("anybike_invitation_sms_log").select("id,requested_at,status").eq("contact_id",id).in("status",["sending","submitted"]).gte("requested_at",new Date(Date.now()-24*3600*1000).toISOString()).order("requested_at",{ascending:false}).limit(1);
