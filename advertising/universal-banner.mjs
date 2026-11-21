@@ -13,7 +13,7 @@ const MOVE_MOBILE='/assets/move-advert-portrait.webp';
 const moveHouseMarker='anybike-move-universal-house-ad';
 let moveHouseReady=null;
 const existingMoveAdvert=()=>[...document.querySelectorAll('a[href*="movemotorcycles.co.uk"]')]
- .some(a=>!!a.querySelector('img,picture')&&a.getClientRects().length>0);
+ .some(a=>!a.closest('#'+moveHouseMarker)&&!!a.querySelector('img,picture')&&a.getClientRects().length>0);
 const isPublicUkCustomerPage=()=>{
  const path=location.pathname.toLowerCase();
  if(/^\/(?:admin(?:-|\/)|markets\/|international-)/.test(path))return false;
@@ -61,6 +61,14 @@ function installMoveHouse(){
   main.querySelector('h1,.hero,.hero-section')||main.firstElementChild;
  if(!anchor)return false;
  anchor.after(buildMoveHouseCard(false));
+ // Some dealer dashboards insert their approved Move creative after async loading.
+ // If one appears later, keep the existing approved advert rather than showing two.
+ const dedupe=new MutationObserver(()=>{
+  const own=document.getElementById(moveHouseMarker);
+  if(!own){dedupe.disconnect();return;}
+  if(existingMoveAdvert()){own.remove();dedupe.disconnect();}
+ });
+ dedupe.observe(document.body,{childList:true,subtree:true});
  return true;
 }
 export async function renderMoveHouseOnUkPage(options={}){
