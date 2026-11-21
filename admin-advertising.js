@@ -153,7 +153,7 @@ async function load(){const [base,countryPerformance]=await Promise.all([Promise
 function matchingCoverage(){const q=$('coveragequery').value.trim().toLowerCase(),f=$('coveragefilter').value;return coverage.filter(r=>(r.manufacturer+' '+r.model).toLowerCase().includes(q)&&(!f||f===r.coverage_status))}
 function renderCoverage(){const list=matchingCoverage();$('coveragerows').replaceChildren();const counts=Object.fromEntries(Object.keys(coverageLabels).map(k=>[k,coverage.filter(r=>r.coverage_status===k).length]));$('coveragecount').textContent=coverage.length+' models · '+Object.entries(counts).map(([k,n])=>n+' '+coverageLabels[k]).join(' · ')+' · '+list.length+' matching';$('selectedcoverage').textContent=selectedModels.size+' selected';const sel=$('coveragecampaign'),previous=sel.value;sel.replaceChildren();const placeholder=el('option','Choose campaign');placeholder.value='';sel.append(placeholder);for(const c of campaigns.filter(c=>c.placement==='below_hero')){const opt=el('option',c.name+' ('+c.status+')');opt.value=c.id;sel.append(opt)}if([...sel.options].some(o=>o.value===previous))sel.value=previous;
 modelPage=paginate(list,modelPage,'modelprev','modelnext','modelpage',n=>{modelPage=n;renderCoverage()});for(const r of list.slice(modelPage*pageSize,(modelPage+1)*pageSize)){const check=el('input');check.type='checkbox';check.checked=selectedModels.has(r.model_id);check.setAttribute('aria-label','Select '+r.manufacturer+' '+r.model);check.onchange=()=>{if(check.checked)selectedModels.add(r.model_id);else selectedModels.delete(r.model_id);$('selectedcoverage').textContent=selectedModels.size+' selected'};const assigned=campaigns.find(c=>c.id===r.assigned_campaign_id);const label=(r.campaign_name||assigned?.name||'')+(r.campaign_name||assigned?' · ':'')+(coverageLabels[r.coverage_status]||r.coverage_status);const model=el('a',r.model);model.href='/motorcycle-v2-master.html?make='+encodeURIComponent(r.manufacturer)+'&model='+encodeURIComponent(r.model);model.target='_blank';model.rel='noopener';row($('coveragerows'),[check,r.manufacturer,model,label,r.impressions,r.clicks,r.conversions])}}
-async function loadCoverage(){const out=[];for(let offset=0;;offset+=500){const {data,error}=await db.rpc('admin_model_advertising_coverage_v2').range(offset,offset+499);if(error)throw error;out.push(...(data||[]));if(!data||data.length<500)break}coverage=out;renderCoverage()}
+async function loadCoverage(){const out=[];for(let offset=0;;offset+=500){const {data,error}=await db.rpc('admin_model_advertising_coverage_v2').range(offset,offset+499);if(error)throw error;out.push(...(data||[]));if(!data||data.length<500)break}coverage=out;renderCoverage();renderMegaHealth()}
 async function changeCoverage(action){const ids=[...selectedModels];if(!ids.length)throw Error('Select at least one model page');const campaign=$('coveragecampaign').value;if(action==='assign'&&!campaign)throw Error('Choose a campaign');if(!window.confirm((action==='assign'?'Assign campaign to':action==='exclude'?'Exclude':'Restore automatic targeting for')+' '+ids.length+' selected model pages?'))return;let done=0;try{for(let i=0;i<ids.length;i+=100){const batch=ids.slice(i,i+100);const q=action==='reset'?db.from('advertising_model_overrides').delete().eq('placement','below_hero').in('catalogue_model_id',batch):db.from('advertising_model_overrides').upsert(batch.map(id=>({catalogue_model_id:id,placement:'below_hero',campaign_id:action==='assign'?campaign:null,suppressed:action==='exclude',updated_at:new Date().toISOString()})),{onConflict:'catalogue_model_id,placement'});const {error}=await q;if(error)throw error;done+=batch.length;for(const id of batch)selectedModels.delete(id)}await loadCoverage();status(done+' model pages updated')}catch(e){await loadCoverage();throw Error(done+' pages updated before error: '+(e.message||e))}}
 let pages=[];const selectedPages=new Set();function matchingPages(){const q=$('pagequery').value.trim().toLowerCase(),c=$('pagecategory').value,f=$('pagefilter').value;return pages.filter(p=>{
  const aliases=p.page_path==='/motorcycle-brand.html'?' suzuki brand manufacturer':
@@ -180,6 +180,81 @@ let pages=[];const selectedPages=new Set();function matchingPages(){const q=$('p
   root.append(card);
  }
  report.textContent='Two equal-width cards · stack on mobile · no links · draft campaigns remain unpublished.';
+}
+// Mega System health: truthful distinctions between configured,
+// eligible and observed. No impression is not automatically a broken advert.
+function renderMegaHealth(){
+ const root=$('advertisingMegaHealth');
+ if(!root)return;
+ root.replaceChildren();
+ const enabled=pages.filter(p=>p.placement_enabled&&!p.excluded);
+ const campaignReady=enabled.filter(p=>Number(p.campaign_count)>0);
+ const missing=enabled.filter(p=>!Number(p.campaign_count));
+ const observed=campaignReady.filter(p=>Number(p.impressions_24h)>0);
+ const unverified=campaignReady.filter(p=>!Number(p.impressions_24h));
+ const excluded=pages.filter(p=>p.excluded);
+ const disabled=pages.filter(p=>!p.placement_enabled&&!p.excluded);
+ const totals=el('div');totals.className='mega-health-grid';
+ for(const [number,label] of [
+  [pages.length,'Inventoried page slots'],
+  [enabled.length,'Enabled locations'],
+  [campaignReady.length,'With eligible campaigns'],
+  [observed.length,'Impressions within 24h'],
+  [missing.length,'Enabled without campaign'],
+  [unverified.length,'Awaiting delivery evidence'],
+  [disabled.length,'Disabled locations'],
+  [excluded.length,'Excluded locations']
+ ]){
+  const cell=el('div');cell.className='mega-health-cell';
+  const strong=el('strong',String(number));strong.style.fontSize='20px';
+  cell.append(strong,el('span',label));totals.append(cell);
+ }
+ root.append(totals);
+ const note=el('p','A tick enables a location only. An eligible campaign is required before an advert can display. Recorded impressions confirm delivery, but zero impressions may simply mean no visitor saw that slot. All statuses use Supabase data, not a claim that a page was browser-tested.');
+ note.style.cssText='font-size:12px;color:#bbb;line-height:1.5;margin:9px 0';
+ root.append(note);
+ const model=el('p',coverage.length?
+  'Universal model coverage: '+coverage.length+' model records checked through the shared V2 model system.':
+  'Universal model coverage is checked separately in the model coverage table below.');
+ model.style.cssText='font-size:12px;color:#ddd;margin:5px 0 12px';
+ root.append(model);
+ const issues=el('div');issues.className='mega-health-actions';
+ const view=(label,filter)=>{
+  const b=button(label,()=>{
+   $('pagefilter').value=filter;
+   $('pagequery').value='';
+   $('pagecategory').value='';
+   pagePage=0;renderPages();
+   $('pagecount').scrollIntoView({behavior:'smooth',block:'start'});
+  });issues.append(b);
+ };
+ view('Show missing campaigns ('+missing.length+')','missing');
+ view('Show configured placements ('+campaignReady.length+')','covered');
+ view('Show disabled locations ('+disabled.length+')','not_connected');
+ root.append(issues);
+ const concerns=missing.slice(0,10);
+ if(concerns.length){
+  const line=el('p','Enabled locations with no eligible active campaign:');
+  line.style.cssText='font-size:13px;font-weight:700;margin:12px 0 5px';
+  root.append(line);
+  const list=el('div');list.className='mega-health-issues';
+  for(const p of concerns){
+   const b=button(p.slot_code+' · '+p.page_path,()=>{
+    $('pagefilter').value='missing';$('pagequery').value=p.page_path;
+    $('pagecategory').value='';pagePage=0;renderPages();
+    $('pagecount').scrollIntoView({behavior:'smooth',block:'start'});
+   });list.append(b);
+  }
+  root.append(list);
+ }
+ const stock=pages.find(p=>p.page_path==='/available-stock.html');
+ if(stock){
+  const locked=stock.placement_key==='stock_grid'&&stock.creative_format==='stock_card'&&!stock.paired_layout;
+  const note=el('p',(locked?'Approved stock-card design protected':'Stock-card configuration needs attention')+
+   ' · AB-UK-STOCK-CARD · design, size and disclosure are shared across future advertiser creatives.');
+  note.style.cssText='font-size:12px;color:#ddd;margin:12px 0 0';
+  root.append(note);
+ }
 }
 function renderPages(){const list=matchingPages();$('pagerows').replaceChildren();$('pagecount').textContent=pages.length+' inventoried · '+list.length+' matching · '+pages.filter(p=>p.coverage_status==='not_connected').length+' not connected';$('pageselected').textContent=selectedPages.size+' selected';pagePage=paginate(list,pagePage,'pageprev','pagenext','pagepage',n=>{pagePage=n;renderPages()});for(const p of list.slice(pagePage*pageSize,(pagePage+1)*pageSize)){const check=el('input');check.type='checkbox';check.checked=selectedPages.has(p.page_path);check.setAttribute('aria-label','Select row for bulk actions: '+p.page_path);check.title='Bulk actions only; does not control advert visibility';check.onchange=()=>{if(check.checked)selectedPages.add(p.page_path);else selectedPages.delete(p.page_path);$('pageselected').textContent=selectedPages.size+' selected'};const display=el('input');display.type='checkbox';display.checked=!!p.placement_enabled&&!p.excluded;
 display.setAttribute('aria-label','Show advert at '+p.page_path);
@@ -245,7 +320,7 @@ market.onchange=run(async()=>{
 const health=el('span',p.delivery_diagnostic||'Not checked');
 health.title=p.last_impression_at?'Last recorded impression: '+new Date(p.last_impression_at).toLocaleString('en-GB'):'No recorded impression is not proof the advert failed; confirm via a real browser check.';
 health.style.cssText='font-size:12px;white-space:normal;min-width:160px;display:block;color:'+(p.impressions_24h>0?'#a7e9b5':'#d9d2bf');
-row($('pagerows'),[check,display,a,code,p.page_category,p.coverage_status.replaceAll('_',' '),health,locationSelect,sizeSelect,market,paired,partner])}}async function loadPages(){const {data,error}=await db.from('admin_advertising_page_inventory_v1').select('*').order('page_path');if(error)throw error;pages=data||[];renderPages()}async function changePages(excluded){const ids=[...selectedPages];if(!ids.length)throw Error('Select pages first');if(!confirm((excluded?'Exclude ':'Restore ')+ids.length+' pages?'))return;let done=0;for(let i=0;i<ids.length;i+=50){const batch=ids.slice(i,i+50);const {error}=await db.from('advertising_page_inventory').update({excluded,updated_at:new Date().toISOString()}).in('page_path',batch);if(error){await loadPages();throw Error(done+' pages saved before error: '+error.message)}done+=batch.length;for(const p of batch)selectedPages.delete(p)}await loadPages();status(done+' pages updated')}async function changePlacement(enabled){const ids=[...selectedPages];if(!ids.length)throw Error('Select pages first');const supported=ids.filter(path=>{const p=pages.find(x=>x.page_path===path);const approvedAccounts=['/customer-dashboard.html','/my-selling.html','/my-dealership.html','/my-purchases.html'];return !!p&&(approvedAccounts.includes(path)||((/^(public|manufacturer_candidate|model)$/.test(p.page_category)||/^\/markets\/[a-z0-9-]+\.html$/i.test(path))&&!/^\/(?:admin-|customer-|my-|dealer-|shipper-|seller-|private-|underwrite|proforma|purchase-order|final-invoice)/.test(path)))});const targets=enabled?supported:ids;if(!targets.length)throw Error('Selected pages do not yet have a connected renderer');if(!confirm((enabled?'Enable ':'Disable ')+targets.length+' placements?'+(enabled&&ids.length!==targets.length?' Unsupported pages will be skipped.':'')))return;let done=0;for(let i=0;i<targets.length;i+=50){const batch=targets.slice(i,i+50);const {error}=await db.from('advertising_page_inventory').update({placement_enabled:enabled,updated_at:new Date().toISOString()}).in('page_path',batch);if(error){await loadPages();throw Error(done+' pages saved before error: '+error.message)}done+=batch.length;for(const p of batch)selectedPages.delete(p)}await loadPages();status(done+' placements updated; '+(ids.length-targets.length)+' skipped')}function initPages(){ $('pageenable').onclick=run(()=>changePlacement(true));$('pagedisable').onclick=run(()=>changePlacement(false));for(const id of ['pagequery','pagecategory','pagefilter'])$(id).addEventListener(id==='pagequery'?'input':'change',()=>{pagePage=0;renderPages()});$('pageload').onclick=run(loadPages);$('pageselect').onclick=()=>{for(const p of matchingPages())selectedPages.add(p.page_path);renderPages()};$('pageclear').onclick=()=>{selectedPages.clear();renderPages()};$('pageexclude').onclick=run(()=>changePages(true));$('pagerestore').onclick=run(()=>changePages(false))}
+row($('pagerows'),[check,display,a,code,p.page_category,p.coverage_status.replaceAll('_',' '),health,locationSelect,sizeSelect,market,paired,partner])}}async function loadPages(){const {data,error}=await db.from('admin_advertising_page_inventory_v1').select('*').order('page_path');if(error)throw error;pages=data||[];renderPages();renderMegaHealth()}async function changePages(excluded){const ids=[...selectedPages];if(!ids.length)throw Error('Select pages first');if(!confirm((excluded?'Exclude ':'Restore ')+ids.length+' pages?'))return;let done=0;for(let i=0;i<ids.length;i+=50){const batch=ids.slice(i,i+50);const {error}=await db.from('advertising_page_inventory').update({excluded,updated_at:new Date().toISOString()}).in('page_path',batch);if(error){await loadPages();throw Error(done+' pages saved before error: '+error.message)}done+=batch.length;for(const p of batch)selectedPages.delete(p)}await loadPages();status(done+' pages updated')}async function changePlacement(enabled){const ids=[...selectedPages];if(!ids.length)throw Error('Select pages first');const supported=ids.filter(path=>{const p=pages.find(x=>x.page_path===path);const approvedAccounts=['/customer-dashboard.html','/my-selling.html','/my-dealership.html','/my-purchases.html'];return !!p&&(approvedAccounts.includes(path)||((/^(public|manufacturer_candidate|model)$/.test(p.page_category)||/^\/markets\/[a-z0-9-]+\.html$/i.test(path))&&!/^\/(?:admin-|customer-|my-|dealer-|shipper-|seller-|private-|underwrite|proforma|purchase-order|final-invoice)/.test(path)))});const targets=enabled?supported:ids;if(!targets.length)throw Error('Selected pages do not yet have a connected renderer');if(!confirm((enabled?'Enable ':'Disable ')+targets.length+' placements?'+(enabled&&ids.length!==targets.length?' Unsupported pages will be skipped.':'')))return;let done=0;for(let i=0;i<targets.length;i+=50){const batch=targets.slice(i,i+50);const {error}=await db.from('advertising_page_inventory').update({placement_enabled:enabled,updated_at:new Date().toISOString()}).in('page_path',batch);if(error){await loadPages();throw Error(done+' pages saved before error: '+error.message)}done+=batch.length;for(const p of batch)selectedPages.delete(p)}await loadPages();status(done+' placements updated; '+(ids.length-targets.length)+' skipped')}function initPages(){ $('pageenable').onclick=run(()=>changePlacement(true));$('pagedisable').onclick=run(()=>changePlacement(false));for(const id of ['pagequery','pagecategory','pagefilter'])$(id).addEventListener(id==='pagequery'?'input':'change',()=>{pagePage=0;renderPages()});$('pageload').onclick=run(loadPages);$('pageselect').onclick=()=>{for(const p of matchingPages())selectedPages.add(p.page_path);renderPages()};$('pageclear').onclick=()=>{selectedPages.clear();renderPages()};$('pageexclude').onclick=run(()=>changePages(true));$('pagerestore').onclick=run(()=>changePages(false))}
 function run(fn){return async e=>{e?.preventDefault();try{await fn()}catch(err){status(err.message||String(err))}}}function preview(){const v=values($('campaignform'),cf),root=$('campaignpreview');root.replaceChildren();for(const mobile of [false,true]){root.append(el('h3',mobile?'Mobile preview':'Desktop preview'));const card=el('div');card.className='preview';card.style.borderRadius='12px';card.style.overflow='hidden';if(mobile)card.style.maxWidth='360px';const text=el('div');text.append(el('strong',(v.headline_template||v.name||'').replaceAll('{{make}}','BMW').replaceAll('{{model}}','R 1300 GS')),el('p',v.subheading),el('span',v.cta_text),el('p',v.disclosure));card.append(text);const src=mobile?v.mobile_image_url:v.desktop_image_url;if(src&&/^https:\/\//i.test(src)){const img=el('img');img.src=src;img.alt=v.alt_text||'';img.style.borderRadius='10px';card.append(img)}root.append(card)}root.hidden=false}
 async function initQuotes(){
  const root=el('section');root.id='quotearea';$('adcontent').prepend(root);
