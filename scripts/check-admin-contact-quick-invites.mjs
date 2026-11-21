@@ -250,6 +250,14 @@ assert(page.includes('id="excludeInvited" type="checkbox" checked')&&page.includ
 assert(page.includes("!contactLastSent(r)")&&page.includes("!isAlreadyRegisteredContact(r)"),'Sent and registered exclusions must drive the actual contact query');
 assert(page.includes('const matchingIds=new Set(view().map(r=>r.id))'),'Bulk drafts must respect active contact filters');
 assert(page.includes("if(channel==='both'&&recordForPermission&&!recordForPermission.approved_for_invitation"),'Review permission must open the individual editor rather than silently approve');
+// Bulk previews and selected ticks are distinct: close/skip must never wipe others.
+assert(page.includes('id="closeBulkPreviews"'),'Bulk invitation preview needs an explicit close button');
+assert(page.includes("function closeBulkPreviewPanel()"),'Close the preview without clearing selected contacts');
+assert(page.includes("$('closeBulkPreviews').onclick=()=>{closeBulkPreviewPanel();updateBulkContactReview();"),'Close preview button must preserve selected ticks');
+assert(page.includes("function refreshBulkPreviewSummary()"),'Preview draft count must reflect remaining visible drafts');
+assert(page.includes("chosen.delete(id);queue=queue.filter(r=>r.id!==id);smsQueue=smsQueue.filter(r=>r.id!==id)"),'Skip must only deselect one contact');
+assert(page.includes("reviewCard.remove();refreshBulkPreviewSummary();"),'Confirmed Outlook emails must disappear from the draft list');
+assert(page.includes("if(count===0)closeBulkPreviewPanel();"),'Empty preview must close automatically');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
