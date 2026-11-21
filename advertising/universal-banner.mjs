@@ -230,10 +230,19 @@ function adoptLegacyMove(ad){
   link.href=destination;link.rel='noopener sponsored';link.target='_blank';
   link.dataset.anybikeAdAuthorized='1';
   const outer=link.closest('section#moveMotorcyclesAdvert,aside.move-dealer-promo,aside[aria-label*="Move Motorcycles"],section[aria-label*="Move Motorcycles"]');
-  if(outer)outer.dataset.anybikeAdAuthorized='1';
+  if(outer){
+   outer.dataset.anybikeAdAuthorized='1';
+   // Existing house placements also follow the approved contained banner size.
+   // No individual homepage/dealer page styling or artwork edits.
+   outer.style.setProperty('width','min(100% - 28px, 1200px)','important');
+   outer.style.setProperty('max-width','1200px','important');
+   outer.style.setProperty('margin-left','auto','important');
+   outer.style.setProperty('margin-right','auto','important');
+   outer.style.setProperty('box-sizing','border-box','important');
+  }
   link.dataset.adSlotCode=templateAdSlotCode(ad)+(anchors.length>1?'-'+String(index+1).padStart(2,'0'):'');
   link.dataset.adCampaignId=ad.id;
-  link.style.cssText='display:block;width:100%;height:auto;min-width:0;border-radius:12px;overflow:hidden;background:#101010;text-decoration:none';
+  link.style.cssText='display:block;width:100%;max-width:1200px;height:auto;min-width:0;margin-left:auto;margin-right:auto;border-radius:12px;overflow:hidden;background:#101010;text-decoration:none';
   const picture=link.querySelector('picture');
   if(picture){picture.style.cssText='display:block;width:100%;height:auto;min-width:0;overflow:hidden;border-radius:12px';
    // Older dashboard CSS forced fixed mobile picture ratios. The approved
