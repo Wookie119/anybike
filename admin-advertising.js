@@ -341,7 +341,7 @@ async function initQuotes(){
  }
  refreshPlannerQuoteSlots();
  $('quoteplannerslot').addEventListener('focus',refreshPlannerQuoteSlots);
- $('quoteuseplannerslot').onclick=()=>{
+ $('quoteuseplannerslot').onclick=run(async()=>{
   const path=$('quoteplannerslot').value;
   const slot=pages.find(p=>p.page_path===path);
   if(!slot)throw Error('Choose an inventoried advertising location.');
@@ -356,11 +356,11 @@ async function initQuotes(){
   fline.elements.artwork_format.value=slot.creative_format==='stock_card'?'stock_card':
     slot.creative_format==='large_landscape'?'large_landscape':'slim_landscape';
   fline.elements.quantity.value='1';
-  fline.elements.countries.value=slot.page_category==='country'?'':(quoteAudience==='Worldwide'?'GB':'GB');
+  fline.elements.countries.value=slot.page_category==='country'?'':'GB';
   $('quoteselectedcount').textContent=slot.slot_code+' · 1 inventoried page · '+(slot.placement_enabled?'active inventory':'currently disabled') ;
   $('quoteplannerslotstatus').textContent='Selected '+slot.slot_code+'. Set price and confirm country. Quotation does not change visibility.';
   fline.elements.unit_price_gbp.focus();
- };
+ });
  const preset=$('quoteplacementpreset');
   preset.onchange=()=>{const templates={manufacturer:['Manufacturer sponsorship','slim_landscape'],model:['Motorcycle model advert','slim_landscape'],country:['International market advert','slim_landscape'],stock:['Available stock card advert','stock_card'],service:['Motorcycle service specialist advert','slim_landscape'],homepage:['Homepage feature advert','large_landscape']};const choice=templates[preset.value];if(!choice)return;const form=$('quotelineform');form.elements.description.value=choice[0];form.elements.artwork_format.value=choice[1];form.elements.quantity.value=1;form.elements.unit_price_gbp.value='';status('Template selected. Confirm pages, quantity and price.');};
   const placementForm=$('quotelineform');const placementFields=placementForm.querySelector('.fields');placementFields.style.setProperty('gap','14px 18px','important');placementFields.style.setProperty('grid-template-columns','repeat(auto-fit,minmax(min(100%,220px),1fr))','important');for(const label of placementFields.querySelectorAll('label')){label.style.setProperty('grid-template-columns','minmax(0,1fr)','important');label.style.minWidth='0';for(const control of label.querySelectorAll('input,select')){control.style.setProperty('width','100%','important');control.style.setProperty('min-width','0','important');control.style.setProperty('margin','0','important')}}const placementBar=placementForm.querySelector('.bar');placementBar.style.setProperty('margin-top','16px','important');placementBar.style.setProperty('gap','12px','important');$('quotelines').style.marginTop='14px';$('quotetotals').style.marginTop='12px';
