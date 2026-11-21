@@ -430,6 +430,7 @@ function updateBulkContactReview(){
  $('bulkSelectVisible').disabled=total===0&&unclassified===0;
  const feedback=$('cardPageFeedback');if(feedback){feedback.title=total+' contacts are available for invitations under the selected filters.';}
  $('bulkClassifyPanel').hidden=true;
+ updateBatchSend();
 }
 function renderContactCards(shown){
  const host=$('contactCards');if(!host)return;
@@ -645,7 +646,68 @@ function render(){
  :mode==='both'
  ?'One AnyBike invitation covers both services: free motorcycle selling for private owners and trade registration for dealers. No second customer-type choice.'
  :'Dealer invitations are for business-identified contacts. Check they are UK motorcycle dealers before sending.';
-};$('emailSentFilter').onchange=()=>{page=0;render()};$('pageSize').onchange=()=>{$('cardPageSize').value=$('pageSize').value;page=0;render()};$('columnMode').onchange=()=>{page=0;render()};$('prev').onclick=()=>{page=Math.max(0,page-1);render()};$('next').onclick=()=>{page=Math.max(0,Math.min(Math.ceil(view().length/pageSize())-1,page+1));render()};$('reload').onclick=load;$('bulkSelectVisible').onclick=select100UsableContacts;
+};$('emailSentFilter').onchange=()=>{page=0;render()};$('pageSize').onchange=()=>{$('cardPageSize').value=$('pageSize').value;page=0;render()};$('columnMode').onchange=()=>{page=0;render()};$('prev').onclick=()=>{page=Math.max(0,page-1);render()};$('next').onclick=()=>{page=Math.max(0,Math.min(Math.ceil(view().length/pageSize())-1,page+1));render()};$('reload').onclick=load;
+let batchSending=false,batchStop=false;
+function eligibleBatchRecipients(){
+ const ids=new Set(view().map(r=>r.id));
+ const selected=items.filter(r=>chosen.has(r.id)&&ids.has(r.id)).slice(0,101);
+ const email=selected.filter(r=>invitationAudienceMatches(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&r.approved_for_invitation&&hasInvitationEmail(r)&&String(r.marketing_permission||'').trim());
+ const sms=selected.filter(r=>invitationAudienceMatches(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&!lastSmsByContact.has(r.id)&&
+  /^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,''))&&r.sms_invite_selected&&r.sms_permission_verified_at&&String(r.sms_marketing_permission||'').trim().length>=12);
+ return {selected,email,sms};
+}
+function updateBatchSend(){
+ const {selected,email,sms}=eligibleBatchRecipients();
+ const nEmail=$('bulkSendEmail').checked?email.length:0,nSms=$('bulkSendSms').checked?sms.length:0;
+ $('bulkSendCount').textContent=selected.length+' contacts selected · '+nEmail+' eligible emails · '+nSms+' eligible SMS · maximum 100';
+ $('bulkSendNow').disabled=batchSending||!selected.length||selected.length>100||!(nEmail+nSms)||!$('bulkSendConfirmed').checked;
+}
+['bulkSendEmail','bulkSendSms','bulkSendConfirmed'].forEach(id=>$(id).addEventListener('change',updateBatchSend));
+$('bulkSendStop').onclick=()=>{batchStop=true;$('bulkSendResult').textContent='Stop requested. Current submission may finish; no further contacts will be submitted.';};
+$('bulkSendNow').onclick=async()=>{
+ if(batchSending)return;
+ const {selected,email,sms}=eligibleBatchRecipients();
+ const jobs=($('bulkSendEmail').checked?email.map(r=>({r,channel:'email'})):[])
+  .concat($('bulkSendSms').checked?sms.map(r=>({r,channel:'sms'})):[]);
+ if(!selected.length||selected.length>100||!jobs.length||!$('bulkSendConfirmed').checked){
+  $('bulkSendResult').textContent='Select up to 100 eligible contacts, choose channels, then authorise. No messages sent.';return;
+ }
+ const nEmail=jobs.filter(j=>j.channel==='email').length,nSms=jobs.length-nEmail;
+ if(!confirm('SEND '+nEmail+' REAL branded AnyBike emails and '+nSms+' CHARGEABLE SMS messages to '+new Set(jobs.map(j=>j.r.id)).size+' selected contacts? This cannot be undone.'))return;
+ batchSending=true;batchStop=false;$('bulkSendStop').hidden=false;updateBatchSend();
+ let emailAccepted=0,smsAccepted=0,skipped=0,failed=0;const errors=[];
+ for(let i=0;i<jobs.length;i++){
+  if(batchStop)break;
+  const {r,channel}=jobs[i];
+  $('bulkSendResult').textContent='Processing '+(i+1)+'/'+jobs.length+' · '+emailAccepted+' email accepted · '+smsAccepted+' SMS accepted · '+failed+' errors. Keep page open.';
+  try{
+   const {data:fresh,error:readError}=await db.from('anybike_master_contacts').select('*').eq('id',r.id).maybeSingle();
+   if(readError||!fresh)throw Error('Contact could not be checked');
+   if(isAlreadyRegisteredContact(fresh)){skipped++;continue;}
+   let fn;
+   if(channel==='email'){
+    if(!fresh.approved_for_invitation||fresh.email_invite_sent_at||!hasInvitationEmail(fresh)||!String(fresh.marketing_permission||'').trim()){skipped++;continue;}
+    fn='anybike-send-contact-invitation-email';
+   }else{
+    if(!/^07\d{9}$/.test(String(fresh.phone||'').replace(/\s/g,''))||!fresh.sms_invite_selected||!fresh.sms_permission_verified_at||
+       String(fresh.sms_marketing_permission||'').trim().length<12||lastSmsByContact.has(r.id)){skipped++;continue;}
+    fn='anybike-send-dealer-invitation-sms';
+   }
+   const {data,error}=await db.functions.invoke(fn,{body:{contact_id:r.id,invitation_type:invitationTypeFor(r),confirm_send:true}});
+   if(error||!data?.success)throw Error(data?.error||error?.message||'Provider not confirmed');
+   if(channel==='email'){emailAccepted++;r.email_invite_sent_at=new Date().toISOString();r.approved_for_invitation=false;}
+   else{smsAccepted++;lastSmsByContact.set(r.id,{status:'submitted',sent_at:new Date().toISOString()});}
+  }catch(e){
+   failed++;errors.push('#'+r.id+' '+channel+': '+String(e.message||e).slice(0,110));
+   if(failed>=3){batchStop=true;break;}
+  }
+ }
+ const stopped=batchStop;batchSending=false;$('bulkSendStop').hidden=true;$('bulkSendConfirmed').checked=false;
+ $('bulkSendResult').textContent=(stopped?'Batch stopped. ':'Batch finished. ')+emailAccepted+' emails accepted · '+smsAccepted+' SMS accepted · '+skipped+' skipped · '+failed+' errors.'+
+  (errors.length?' '+errors.slice(0,3).join(' | '):'')+' Acceptance is not delivery. Check provider history before retrying errors.';
+ updateBatchSend();
+};
+$('bulkSelectVisible').onclick=select100UsableContacts;
 $('bulkClassifyClose').onclick=()=>{$('bulkClassifyPanel').hidden=true;};
 $('bulkClassifySave').onclick=async()=>{
  const kind=$('bulkClassifyKind').value,records=selectedUnclassifiedContacts(),status=$('bulkClassifyStatus');
