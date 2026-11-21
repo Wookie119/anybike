@@ -38,7 +38,7 @@ assert(page.includes("channel==='sms'?[]"),
  'SMS quick review must not prepare unrelated email drafts');
 assert(page.includes("channel!=='email'"),
  'Email quick review must not bring back old SMS drafts');
-assert(page.includes("r.sms_invite_selected&&(savedSmsOnly||chosen.has(r.id))"),
+assert(page.includes("r.sms_invite_selected&&(savedSmsOnly||(onlyContactId!==null?r.id===onlyContactId:chosen.has(r.id)))"),
  'Previous SMS selections must be excluded unless history explicitly requested');
 assert(page.includes("reviewInvitations({savedSmsOnly:true})"),
  'Saved SMS invitation history must remain available');
