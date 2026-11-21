@@ -337,14 +337,22 @@ function syncStockCardHeight(grid){
  const note=ad.querySelector(':scope > small');
  if(!link||!note)return;
  const height=Math.ceil(bike.getBoundingClientRect().height);
- const caption=Math.ceil(note.getBoundingClientRect().height);
  if(height<100)return;
- const artworkHeight=Math.max(100,height-caption);
+ // The clickable creative is EXACTLY as tall as the adjacent complete bike
+ // card. The disclosure stays outside the creative in the grid row gap.
  ad.style.setProperty('height',height+'px','important');
  ad.style.setProperty('min-height',height+'px','important');
- link.style.setProperty('height',artworkHeight+'px','important');
- link.style.setProperty('min-height',artworkHeight+'px','important');
+ ad.style.setProperty('align-self','start','important');
+ link.style.setProperty('height',height+'px','important');
+ link.style.setProperty('min-height',height+'px','important');
  link.style.setProperty('flex','0 0 auto','important');
+ note.style.setProperty('position','absolute','important');
+ note.style.setProperty('top','100%','important');
+ note.style.setProperty('left','0','important');
+ note.style.setProperty('right','0','important');
+ note.style.setProperty('padding-top','2px','important');
+ // Leave enough room for the central advertising disclosure on the next row.
+ grid.style.setProperty('row-gap','24px');
 }
 function scheduleStockCardHeight(grid){
  if(grid.__anybikeStockSizePending)return;
