@@ -31,11 +31,11 @@ function buildMoveHouseCard(stock=false){
  card.setAttribute('aria-label','Advertisement: Move Motorcycles nationwide motorcycle transport');
  card.className=stock?'card anybike-move-stock-ad':'anybike-move-house-banner';
  card.style.cssText=stock
-  ?'background:#111;border:1px solid #555;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0'
+  ?'background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0;overflow:visible;display:flex;flex-direction:column;min-width:0'
   :'margin:12px auto 18px;width:100%;max-width:1080px;border-radius:12px;overflow:hidden;min-width:0';
  const link=node('a');link.href=MOVE_SITE;link.target='_blank';link.rel='noopener sponsored';
  link.setAttribute('aria-label','Move Motorcycles - nationwide motorcycle collection and delivery');
- link.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px;background:#101010;text-decoration:none';
+ link.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px;background:#101010;text-decoration:none'+(stock?';border:1px solid #555;box-sizing:border-box':'');
  const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px';
  const source=node('source');source.media='(max-width:650px)';source.srcset=stock?MOVE_STOCK:MOVE_COMPACT;
  const img=node('img');img.src=stock?MOVE_STOCK:MOVE_SLIM;img.alt='Move Motorcycles blue-and-gold advert featuring a branded motorcycle transport van, collection and delivery';
@@ -44,7 +44,7 @@ function buildMoveHouseCard(stock=false){
   :'display:block;width:100%;height:auto;object-fit:contain;border-radius:12px';
  picture.append(source,img);link.append(picture);card.append(link);
  const disclosure=node('small','Advertisement · Move Motorcycles');
- disclosure.style.cssText='display:block;font:11px Arial;color:#aaa;padding:5px 8px';
+ disclosure.style.cssText='display:block;font:11px Arial;color:#aaa;padding:6px 2px 0;background:transparent;border:0';
  card.append(disclosure);
  return card;
 }
