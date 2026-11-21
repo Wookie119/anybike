@@ -212,12 +212,16 @@ function installMoveHouse(){
  dedupe.observe(document.body,{childList:true,subtree:true});
  return true;
 }
+// Legacy house adverts are subject to the SAME active-campaign and page-inventory
+// controls as paid advertising. A stored draft creative is NEVER live inventory.
+// This transitional bridge prevents unapproved static artwork from bypassing Admin.
+const APPROVED_MOVE_CAMPAIGN_ID='95c5d74b-1048-44fc-b22a-37683c4380e8';
 export async function renderMoveHouseOnUkPage(options={}){
- if(!isPublicUkCustomerPage())return;
+ if(!isPublicUkCustomerPage()||existingMoveAdvert())return;
  if(moveHouseReady===null){
   moveHouseReady=(async()=>{
    try{
-    const res=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/visitor-market-country',{cache:'no-store'});
+    const res=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/visitor-market-country',{cache:'no-store',signal:AbortSignal.timeout(4500)});
     if(!res.ok)return false;
     const data=await res.json();
     return data?.country_code==='GB';
@@ -225,15 +229,30 @@ export async function renderMoveHouseOnUkPage(options={}){
   })();
  }
  if(!await moveHouseReady)return;
- if(installMoveHouse())return;
- // Stock cards load asynchronously. Reinsert after filters/re-sorts, but
- // never add a second Move advert to the same page.
- if(location.pathname.toLowerCase()==='/available-stock.html'){
-  const grid=document.getElementById('stockGrid');if(!grid)return;
-  const observer=new MutationObserver(()=>{if(!document.getElementById(moveHouseMarker))installMoveHouse()});
-  observer.observe(grid,{childList:true});
-  installMoveHouse();
- }
+ // The advertising service, not this browser bundle, decides whether
+ // a campaign and its placement are actually eligible.
+ let request;
+ const route=document.getElementById('anybikeV2RouteIdentity');
+ try{
+  const identity=route?JSON.parse(route.textContent||'null'):null;
+  const id=Number(identity?.model_id);
+  request=Number.isSafeInteger(id)&&id>0?
+   {action:'select',model_id:id,country:'GB'}:
+   {action:'select_page',page_path:location.pathname==='/'?'/index.html':location.pathname,country:'GB'};
+ }catch{return;}
+ try{
+  const result=await send(request);
+  if(result?.ad?.id!==APPROVED_MOVE_CAMPAIGN_ID)return;
+  if(installMoveHouse())return;
+  if(location.pathname.toLowerCase()==='/available-stock.html'){
+   const grid=document.getElementById('stockGrid');if(!grid)return;
+   const watch=new MutationObserver(()=>{
+    if(document.getElementById(moveHouseMarker)){watch.disconnect();return;}
+    if(installMoveHouse())watch.disconnect();
+   });
+   watch.observe(grid,{childList:true});
+  }
+ }catch(error){console.warn('Move advertising campaign could not be verified',error);}
 }
 
 export async function renderAdvertising(context){if(document.getElementById(moveHouseMarker)||existingMoveAdvert())return;const n=++generation;observer?.disconnect();document.getElementById('anybike-ad-below-hero')?.remove();if(!context||context.country!=='GB')return;const isModel=Number.isSafeInteger(context.modelId);if(!isModel&&!context.pagePath)return;try{const {ad}=await send(isModel?{action:'select',model_id:context.modelId,country:context.country}:{action:'select_page',page_path:context.pagePath,country:context.country});if(n!==generation||!ad)return;const anchor=document.querySelector('main .hero')||(!isModel?document.querySelector('main .hero-section,main section:first-of-type'):null);const href=https(ad.destination_url);const desktop=https(ad.desktop_image_url),mobile=https(ad.mobile_image_url);if(!anchor||!href||!desktop||!mobile)return;
