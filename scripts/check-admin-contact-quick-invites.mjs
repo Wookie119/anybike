@@ -48,7 +48,7 @@ assert(page.includes('This saves the SMS selection but DOES NOT send a text.'),
  'SMS selection needs an explicit non-send confirmation');
 assert(page.includes("functions.invoke('anybike-send-dealer-invitation-sms'"),
  'Actual chargeable SMS send still needs the existing confirmed server call');
-assert(page.includes('This is a REAL chargeable SMS.'),
+assert(page.includes('authorise one chargeable text.'),
  'A chargeable provider send must have final explicit confirmation');
 
 // Everyday dealer recruitment uses open contact cards. The full table remains
@@ -317,10 +317,10 @@ assert(page.includes('aria-label="Scrollable invitation drafts"'),'Preview list 
 assert(page.includes("Scroll inside the invitation list to review the next contact"),'The review must explain where to scroll');
 assert(page.includes("includeSmsDrafts=false"),'SMS previews must be opt-in for bulk review, not silently added to individual email actions');
 assert(page.includes("(r.sms_invite_selected||includeSmsDrafts)"),'Bulk preview must offer SMS draft option for approved mobile contacts');
-assert(page.includes('data-activate-sms'), 'SMS sending must require separate activation for each contact');
+assert(!page.includes('data-activate-sms'), 'No redundant SMS eligibility action: each send requires one final confirmation');
 assert(page.includes("update({sms_invite_selected:true})"),'SMS activation records a choice before sending');
-assert(page.includes("if(!r||!r.sms_invite_selected)"),'SMS sender must reject contacts without a saved SMS choice');
-assert(page.includes("if(!confirm('Send this SMS now to '"),'Sending a chargeable SMS requires final confirmation');
+assert(page.includes("if(!r||!r.approved_for_invitation)"),'SMS sender must reject contacts without approved invitation eligibility');
+assert(page.includes("if(!confirm('Send the displayed AnyBike invitation SMS to '"),'Sending a chargeable SMS requires final confirmation');
 assert(page.includes("data-send-sms"),'Visible SMS send button must exist in each eligible preview');
 assert(page.includes("SMS invitation to '+esc(r.phone)"),'SMS section should be clearly labelled in the same email preview');
 assert(page.includes("(canSms?'<details open style="),'SMS invitation must be expanded by default');
@@ -328,6 +328,12 @@ assert(page.includes('data-preview-sms-link'),'Admin SMS review must offer a cle
 assert(page.includes('graphic buttons are not supported by standard SMS'),'SMS interface must accurately explain the text-only channel');
 assert(page.includes("window.open(url,'_blank','noopener,noreferrer')"),'Preview link button opens the verified destination in a new tab');
 assert(!page.includes("String(r.first_name||'there').trim().slice(0,14)"),'SMS must not use truncated company-name greetings');
+assert(page.includes('data-sms-status'), 'SMS saves and provider outcomes must be visible on the active preview');
+assert(page.includes("if(!r.sms_invite_selected){"), 'SMS channel selection is persisted at confirmed send time');
+assert(page.includes("if(approvalError||!saved)throw Error('Unable to save SMS eligibility"), 'Failed SMS selection must be surfaced before attempting a send');
+assert(page.includes("const previous=smsHistory.get(r.id)"), 'Resubmissions must be checked against known provider history');
+assert(page.includes("smsHistory.set(r.id,{status:'submitted'"), 'Accepted SMS must show a distinct submitted state');
+assert(page.includes("No SMS sent.")||page.includes("No message sent."), 'Unapproved or rejected contacts never send SMS automatically');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
