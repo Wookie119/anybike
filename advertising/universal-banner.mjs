@@ -32,27 +32,20 @@ function buildMoveHouseCard(ad){
  card.setAttribute('aria-label','Advertisement: '+String(ad.partner_name||'Move Motorcycles'));
  card.className=stock?'card anybike-move-stock-ad':'anybike-move-house-banner';
  card.style.cssText=stock
-  ?'background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0;overflow:visible;display:flex;flex-direction:column;min-width:0;height:100%;box-sizing:border-box;align-self:stretch;position:relative'
+  ?'background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0;overflow:visible;display:flex;flex-direction:column;min-width:0;height:auto;box-sizing:border-box;align-self:start;position:relative'
   :'margin:12px 0 18px;width:100%;max-width:none;border-radius:12px;overflow:visible;min-width:0;box-sizing:border-box';
  const link=node('a');link.href=destination;link.target='_blank';link.rel='noopener sponsored';
  link.setAttribute('aria-label',String(ad.partner_name||'Advertiser')+' — view website');
- link.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px;background:#101010;text-decoration:none'+(stock?';position:absolute;inset:0;width:100%;height:100%;border:1px solid #555;box-sizing:border-box;display:block;background:#111':'');
- const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px'+(stock?';position:absolute;inset:0;width:100%;height:100%;display:block;background:#111':'');
+ link.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px;background:#101010;text-decoration:none'+(stock?';position:relative;aspect-ratio:4/3;height:auto;border:1px solid #555;box-sizing:border-box;background:#111':'');
+ const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px'+(stock?';position:absolute;inset:0;width:100%;height:100%;background:#111':'');
  const source=node('source');source.media='(max-width:650px)';source.srcset=mobile;
  const img=node('img');img.src=desktop;img.alt=typeof ad.alt_text==='string'?ad.alt_text:'';
  img.loading='lazy';img.decoding='async';img.style.cssText=stock
-  ?'display:block;position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:contain;object-position:center;border-radius:12px'
+  ?'display:block;position:absolute;inset:0;width:100%;height:100%;aspect-ratio:4/3;object-fit:cover;object-position:center;border-radius:12px'
   :'display:block;width:100%;height:auto;max-width:100%;aspect-ratio:auto;object-fit:contain;border-radius:12px';
- // A second, decorative cover layer fills any fractional gap if a stock card
- // is taller than the image ratio. The legible foreground is NEVER cropped.
- if(stock){
-  link.style.backgroundImage='url('+JSON.stringify(desktop)+')';
-  link.style.backgroundSize='cover';
-  link.style.backgroundPosition='center';
- }
  picture.append(source,img);link.append(picture);card.append(link);
  const disclosure=node('small',ad.disclosure||'Advertisement · '+String(ad.partner_name||'Advertiser'));
- disclosure.style.cssText='display:block;font:11px Arial;color:#aaa;padding:6px 2px 0;background:transparent;border:0'+(stock?';position:absolute;top:100%;left:0;right:0;line-height:12px;padding-top:3px;white-space:nowrap':'');
+ disclosure.style.cssText='display:block;clear:both;font:11px/1.35 Arial,sans-serif;color:#aaa;padding:4px 2px 0;margin:0;background:transparent;border:0;white-space:normal;position:static';
  card.append(disclosure);
  let seen=false,clicked=false;
  const track=type=>{
