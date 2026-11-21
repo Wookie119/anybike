@@ -11,7 +11,19 @@ const copy=node('div');copy.style.cssText='flex:1;min-width:0';const label=node(
 // Model photos require explicit advertising-use rights; use approved campaign artwork until those rights are recorded.
 
 box.append(link);if(ad.disclosure){const disclosure=node('small',ad.disclosure);disclosure.style.cssText='display:block;margin-top:4px;color:#aaa;font:11px Arial';box.append(disclosure)}img.addEventListener('error',()=>{box.remove();observer?.disconnect()},{once:true});anchor.after(box);
-let seen=false,clicked=false;const track=type=>send({action:'event',event_type:type,token:ad.token},true).catch(()=>{});const impression=()=>{if(seen)return;seen=true;track('impression')};link.addEventListener('click',()=>{if(!clicked){clicked=true;impression();track('click')}});if('IntersectionObserver'in window){observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();observer.disconnect()}},{threshold:.5});observer.observe(box)}else{impression()}}catch{/* advertising must never interrupt model pages */}}
+let seen=false,clicked=false;
+const track=type=>{
+ const body={action:'event',event_type:type,token:ad.token};
+ // sendBeacon is designed for navigation-time delivery. Keep fetch as fallback.
+ if(type==='click'&&typeof navigator.sendBeacon==='function'){
+  try{if(navigator.sendBeacon(endpoint,new Blob([JSON.stringify(body)],{type:'text/plain;charset=UTF-8'})))return}catch{}
+ }
+ send(body,true).catch(()=>{});
+};
+const impression=()=>{if(seen)return;seen=true;track('impression')};
+const recordClick=()=>{if(clicked)return;clicked=true;impression();track('click')};
+link.addEventListener('click',recordClick);
+link.addEventListener('auxclick',event=>{if(event.button===1)recordClick()});if('IntersectionObserver'in window){observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();observer.disconnect()}},{threshold:.5});observer.observe(box)}else{impression()}}catch{/* advertising must never interrupt model pages */}}
 
 // The shared header calls this only on known public non-model routes. No layout is changed when no campaign is eligible.
 export async function renderPublicPageAdvertising(){try{const path=location.pathname;if(!/^\/markets\/[a-z0-9-]+\.html$/i.test(path)&&!['/bmw-motorcycles.html','/harley-davidson-motorcycles.html'].includes(path))return;if(!document.querySelector('main .hero,main .hero-section,main section:first-of-type'))return;const r=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/visitor-market-country',{cache:'no-store'});if(!r.ok)return;const g=await r.json();if(g.country_code==='GB')await renderAdvertising({pagePath:path,country:'GB'})}catch{/* never impede public content */}}
