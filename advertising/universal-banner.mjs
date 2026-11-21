@@ -28,7 +28,7 @@ function buildMoveHouseCard(ad,companion=false){
  const mobile=https(stock?ad.stock_card_image_url:(ad.compact_image_url||ad.mobile_image_url));
  if(!destination||!desktop||!mobile)return null;
  const card=node(stock?'article':'aside');
- card.id=companion?'anybike-managed-companion-ad':moveHouseMarker;
+ if(companion)card.dataset.anybikeCompanion='true';else card.id=moveHouseMarker;
  card.dataset.adPlacementKey=ad.placement_key;
  card.dataset.adCampaignId=ad.id;
  card.dataset.adSlotCode=templateAdSlotCode(ad)+(companion?'-B':'-A');
@@ -322,7 +322,7 @@ function installMoveHouse(ad){
  if(!isPublicUkCustomerPage()||!ad)return false;
  // Adopt the exact position of existing approved Move artwork in dealer,
  // private, home and editorial pages instead of moving it to another section.
- if(legacyMoveAnchors().length)return adoptLegacyMove(ad);
+ if(ad.placement_key==='existing_house'&&legacyMoveAnchors().length)return adoptLegacyMove(ad);
  if(!placementMatchesTemplate(ad))return false;
  if(document.getElementById(moveHouseMarker))return true;
  const stock=ad.placement_key==='stock_grid';
