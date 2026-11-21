@@ -129,6 +129,22 @@ function positionFreightMoveAdvert(main,card){
  container.append(card);
  card.style.cssText='margin:0;width:100%;max-width:none;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
 }
+function isSellMotorcyclePage(){
+ return location.pathname.toLowerCase()==='/sell-your-motorcycle.html';
+}
+function positionSellMotorcycleMoveAdvert(main,card){
+ // Preserve the valuation form and existing sections. Place the single
+ // sponsored banner after the complete page, inside its 1500px .wrap width.
+ let container=document.getElementById('anybike-move-sell-wrap');
+ if(!container){
+  container=node('div');
+  container.id='anybike-move-sell-wrap';
+  container.style.cssText='width:100%;max-width:1500px;margin:22px auto 28px;padding:0 22px;box-sizing:border-box;min-width:0';
+  main.append(container);
+ }
+ container.append(card);
+ card.style.cssText='margin:0;width:100%;max-width:none;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
+}
 function installMoveHouse(){
  if(!isPublicUkCustomerPage()||existingMoveAdvert())return false;
  const existing=document.getElementById(moveHouseMarker);
@@ -139,6 +155,7 @@ function installMoveHouse(){
   else if(isEditorialInfoPage()&&targetMain)positionEditorialMoveAdvert(targetMain,existing);
   else if(isExportServicesPage()&&targetMain)positionExportMoveAdvert(targetMain,existing);
   else if(isFreightForwardersPage()&&targetMain)positionFreightMoveAdvert(targetMain,existing);
+  else if(isSellMotorcyclePage()&&targetMain)positionSellMotorcycleMoveAdvert(targetMain,existing);
   return true;
  }
  const stock=location.pathname.toLowerCase()==='/available-stock.html';
@@ -170,6 +187,10 @@ function installMoveHouse(){
  }
  if(isFreightForwardersPage()){
   positionFreightMoveAdvert(main,buildMoveHouseCard(false));
+  return true;
+ }
+ if(isSellMotorcyclePage()){
+  positionSellMotorcycleMoveAdvert(main,buildMoveHouseCard(false));
   return true;
  }
  // Retain the approved template: add a single optional advert after its hero
