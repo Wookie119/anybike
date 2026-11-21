@@ -27,6 +27,8 @@ function buildMoveHouseCard(ad){
  if(!destination||!desktop||!mobile)return null;
  const card=node(stock?'article':'aside');
  card.id=moveHouseMarker;
+ card.dataset.adPlacementKey=ad.placement_key;
+ card.dataset.adCampaignId=ad.id;
  card.setAttribute('aria-label','Advertisement: '+String(ad.partner_name||'Move Motorcycles'));
  card.className=stock?'card anybike-move-stock-ad':'anybike-move-house-banner';
  card.style.cssText=stock
@@ -39,8 +41,15 @@ function buildMoveHouseCard(ad){
  const source=node('source');source.media='(max-width:650px)';source.srcset=mobile;
  const img=node('img');img.src=desktop;img.alt=typeof ad.alt_text==='string'?ad.alt_text:'';
  img.loading='lazy';img.decoding='async';img.style.cssText=stock
-  ?'display:block;position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:cover;object-position:center;border-radius:12px'
+  ?'display:block;position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:contain;object-position:center;border-radius:12px'
   :'display:block;width:100%;height:auto;max-width:100%;aspect-ratio:auto;object-fit:contain;border-radius:12px';
+ // A second, decorative cover layer fills any fractional gap if a stock card
+ // is taller than the image ratio. The legible foreground is NEVER cropped.
+ if(stock){
+  link.style.backgroundImage='url('+JSON.stringify(desktop)+')';
+  link.style.backgroundSize='cover';
+  link.style.backgroundPosition='center';
+ }
  picture.append(source,img);link.append(picture);card.append(link);
  const disclosure=node('small',ad.disclosure||'Advertisement · '+String(ad.partner_name||'Advertiser'));
  disclosure.style.cssText='display:block;font:11px Arial;color:#aaa;padding:6px 2px 0;background:transparent;border:0'+(stock?';position:absolute;top:100%;left:0;right:0;line-height:12px;padding-top:3px;white-space:nowrap':'');
@@ -199,8 +208,24 @@ function setupStockAdvertRedraw(ad){
  watch.observe(grid,{childList:true});
  grid.__anybikeStockAdvertObserver=watch;
 }
+// Exact page/template slot contract. A missing or mismatched anchor means NO
+// advert; never guess or insert into a random section of a model template.
+function placementMatchesTemplate(ad){
+ const path=location.pathname.toLowerCase(),key=ad?.placement_key;
+ const main=document.querySelector('main');
+ if(!main)return false;
+ if(key==='stock_grid')return path==='/available-stock.html'&&!!document.getElementById('stockGrid');
+ if(key==='before_sources')return !!main.querySelector('#databaseHeroPhoto')&&
+  !!main.querySelector('#nextAction')&&!!main.querySelector('#modelSources');
+ if(key==='about_wrap')return path==='/about-us.html';
+ if(key==='export_wrap')return path==='/export-services.html';
+ if(key==='freight_wrap')return path==='/freight-forwarders.html';
+ if(key==='sell_wrap')return path==='/sell-your-motorcycle.html';
+ if(key==='main_end')return path!='/available-stock.html'&&!main.querySelector('#databaseHeroPhoto');
+ return false;
+}
 function installMoveHouse(ad){
- if(!isPublicUkCustomerPage()||existingMoveAdvert())return false;
+ if(!isPublicUkCustomerPage()||existingMoveAdvert()||!placementMatchesTemplate(ad))return false;
  if(document.getElementById(moveHouseMarker))return true;
  const stock=ad.placement_key==='stock_grid';
  if(stock){
