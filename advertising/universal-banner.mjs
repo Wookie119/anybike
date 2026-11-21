@@ -32,7 +32,7 @@ function buildMoveHouseCard(stock=false){
  card.className=stock?'card anybike-move-stock-ad':'anybike-move-house-banner';
  card.style.cssText=stock
   ?'background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0;overflow:visible;display:flex;flex-direction:column;min-width:0;height:100%;box-sizing:border-box;align-self:stretch'
-  :'margin:12px auto 18px;width:100%;max-width:1080px;border-radius:12px;overflow:hidden;min-width:0';
+  :'margin:12px 0 18px;width:100%;max-width:none;border-radius:12px;overflow:visible;min-width:0;box-sizing:border-box';
  const link=node('a');link.href=MOVE_SITE;link.target='_blank';link.rel='noopener sponsored';
  link.setAttribute('aria-label','Move Motorcycles - nationwide motorcycle collection and delivery');
  link.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px;background:#101010;text-decoration:none'+(stock?';border:1px solid #555;box-sizing:border-box;flex:1;min-height:0;display:flex;align-items:flex-start':'');
