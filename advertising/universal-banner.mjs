@@ -74,6 +74,18 @@ function buildMoveHouseCard(ad,companion=false){
   },{threshold:.5});
   visible.observe(card);
  }else impression();
+ // Validate the actual displayed image, including the selected mobile <source>.
+ // Incorrect artwork is never stretched or allowed to remain in the slot.
+ img.addEventListener('load',()=>{
+  const compact=typeof matchMedia==='function'&&matchMedia('(max-width:650px)').matches;
+  const format=stock?'stock_card':
+   compact&&ad.compact_image_url?'compact_mobile':ad.creative_format||'slim_landscape';
+  const ratio=formatRatio[format];
+  if(ratio&&img.naturalHeight&&Math.abs(img.naturalWidth/img.naturalHeight/ratio-1)>.035){
+   console.warn('Advert artwork failed its slot proportion check',ad.slot_code,format);
+   card.remove();
+  }
+ },{once:true});
  img.addEventListener('error',()=>card.remove(),{once:true});
  return card;
 }
@@ -262,28 +274,11 @@ function adoptLegacyMove(ad){
  return true;
 }
 async function validateAdvertArtwork(ad){
- const stock=ad.placement_key==='stock_grid';
- const compact=typeof matchMedia==='function'&&matchMedia('(max-width:650px)').matches;
- const format=stock?'stock_card':(compact&&ad.compact_image_url?'compact_mobile':ad.creative_format||'slim_landscape');
- const source=stock?ad.stock_card_image_url:
-  compact&&ad.compact_image_url?ad.compact_image_url:
-  ad.creative_format==='large_landscape'?ad.desktop_image_url:
-  ad.slim_image_url||ad.desktop_image_url;
- const url=https(source),ratio=formatRatio[format];
- if(!url||!ratio)return false;
- return new Promise(resolve=>{
-  const img=new Image();let settled=false;
-  const done=ok=>{if(settled)return;settled=true;clearTimeout(timeout);resolve(ok)};
-  const timeout=setTimeout(()=>done(false),8000);
-  img.onload=()=>{
-   const actual=img.naturalWidth/img.naturalHeight;
-   const valid=Number.isFinite(actual)&&Math.abs(actual/ratio-1)<=0.035;
-   if(!valid)console.warn('Advert creative does not match its approved slot',ad.id,format);
-   done(valid);
-  };
-  img.onerror=()=>done(false);
-  img.src=url;
- });
+ // The Planner owns activation and uploaded-creative aspect-ratio validation.
+ // Never withhold an eligible advert while loading a second copy of its image:
+ // image loading and final validation happen on the displayed image itself.
+ const source=managedAdCreative(ad);
+ return !!(source.desktop&&source.mobile&&https(ad.destination_url));
 }
 async function verifiedCompanion(ad){
  if(!ad.companion)return ad;
