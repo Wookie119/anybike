@@ -36,11 +36,11 @@ function buildMoveHouseCard(stock=false){
  const link=node('a');link.href=MOVE_SITE;link.target='_blank';link.rel='noopener sponsored';
  link.setAttribute('aria-label','Move Motorcycles - nationwide motorcycle collection and delivery');
  link.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px;background:#101010;text-decoration:none'+(stock?';border:1px solid #555;box-sizing:border-box;flex:0 0 100%;height:100%;min-height:0;display:block;background:#111':'');
- const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px'+(stock?';height:auto;display:block;background:#111':'');
+ const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px'+(stock?';height:100%;display:block;background:#111':'');
  const source=node('source');source.media='(max-width:650px)';source.srcset=stock?MOVE_STOCK:MOVE_COMPACT;
  const img=node('img');img.src=stock?MOVE_STOCK:MOVE_SLIM;img.alt='Move Motorcycles blue-and-gold advert featuring a branded motorcycle transport van, collection and delivery';
  img.loading='lazy';img.decoding='async';img.style.cssText=stock
-  ?'display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:12px'
+  ?'display:block;width:100%;height:100%;object-fit:cover;object-position:center;border-radius:12px'
   :'display:block;width:100%;height:auto;object-fit:contain;border-radius:12px';
  picture.append(source,img);link.append(picture);card.append(link);
  const disclosure=node('small','Advertisement · Move Motorcycles');
