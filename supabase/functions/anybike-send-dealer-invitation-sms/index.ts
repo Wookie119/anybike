@@ -35,12 +35,11 @@ Deno.serve(async req=>{
  // The actual provider message is generated on the server, not accepted as
  // arbitrary client text. Both is suitable for unclassified contacts and
  // never addresses recipients as dealership contacts without evidence.
- const name=(String(contact.first_name||"").trim().slice(0,14)||"there");
  const text=invitationType==="both"
-  ?"Hi "+name+", AnyBike invitation: sell your motorcycle for free or register as a UK motorcycle dealer. Details: https://www.anybike.co.uk"
+  ?"AnyBike invitation: Sell your motorcycle for free or join the UK motorcycle dealer network. Find out more: https://www.anybike.co.uk"
   :invitationType==="private"
-   ?"Hi "+name+", AnyBike invitation: private owners can submit their motorcycle for sale free. Find out more: https://www.anybike.co.uk/sell-your-motorcycle.html"
-   :"Hi "+name+", AnyBike invitation: UK motorcycle dealers can register free to explore trade opportunities. https://www.anybike.co.uk/uk-dealer-welcome.html";
+   ?"AnyBike invitation: Sell your motorcycle for free, with no obligation to accept an offer. Find out more: https://www.anybike.co.uk/sell-your-motorcycle.html"
+   :"AnyBike invitation: UK motorcycle dealers can register free to explore trade opportunities. https://www.anybike.co.uk/uk-dealer-welcome.html";
  const recipient="+44"+phone.substring(1);
  const {data:log,error:le}=await db.from("anybike_invitation_sms_log").insert({contact_id:id,recipient,message_body:text,sent_by:user.id}).select("id").single();
  if(le||!log)throw le||Error("Unable to record sending attempt");
