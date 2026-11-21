@@ -32,16 +32,16 @@ function buildMoveHouseCard(stock=false){
  card.className=stock?'card anybike-move-stock-ad':'anybike-move-house-banner';
  card.style.cssText=stock
   ?'background:#111;border:1px solid #555;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0'
-  :'margin:12px auto;width:100%;max-width:1480px;border-radius:12px;overflow:hidden;min-width:0';
+  :'margin:12px auto 18px;width:100%;max-width:1080px;border-radius:12px;overflow:hidden;min-width:0';
  const link=node('a');link.href=MOVE_SITE;link.target='_blank';link.rel='noopener sponsored';
  link.setAttribute('aria-label','Move Motorcycles - nationwide motorcycle collection and delivery');
  link.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px;background:#101010;text-decoration:none';
  const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px';
  const source=node('source');source.media='(max-width:650px)';source.srcset=stock?MOVE_STOCK:MOVE_COMPACT;
- const img=node('img');img.src=stock?MOVE_STOCK:(location.pathname.toLowerCase().includes('model')||/^\/models\//.test(location.pathname.toLowerCase())?MOVE_SLIM:MOVE_WIDE);img.alt='Move Motorcycles - nationwide motorcycle collection and delivery';
+ const img=node('img');img.src=stock?MOVE_STOCK:MOVE_SLIM;img.alt='Move Motorcycles blue-and-gold advert featuring a branded motorcycle transport van, collection and delivery';
  img.loading='lazy';img.decoding='async';img.style.cssText=stock
   ?'display:block;width:100%;aspect-ratio:4/3;object-fit:contain;border-radius:12px'
-  :'display:block;width:100%;height:auto;max-height:250px;object-fit:contain;border-radius:12px';
+  :'display:block;width:100%;height:auto;object-fit:contain;border-radius:12px';
  picture.append(source,img);link.append(picture);card.append(link);
  const disclosure=node('small','Advertisement · Move Motorcycles');
  disclosure.style.cssText='display:block;font:11px Arial;color:#aaa;padding:5px 8px';
