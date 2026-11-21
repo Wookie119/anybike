@@ -286,7 +286,7 @@ assert(page.includes("https://www.anybike.co.uk/sell-your-motorcycle.html"),'Pri
 assert(page.includes("function richInvitationHtml(r)"),'Private and dealer invitations must have HTML buttons');
 assert(page.includes("const subject=invitationSubject(r);"),'Outlook drafts must use the correct subject');
 assert(page.includes("const r=queue[pos],body=emailBody(r),subject=invitationSubject(r);"),'Legacy draft action must also use recipient-specific text');
-assert(page.includes("if(invitationTypeFor(r)==='private')return 'Hi '"),'Private SMS draft must not use dealer wording');
+assert(page.includes("if(invitationTypeFor(r)==='private')return 'AnyBike invitation: Sell your motorcycle for free"),'Private SMS draft must not use dealer wording or truncated contact names');
 assert(page.includes('id="cardPageSize"')&&page.includes('<option value="500" selected>500'),'Cards must also default to 500 per page');
 assert(page.includes("function inviteIntro(r){return ''}"),'SMS and email invite templates must not add personal or transport business intros');
 assert(page.includes("AnyBike invitation — UK motorcycle dealers"),'Dealer subject must use AnyBike invitation branding');
@@ -323,6 +323,11 @@ assert(page.includes("if(!r||!r.sms_invite_selected)"),'SMS sender must reject c
 assert(page.includes("if(!confirm('Send this SMS now to '"),'Sending a chargeable SMS requires final confirmation');
 assert(page.includes("data-send-sms"),'Visible SMS send button must exist in each eligible preview');
 assert(page.includes("SMS invitation to '+esc(r.phone)"),'SMS section should be clearly labelled in the same email preview');
+assert(page.includes("(canSms?'<details open style="),'SMS invitation must be expanded by default');
+assert(page.includes('data-preview-sms-link'),'Admin SMS review must offer a clear button for opening the destination link');
+assert(page.includes('graphic buttons are not supported by standard SMS'),'SMS interface must accurately explain the text-only channel');
+assert(page.includes("window.open(url,'_blank','noopener,noreferrer')"),'Preview link button opens the verified destination in a new tab');
+assert(!page.includes("String(r.first_name||'there').trim().slice(0,14)"),'SMS must not use truncated company-name greetings');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
