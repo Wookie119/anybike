@@ -296,16 +296,15 @@ function mountInlineInviteActions(id){
 // Daily card view renders only current search/page results. A reviewed
 // message card is preserved across record updates, including SMS selection.
 function updateBulkContactReview(){
- const selected=items.filter(r=>chosen.has(r.id));
- const eligible=selected.filter(r=>r.approved_for_invitation&&
-  !['registered','approved'].includes(contactRecruitmentStatus(r)));
+ const matchingIds=new Set(view().map(r=>r.id));const selected=items.filter(r=>chosen.has(r.id)&&matchingIds.has(r.id));
+ const eligible=selected.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
  $('bulkSelectionCount').textContent=selected.length+' contact'+(selected.length===1?'':'s')+' selected';
  $('bulkSelectionStatus').textContent=selected.length
   ?eligible.length+' approved for invitation · '+(selected.length-eligible.length)+' not yet eligible. No messages sent.'
   :'Tick contacts on their cards to review invitations together. Nothing is sent automatically.';
  $('bulkReviewSelected').disabled=!eligible.length;
  $('bulkReviewContacts').disabled=!selected.length;
- const pending=selected.filter(r=>!r.approved_for_invitation&&!['registered','approved'].includes(contactRecruitmentStatus(r)));
+ const pending=selected.filter(r=>!r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
  $('bulkReviewContacts').textContent=pending.length?'Review '+pending.length+' selected permissions':eligible.length?'Review '+eligible.length+' approved contacts':'Review selected contacts';
  const visible=view().slice(page*pageSize(),page*pageSize()+pageSize());
  $('bulkSelectVisible').textContent='Select '+visible.length+' on this page';
@@ -328,7 +327,7 @@ function renderContactCards(shown){
   const already=!!contactLastSent(r);
   const consent=!!r.approved_for_invitation;
   const active=activeCardInviteId===id,saved=recentlySavedContactId===id,selected=chosen.has(id);
-  const registered=recruitment==='registered'||recruitment==='approved';
+  const registered=isAlreadyRegisteredContact(r);
   const state=registered?'Already registered':already?'Previously invited':consent?'Approved to invite':'Permission review required';
   const stateStyle=registered||already?'already':consent?'ready':'';
   const email=String(r.email||'').trim();
@@ -518,12 +517,9 @@ $('bulkClearSelected').onclick=()=>{
  render();
 };
 $('bulkReviewContacts').onclick=()=>{
- const candidates=[...view(),...items.filter(r=>chosen.has(r.id)&&!view().some(v=>v.id===r.id))]
-  .filter(r=>chosen.has(r.id)&&!r.approved_for_invitation&&
-   !['registered','approved'].includes(contactRecruitmentStatus(r)));
+ const candidates=view().filter(r=>chosen.has(r.id)&&!r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
  if(!candidates.length){
-  const approved=items.filter(r=>chosen.has(r.id)&&r.approved_for_invitation&&
-   !['registered','approved'].includes(contactRecruitmentStatus(r)));
+  const approved=view().filter(r=>chosen.has(r.id)&&r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
   if(approved.length){$('bulkReviewSelected').click();return;}
   $('bulkSelectionStatus').textContent='No selected contacts are currently eligible for an invitation. Registered dealers should use Onboarding.';
   return;
@@ -551,9 +547,8 @@ $('bulkReviewContacts').onclick=()=>{
  $('bulkSelectionStatus').textContent='Review '+(r.first_name||r.company||r.email)+', then save. Click Review selected contacts again for the next contact.';
 };
 $('bulkReviewSelected').onclick=async()=>{
- const selected=items.filter(r=>chosen.has(r.id));
- const eligible=selected.filter(r=>r.approved_for_invitation&&
-  !['registered','approved'].includes(contactRecruitmentStatus(r)));
+ const matchingIds=new Set(view().map(r=>r.id));const selected=items.filter(r=>chosen.has(r.id)&&matchingIds.has(r.id));
+ const eligible=selected.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
  if(!eligible.length){
   $('bulkSelectionStatus').textContent='Selected contacts need approved invitation permission before review.';
   return;
@@ -644,7 +639,7 @@ async function reviewInvitations({savedSmsOnly=false,channel='both'}={}){
  $('invitePreviews').replaceChildren();
  try{await refreshSmsHistory({savedSmsOnly})}catch(e){$('queue').textContent='SMS history unavailable: '+e.message+'. No invitations can be sent until this is resolved.';$('invitePreviews').innerHTML='';return;}
 
- const approved=items.filter(r=>r.approved_for_invitation&&!['registered','approved'].includes(contactRecruitmentStatus(r)));
+ const matchingIds=new Set(view().map(r=>r.id));const approved=items.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r)&&(savedSmsOnly||matchingIds.has(r.id)));
  queue=savedSmsOnly||channel==='sms'?[]:approved.filter(r=>chosen.has(r.id)&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(r.email||''))&&!String(r.email).toLowerCase().startsWith('unknown@')&&!/@app\.movemotorcycles\.co\.uk$/i.test(String(r.email)));
  smsQueue=approved.filter(r=>(savedSmsOnly||channel!=='email')&&r.sms_invite_selected&&(savedSmsOnly||chosen.has(r.id))&&/^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,'')));
  pos=0;smsPos=0;$('draft').disabled=true;$('smsDraft').disabled=true;
@@ -725,8 +720,8 @@ async function reviewSingleQuickInvite(channel='both',{inline=false,card=false}=
  const selected=items.filter(r=>chosen.has(r.id));let status=(card?$('contactCards')?.querySelector('[data-card-id="'+activeCardInviteId+'"] .dealer-contact-feedback'):inline?$('inlineInviteActions')?.querySelector('.inline-invite-message'):null)||$('quickInviteStatus');
  if(selected.length!==1){status.textContent='Select exactly one contact first.';return;}
  const r=selected[0],registration=contactRecruitmentStatus(r);
- if(registration==='approved'||registration==='registered'){
-  status.textContent='This dealer is registered. Use Onboarding rather than a recruitment invitation.';return;
+ if(isAlreadyRegisteredContact(r)){
+  status.textContent='This contact is already registered. Use their account instead of sending a recruitment invitation.';return;
  }
  if(!r.approved_for_invitation){
   status.textContent='Invitation permission is not approved. Review the saved permission before proceeding.';return;
