@@ -325,7 +325,7 @@ async function billingReviews(){
     const {error}=await db.from('advertising_billing_reviews').update({billing_status:'invoiced',external_invoice_reference:ref.trim(),updated_at:new Date().toISOString()}).eq('id',v.id).eq('billing_status','ready');
     if(error)throw error;await billingReviews();status('Issued invoice reference recorded.');
    })));
-   const received=issuedDoc?Number(receivedByInvoice.get(issuedDoc.id)||0):0;const balance=issuedDoc?Math.max(0,Number(v.total_gbp)-received):null;row(table,[v.advertiser_name,money(v.total_gbp),issuedDoc?(balance<0.005?'Paid':received>0?'Part paid':'Awaiting payment'):v.billing_status,v.external_invoice_reference||issuedDoc?.invoice_number||'—',issuedDoc?(invoiceEmailById.get(issuedDoc.id)?.delivery_status||'Not sent'):'—',issuedDoc?money(received)+' / '+money(balance):'—',actions]);
+   const received=issuedDoc?Number(receivedByInvoice.get(issuedDoc.id)||0):0;const balance=issuedDoc?Math.max(0,Number(v.total_gbp)-received):null;row(table,[v.advertiser_name,money(v.total_gbp),issuedDoc?(balance<0.005?'Paid':received>0?'Part paid':'Awaiting payment'):v.billing_status,v.external_invoice_reference||issuedDoc?.invoice_number||'—',issuedDoc?(invoiceEmailById.has(issuedDoc.id)?({sent:'Accepted by email service',sending:'Sending — verify',uncertain:'Outcome uncertain — check',failed:'Rejected — review'}[invoiceEmailById.get(issuedDoc.id).delivery_status]||'Check delivery'):'Not sent'):'—',issuedDoc?money(received)+' / '+money(balance):'—',actions]);
   }
   container.replaceChildren(heading,table);
  }
