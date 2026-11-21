@@ -375,6 +375,13 @@ assert(page.includes("functions.invoke('anybike-send-dealer-invitation-sms',{bod
 assert(page.includes("functions.invoke('anybike-send-contact-invitation-email',{body:{action:'send_test',invitation_type:'private',confirm_send:true}})"),'Email test must use the same HTML email service as real invitations');
 assert(page.includes("outcomes.push('Email FAILED: '"),'Email test failure must be visible independently');
 assert(page.includes("outcomes.push('SMS FAILED: '"),'SMS test failure must be visible independently');
+assert(page.includes('id="bulkPreviewExact"'),'Batch review must offer a preview directly from the live sending template');
+assert(page.includes('id="bulkExactEmailFrame"'),'Email template must display full branded HTML before sending');
+assert(page.includes('id="bulkExactSmsText"'),'SMS template must show its exact live text before sending');
+assert(page.includes("functions.invoke('anybike-send-contact-invitation-email',{body:{action:'preview',invitation_type:type}})"),'Email preview must fetch the actual server template');
+assert(page.includes("functions.invoke('anybike-send-dealer-invitation-sms',{body:{action:'preview',invitation_type:type}})"),'SMS preview must fetch the actual server template');
+assert(page.includes("$('bulkExactPreview').hidden=true;"),'Changing invitation audience or channels must hide stale previews');
+assert(page.includes("Each email may use the contact’s first name in its greeting"),'Preview must warn about recipient-specific greeting differences');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
