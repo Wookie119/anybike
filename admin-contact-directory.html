@@ -216,7 +216,7 @@
   </div>
  </div>
  <div id="bulkReviewResults" hidden>
-  <h3>Individual invitation previews</h3>
+  <div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">Individual invitation previews — not sent</h3><button type="button" id="closeBulkPreviews">Close previews (keep ticks)</button></div>
   <p id="bulkReviewSummary" role="status"></p>
   <div id="bulkPreviewSlot"></div>
  </div>
@@ -295,6 +295,21 @@ function mountInlineInviteActions(id){
 }
 // Daily card view renders only current search/page results. A reviewed
 // message card is preserved across record updates, including SMS selection.
+function refreshBulkPreviewSummary(){
+ const panel=$('bulkReviewResults'),summary=$('bulkReviewSummary');
+ if(!panel||panel.hidden||!summary)return;
+ const count=$('bulkPreviewSlot')?.querySelectorAll('[data-review-contact]').length||0;
+ summary.textContent=count?count+' invitation draft'+(count===1?'':'s')+' still open. Nothing has been sent automatically. Open each Outlook draft individually, then confirm only after it appears in Sent Items.':'No invitation drafts remain open. Nothing has been sent automatically.';
+ if(count===0)closeBulkPreviewPanel();
+}
+function closeBulkPreviewPanel(){
+ const panel=$('bulkReviewResults');if(!panel)return;
+ panel.hidden=true;
+ const previews=$('invitePreviews'),home=$('advancedInvitations')?.querySelector('.panel');
+ if(previews&&home){home.append(previews);previews.replaceChildren();}
+ queue=[];smsQueue=[];pos=0;smsPos=0;
+ const summary=$('bulkReviewSummary');if(summary)summary.textContent='';
+}
 function updateBulkContactReview(){
  const matchingIds=new Set(view().map(r=>r.id));const selected=items.filter(r=>chosen.has(r.id)&&matchingIds.has(r.id));
  const eligible=selected.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
@@ -511,11 +526,10 @@ function render(){
  view().slice(page*pageSize(),page*pageSize()+pageSize()).forEach(r=>chosen.add(r.id));
  render();
 };
+$('closeBulkPreviews').onclick=()=>{closeBulkPreviewPanel();updateBulkContactReview();$('bulkSelectionStatus').textContent='Invitation previews closed. Other selected contacts stay ticked; no messages sent.';};
 $('bulkClearSelected').onclick=()=>{
  chosen.clear();
- $('bulkReviewResults').hidden=true;
- const previews=$('invitePreviews'),home=$('advancedInvitations').querySelector('.panel');
- if(previews&&home)home.append(previews);
+ closeBulkPreviewPanel();
  render();
 };
 $('bulkReviewContacts').onclick=()=>{
@@ -562,9 +576,7 @@ $('bulkReviewSelected').onclick=async()=>{
   const preview=$('invitePreviews'),slot=$('bulkPreviewSlot');
   slot.replaceChildren(preview); // Move existing reviewed cards, never duplicate send handlers
   $('bulkReviewResults').hidden=false;
-  $('bulkReviewSummary').textContent=
-   preview.querySelectorAll('[data-review-contact]').length+' individual email previews prepared from '+
-   selected.length+' selected contacts. SMS history is separate. Nothing has been sent.';
+  refreshBulkPreviewSummary();
  }catch(error){
   $('bulkSelectionStatus').textContent='Unable to prepare invitations: '+error.message;
  }finally{updateBulkContactReview();}
@@ -656,14 +668,14 @@ async function reviewInvitations({savedSmsOnly=false,channel='both',onlyContactI
  (canSms?'<div style="margin:12px 0"><b>SMS to: '+esc(r.phone)+'</b>'+(smsHistory.has(r.id)?'<p style="color:#a7e7ab">Previous SMS: '+esc(smsHistory.get(r.id).status)+' · '+esc(smsHistory.get(r.id).sent_at||smsHistory.get(r.id).requested_at||'')+' · Ref '+esc(smsHistory.get(r.id).provider_message_id||smsHistory.get(r.id).id)+'</p>':'<p>No ClickSend invitation recorded.</p>')+'<pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:13px Arial;background:#fff;color:#222;padding:12px;border-radius:6px">'+esc(smsMessage(r))+'</pre><button data-send-sms="'+r.id+'" '+(smsHistory.has(r.id)&&['sending','submitted','delivered'].includes(smsHistory.get(r.id).status)?'disabled title="Previous SMS recorded — check status before resending"':'')+' style="background:#ad252d;color:white;border-color:#d54049">'+(smsHistory.has(r.id)&&['sending','submitted','delivered'].includes(smsHistory.get(r.id).status)?'SMS already submitted — check history':'Send SMS from AnyBike')+'</button><button data-open-sms="'+r.id+'">Open SMS draft</button><button data-copy-sms="'+r.id+'">Copy SMS text</button></div>':'')+
  '</article>';
  }).join('');
- $('invitePreviews').querySelectorAll('[data-skip-review]').forEach(btn=>btn.onclick=()=>{const card=btn.closest('[data-review-contact]');if(!card)return;const id=Number(btn.dataset.skipReview),next=card.nextElementSibling;chosen.delete(id);queue=queue.filter(r=>r.id!==id);smsQueue=smsQueue.filter(r=>r.id!==id);card.remove();document.querySelectorAll('[data-card-select="'+id+'"], [data-pick="'+id+'"]').forEach(input=>{input.checked=false;input.closest('[data-card-id]')?.classList.remove('is-selected')});updateQuickInviteSelection();updateBulkContactReview();$('queue').textContent='Skipped one contact; all other selections are retained. No invitation sent.';if(next)next.scrollIntoView({behavior:'smooth',block:'nearest'});});
+ $('invitePreviews').querySelectorAll('[data-skip-review]').forEach(btn=>btn.onclick=()=>{const card=btn.closest('[data-review-contact]');if(!card)return;const id=Number(btn.dataset.skipReview),next=card.nextElementSibling;chosen.delete(id);queue=queue.filter(r=>r.id!==id);smsQueue=smsQueue.filter(r=>r.id!==id);card.remove();document.querySelectorAll('[data-card-select="'+id+'"], [data-pick="'+id+'"]').forEach(input=>{input.checked=false;input.closest('[data-card-id]')?.classList.remove('is-selected')});updateQuickInviteSelection();updateBulkContactReview();refreshBulkPreviewSummary();$('queue').textContent='Skipped one contact; all other selections are retained. No invitation sent.';if(next)next.scrollIntoView({behavior:'smooth',block:'nearest'});});
  $('invitePreviews').querySelectorAll('[data-confirm-email]').forEach(btn=>btn.onclick=async()=>{
  const r=queue.find(x=>x.id===Number(btn.dataset.confirmEmail));if(!r||r.email_invite_sent_at)return;
  if(!confirm('Only confirm if this email appears in Outlook Sent Items. Record sent to '+r.email+'?'))return;
  btn.disabled=true;const now=new Date().toISOString();
  const {data,error}=await db.from('anybike_master_contacts').update({email_invite_sent_at:now,email_invite_confirmation:'Outlook Sent Items manually confirmed',approved_for_invitation:false,personal_intro:false,sms_invite_selected:false}).eq('id',r.id).is('email_invite_sent_at',null).select().maybeSingle();
  if(error||!data){btn.disabled=false;$('queue').textContent='Cannot record: '+(error?.message||'Already recorded elsewhere; refresh.');return;}
- Object.assign(r,data);chosen.delete(r.id);smsChosen.delete(r.id);queue=queue.filter(t=>t.id!==r.id);smsQueue=smsQueue.filter(t=>t.id!==r.id);btn.textContent='✓ Email sent recorded';$('queue').textContent='Outlook sending manually confirmed for '+r.email+'. Receipt/delivery not verified.';render();
+ Object.assign(r,data);chosen.delete(r.id);smsChosen.delete(r.id);queue=queue.filter(t=>t.id!==r.id);smsQueue=smsQueue.filter(t=>t.id!==r.id);btn.textContent='✓ Email sent recorded';$('queue').textContent='Outlook sending manually confirmed for '+r.email+'. Receipt/delivery not verified.';const reviewCard=btn.closest('[data-review-contact]');if(reviewCard&&$('bulkReviewResults')&&!$('bulkReviewResults').hidden){reviewCard.remove();refreshBulkPreviewSummary();}render();
  });
  $('invitePreviews').querySelectorAll('[data-copy-rich]').forEach(btn=>btn.onclick=async()=>{const r=queue.find(x=>x.id===Number(btn.dataset.copyRich));const html=richInvitationHtml(r);try{if(!window.ClipboardItem||!navigator.clipboard?.write)throw Error('Rich clipboard unsupported');await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([emailBody(r)],{type:'text/plain'})})]);$('queue').textContent='Formatted email copied for '+r.email+'. Open a new message FROM sales@anybike.co.uk, address it to '+r.email+', and paste with Ctrl+V. The red button should be included. Your Outlook signature can stay underneath.'}catch(e){$('queue').textContent='Could not copy formatted HTML. Please try Edge or Chrome over HTTPS. Nothing sent.'}});
  $('invitePreviews').querySelectorAll('[data-open-email]').forEach(btn=>btn.onclick=async()=>{
