@@ -7,14 +7,6 @@ let generation=0,observer=null;
 // AnyBike-owned Move Motorcycles house advert: one per UK-facing customer page.
 // Uses the approved five-size blue/gold Move artwork without changing model files.
 // This UK house placement does not depend on customer login.
-const MOVE_SITE='https://www.movemotorcycles.co.uk/';
-// Uploaded, user-approved five-size blue/gold house artworks. The old approved
-// red adverts remain in /assets unchanged. One central renderer chooses formats.
-const MOVE_WIDE="https://tuehtnezhdnkqbbhttgp.supabase.co/storage/v1/object/public/advertising-creatives/campaigns/95c5d74b-1048-44fc-b22a-37683c4380e8/ee2fd6aa-8ba2-47ad-aad8-ce4c78360cbc-move-motorcycles-large-landscape.webp";
-const MOVE_MOBILE="https://tuehtnezhdnkqbbhttgp.supabase.co/storage/v1/object/public/advertising-creatives/campaigns/95c5d74b-1048-44fc-b22a-37683c4380e8/1abcc788-066d-410a-a662-ecf0b4c63566-move-motorcycles-large-portrait.webp";
-const MOVE_SLIM="https://tuehtnezhdnkqbbhttgp.supabase.co/storage/v1/object/public/advertising-creatives/campaigns/95c5d74b-1048-44fc-b22a-37683c4380e8/4879fae8-f9bc-44c1-8404-59923273e6df-move-motorcycles-slim-landscape.webp";
-const MOVE_COMPACT="https://tuehtnezhdnkqbbhttgp.supabase.co/storage/v1/object/public/advertising-creatives/campaigns/95c5d74b-1048-44fc-b22a-37683c4380e8/5adcb2e3-2328-4952-9ac0-bdc3f0ded849-move-motorcycles-compact-mobile.webp";
-const MOVE_STOCK="https://tuehtnezhdnkqbbhttgp.supabase.co/storage/v1/object/public/advertising-creatives/campaigns/95c5d74b-1048-44fc-b22a-37683c4380e8/0002606a-3a94-4d6c-adbd-370714fbea3d-move-motorcycles-stock-card.webp";
 const moveHouseMarker='anybike-move-universal-house-ad';
 let moveHouseReady=null;
 const existingMoveAdvert=()=>[...document.querySelectorAll('a[href*="movemotorcycles.co.uk"]')]
@@ -27,27 +19,51 @@ const isPublicUkCustomerPage=()=>{
  if(/\/(?:login|logout|register|forgot-password|reset-password|privacy-policy|cookie-policy|terms-and-conditions)\.html$/.test(path))return false;
  return true;
 };
-function buildMoveHouseCard(stock=false){
+function buildMoveHouseCard(ad){
+ const stock=ad.placement_key==='stock_grid';
+ const destination=https(ad.destination_url);
+ const desktop=https(stock?ad.stock_card_image_url:(ad.slim_image_url||ad.desktop_image_url));
+ const mobile=https(stock?ad.stock_card_image_url:(ad.compact_image_url||ad.mobile_image_url));
+ if(!destination||!desktop||!mobile)return null;
  const card=node(stock?'article':'aside');
  card.id=moveHouseMarker;
- card.setAttribute('aria-label','Advertisement: Move Motorcycles nationwide motorcycle transport');
+ card.setAttribute('aria-label','Advertisement: '+String(ad.partner_name||'Move Motorcycles'));
  card.className=stock?'card anybike-move-stock-ad':'anybike-move-house-banner';
  card.style.cssText=stock
   ?'background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0;overflow:visible;display:flex;flex-direction:column;min-width:0;height:100%;box-sizing:border-box;align-self:stretch;position:relative'
   :'margin:12px 0 18px;width:100%;max-width:none;border-radius:12px;overflow:visible;min-width:0;box-sizing:border-box';
- const link=node('a');link.href=MOVE_SITE;link.target='_blank';link.rel='noopener sponsored';
- link.setAttribute('aria-label','Move Motorcycles - nationwide motorcycle collection and delivery');
+ const link=node('a');link.href=destination;link.target='_blank';link.rel='noopener sponsored';
+ link.setAttribute('aria-label',String(ad.partner_name||'Advertiser')+' — view website');
  link.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px;background:#101010;text-decoration:none'+(stock?';position:absolute;inset:0;width:100%;height:100%;border:1px solid #555;box-sizing:border-box;display:block;background:#111':'');
  const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px'+(stock?';position:absolute;inset:0;width:100%;height:100%;display:block;background:#111':'');
- const source=node('source');source.media='(max-width:650px)';source.srcset=stock?MOVE_STOCK:MOVE_COMPACT;
- const img=node('img');img.src=stock?MOVE_STOCK:MOVE_SLIM;img.alt='Move Motorcycles blue-and-gold advert featuring a branded motorcycle transport van, collection and delivery';
+ const source=node('source');source.media='(max-width:650px)';source.srcset=mobile;
+ const img=node('img');img.src=desktop;img.alt=typeof ad.alt_text==='string'?ad.alt_text:'';
  img.loading='lazy';img.decoding='async';img.style.cssText=stock
   ?'display:block;position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:cover;object-position:center;border-radius:12px'
   :'display:block;width:100%;height:auto;object-fit:contain;border-radius:12px';
  picture.append(source,img);link.append(picture);card.append(link);
- const disclosure=node('small','Advertisement · Move Motorcycles');
+ const disclosure=node('small',ad.disclosure||'Advertisement · '+String(ad.partner_name||'Advertiser'));
  disclosure.style.cssText='display:block;font:11px Arial;color:#aaa;padding:6px 2px 0;background:transparent;border:0'+(stock?';position:absolute;top:100%;left:0;right:0;line-height:12px;padding-top:3px;white-space:nowrap':'');
  card.append(disclosure);
+ let seen=false,clicked=false;
+ const track=type=>{
+  const body={action:'event',event_type:type,token:ad.token};
+  if(type==='click'&&typeof navigator.sendBeacon==='function'){
+   try{if(navigator.sendBeacon(endpoint,new Blob([JSON.stringify(body)],{type:'text/plain;charset=UTF-8'})))return}catch{}
+  }
+  send(body,true).catch(()=>{});
+ };
+ const impression=()=>{if(seen)return;seen=true;track('impression')};
+ const click=()=>{if(clicked)return;clicked=true;impression();track('click')};
+ link.addEventListener('click',click);
+ link.addEventListener('auxclick',event=>{if(event.button===1)click()});
+ if('IntersectionObserver'in window){
+  const visible=new IntersectionObserver(entries=>{
+   if(entries.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();visible.disconnect();}
+  },{threshold:.5});
+  visible.observe(card);
+ }else impression();
+ img.addEventListener('error',()=>card.remove(),{once:true});
  return card;
 }
 function isUniversalModelPage(main){
@@ -147,69 +163,30 @@ function positionSellMotorcycleMoveAdvert(main,card){
  container.append(card);
  card.style.cssText='margin:0;width:100%;max-width:none;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
 }
-function installMoveHouse(){
+function installMoveHouse(ad){
  if(!isPublicUkCustomerPage()||existingMoveAdvert())return false;
- const existing=document.getElementById(moveHouseMarker);
- const targetMain=document.querySelector('main');
- if(existing){
-  if(isUniversalModelPage(targetMain))positionModelMoveAdvert(targetMain,existing);
-  else if(isManufacturerPage(targetMain))positionManufacturerMoveAdvert(targetMain,existing);
-  else if(isEditorialInfoPage()&&targetMain)positionEditorialMoveAdvert(targetMain,existing);
-  else if(isExportServicesPage()&&targetMain)positionExportMoveAdvert(targetMain,existing);
-  else if(isFreightForwardersPage()&&targetMain)positionFreightMoveAdvert(targetMain,existing);
-  else if(isSellMotorcyclePage()&&targetMain)positionSellMotorcycleMoveAdvert(targetMain,existing);
-  return true;
- }
- const stock=location.pathname.toLowerCase()==='/available-stock.html';
+ if(document.getElementById(moveHouseMarker))return true;
+ const stock=ad.placement_key==='stock_grid';
  if(stock){
   const grid=document.getElementById('stockGrid');
-  if(!grid||!grid.querySelector('article.card:not(.anybike-move-stock-ad)'))return false;
+  if(!grid)return false;
   const children=[...grid.querySelectorAll(':scope > article.card:not(.anybike-move-stock-ad)')];
-  children[Math.min(children.length,6)-1].after(buildMoveHouseCard(true));
+  if(!children.length)return false;
+  const card=buildMoveHouseCard(ad);if(!card)return false;
+  children[Math.min(children.length,6)-1].after(card);
   return true;
  }
- const main=document.querySelector('main');
- if(!main)return false;
- if(isUniversalModelPage(main)){
-  const card=buildMoveHouseCard(false);
-  positionModelMoveAdvert(main,card);
-  return true;
+ const main=document.querySelector('main');if(!main)return false;
+ const card=buildMoveHouseCard(ad);if(!card)return false;
+ switch(ad.placement_key){
+  case 'before_sources':positionModelMoveAdvert(main,card);break;
+  case 'about_wrap':positionEditorialMoveAdvert(main,card);break;
+  case 'export_wrap':positionExportMoveAdvert(main,card);break;
+  case 'freight_wrap':positionFreightMoveAdvert(main,card);break;
+  case 'sell_wrap':positionSellMotorcycleMoveAdvert(main,card);break;
+  case 'main_end':positionManufacturerMoveAdvert(main,card);break;
+  default:return false; // Never guess a position for an unconfigured page.
  }
- if(isManufacturerPage(main)){
-  positionManufacturerMoveAdvert(main,buildMoveHouseCard(false));
-  return true;
- }
- if(isEditorialInfoPage()){
-  positionEditorialMoveAdvert(main,buildMoveHouseCard(false));
-  return true;
- }
- if(isExportServicesPage()){
-  positionExportMoveAdvert(main,buildMoveHouseCard(false));
-  return true;
- }
- if(isFreightForwardersPage()){
-  positionFreightMoveAdvert(main,buildMoveHouseCard(false));
-  return true;
- }
- if(isSellMotorcyclePage()){
-  positionSellMotorcycleMoveAdvert(main,buildMoveHouseCard(false));
-  return true;
- }
- // Remaining public pages use a single bottom-of-content placement.
- // Avoid inserting advertising between headings, forms, grids or hero panels.
- const card=buildMoveHouseCard(false);
- main.append(card);
- card.style.width='100%';
- card.style.maxWidth='none';
- card.style.margin='20px 0 24px';
- // Some dealer dashboards insert their approved Move creative after async loading.
- // If one appears later, keep the existing approved advert rather than showing two.
- const dedupe=new MutationObserver(()=>{
-  const own=document.getElementById(moveHouseMarker);
-  if(!own){dedupe.disconnect();return;}
-  if(existingMoveAdvert()){own.remove();dedupe.disconnect();}
- });
- dedupe.observe(document.body,{childList:true,subtree:true});
  return true;
 }
 // Legacy house adverts are subject to the SAME active-campaign and page-inventory
@@ -243,12 +220,12 @@ export async function renderMoveHouseOnUkPage(options={}){
  try{
   const result=await send(request);
   if(result?.ad?.id!==APPROVED_MOVE_CAMPAIGN_ID)return;
-  if(installMoveHouse())return;
+  if(installMoveHouse(result.ad))return;
   if(location.pathname.toLowerCase()==='/available-stock.html'){
    const grid=document.getElementById('stockGrid');if(!grid)return;
    const watch=new MutationObserver(()=>{
     if(document.getElementById(moveHouseMarker)){watch.disconnect();return;}
-    if(installMoveHouse())watch.disconnect();
+    if(installMoveHouse(result.ad))watch.disconnect();
    });
    watch.observe(grid,{childList:true});
   }
