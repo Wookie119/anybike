@@ -60,12 +60,25 @@ function positionModelMoveAdvert(main,card){
  card.style.width='100%';
  card.style.margin='16px 0 20px';
 }
+function isManufacturerPage(main){
+ const path=location.pathname.toLowerCase();
+ return !!main&&(path==='/motorcycle-brand.html'||path==='/bmw-motorcycles.html'||path==='/harley-davidson-motorcycles.html'||!!main.querySelector(':scope > .manufacturer-hero'));
+}
+function positionManufacturerMoveAdvert(main,card){
+ // Manufacturer adverts follow the complete model directory and supporting
+ // sections. Never interrupt the manufacturer introduction or brand cards.
+ main.append(card);
+ card.style.width='100%';
+ card.style.maxWidth='none';
+ card.style.margin='18px 0 20px';
+}
 function installMoveHouse(){
  if(!isPublicUkCustomerPage()||existingMoveAdvert())return false;
  const existing=document.getElementById(moveHouseMarker);
  const targetMain=document.querySelector('main');
  if(existing){
   if(isUniversalModelPage(targetMain))positionModelMoveAdvert(targetMain,existing);
+  else if(isManufacturerPage(targetMain))positionManufacturerMoveAdvert(targetMain,existing);
   return true;
  }
  const stock=location.pathname.toLowerCase()==='/available-stock.html';
@@ -81,6 +94,10 @@ function installMoveHouse(){
  if(isUniversalModelPage(main)){
   const card=buildMoveHouseCard(false);
   positionModelMoveAdvert(main,card);
+  return true;
+ }
+ if(isManufacturerPage(main)){
+  positionManufacturerMoveAdvert(main,buildMoveHouseCard(false));
   return true;
  }
  // Retain the approved template: add a single optional advert after its hero
