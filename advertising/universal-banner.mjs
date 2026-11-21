@@ -172,7 +172,17 @@ function positionSellMotorcycleMoveAdvert(main,card){
 // The display contract is reusable for every advertiser. Validate the
 // actual browser-selected artwork before insertion; never crop a bad creative.
 const formatRatio={stock_card:4/3,slim_landscape:3,large_landscape:16/9,compact_mobile:1};
-const templateAdSlotCode=ad=>String(ad?.slot_code||'AB-UK-UNASSIGNED');
+const templateAdSlotCode=ad=>{
+ const base=String(ad?.slot_code||'AB-UK-UNASSIGNED');
+ // One universal V2 template creates a stable addressable advertising slot
+ // for every published model, without maintaining individual model-page files.
+ if(/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/i.test(location.pathname)){
+  try{const id=Number(JSON.parse(document.getElementById('anybikeV2RouteIdentity')?.textContent||'null')?.model_id);
+   if(Number.isSafeInteger(id)&&id>0)return base+'-M'+id;
+  }catch{}
+ }
+ return base;
+};
 function ensurePairStyles(){
  if(document.getElementById('anybike-ad-pair-styles'))return;
  const style=node('style');style.id='anybike-ad-pair-styles';
