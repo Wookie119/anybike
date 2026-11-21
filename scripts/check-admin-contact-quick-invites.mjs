@@ -189,8 +189,8 @@ assert(page.includes('id="bulkReviewResults" hidden'),
  'Prepared individual drafts expand directly inside the visible selection toolbar');
 assert(page.includes('Advanced invitation history and draft tools'),
  'The collapsed panel is clearly labelled for advanced history, not routine reviewing');
-assert(page.includes("position:sticky;top:8px;z-index:15"),
- 'Selection controls stay accessible when scrolling through contact cards');
+assert(page.includes("#bulkContactReview{position:relative;top:auto;z-index:auto;box-shadow:none}"),
+ 'Bulk review must not become an oversized sticky panel that traps long invitation drafts');
 assert(page.includes('class="contact-pager"'),
  'Compact contact pagination replaces oversized navigation');
 assert(page.includes("$('pages').textContent=(page+1)+' / '+totalPages"),
@@ -312,6 +312,9 @@ assert(page.includes("https://www.anybike.co.uk/sell-your-motorcycle.html"),'Com
 assert(page.includes("https://www.anybike.co.uk/uk-dealer-welcome.html"),'Combined invitation must include dealer registration');
 assert(page.includes("kind==='both'?[['https://www.anybike.co.uk/sell-your-motorcycle.html'"),'Combined email HTML must render two CTAs');
 assert(page.includes("invitationTypeFor(r)!=='dealer'?'disabled"),'Combined invitation must not use dealer-only direct SMS sender');
+assert(page.includes("#bulkPreviewSlot{display:grid;gap:12px;max-height:72vh;overflow-y:auto"),'Bulk previews need a bounded vertical scroll area');
+assert(page.includes('aria-label="Scrollable invitation drafts"'),'Preview list must be accessible to keyboard scrolling');
+assert(page.includes("Scroll inside the invitation list to review the next contact"),'The review must explain where to scroll');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
