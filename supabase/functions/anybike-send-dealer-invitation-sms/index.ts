@@ -22,6 +22,8 @@ Deno.serve(async req=>{
  if(!username||!apikey)return send(origin,{success:false,error:"SMS provider is not configured"},503);
  const id=Number(payload.contact_id);
  if(!Number.isSafeInteger(id)||id<1||payload.confirm_send!==true)return send(origin,{success:false,error:"Contact and send confirmation are required"},400);
+ const invitationType=String(payload.invitation_type||"dealer");
+ if(!["dealer","private","both"].includes(invitationType))return send(origin,{success:false,error:"Unsupported invitation type"},400);
  const {data:contact,error:ce}=await db.from("anybike_master_contacts").select("id,first_name,company,phone,approved_for_invitation,sms_invite_selected,personal_intro").eq("id",id).maybeSingle();
  if(ce||!contact)return send(origin,{success:false,error:"Contact not found"},404);
  if(!contact.approved_for_invitation||!contact.sms_invite_selected)return send(origin,{success:false,error:"Contact is not approved and selected for SMS invitations"},409);
@@ -30,12 +32,20 @@ Deno.serve(async req=>{
  const {data:recent,error:re}=await db.from("anybike_invitation_sms_log").select("id,requested_at,status").eq("contact_id",id).in("status",["sending","submitted"]).gte("requested_at",new Date(Date.now()-24*3600*1000).toISOString()).order("requested_at",{ascending:false}).limit(1);
  if(re)throw re;
  if(recent?.length&&!payload.force)return send(origin,{success:false,error:"An invitation was already submitted in the last 24 hours. Check the log before trying again."},409);
- const text="Hello "+(String(contact.first_name||"").trim()||"there")+", "+""+"You are invited to join the AnyBike UK motorcycle trade network. Register here: https://www.anybike.co.uk/uk-dealer-welcome.html — AnyBike";
+ // The actual provider message is generated on the server, not accepted as
+ // arbitrary client text. Both is suitable for unclassified contacts and
+ // never addresses recipients as dealership contacts without evidence.
+ const name=(String(contact.first_name||"").trim().slice(0,14)||"there");
+ const text=invitationType==="both"
+  ?"Hi "+name+", AnyBike invitation: sell your motorcycle for free or register as a UK motorcycle dealer. Details: https://www.anybike.co.uk"
+  :invitationType==="private"
+   ?"Hi "+name+", AnyBike invitation: private owners can submit their motorcycle for sale free. Find out more: https://www.anybike.co.uk/sell-your-motorcycle.html"
+   :"Hi "+name+", AnyBike invitation: UK motorcycle dealers can register free to explore trade opportunities. https://www.anybike.co.uk/uk-dealer-welcome.html";
  const recipient="+44"+phone.substring(1);
  const {data:log,error:le}=await db.from("anybike_invitation_sms_log").insert({contact_id:id,recipient,message_body:text,sent_by:user.id}).select("id").single();
  if(le||!log)throw le||Error("Unable to record sending attempt");
  try{
- const response=await fetch("https://rest.clicksend.com/v3/sms/send",{method:"POST",headers:{"authorization":"Basic "+btoa(username+":"+apikey),"content-type":"application/json"},body:JSON.stringify({messages:[{from:"AnyBike",source:"AnyBike-Dealer-Invitations",body:text,to:recipient}]})});
+ const response=await fetch("https://rest.clicksend.com/v3/sms/send",{method:"POST",headers:{"authorization":"Basic "+btoa(username+":"+apikey),"content-type":"application/json"},body:JSON.stringify({messages:[{from:"AnyBike",source:"AnyBike-Contact-Invitations",body:text,to:recipient}]})});
  const result=await response.json().catch(()=>({}));
  const message=result?.data?.messages?.[0];
  const providerStatus=String(message?.status||result?.response_code||"");
