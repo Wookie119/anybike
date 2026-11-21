@@ -151,9 +151,9 @@ assert(page.includes("await reviewInvitations({channel:'email'})"),
  'Multi-contact review prepares email drafts and never sends them');
 assert(page.includes("slot.replaceChildren(preview)"),
  'Bulk preview must move the existing guarded previews, not copy send handlers');
-assert(page.includes("const approved=items.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r)&&(savedSmsOnly||matchingIds.has(r.id)))"),
+assert(page.includes("const approved=items.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r)&&(savedSmsOnly||matchingIds.has(r.id))&&(onlyContactId===null||r.id===onlyContactId))"),
  'Registered private and dealer accounts or contacts outside current filters cannot enter invitation preview');
-assert(page.includes("chosen.has(r.id)&&/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test"),
+assert(page.includes("(onlyContactId!==null?r.id===onlyContactId:chosen.has(r.id))&&/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test"),
  'Bulk email invitations require valid email addresses');
 assert(!page.includes('bulkSendSelected'),
  'Multiple contact review must not introduce an automatic bulk sender');
