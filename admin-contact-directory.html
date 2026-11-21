@@ -82,7 +82,9 @@
 .contact-pager span{font-size:13px;color:#ddd;min-width:80px;text-align:center}
 .contact-pager button:disabled{opacity:.4}
 .bulk-review-bar{gap:12px}
-@media(min-width:800px){#bulkContactReview{position:sticky;top:8px;z-index:15;box-shadow:0 4px 14px #0008}}
+/* Keep the whole invitation review in normal page flow. A sticky parent containing
+   100 full email previews can trap the page behind an oversized fixed panel. */
+#bulkContactReview{position:relative;top:auto;z-index:auto;box-shadow:none}
 @media(max-width:780px){.bulk-review-buttons{width:100%}.bulk-review-buttons button{flex:1 1 auto}}
 
 .bulk-review-buttons{justify-content:flex-start;flex:1 1 auto}
@@ -100,7 +102,8 @@
 #bulkReviewSelected:not(:disabled){background:#242424;border-color:#888}
 #bulkReviewResults{border-top:1px solid #555;margin-top:15px;padding-top:12px}
 #bulkReviewResults[hidden]{display:none!important}
-#bulkPreviewSlot{display:grid;gap:12px}
+#bulkPreviewSlot{display:grid;gap:12px;max-height:72vh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;padding:4px 8px 8px 0;align-content:start}
+#bulkPreviewSlot:focus{outline:2px solid #ed1c24;outline-offset:2px}
 #bulkPreviewSlot article{white-space:normal;overflow-wrap:anywhere;min-width:0}
 .dealer-card-select{display:inline-flex;gap:8px;align-items:center;font-size:13px;margin-bottom:11px;cursor:pointer;color:#ddd}
 .dealer-card-select input{width:18px;height:18px;margin:0;accent-color:#ed1c24}
@@ -241,7 +244,8 @@
  <div id="bulkReviewResults" hidden>
   <div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">Individual invitation previews — not sent</h3><button type="button" id="closeBulkPreviews">Close previews (keep ticks)</button></div>
   <p id="bulkReviewSummary" role="status"></p>
-  <div id="bulkPreviewSlot"></div>
+  <p style="font-size:12px;color:#bbb;margin:6px 0 10px">Scroll inside the invitation list to review the next contact. The main page also scrolls normally.</p>
+  <div id="bulkPreviewSlot" tabindex="0" role="region" aria-label="Scrollable invitation drafts"></div>
  </div>
 </section>
 <div id="contactCards" class="dealer-cards" aria-live="polite"></div><div class="scroll simple-contact-table" id="directoryTable" hidden><table><thead id="head"></thead><tbody id="body"></tbody></table></div><nav id="contactPager" class="contact-pager" aria-label="Advanced table pages" hidden><button type="button" id="prev" aria-label="Previous page">‹</button><span id="pages"></span><button type="button" id="next" aria-label="Next page">›</button></nav><div id="contactInviteActions" style="margin:14px 0 4px;padding:13px 14px;background:#171717;border:1px solid #555;border-left:3px solid #ed1c24;border-radius:10px">
@@ -703,6 +707,7 @@ $('bulkReviewSelected').onclick=async()=>{
   slot.replaceChildren(preview); // Move existing reviewed cards, never duplicate send handlers
   $('bulkReviewResults').hidden=false;
   refreshBulkPreviewSummary();
+  $('bulkReviewResults').scrollIntoView({behavior:'instant',block:'start'});
  }catch(error){
   $('bulkSelectionStatus').textContent='Unable to prepare invitations: '+error.message;
  }finally{updateBulkContactReview();}
