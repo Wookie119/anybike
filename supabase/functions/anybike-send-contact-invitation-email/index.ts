@@ -57,6 +57,14 @@ Deno.serve(async req=>{
   const {data:admin,error:adminError}=await db.from("admin_users").select("user_id").eq("user_id",user.id).eq("active",true).maybeSingle();
   if(adminError||!admin)return reply(origin,{success:false,error:"Administrator access required"},403);
   const payload=await req.json().catch(()=>({}));
+  if(payload.action==="preview"){
+   const type=String(payload.invitation_type||"");
+   if(!["dealer","private","both"].includes(type))return reply(origin,{success:false,error:"Invalid invitation type"},400);
+   const letter=content(type,"");
+   // Same subject and HTML renderer as real sends. A customer send may add a
+   // recipient greeting; the preview uses the generic greeting.
+   return reply(origin,{success:true,subject:letter.subject,html:letter.html,plain:letter.plain,logo_preview_url:"https://www.anybike.co.uk/anybike-logo-new.jpg",personalized_greeting:true,not_sent:true});
+  }
   // Admin-only preview, delivered ONLY to the fixed owner test inbox.
   // Never reads/changes customer approval, contact or invitation log.
   if(payload.action==="send_test"){
