@@ -239,6 +239,7 @@
    <button type="button" id="bulkPreviewExact">Preview actual email and SMS</button>
    <button type="button" id="bulkSendNow" disabled style="background:#ed1c24;color:#fff;font-weight:700">Send selected batch</button>
    <button type="button" id="bulkSendStop" hidden>Stop after current message</button>
+   <button type="button" id="bulkCheckSent">Check sending results</button>
    <span id="bulkSendCount" role="status" style="font-size:13px;color:#ccc">Choose a channel for the eligible recipient count.</span>
   </div>
   <div id="bulkExactPreview" hidden style="border:1px solid #555;border-radius:8px;padding:12px;margin:10px 0">
@@ -247,7 +248,7 @@
    <section id="bulkExactEmailSection" hidden><h4>Email, including red button</h4><p id="bulkExactEmailSubject" style="font-size:13px"></p><iframe id="bulkExactEmailFrame" title="Actual HTML email template preview" sandbox="" style="border:1px solid #aaa;background:white;width:100%;height:440px;border-radius:5px"></iframe></section>
    <section id="bulkExactSmsSection" hidden><h4>Exact SMS text</h4><pre id="bulkExactSmsText" style="white-space:pre-wrap;overflow-wrap:anywhere;background:white;color:#222;padding:12px;border-radius:5px"></pre></section>
   </div>
-  <p id="bulkSendResult" role="status" style="font-size:13px;color:#ddd;margin:8px 0">Nothing sent. Choose email and/or SMS, select up to 100 contacts, confirm authorisation and send. Previously invited and registered users are excluded.</p>
+  <p id="bulkSendResult" role="status" aria-live="polite" style="font-size:14px;font-weight:700;color:#fff;padding:10px;background:#292929;border-left:3px solid #ed1c24;margin:8px 0">Nothing sent. Choose email and/or SMS, select up to 100 contacts, confirm authorisation and send. Previously invited and registered users are excluded.</p>
  </div>
  <div id="bulkClassifyPanel" hidden aria-hidden="true" style="border-top:1px solid #555;margin-top:10px;padding-top:12px">
   <strong>Identify your selected contacts</strong>
@@ -707,6 +708,27 @@ function updateBatchSend(){
  $('bulkSendNow').disabled=batchSending||!selected.length||selected.length>100||!(nEmail+nSms);
 }
 ['bulkSendEmail','bulkSendSms'].forEach(id=>$(id).addEventListener('change',()=>{$('bulkExactPreview').hidden=true;updateBulkContactReview();}));
+$('bulkCheckSent').onclick=async()=>{
+ const button=$('bulkCheckSent'),status=$('bulkSendResult');
+ button.disabled=true;status.textContent='Checking AnyBike email and SMS submission records…';
+ try{
+  const since=new Date(Date.now()-60*60*1000).toISOString();
+  const [email,sms]=await Promise.all([
+   db.from('anybike_contact_invitation_email_log').select('status,contact_id,created_at').gte('created_at',since).limit(1000),
+   db.from('anybike_invitation_sms_log').select('status,contact_id,requested_at').gte('requested_at',since).limit(1000)
+  ]);
+  if(email.error||sms.error)throw Error(email.error?.message||sms.error?.message);
+  const e=email.data||[],t=sms.data||[];
+  const submitted=rows=>rows.filter(r=>['submitted','delivered','sent'].includes(String(r.status||'').toLowerCase())).length;
+  const failed=rows=>rows.filter(r=>String(r.status||'').toLowerCase()==='failed').length;
+  const pending=rows=>rows.filter(r=>String(r.status||'').toLowerCase()==='sending').length;
+  status.textContent='AnyBike records from the last 60 minutes (all invitation batches): '+
+   submitted(e)+' emails accepted, '+submitted(t)+' SMS accepted, '+
+   (failed(e)+failed(t))+' failed, '+(pending(e)+pending(t))+' in progress/uncertain. '+
+   'These are provider submissions, not confirmed inbox or handset deliveries. Do not send duplicates.';
+ }catch(e){status.textContent='Could not check submission records: '+e.message+'. Do not resend until records have been checked.';}
+ finally{button.disabled=false;}
+};
 $('bulkSendStop').onclick=()=>{batchStop=true;$('bulkSendResult').textContent='Stop requested. Current submission may finish; no further contacts will be submitted.';};
 $('bulkPreviewExact').onclick=async()=>{
  const type=$('invitationAudience').value,wantsEmail=$('bulkSendEmail').checked,wantsSms=$('bulkSendSms').checked;
@@ -753,7 +775,7 @@ $('bulkSendNow').onclick=async()=>{
  for(let i=0;i<jobs.length;i++){
   if(batchStop)break;
   const {r,channel}=jobs[i];
-  $('bulkSendResult').textContent='Processing '+(i+1)+'/'+jobs.length+' · '+emailAccepted+' email accepted · '+smsAccepted+' SMS accepted · '+failed+' errors. Keep page open.';
+  $('bulkSendResult').textContent='Sending '+(i+1)+' of '+jobs.length+' messages · '+emailAccepted+' email accepted · '+smsAccepted+' SMS accepted · '+failed+' errors. Keep this page open and do not press Send again.';
   try{
    const {data:fresh,error:readError}=await db.from('anybike_master_contacts').select('*').eq('id',r.id).maybeSingle();
    if(readError||!fresh)throw Error('Contact could not be checked');
