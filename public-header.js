@@ -3183,4 +3183,4 @@ async function anybikeShowPublicSignedInIdentity(){
 })();
 
 /* Shared UK-facing Move advert, available to guests and signed-in customers. */
-(function(){const path=location.pathname;if(/^\/(?:admin(?:-|\/)|markets\/|international-)/i.test(path))return;const start=()=>{if(document.getElementById('databaseHeroPhoto')&&document.getElementById('v2FormSubmit'))return;import('/advertising/universal-banner.mjs?v=20261121-18').then(m=>m.renderMoveHouseOnUkPage()).catch(()=>{})};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start()})();
+(function(){const path=location.pathname;if(/^\/(?:admin(?:-|\/)|markets\/|international-)/i.test(path))return;const start=()=>{if(document.getElementById('databaseHeroPhoto')&&document.getElementById('v2FormSubmit'))return;import('/advertising/universal-banner.mjs?v=20261121-19').then(m=>m.renderMoveHouseOnUkPage()).catch(()=>{})};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start()})();
