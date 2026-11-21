@@ -361,9 +361,9 @@ assert(page.includes("if(channel!=='sms'&&!r.approved_for_invitation)"),'Email a
 assert(page.includes("if($('simpleContactQuery').value.trim())$('excludeInvited').checked=false"),'Explicit contact search can locate a previously emailed recipient');
 assert(page.includes('id="bulkSendEmail"'),'Batch must have a separate branded email checkbox');
 assert(page.includes('id="bulkSendSms"'),'Batch must have a separate SMS checkbox');
-assert(page.includes('id="bulkSendConfirmed"'),'Real bulk sends must require explicit authorisation');
+assert(page.includes("I confirm the selected contacts have authorised these invitations."),'Real batch sends must require explicit permission confirmation at final send');
 assert(page.includes("!selected.length||selected.length>100"),'Batch sender must cap selection at 100 recipients');
-assert(page.includes("if(!confirm('SEND '"),'A final confirmation must state counts before sending');
+assert(page.includes("if(!confirm('I confirm the selected contacts have authorised these invitations."),'A final confirmation must state counts before sending');
 assert(page.includes("Admin confirmed marketing SMS authorisation during AnyBike invitation batch"),'Batch SMS authorisation must be recorded against each recipient');
 assert(page.includes("if(failed>=3){batchStop=true;break;}"),'Batch must stop after repeated provider errors');
 assert(page.includes("id=\"bulkSendStop\""),'Bulk sender must provide a stop control');
