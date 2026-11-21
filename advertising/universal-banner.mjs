@@ -72,6 +72,17 @@ function positionManufacturerMoveAdvert(main,card){
  card.style.maxWidth='none';
  card.style.margin='18px 0 20px';
 }
+function isEditorialInfoPage(){
+ return ['/anybike-connect.html','/about-us.html'].includes(location.pathname.toLowerCase());
+}
+function positionEditorialMoveAdvert(main,card){
+ // About and Connect: let customers read the service and contact information
+ // before a single clearly labelled house advert. Keep the original page intact.
+ main.append(card);
+ card.style.width='100%';
+ card.style.maxWidth='none';
+ card.style.margin='20px 0 24px';
+}
 function installMoveHouse(){
  if(!isPublicUkCustomerPage()||existingMoveAdvert())return false;
  const existing=document.getElementById(moveHouseMarker);
@@ -79,6 +90,7 @@ function installMoveHouse(){
  if(existing){
   if(isUniversalModelPage(targetMain))positionModelMoveAdvert(targetMain,existing);
   else if(isManufacturerPage(targetMain))positionManufacturerMoveAdvert(targetMain,existing);
+  else if(isEditorialInfoPage()&&targetMain)positionEditorialMoveAdvert(targetMain,existing);
   return true;
  }
  const stock=location.pathname.toLowerCase()==='/available-stock.html';
@@ -98,6 +110,10 @@ function installMoveHouse(){
  }
  if(isManufacturerPage(main)){
   positionManufacturerMoveAdvert(main,buildMoveHouseCard(false));
+  return true;
+ }
+ if(isEditorialInfoPage()){
+  positionEditorialMoveAdvert(main,buildMoveHouseCard(false));
   return true;
  }
  // Retain the approved template: add a single optional advert after its hero
