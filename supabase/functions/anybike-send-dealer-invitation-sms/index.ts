@@ -19,6 +19,37 @@ Deno.serve(async req=>{
  const payload=await req.json();
  const username=Deno.env.get("CLICKSEND_USERNAME")||"",apikey=Deno.env.get("CLICKSEND_API_KEY")||"";
  if(payload.action==="status")return send(origin,{success:true,configured:!!(username&&apikey)});
+ if(payload.action==="send_test"){
+  // Fixed owner-only mobile destination, never provided by the client.
+  // Uses the exact same private invitation text and ClickSend provider
+  // as customer SMS, without selecting or updating any contact.
+  if(payload.invitation_type!=="private"||payload.confirm_send!==true)return send(origin,{success:false,error:"Confirm the private AnyBike SMS test"},400);
+  if(!username||!apikey)return send(origin,{success:false,error:"SMS provider is not configured"},503);
+  const recipient="+447772024763";
+  const messageBody="AnyBike invitation: Sell your motorcycle for free, with no obligation to accept an offer. Find out more: https://www.anybike.co.uk/sell-your-motorcycle.html";
+  const since=new Date(Date.now()-10*60*1000).toISOString();
+  const {data:previous,error:previousError}=await db.from("anybike_contact_invitation_sms_test_log").select("id,status,requested_at").gte("requested_at",since).in("status",["sending","submitted"]).limit(1);
+  if(previousError)throw previousError;
+  if(previous?.length)return send(origin,{success:false,error:"A test SMS has already been submitted in the last 10 minutes. Check your phone or provider log before retrying."},409);
+  const {data:attempt,error:attemptError}=await db.from("anybike_contact_invitation_sms_test_log")
+   .insert({sent_by:user.id,recipient,message_body:messageBody,status:"sending"}).select("id").single();
+  if(attemptError||!attempt)throw attemptError||Error("Unable to record SMS test");
+  try{
+   const response=await fetch("https://rest.clicksend.com/v3/sms/send",{method:"POST",headers:{"authorization":"Basic "+btoa(username+":"+apikey),"content-type":"application/json"},body:JSON.stringify({messages:[{from:"AnyBike",source:"AnyBike-Invitation-Test",body:messageBody,to:recipient}]})});
+   const result=await response.json().catch(()=>({}));
+   const message=result?.data?.messages?.[0],status=String(message?.status||result?.response_code||"");
+   const success=response.ok&&status==="SUCCESS";
+   const messageId=String(message?.message_id||"")||null;
+   await db.from("anybike_contact_invitation_sms_test_log")
+    .update({status:success?"submitted":"failed",sent_at:success?new Date().toISOString():null,provider_message_id:messageId,error_message:success?null:String(message?.status||result?.response_msg||"SMS provider error")})
+    .eq("id",attempt.id);
+   return send(origin,success?{success:true,submitted:true,test:true,recipient,log_id:attempt.id,message_id:messageId,note:"Provider accepted the test; handset delivery not yet confirmed. No customer record changed."}:{success:false,error:String(message?.status||result?.response_msg||"Test SMS was rejected"),log_id:attempt.id},success?200:502);
+  }catch(e){
+   await db.from("anybike_contact_invitation_sms_test_log").update({status:"failed",error_message:String(e).slice(0,400)}).eq("id",attempt.id);
+   throw e;
+  }
+ }
+
  if(!username||!apikey)return send(origin,{success:false,error:"SMS provider is not configured"},503);
  const id=Number(payload.contact_id);
  if(!Number.isSafeInteger(id)||id<1||payload.confirm_send!==true)return send(origin,{success:false,error:"Contact and send confirmation are required"},400);
