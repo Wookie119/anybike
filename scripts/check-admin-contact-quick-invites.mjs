@@ -271,7 +271,7 @@ assert(page.includes("$('bulkPermissionEvidence').focus();"),'Missing bulk permi
 assert(page.includes("approved.length?'Prepare invitations ('+approved.length+'"),'Approved draft count must be clear before preview');
 assert(page.includes("No approved contacts yet. Review and save the permission evidence"),'Unapproved contacts must receive a useful explanation');
 assert(page.includes("function select100UsableContacts()"),'Bulk email selection must fill up to 100 across filtered pages');
-assert(page.includes("const candidates=view().filter(canSelectForEmailReview)"),'Bulk selection must exclude unusable emails and registered or previously invited contacts');
+assert(page.includes("let candidates=view().filter(canSelectForEmailReview)"),'Bulk selection must exclude unusable emails and registered or previously invited contacts');
 assert(page.includes("chosen=new Set(ids)"),'Bulk email batch must contain precisely the selected usable contacts');
 assert(page.includes("if(changeCount&&!confirm("),'Replacing ticks outside a batch must require confirmation');
 assert(page.includes("if(channel==='email'&&!savedSmsOnly){smsHistory=new Map();}"),'Email-only draft preparation must not depend on SMS history');
@@ -294,6 +294,12 @@ assert(!page.includes('Andy Gifford at Move Motorcycles personally thought'),'Ou
 assert(page.includes('<details id="simpleContactSearch"'),'Specific-contact search must be collapsed by default');
 assert(page.includes('<details id="advancedDirectoryFilters"'),'Advanced search remains optional');
 assert(page.includes('Prepare invitations</button>'),'Primary invite workflow has a short action label');
+assert(page.includes("if(!candidates.length&&both)"),'Both invitations must offer an explicit classification review when no classified contacts match');
+assert(page.includes("reviewingTypes=true"),'Combined selection must distinguish classification from preparing invitations');
+assert(page.includes("function selectedUnclassifiedContacts()"),'Classification panel must only target unclassified eligible contacts');
+assert(page.includes("update({segment:kind})"),'Classification must record a type without approving marketing');
+assert(page.includes('id="bulkClassifyPanel" hidden'),'Contact classification form should be hidden until needed');
+assert(page.includes('id="bulkClassifyKind"'),'Review must ask whether selected contacts are dealers or private owners');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
