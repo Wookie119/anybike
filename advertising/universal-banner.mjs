@@ -38,6 +38,9 @@ function buildMoveHouseCard(ad,companion=false){
   ?'background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0;overflow:visible;display:flex;flex-direction:column;min-width:0;height:auto;box-sizing:border-box;align-self:start;position:relative'
   :'margin:12px 0 18px;width:100%;max-width:none;border-radius:12px;overflow:visible;min-width:0;box-sizing:border-box';
  const link=node('a');link.href=destination;link.target='_blank';link.rel='noopener sponsored';
+ // This link exists only after the advertising service has selected an approved
+ // campaign; let the shared legacy-ad visibility guard display it.
+ link.dataset.anybikeAdAuthorized='1';
  link.setAttribute('aria-label',String(ad.partner_name||'Advertiser')+' — view website');
  link.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px;background:#101010;text-decoration:none'+(stock?';position:relative;aspect-ratio:4/3;height:auto;border:1px solid #555;box-sizing:border-box;background:#111':'');
  const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px'+(stock?';position:absolute;inset:0;width:100%;height:100%;background:#111':'');
