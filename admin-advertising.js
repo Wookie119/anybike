@@ -5,6 +5,31 @@
  ['move-motorcycles-compact-mobile.webp','compact_image_url','Compact mobile','1 / 1'],
  ['move-motorcycles-stock-card.webp','stock_card_image_url','Stock card','4 / 3']
 ];
+// One artwork contract for all campaigns: image dimensions must match the
+// allocated slot. Reject an unsuitable asset rather than crop any advertising.
+const creativeSlotRatio={desktop_image_url:16/9,mobile_image_url:4/5,slim_image_url:3,
+ compact_image_url:1,stock_card_image_url:4/3};
+function validateCreativeDimensions(width,height,field,label){
+ if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)
+  throw Error(label+': artwork dimensions could not be verified.');
+ const expected=creativeSlotRatio[field];
+ if(!expected)throw Error(label+': unknown advertising format.');
+ const actual=width/height,variance=Math.abs(actual/expected-1);
+ if(variance>0.035)
+  throw Error(label+': '+width+' × '+height+' does not match this advert slot ('+
+   (expected===3?'3:1':expected===4/3?'4:3':expected===16/9?'16:9':expected===4/5?'4:5':'1:1')+
+   '). Upload artwork designed for this size. AnyBike never crops advertising.');
+}
+async function validateUploadedCreative(file,field){
+ let bitmap;
+ try{
+  bitmap=await createImageBitmap(file);
+  validateCreativeDimensions(bitmap.width,bitmap.height,field,file.name);
+ }catch(error){
+  if(error?.message?.includes('does not match'))throw error;
+  throw Error(file.name+': unable to read artwork dimensions. Upload a valid WebP image.');
+ }finally{bitmap?.close?.()}
+}
 function showCreativeSizes(){
  const host=$('creativeSizePreviews');if(!host)return;
  host.replaceChildren();
@@ -32,6 +57,7 @@ async function uploadCreativeSizes(){
  for(const file of files){
   if(!byName.has(file.name.toLowerCase()))throw Error('Unexpected filename: '+file.name+'. Use the provided five-size advert pack.');
   if(file.type!=='image/webp'||file.size>10*1024*1024||!file.size)throw Error('Only non-empty WebP files up to 10 MB are accepted: '+file.name);
+  await validateUploadedCreative(file,byName.get(file.name.toLowerCase())[1]);
  }
  const uploadButton=$('uploadCreativeFiles');uploadButton.disabled=true;
  let done=0;const errors=[];
