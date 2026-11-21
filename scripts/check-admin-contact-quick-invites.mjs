@@ -32,7 +32,7 @@ assert(page.includes('if(selected.length!==1)'),
  'Quick invitations must never accidentally include another selected contact');
 assert(page.includes('if(!r.approved_for_invitation)'),
  'Invitation permission is mandatory');
-assert(page.includes("reviewInvitations({channel})"),
+assert(page.includes("reviewInvitations({channel,onlyContactId:contactId})"),
  'Both quick actions must use the existing reviewed invitation preview');
 assert(page.includes("channel==='sms'?[]"),
  'SMS quick review must not prepare unrelated email drafts');
