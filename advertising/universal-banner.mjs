@@ -50,13 +50,13 @@ function buildMoveHouseCard(ad,companion=false){
  const source=node('source');source.media='(max-width:650px)';source.srcset=mobile;
  const img=node('img');img.src=desktop;img.alt=typeof ad.alt_text==='string'?ad.alt_text:'';
  img.loading='lazy';img.decoding='async';img.style.cssText=stock
-  ?'display:block;position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:contain;object-position:center;border-radius:12px'
+  ?'display:block;position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:fill;object-position:center;border-radius:12px'
   :'display:block;width:100%;height:auto;max-width:100%;aspect-ratio:auto;object-fit:contain;border-radius:12px';
  if(stock){
-  // Background extends the extra height. Foreground remains uncropped.
-  link.style.backgroundImage='url('+JSON.stringify(desktop)+')';
-  link.style.backgroundSize='cover';
-  link.style.backgroundPosition='center';
+  // A stock card is taller than the 4:3 artwork at some browser widths.
+  // Fill the exact measured card area without cutting off the logo or CTA.
+  // The stock format is independently controlled from all other banners.
+  img.style.setProperty('object-fit','fill','important');
  }
  picture.append(source,img);link.append(picture);card.append(link);
  const disclosure=node('small',ad.disclosure||'Advertisement · '+String(ad.partner_name||'Advertiser'));
