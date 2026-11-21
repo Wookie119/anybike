@@ -76,8 +76,21 @@ function isEditorialInfoPage(){
  return ['/anybike-connect.html','/about-us.html'].includes(location.pathname.toLowerCase());
 }
 function positionEditorialMoveAdvert(main,card){
- // About and Connect: let customers read the service and contact information
- // before a single clearly labelled house advert. Keep the original page intact.
+ // Editorial ads belong after the content. About Us has full-bleed sections,
+ // so its advert must use the existing responsive .wrap, not the viewport.
+ if(location.pathname.toLowerCase()==='/about-us.html'){
+  let wrap=document.getElementById('anybike-move-about-wrap');
+  if(!wrap){
+   wrap=node('div');
+   wrap.id='anybike-move-about-wrap';
+   wrap.className='wrap';
+   wrap.style.cssText='box-sizing:border-box;min-width:0;margin:20px auto 24px';
+   main.append(wrap);
+  }
+  wrap.append(card);
+  card.style.cssText='width:100%;max-width:none;margin:0;min-width:0;box-sizing:border-box;overflow:visible;border-radius:12px';
+  return;
+ }
  main.append(card);
  card.style.width='100%';
  card.style.maxWidth='none';
