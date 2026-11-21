@@ -6,6 +6,19 @@ function reply(origin:string,body:unknown,status=200){
 }
 const esc=(x:unknown)=>String(x??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]!));
 const urls={owner:"https://www.anybike.co.uk/sell-your-motorcycle.html",dealer:"https://www.anybike.co.uk/uk-dealer-welcome.html"};
+// Match the existing branded auction-email attachment: inline CID rather
+// than a remotely hosted logo that clients may block in dark mode.
+async function invitationLogo(){
+ const res=await fetch("https://raw.githubusercontent.com/Wookie119/anybike/main/anybike-logo-new.jpg",{signal:AbortSignal.timeout(9000)});
+ if(!res.ok)throw Error("Official AnyBike logo unavailable — no email sent");
+ const bytes=new Uint8Array(await res.arrayBuffer());
+ const jpg=bytes.length>3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
+ const png=bytes.length>=8&&[137,80,78,71,13,10,26,10].every((n,i)=>bytes[i]===n);
+ if(bytes.length<1000||bytes.length>2000000||(!jpg&&!png))throw Error("Invalid AnyBike logo — no email sent");
+ let binary="";
+ for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+ return [{filename:png?"anybike-logo.png":"anybike-logo.jpg",content:btoa(binary),content_type:png?"image/png":"image/jpeg",content_id:"anybike-invitation-logo"}];
+}
 function button(url:string,label:string){
  return "<table role='presentation' cellpadding='0' cellspacing='0' border='0' style='margin:15px 0 22px'><tr><td bgcolor='#ed1c24' style='background:#ed1c24;border-radius:5px'><a href='"+url+"' style='display:inline-block;padding:14px 20px;font:bold 16px Arial,Helvetica,sans-serif;text-decoration:none;color:#ffffff;background:#ed1c24;border-radius:5px'>"+esc(label)+" &rarr;</a></td></tr></table>";
 }
@@ -24,7 +37,7 @@ function content(type:"dealer"|"private"|"both",name:string){
  const body=type==="both"?bothBody:type==="private"?privateBody:dealerBody;
  const subjects={dealer:"AnyBike invitation — UK motorcycle dealers",private:"AnyBike invitation — sell your motorcycle free",both:"AnyBike invitation — motorcycles for owners and dealers"};
  const plain="AnyBike invitation\n\n"+(type!=="dealer"?"Sell your motorcycle for free: "+urls.owner+"\n\n":"")+(type!=="private"?"Motorcycle dealers: register free for trade opportunities: "+urls.dealer+"\n\n":"")+"Kind regards,\nThe AnyBike Team";
- const html="<!doctype html><html><body style='background:#f1f1f1;padding:14px 8px;font-family:Arial,Helvetica,sans-serif;color:#202020'><table role='presentation' align='center' cellpadding='0' cellspacing='0' width='660' style='width:100%;max-width:660px;border-collapse:collapse;background:#ffffff;border-top:5px solid #ed1c24'><tr><td style='padding:24px 28px'><h1 style='font-size:24px;margin:0 0 20px;color:#111'>Any<span style='color:#ed1c24'>Bike</span> invitation</h1><p>"+greeting+"</p>"+body+"<p style='margin-top:24px'>Kind regards,<br>The AnyBike Team</p><p style='font-size:12px;color:#666;margin-top:24px'>AnyBike.co.uk &middot; To stop receiving invitations, reply to sales@anybike.co.uk with 'unsubscribe'.</p></td></tr></table></body></html>";
+ const html="<!doctype html><html><body style='background:#f1f1f1;padding:14px 8px;font-family:Arial,Helvetica,sans-serif;color:#202020'><table role='presentation' align='center' cellpadding='0' cellspacing='0' width='660' style='width:100%;max-width:660px;border-collapse:collapse;background:#ffffff;border-top:5px solid #ed1c24'><tr><td style='padding:24px 28px'><div style='background:#fff;text-align:center;padding:6px 0 14px'><img src='cid:anybike-invitation-logo' alt='AnyBike motorcycle logo' width='280' style='display:block;width:280px;max-width:95%;height:auto;border:0;margin:0 auto'></div><h1 style='font-size:23px;margin:0 0 20px;color:#111'>AnyBike invitation</h1><p>"+greeting+"</p>"+body+"<p style='margin-top:24px'>Kind regards,<br>The AnyBike Team</p><p style='font-size:12px;color:#666;margin-top:24px'>AnyBike.co.uk &middot; To stop receiving invitations, reply to sales@anybike.co.uk with 'unsubscribe'.</p></td></tr></table></body></html>";
  return {subject:subjects[type],html,plain};
 }
 Deno.serve(async req=>{
@@ -51,7 +64,8 @@ Deno.serve(async req=>{
    if(!["dealer","private","both"].includes(type)||payload.confirm_send!==true)return reply(origin,{success:false,error:"Confirm a valid invitation type for the test"},400);
    const testTo="mocp@hotmail.co.uk";
    const letter=content(type,"");
-   const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+resend,"Content-Type":"application/json"},body:JSON.stringify({from:"AnyBike <sales@anybike.co.uk>",to:[testTo],subject:"[TEST] "+letter.subject,html:letter.html,text:letter.plain,reply_to:"sales@anybike.co.uk",tags:[{name:"campaign",value:"contact-invitation-test"}]})});
+   const logo=await invitationLogo();
+   const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+resend,"Content-Type":"application/json"},body:JSON.stringify({from:"AnyBike <sales@anybike.co.uk>",to:[testTo],subject:"[TEST] "+letter.subject,html:letter.html,text:letter.plain,attachments:logo,reply_to:"sales@anybike.co.uk",tags:[{name:"campaign",value:"contact-invitation-test"}]})});
    const result=await response.json().catch(()=>({}));
    if(!response.ok||!result?.id)return reply(origin,{success:false,error:"Test email provider error: "+String(result?.message||response.status).slice(0,200)},502);
    return reply(origin,{success:true,submitted:true,test:true,recipient:testTo,message_id:String(result.id),note:"Provider accepted test email; inbox delivery not yet verified. No customer record changed."});
@@ -74,7 +88,8 @@ Deno.serve(async req=>{
   const safeName=name.toLowerCase()===String(contact.company||"").trim().toLowerCase()?"":name;
   const letter=content(type,safeName);
   try{
-   const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+resend,"Content-Type":"application/json"},body:JSON.stringify({from:"AnyBike <sales@anybike.co.uk>",to:[address],subject:letter.subject,html:letter.html,text:letter.plain,reply_to:"sales@anybike.co.uk",tags:[{name:"campaign",value:"contact-invitation"}]})});
+   const logo=await invitationLogo();
+   const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+resend,"Content-Type":"application/json"},body:JSON.stringify({from:"AnyBike <sales@anybike.co.uk>",to:[address],subject:letter.subject,html:letter.html,text:letter.plain,attachments:logo,reply_to:"sales@anybike.co.uk",tags:[{name:"campaign",value:"contact-invitation"}]})});
    const result=await response.json().catch(()=>({}));
    if(!response.ok||!result?.id)throw Error(String(result?.message||"Email provider did not accept this message").slice(0,250));
    await db.from("anybike_contact_invitation_email_log").update({status:"submitted",provider_id:String(result.id),submitted_at:new Date().toISOString()}).eq("id",claim.id);
