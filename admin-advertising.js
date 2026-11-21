@@ -232,6 +232,7 @@ function renderMegaHealth(){
    $('pagefilter').value=filter;
    $('pagequery').value='';
    $('pagecategory').value='';
+   $('pagedelivery').value='';
    pagePage=0;renderPages();
    $('pagecount').scrollIntoView({behavior:'smooth',block:'start'});
   });issues.append(b);
