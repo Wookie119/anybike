@@ -14,7 +14,7 @@ function showCreativeSizes(){
   const heading=el('strong',title);card.append(heading);
   const url=String(form.elements[field]?.value||'').trim();
   if(url.startsWith('https://')){
-   const image=el('img');image.src=url;image.alt=title+' Move Motorcycles advertising preview';image.loading='lazy';image.style.cssText='width:100%;max-height:280px;object-fit:contain;display:block;margin:8px auto;border-radius:10px;overflow:hidden;aspect-ratio:'+ratio.replace(' / ', '/');card.append(image);
+   const image=el('img');image.src=url;image.alt=title+' Move Motorcycles advertising preview';image.loading='lazy';image.style.cssText='width:100%;height:auto;max-width:100%;object-fit:contain;display:block;margin:8px auto;border-radius:10px;overflow:hidden;aspect-ratio:auto';card.append(image);
    card.append(el('p','Ready in campaign · '+filename));
   }else card.append(el('p','Not uploaded · '+filename));
   host.append(card);
