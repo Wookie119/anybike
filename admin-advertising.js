@@ -45,8 +45,8 @@ async function uploadCreativeSizes(){
    const {data:publicData}=db.storage.from('advertising-creatives').getPublicUrl(path);
    const url=publicData?.publicUrl;
    if(!url||!url.startsWith('https://')){errors.push(filename+': public URL missing');break;}
-   const {error:saveError}=await db.from('advertising_campaigns').update({[field]:url}).eq('id',editId).eq('status','draft');
-   if(saveError){errors.push(filename+': saved asset but could not link: '+saveError.message);break;}
+   const {data:savedRow,error:saveError}=await db.from('advertising_campaigns').update({[field]:url}).eq('id',editId).eq('status','draft').select('id').maybeSingle();
+   if(saveError||!savedRow){errors.push(filename+': uploaded asset, but campaign link was not confirmed: '+(saveError?.message||'Draft changed. Refresh.'));break;}
    $('campaignform').elements[field].value=url;
    done++;
   }
