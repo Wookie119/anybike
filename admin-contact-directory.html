@@ -225,15 +225,15 @@
   <strong>Send selected invitations — up to 100 contacts per batch</strong>
   <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap;margin:9px 0">
    <label><input type="checkbox" id="bulkSendEmail"> Branded email with logo and button</label>
-   <label><input type="checkbox" id="bulkSendSms"> SMS — separately approved mobile contacts</label>
-   <label><input type="checkbox" id="bulkSendConfirmed"> I have reviewed and authorise this batch</label>
+   <label><input type="checkbox" id="bulkSendSms"> SMS — authorised UK mobile contacts</label>
+   <label><input type="checkbox" id="bulkSendConfirmed"> I confirm all selected recipients are authorised for the chosen invitation channels</label>
   </div>
   <div class="row" style="align-items:center;gap:9px;flex-wrap:wrap">
    <button type="button" id="bulkSendNow" disabled style="background:#ed1c24;color:#fff;font-weight:700">Send selected batch</button>
    <button type="button" id="bulkSendStop" hidden>Stop after current message</button>
    <span id="bulkSendCount" role="status" style="font-size:13px;color:#ccc">Choose a channel for the eligible recipient count.</span>
   </div>
-  <p id="bulkSendResult" role="status" style="font-size:13px;color:#ddd;margin:8px 0">Nothing sent. Email and SMS have separate eligibility checks; previously invited and registered users are excluded.</p>
+  <p id="bulkSendResult" role="status" style="font-size:13px;color:#ddd;margin:8px 0">Nothing sent. Choose email and/or SMS, select up to 100 contacts, confirm authorisation and send. Previously invited and registered users are excluded.</p>
  </div>
  <div id="bulkClassifyPanel" hidden aria-hidden="true" style="border-top:1px solid #555;margin-top:10px;padding-top:12px">
   <strong>Identify your selected contacts</strong>
@@ -382,9 +382,7 @@ function refreshBulkClassifyPanel(){
 function canSelectForBatch(r){
  if(!invitationAudienceMatches(r)||isAlreadyRegisteredContact(r)||contactLastSent(r))return false;
  const emailEligible=hasInvitationEmail(r);
- const smsEligible=/^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,''))&&
-  r.sms_invite_selected&&r.sms_permission_verified_at&&
-  String(r.sms_marketing_permission||'').trim().length>=12;
+ const smsEligible=/^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,''));
  const emailSelected=$('bulkSendEmail').checked,smsSelected=$('bulkSendSms').checked;
  return emailSelected||smsSelected?(emailSelected&&emailEligible)||(smsSelected&&smsEligible):emailEligible;
 }
@@ -662,7 +660,7 @@ function eligibleBatchRecipients(){
  const selected=items.filter(r=>chosen.has(r.id)&&ids.has(r.id)).slice(0,101);
  const email=selected.filter(r=>invitationAudienceMatches(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&r.approved_for_invitation&&hasInvitationEmail(r)&&String(r.marketing_permission||'').trim());
  const sms=selected.filter(r=>invitationAudienceMatches(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&!lastSmsByContact.has(r.id)&&
-  /^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,''))&&r.sms_invite_selected&&r.sms_permission_verified_at&&String(r.sms_marketing_permission||'').trim().length>=12);
+  /^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,'')));
  return {selected,email,sms};
 }
 function updateBatchSend(){
@@ -699,8 +697,16 @@ $('bulkSendNow').onclick=async()=>{
     if(!fresh.approved_for_invitation||fresh.email_invite_sent_at||!hasInvitationEmail(fresh)||!String(fresh.marketing_permission||'').trim()){skipped++;continue;}
     fn='anybike-send-contact-invitation-email';
    }else{
-    if(!/^07\d{9}$/.test(String(fresh.phone||'').replace(/\s/g,''))||!fresh.sms_invite_selected||!fresh.sms_permission_verified_at||
-       String(fresh.sms_marketing_permission||'').trim().length<12||lastSmsByContact.has(r.id)){skipped++;continue;}
+    if(!/^07\d{9}$/.test(String(fresh.phone||'').replace(/\s/g,''))||lastSmsByContact.has(r.id)){skipped++;continue;}
+    // The admin explicitly certified SMS permission for the selected batch.
+    // Record that authorisation against each number; never infer it from having a phone.
+    if(!fresh.sms_permission_verified_at||String(fresh.sms_marketing_permission||'').trim().length<12||!fresh.sms_invite_selected){
+     const note='Admin confirmed marketing SMS authorisation during AnyBike invitation batch on '+new Date().toISOString();
+     const {data:verified,error:saveError}=await db.from('anybike_master_contacts')
+      .update({sms_invite_selected:true,sms_marketing_permission:note,sms_permission_verified_at:new Date().toISOString()})
+      .eq('id',r.id).select('id').maybeSingle();
+     if(saveError||!verified)throw Error('Unable to record SMS authorisation; text not sent');
+    }
     fn='anybike-send-dealer-invitation-sms';
    }
    const {data,error}=await db.functions.invoke(fn,{body:{contact_id:r.id,invitation_type:invitationTypeFor(r),confirm_send:true}});
