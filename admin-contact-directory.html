@@ -320,21 +320,39 @@ function closeBulkPreviewPanel(){
  queue=[];smsQueue=[];pos=0;smsPos=0;
  const summary=$('bulkReviewSummary');if(summary)summary.textContent='';
 }
+function canSelectForEmailReview(r){return hasInvitationEmail(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r);}
+function select100UsableContacts(){
+ const candidates=view().filter(canSelectForEmailReview);
+ const preserved=candidates.filter(r=>chosen.has(r.id)).map(r=>r.id);
+ const extra=candidates.filter(r=>!chosen.has(r.id)).map(r=>r.id);
+ const ids=[...preserved,...extra].slice(0,100);
+ if(!ids.length){$('bulkSelectionStatus').textContent='No uninvited, unregistered contacts with usable email addresses match these filters.';return;}
+ const changeCount=[...chosen].filter(id=>!ids.includes(id)).length;
+ if(changeCount&&!confirm('Replace '+changeCount+' existing ticks that are outside this 100-contact email batch? This changes selections only. No approvals or messages.'))return;
+ chosen=new Set(ids);
+ closeBulkPreviewPanel();
+ $('bulkPermissionPanel').hidden=true;
+ render();
+ $('bulkSelectionStatus').textContent=ids.length+' contacts with usable email addresses selected across matching pages. Invitation permission must still be reviewed where needed. Nothing sent.';
+}
 function updateBulkContactReview(){
- const matchingIds=new Set(view().map(r=>r.id));const selected=items.filter(r=>chosen.has(r.id)&&matchingIds.has(r.id));
- const eligible=selected.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
+ const matching=new Set(view().map(r=>r.id)), selected=items.filter(r=>chosen.has(r.id)&&matching.has(r.id));
+ const usable=selected.filter(canSelectForEmailReview);
+ const approved=usable.filter(r=>r.approved_for_invitation),needsReview=usable.filter(r=>!r.approved_for_invitation);
+ const excluded=selected.length-usable.length;
  $('bulkSelectionCount').textContent=selected.length+' contact'+(selected.length===1?'':'s')+' selected';
  $('bulkSelectionStatus').textContent=selected.length
-  ?eligible.length+' approved for invitation · '+(selected.length-eligible.length)+' not yet eligible. No messages sent.'
-  :'Tick contacts on their cards to review invitations together. Nothing is sent automatically.';
+  ?approved.length+' approved email recipients · '+needsReview.length+' usable emails needing permission review · '+excluded+' excluded from email review (previously invited, registered or unusable email). No messages sent.'
+  :'Select up to 100 usable email contacts from matching pages. Permission is reviewed separately. Nothing is sent automatically.';
  $('bulkReviewSelected').disabled=!selected.length;
- $('bulkReviewSelected').textContent=eligible.length?'Prepare '+eligible.length+' approved email draft'+(eligible.length===1?'':'s'):'Prepare email drafts (review permission first)';
- $('bulkReviewSelected').title=eligible.length?'Prepare individual Outlook drafts for '+eligible.length+' approved contacts. Nothing is sent.':'Selected contacts are not yet approved. Click to open the bulk permission review; nothing will be sent.';
+ $('bulkReviewSelected').textContent=approved.length?'Prepare '+approved.length+' approved email draft'+(approved.length===1?'':'s'):'Prepare email drafts (review permission first)';
+ $('bulkReviewSelected').title=approved.length?'Prepare Outlook drafts for '+approved.length+' individually approved eligible contacts. Nothing is sent.':'Review and save appropriate invitation permission before preparing email drafts.';
  $('bulkReviewContacts').disabled=!selected.length;
- const pending=selected.filter(r=>!r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
- $('bulkReviewContacts').textContent=pending.length?'Bulk review '+pending.length+' selected permissions':eligible.length?'Review '+eligible.length+' approved contacts':'Bulk review selected';
- const visible=view().slice(page*pageSize(),page*pageSize()+pageSize());
- $('bulkSelectVisible').textContent='Select '+visible.length+' on this page';
+ $('bulkReviewContacts').textContent=needsReview.length?'Bulk review '+needsReview.length+' selected permissions':approved.length?'Review '+approved.length+' approved contacts':'Bulk review selected';
+ const total=view().filter(canSelectForEmailReview).length;
+ $('bulkSelectVisible').textContent='Select up to 100 usable emails';
+ $('bulkSelectVisible').title='Build a batch of up to 100 uninvited, unregistered contacts with usable emails across matching pages ('+total+' matching). Does not grant permission or send messages.';
+ $('bulkSelectVisible').disabled=total===0;
 }
 function renderContactCards(shown){
  const host=$('contactCards');if(!host)return;
@@ -536,10 +554,7 @@ function render(){
  $('prev').disabled=page===0;
  $('next').disabled=page>=totalPages-1;
 }
-['q','dealerSearch','tagSearch','postcodeSearch'].forEach(id=>$(id).oninput=()=>{page=0;render()});$('hideUnknown').onchange=()=>{page=0;render()};$('onlyMobile').onchange=()=>{page=0;render()};$('onlyCompany').onchange=()=>{page=0;render()};['tradeContactFilter','excludeInvited','excludeRegistered'].forEach(id=>$(id).onchange=()=>{page=0;render()});$('cardPageSize').onchange=()=>{$('pageSize').value=$('cardPageSize').value;page=0;render()};$('emailSentFilter').onchange=()=>{page=0;render()};$('pageSize').onchange=()=>{$('cardPageSize').value=$('pageSize').value;page=0;render()};$('columnMode').onchange=()=>{page=0;render()};$('prev').onclick=()=>{page=Math.max(0,page-1);render()};$('next').onclick=()=>{page=Math.max(0,Math.min(Math.ceil(view().length/pageSize())-1,page+1));render()};$('reload').onclick=load;$('bulkSelectVisible').onclick=()=>{
- view().slice(page*pageSize(),page*pageSize()+pageSize()).forEach(r=>chosen.add(r.id));
- render();
-};
+['q','dealerSearch','tagSearch','postcodeSearch'].forEach(id=>$(id).oninput=()=>{page=0;render()});$('hideUnknown').onchange=()=>{page=0;render()};$('onlyMobile').onchange=()=>{page=0;render()};$('onlyCompany').onchange=()=>{page=0;render()};['tradeContactFilter','excludeInvited','excludeRegistered'].forEach(id=>$(id).onchange=()=>{page=0;render()});$('cardPageSize').onchange=()=>{$('pageSize').value=$('cardPageSize').value;page=0;render()};$('emailSentFilter').onchange=()=>{page=0;render()};$('pageSize').onchange=()=>{$('cardPageSize').value=$('pageSize').value;page=0;render()};$('columnMode').onchange=()=>{page=0;render()};$('prev').onclick=()=>{page=Math.max(0,page-1);render()};$('next').onclick=()=>{page=Math.max(0,Math.min(Math.ceil(view().length/pageSize())-1,page+1));render()};$('reload').onclick=load;$('bulkSelectVisible').onclick=select100UsableContacts;
 $('closeBulkPreviews').onclick=()=>{closeBulkPreviewPanel();updateBulkContactReview();$('bulkSelectionStatus').textContent='Invitation previews closed. Other selected contacts stay ticked; no messages sent.';};
 $('bulkClearSelected').onclick=()=>{
  chosen.clear();
@@ -548,7 +563,7 @@ $('bulkClearSelected').onclick=()=>{
 };
 function bulkPermissionCandidates(){
  const matching=new Set(view().map(r=>r.id));
- return items.filter(r=>chosen.has(r.id)&&matching.has(r.id)&&!r.approved_for_invitation&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&hasInvitationEmail(r));
+ return items.filter(r=>chosen.has(r.id)&&matching.has(r.id)&&!r.approved_for_invitation&&canSelectForEmailReview(r));
 }
 $('closeBulkPermission').onclick=()=>{$('bulkPermissionPanel').hidden=true;};
 $('bulkReviewContacts').onclick=()=>{
@@ -583,7 +598,7 @@ $('saveBulkPermission').onclick=async()=>{
 };
 $('bulkReviewSelected').onclick=async()=>{
  const matchingIds=new Set(view().map(r=>r.id));const selected=items.filter(r=>chosen.has(r.id)&&matchingIds.has(r.id));
- const eligible=selected.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
+ const eligible=selected.filter(r=>r.approved_for_invitation&&canSelectForEmailReview(r));
  if(!eligible.length){
   $('bulkSelectionStatus').textContent='No approved contacts yet. Review and save the permission evidence for your selected group first. No emails will be sent.';
   $('bulkReviewContacts').click();
@@ -672,7 +687,7 @@ async function reviewInvitations({savedSmsOnly=false,channel='both',onlyContactI
  // Preview contacts explicitly selected in THIS session. Loading directory
  // rows must never bring back old SMS draft previews automatically.
  $('invitePreviews').replaceChildren();
- try{await refreshSmsHistory({savedSmsOnly,onlyContactId})}catch(e){$('queue').textContent='SMS history unavailable: '+e.message+'. No invitations can be sent until this is resolved.';$('invitePreviews').innerHTML='';return;}
+ if(channel==='email'&&!savedSmsOnly){smsHistory=new Map();}else{try{await refreshSmsHistory({savedSmsOnly,onlyContactId})}catch(e){$('queue').textContent='SMS history unavailable: '+e.message+'. No SMS invitations can be prepared until this is resolved.';$('invitePreviews').replaceChildren();throw e;}}
 
  const matchingIds=new Set(view().map(r=>r.id));const approved=items.filter(r=>r.approved_for_invitation&&!isAlreadyRegisteredContact(r)&&(savedSmsOnly||matchingIds.has(r.id))&&(onlyContactId===null||r.id===onlyContactId));
  queue=savedSmsOnly||channel==='sms'?[]:approved.filter(r=>(onlyContactId!==null?r.id===onlyContactId:chosen.has(r.id))&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(r.email||''))&&!String(r.email).toLowerCase().startsWith('unknown@')&&!/@app\.movemotorcycles\.co\.uk$/i.test(String(r.email)));
