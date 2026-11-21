@@ -769,9 +769,9 @@ async function showRecentInvitationSuccess({announce=true}={}){
 }
 // One-off recovery for the interrupted second batch. Separate from ordinary
 // invitation selection because an accepted email must not hide an unsent SMS.
-let secondBatchSmsIds=[],secondBatchSmsBusy=false,secondBatchSmsStop=false;
+let secondBatchSmsIds=[],secondBatchSmsBusy=false,secondBatchSmsStop=false,secondBatchTypes=new Map();
 const secondBatchStart='2026-11-21T13:38:00+00:00',secondBatchEnd='2026-11-21T13:41:00+00:00';
-function secondBatchMobile(r){return String(r.phone||'').replace(/\\s/g,'');}
+function secondBatchMobile(r){return String(r.phone||'').replace(/\s/g,'');}
 function renderSecondBatchSms(){
  const host=$('secondBatchSmsList');
  host.innerHTML=secondBatchSmsIds.map(id=>{
@@ -788,13 +788,14 @@ $('loadSecondBatchSms').onclick=async()=>{
  try{
   // Fetch the exact interrupted email batch, including the three email failures.
   const {data:batch,error}=await db.from('anybike_contact_invitation_email_log')
-   .select('contact_id').gte('created_at',secondBatchStart).lt('created_at',secondBatchEnd).limit(150);
+   .select('contact_id,invitation_type').gte('created_at',secondBatchStart).lt('created_at',secondBatchEnd).limit(150);
   if(error)throw error;
   await Promise.all([refreshContactSmsSummary(),refreshContactEmailSummary()]);
+  secondBatchTypes=new Map((batch||[]).map(x=>[Number(x.contact_id),x.invitation_type]));
   const ids=[...new Set((batch||[]).map(x=>Number(x.contact_id)).filter(Boolean))];
   secondBatchSmsIds=ids.filter(id=>{
    const r=items.find(x=>x.id===id);
-   return r&&/^07\\d{9}$/.test(secondBatchMobile(r))&&!lastSmsByContact.has(id)&&!isAlreadyRegisteredContact(r);
+   return r&&/^07\d{9}$/.test(secondBatchMobile(r))&&!lastSmsByContact.has(id)&&!isAlreadyRegisteredContact(r);
   });
   renderSecondBatchSms();
   $('secondBatchSmsStatus').textContent=secondBatchSmsIds.length+' missing SMS candidates found from '+ids.length+' second-batch contacts. Review the list before sending. No messages sent.';
@@ -822,7 +823,7 @@ $('sendSecondBatchSms').onclick=async()=>{
    $('secondBatchSmsStatus').textContent='SMS only: '+accepted+' accepted · '+failed+' errors · '+skipped+' skipped. Keep this page open.';
    try{
     const {data:fresh,error:readError}=await db.from('anybike_master_contacts').select('*').eq('id',id).maybeSingle();
-    if(readError||!fresh||!/^07\\d{9}$/.test(secondBatchMobile(fresh))||isAlreadyRegisteredContact(fresh)){skipped++;continue;}
+    if(readError||!fresh||!/^07\d{9}$/.test(secondBatchMobile(fresh))||isAlreadyRegisteredContact(fresh)){skipped++;continue;}
     if(!fresh.sms_permission_verified_at||String(fresh.sms_marketing_permission||'').trim().length<12||!fresh.sms_invite_selected){
      const now=new Date().toISOString();
      const note='Admin confirmed marketing SMS authorisation during second-batch recovery on '+now;
@@ -831,7 +832,7 @@ $('sendSecondBatchSms').onclick=async()=>{
       .eq('id',id).select('id').maybeSingle();
      if(saveError||!verified)throw Error('SMS permission could not be recorded');
     }
-    const type=$('invitationAudience').value;
+    const type=secondBatchTypes.get(id);
     const inviteType=['dealer','private','both'].includes(type)?type:'both';
     const {data,error}=await db.functions.invoke('anybike-send-dealer-invitation-sms',{body:{contact_id:id,invitation_type:inviteType,confirm_send:true}});
     if(error||!data?.success)throw Error(data?.error||error?.message||'Provider not confirmed');
@@ -839,7 +840,8 @@ $('sendSecondBatchSms').onclick=async()=>{
    }catch(e){failed++;errors.push('#'+id+': '+String(e.message||e).slice(0,100));if(failed>=3){secondBatchSmsStop=true;break;}}
   }
   $('secondBatchSmsStatus').textContent=(secondBatchSmsStop?'Stopped. ':'Finished. ')+accepted+' SMS provider submissions · '+skipped+' skipped · '+failed+' errors. '+errors.slice(0,3).join(' | ')+' No emails were sent.';
-  await $('loadSecondBatchSms').onclick();
+  secondBatchSmsIds=secondBatchSmsIds.filter(id=>!lastSmsByContact.has(id));
+  renderSecondBatchSms();
  }catch(e){$('secondBatchSmsStatus').textContent='Stopped: '+e.message+'. Check sending results before retrying.';}
  finally{secondBatchSmsBusy=false;$('sendSecondBatchSms').disabled=false;$('loadSecondBatchSms').disabled=false;$('stopSecondBatchSms').hidden=true;}
 };
