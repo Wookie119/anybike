@@ -112,6 +112,23 @@ function positionExportMoveAdvert(main,card){
  container.append(card);
  card.style.cssText='margin:0;width:100%;max-width:none;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
 }
+function isFreightForwardersPage(){
+ return location.pathname.toLowerCase()==='/freight-forwarders.html';
+}
+function positionFreightMoveAdvert(main,card){
+ // Keep the directory and shipping explanations uninterrupted. Its advert
+ // belongs after the final SEO information, in the same responsive content
+ // width rather than the viewport-wide freight hero.
+ let container=document.getElementById('anybike-move-freight-wrap');
+ if(!container){
+  container=node('div');
+  container.id='anybike-move-freight-wrap';
+  container.style.cssText='width:calc(100% - 48px);max-width:1200px;margin:24px auto 28px;box-sizing:border-box;min-width:0';
+  main.append(container);
+ }
+ container.append(card);
+ card.style.cssText='margin:0;width:100%;max-width:none;min-width:0;box-sizing:border-box;border-radius:12px;overflow:visible';
+}
 function installMoveHouse(){
  if(!isPublicUkCustomerPage()||existingMoveAdvert())return false;
  const existing=document.getElementById(moveHouseMarker);
@@ -121,6 +138,7 @@ function installMoveHouse(){
   else if(isManufacturerPage(targetMain))positionManufacturerMoveAdvert(targetMain,existing);
   else if(isEditorialInfoPage()&&targetMain)positionEditorialMoveAdvert(targetMain,existing);
   else if(isExportServicesPage()&&targetMain)positionExportMoveAdvert(targetMain,existing);
+  else if(isFreightForwardersPage()&&targetMain)positionFreightMoveAdvert(targetMain,existing);
   return true;
  }
  const stock=location.pathname.toLowerCase()==='/available-stock.html';
@@ -148,6 +166,10 @@ function installMoveHouse(){
  }
  if(isExportServicesPage()){
   positionExportMoveAdvert(main,buildMoveHouseCard(false));
+  return true;
+ }
+ if(isFreightForwardersPage()){
+  positionFreightMoveAdvert(main,buildMoveHouseCard(false));
   return true;
  }
  // Retain the approved template: add a single optional advert after its hero
