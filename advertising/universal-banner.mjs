@@ -5,8 +5,8 @@ const node=(tag,v)=>{const el=document.createElement(tag);if(v)el.textContent=v;
 const https=v=>{try{const u=new URL(v);return u.protocol==='https:'?u.href:null}catch{return null}};
 let generation=0,observer=null;
 // AnyBike-owned Move Motorcycles house advert: one per UK-facing customer page.
-// Uses the previously approved red artwork until the five-size blue/gold artwork
-// is uploaded and approved. It does not depend on login or edit individual models.
+// Uses the approved five-size blue/gold Move artwork without changing model files.
+// This UK house placement does not depend on customer login.
 const MOVE_SITE='https://www.movemotorcycles.co.uk/';
 // Uploaded, user-approved five-size blue/gold house artworks. The old approved
 // red adverts remain in /assets unchanged. One central renderer chooses formats.
@@ -193,14 +193,13 @@ function installMoveHouse(){
   positionSellMotorcycleMoveAdvert(main,buildMoveHouseCard(false));
   return true;
  }
- // Retain the approved template: add a single optional advert after its hero
- // (or first heading), rather than editing the bike's model content.
- // The advert belongs BETWEEN complete page sections, never inside a two-column
- // manufacturer, model or editorial panel. Prefer the full top-level hero.
- const anchor=main.querySelector(':scope > .manufacturer-hero,:scope > .hero,:scope > .hero-section,:scope > section.hero,:scope > h1,:scope > header')||
-  main.querySelector(':scope > section,:scope > article,:scope > div')||main.firstElementChild;
- if(!anchor)return false;
- anchor.after(buildMoveHouseCard(false));
+ // Remaining public pages use a single bottom-of-content placement.
+ // Avoid inserting advertising between headings, forms, grids or hero panels.
+ const card=buildMoveHouseCard(false);
+ main.append(card);
+ card.style.width='100%';
+ card.style.maxWidth='none';
+ card.style.margin='20px 0 24px';
  // Some dealer dashboards insert their approved Move creative after async loading.
  // If one appears later, keep the existing approved advert rather than showing two.
  const dedupe=new MutationObserver(()=>{
