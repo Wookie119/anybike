@@ -89,6 +89,13 @@ Deno.serve(async req=>{
   const {data:registered,error:regError}=await db.from("customer_profiles").select("id").ilike("email",address).limit(1);
   if(regError)return reply(origin,{success:false,error:"Could not verify registration status"},503);
   if(registered?.length)return reply(origin,{success:false,error:"Contact is already registered with AnyBike"},409);
+  // Also block a repeat to the same address if an imported duplicate uses
+  // another contact ID. Sending/pending attempts require manual reconciliation.
+  const {data:priorEmail,error:priorError}=await db.from("anybike_contact_invitation_email_log")
+   .select("id,status").eq("recipient",address)
+   .in("status",["sending","submitted"]).limit(1);
+  if(priorError)return reply(origin,{success:false,error:"Unable to verify previous invitation history"},503);
+  if(priorEmail?.length)return reply(origin,{success:false,error:"An email invitation is already recorded for this address. No duplicate email sent."},409);
   // Atomic single-contact claim prevents a second request from sending again.
   const {data:claim,error:claimError}=await db.from("anybike_contact_invitation_email_log").insert({contact_id:id,recipient:address,invitation_type:type,status:"sending",admin_id:user.id}).select("id").single();
   if(claimError||!claim)return reply(origin,{success:false,error:"A send attempt has already been recorded for this contact. Check email history before retrying."},409);
