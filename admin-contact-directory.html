@@ -232,12 +232,13 @@
  <div id="bulkSendPanel" style="border-top:1px solid #444;padding:12px 0 2px;margin-top:10px">
   <strong>Send selected invitations — up to 100 contacts per batch</strong>
   <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap;margin:9px 0">
-   <label><input type="checkbox" id="bulkSendEmail"> Branded email with logo and button</label>
-   <label><input type="checkbox" id="bulkSendSms"> SMS — authorised UK mobile contacts</label>
+   <label><input type="checkbox" id="bulkSendEmail" checked> Branded email with logo and button</label>
+   <label><input type="checkbox" id="bulkSendSms" checked> SMS — authorised UK mobile contacts</label>
   </div>
+  <p style="font-size:12px;color:#ccc;margin:4px 0 9px">One send: authorised SMS first, branded email second. Email quota errors cannot interrupt the SMS stage.</p>
   <div class="row" style="align-items:center;gap:9px;flex-wrap:wrap">
    <button type="button" id="bulkPreviewExact">Preview actual email and SMS</button>
-   <button type="button" id="bulkSendNow" disabled style="background:#ed1c24;color:#fff;font-weight:700">Send selected batch</button>
+   <button type="button" id="bulkSendNow" disabled style="background:#ed1c24;color:#fff;font-weight:700">Send selected batch — SMS then email</button>
    <button type="button" id="bulkSendStop" hidden>Stop after current message</button>
    <button type="button" id="bulkCheckSent">Check sending results</button>
    <button type="button" id="bulkSuccessButton" hidden style="background:#1c653c;color:#fff;border:1px solid #36a363;font-weight:700">✓ Invitations accepted — view results</button>
@@ -896,9 +897,9 @@ $('bulkSendNow').onclick=async()=>{
   $('bulkSendResult').textContent='Select up to 100 eligible contacts, choose channels, then authorise. No messages sent.';return;
  }
  const nEmail=jobs.filter(j=>j.channel==='email').length,nSms=jobs.length-nEmail;
- if(!confirm('I confirm the selected contacts have authorised these invitations. SEND '+nEmail+' REAL branded AnyBike emails and '+nSms+' CHARGEABLE SMS messages to '+new Set(jobs.map(j=>j.r.id)).size+' contacts now? This cannot be undone.'))return;
+ if(!confirm('I confirm the selected contacts have authorised these invitations. ONE SEND: FIRST '+nSms+' CHARGEABLE SMS, THEN '+nEmail+' REAL branded AnyBike emails, to '+new Set(jobs.map(j=>j.r.id)).size+' contacts. The email quota may limit emails without affecting the SMS already processed. This cannot be undone.'))return;
  batchSending=true;batchStop=false;$('bulkSendStop').hidden=false;updateBatchSend();
- let emailAccepted=0,smsAccepted=0,skipped=0,failed=0;const errors=[];
+ let emailAccepted=0,smsAccepted=0,skipped=0,failed=0,emailFailed=0,smsFailed=0;const errors=[];
  for(let i=0;i<jobs.length;i++){
   if(batchStop)break;
   const {r,channel}=jobs[i];
@@ -934,8 +935,9 @@ $('bulkSendNow').onclick=async()=>{
    if(channel==='email'){emailAccepted++;r.email_invite_sent_at=new Date().toISOString();r.approved_for_invitation=false;}
    else{smsAccepted++;lastSmsByContact.set(r.id,{status:'submitted',sent_at:new Date().toISOString()});}
   }catch(e){
-   failed++;errors.push('#'+r.id+' '+channel+': '+String(e.message||e).slice(0,110));
-   if(failed>=3){batchStop=true;break;}
+   failed++;if(channel==='email')emailFailed++;else smsFailed++;
+   errors.push('#'+r.id+' '+channel+': '+String(e.message||e).slice(0,110));
+   if((channel==='email'&&emailFailed>=3)||(channel==='sms'&&smsFailed>=3)){batchStop=true;break;}
   }
  }
  const stopped=batchStop;batchSending=false;$('bulkSendStop').hidden=true;
@@ -943,7 +945,7 @@ $('bulkSendNow').onclick=async()=>{
   for(const r of items){if(r.email_invite_sent_at||lastSmsByContact.has(r.id))chosen.delete(r.id);}
   $('excludeInvited').checked=true;
   $('excludeRegistered').checked=true;
- $('bulkSendResult').textContent=(stopped?'Batch stopped. ':'Batch finished. ')+emailAccepted+' emails accepted · '+smsAccepted+' SMS accepted · '+skipped+' skipped · '+failed+' errors.'+
+ $('bulkSendResult').textContent=(stopped?'Batch stopped. ':'Batch finished. ')+emailAccepted+' emails accepted · '+smsAccepted+' SMS accepted · '+skipped+' skipped · '+emailFailed+' email errors · '+smsFailed+' SMS errors.'+
   (errors.length?' '+errors.slice(0,3).join(' | '):'')+' Acceptance is not delivery. Check provider history before retrying errors.';
  try{await showRecentInvitationSuccess({announce:false});
    const success=$('bulkSuccessButton');
