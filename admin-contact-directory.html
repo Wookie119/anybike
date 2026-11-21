@@ -228,9 +228,16 @@
    <label><input type="checkbox" id="bulkSendSms"> SMS — authorised UK mobile contacts</label>
   </div>
   <div class="row" style="align-items:center;gap:9px;flex-wrap:wrap">
+   <button type="button" id="bulkPreviewExact">Preview actual email and SMS</button>
    <button type="button" id="bulkSendNow" disabled style="background:#ed1c24;color:#fff;font-weight:700">Send selected batch</button>
    <button type="button" id="bulkSendStop" hidden>Stop after current message</button>
    <span id="bulkSendCount" role="status" style="font-size:13px;color:#ccc">Choose a channel for the eligible recipient count.</span>
+  </div>
+  <div id="bulkExactPreview" hidden style="border:1px solid #555;border-radius:8px;padding:12px;margin:10px 0">
+   <strong>Actual sending-service templates — no messages sent</strong>
+   <p id="bulkExactPreviewDetails" role="status" style="font-size:13px;color:#ddd"></p>
+   <section id="bulkExactEmailSection" hidden><h4>Email, including red button</h4><p id="bulkExactEmailSubject" style="font-size:13px"></p><iframe id="bulkExactEmailFrame" title="Actual HTML email template preview" sandbox="" style="border:1px solid #aaa;background:white;width:100%;height:440px;border-radius:5px"></iframe></section>
+   <section id="bulkExactSmsSection" hidden><h4>Exact SMS text</h4><pre id="bulkExactSmsText" style="white-space:pre-wrap;overflow-wrap:anywhere;background:white;color:#222;padding:12px;border-radius:5px"></pre></section>
   </div>
   <p id="bulkSendResult" role="status" style="font-size:13px;color:#ddd;margin:8px 0">Nothing sent. Choose email and/or SMS, select up to 100 contacts, confirm authorisation and send. Previously invited and registered users are excluded.</p>
  </div>
@@ -642,6 +649,7 @@ function render(){
  $('next').disabled=page>=totalPages-1;
 }
 ['q','dealerSearch','tagSearch','postcodeSearch'].forEach(id=>$(id).oninput=()=>{page=0;render()});$('hideUnknown').onchange=()=>{page=0;render()};$('onlyMobile').onchange=()=>{page=0;render()};$('onlyCompany').onchange=()=>{page=0;render()};['tradeContactFilter','excludeInvited','excludeRegistered'].forEach(id=>$(id).onchange=()=>{page=0;render()});$('cardPageSize').onchange=()=>{$('pageSize').value=$('cardPageSize').value;page=0;render()};$('invitationAudience').onchange=()=>{
+ $('bulkExactPreview').hidden=true;
  $('bulkPermissionPanel').hidden=true;
  closeBulkPreviewPanel();
  updateBulkContactReview();
@@ -668,8 +676,38 @@ function updateBatchSend(){
  $('bulkSendCount').textContent=selected.length+' contacts selected · '+nEmail+' eligible emails · '+nSms+' eligible SMS · maximum 100';
  $('bulkSendNow').disabled=batchSending||!selected.length||selected.length>100||!(nEmail+nSms);
 }
-['bulkSendEmail','bulkSendSms'].forEach(id=>$(id).addEventListener('change',updateBulkContactReview));
+['bulkSendEmail','bulkSendSms'].forEach(id=>$(id).addEventListener('change',()=>{$('bulkExactPreview').hidden=true;updateBulkContactReview();}));
 $('bulkSendStop').onclick=()=>{batchStop=true;$('bulkSendResult').textContent='Stop requested. Current submission may finish; no further contacts will be submitted.';};
+$('bulkPreviewExact').onclick=async()=>{
+ const type=$('invitationAudience').value,wantsEmail=$('bulkSendEmail').checked,wantsSms=$('bulkSendSms').checked;
+ const panel=$('bulkExactPreview'),details=$('bulkExactPreviewDetails'),button=$('bulkPreviewExact');
+ panel.hidden=false;
+ $('bulkExactEmailSection').hidden=true;$('bulkExactSmsSection').hidden=true;
+ if(!wantsEmail&&!wantsSms){details.textContent='Tick Email and/or SMS above to preview the actual message. Nothing sent.';return;}
+ button.disabled=true;details.textContent='Reading the actual sending-service templates. No messages sent…';
+ const failures=[];
+ try{
+  if(wantsEmail){
+   const {data,error}=await db.functions.invoke('anybike-send-contact-invitation-email',{body:{action:'preview',invitation_type:type}});
+   if(error||!data?.success||!data.html)throw Error('Email template unavailable: '+(data?.error||error?.message||'Empty response'));
+   const html=data.html.replace('cid:anybike-invitation-logo',data.logo_preview_url||'https://www.anybike.co.uk/anybike-logo-new.jpg');
+   $('bulkExactEmailFrame').srcdoc=html;
+   $('bulkExactEmailSubject').textContent='Subject: '+data.subject;
+   $('bulkExactEmailSection').hidden=false;
+  }
+ }catch(e){failures.push('Email: '+e.message);}
+ try{
+  if(wantsSms){
+   const {data,error}=await db.functions.invoke('anybike-send-dealer-invitation-sms',{body:{action:'preview',invitation_type:type}});
+   if(error||!data?.success||!data.text)throw Error('SMS template unavailable: '+(data?.error||error?.message||'Empty response'));
+   $('bulkExactSmsText').textContent=data.text;
+   $('bulkExactSmsSection').hidden=false;
+  }
+ }catch(e){failures.push('SMS: '+e.message);}
+ details.textContent=failures.length?'Unable to verify all chosen messages: '+failures.join(' | '):
+  'These messages come from the same server-side templates as the real sends. Each email may use the contact’s first name in its greeting. Logo is attached inside delivered emails; preview loads the same official image. Nothing sent.';
+ button.disabled=false;
+};
 $('bulkSendNow').onclick=async()=>{
  if(batchSending)return;
  const {selected,email,sms}=eligibleBatchRecipients();
