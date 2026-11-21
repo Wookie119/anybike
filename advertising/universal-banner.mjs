@@ -263,15 +263,15 @@ function adoptLegacyMove(ad){
    outer.dataset.anybikeAdAuthorized='1';
    // Existing house placements also follow the approved contained banner size.
    // No individual homepage/dealer page styling or artwork edits.
-   outer.style.setProperty('width','min(960px, calc(100% - 28px))','important');
-   outer.style.setProperty('max-width','960px','important');
+   outer.style.setProperty('width','min(1200px, calc(100% - 28px))','important');
+   outer.style.setProperty('max-width','1200px','important');
    outer.style.setProperty('margin-left','auto','important');
    outer.style.setProperty('margin-right','auto','important');
    outer.style.setProperty('box-sizing','border-box','important');
   }
   link.dataset.adSlotCode=templateAdSlotCode(ad)+(anchors.length>1?'-'+String(index+1).padStart(2,'0'):'');
   link.dataset.adCampaignId=ad.id;
-  link.style.cssText='display:block;width:100%;max-width:960px;height:auto;min-width:0;margin-left:auto;margin-right:auto;border-radius:12px;overflow:hidden;background:#101010;text-decoration:none';
+  link.style.cssText='display:block;width:100%;max-width:1200px;height:auto;min-width:0;margin-left:auto;margin-right:auto;border-radius:12px;overflow:hidden;background:#101010;text-decoration:none';
   const picture=link.querySelector('picture');
   if(picture){picture.style.cssText='display:block;width:100%;height:auto;min-width:0;overflow:hidden;border-radius:12px';
    // Older dashboard CSS forced fixed mobile picture ratios. The approved
@@ -455,9 +455,9 @@ function installMoveHouse(ad){
  }
  // Central desktop banner size for ALL non-stock campaigns.
  // The approved Available Stock grid card bypasses this entire block.
- // 960px means room for more advertisers without making the banners dominate.
+ // Keep the approved full content width; two companion ads divide that width 50/50.
  // Preserve intrinsic image ratio; never crop, stretch or enlarge the artwork.
- card.style.setProperty('max-width','960px','important');
+ card.style.setProperty('max-width','1200px','important');
  card.style.setProperty('width','100%','important');
  card.style.setProperty('min-width','0','important');
  card.style.setProperty('margin-left','auto','important');
