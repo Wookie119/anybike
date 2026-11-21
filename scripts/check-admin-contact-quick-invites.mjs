@@ -17,8 +17,8 @@ assert(page.includes("function mountInlineInviteActions(id)"),
  'Invite must expand email/SMS controls beside the selected table row');
 assert(page.includes("btn.closest('tr').after(tr)"),
  'Inline invitation controls must appear immediately below the contact');
-assert(page.includes("activeInlineInviteId=id;chosen.clear();chosen.add(id);render();"),
- 'Inviting a row must select only that contact');
+assert(page.includes("activeInlineInviteId=id;render();"),
+ 'Opening an inline invitation must preserve other contact ticks');
 assert(page.includes("reviewSingleQuickInvite(button.dataset.inlineChannel,{inline:true})"),
  'Inline controls must reuse the existing guarded invitation review');
 assert(page.includes("target.replaceChildren(preview)"),
@@ -26,8 +26,8 @@ assert(page.includes("target.replaceChildren(preview)"),
 assert(page.includes("const smsOk=/^07\\d{9}$/.test(String(r.phone||'').replace(/\\s/g,''))"),
  'Inline SMS must only be available for a valid UK 07 mobile');
 
-assert(page.includes('chosen.clear();chosen.add(id);render();'),
- 'Clicking Invite must focus exactly one contact without sending anything');
+assert(page.includes("if(activeCardInviteId!==id){activeCardInviteId=id;render();}"),
+ 'Opening a contact-card review must preserve other contact ticks');
 assert(page.includes('if(selected.length!==1)'),
  'Quick invitations must never accidentally include another selected contact');
 assert(page.includes('if(!r.approved_for_invitation)'),
@@ -158,6 +158,10 @@ assert(page.includes("chosen.has(r.id)&&/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test"),
 assert(!page.includes('bulkSendSelected'),
  'Multiple contact review must not introduce an automatic bulk sender');
 
+assert(page.includes("const selected=items.filter(r=>contactId!==null?r.id===contactId:chosen.has(r.id))"),'One-contact review must leave other selected contacts untouched');
+assert(page.includes("await reviewInvitations({channel,onlyContactId:contactId})"),'One-contact review must only prepare that recipient');
+assert(page.includes("chosen.delete(id);queue=queue.filter(r=>r.id!==id);smsQueue=smsQueue.filter(r=>r.id!==id)"),'Skip must remove only the skipped contact');
+assert(page.includes("updateQuickInviteSelection();updateBulkContactReview()"),'Skip must update selected counts without clearing ticks');
 assert(page.includes('id="bulkReviewContacts" disabled'),
  'Selected contacts need a visible review action even when none are approved');
 assert(page.includes("$('bulkReviewContacts').onclick=()=>"),
