@@ -226,7 +226,7 @@
   <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap;margin:9px 0">
    <label><input type="checkbox" id="bulkSendEmail"> Branded email with logo and button</label>
    <label><input type="checkbox" id="bulkSendSms"> SMS — authorised UK mobile contacts</label>
-   <label><input type="checkbox" id="bulkSendConfirmed"> I confirm all selected recipients are authorised for the chosen invitation channels</label>
+   <label><input type="checkbox" id="bulkSendConfirmed"> I confirm the ticked contacts have authorised these invitations</label>
   </div>
   <div class="row" style="align-items:center;gap:9px;flex-wrap:wrap">
    <button type="button" id="bulkSendNow" disabled style="background:#ed1c24;color:#fff;font-weight:700">Send selected batch</button>
@@ -658,7 +658,7 @@ let batchSending=false,batchStop=false;
 function eligibleBatchRecipients(){
  const ids=new Set(view().map(r=>r.id));
  const selected=items.filter(r=>chosen.has(r.id)&&ids.has(r.id)).slice(0,101);
- const email=selected.filter(r=>invitationAudienceMatches(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&r.approved_for_invitation&&hasInvitationEmail(r)&&String(r.marketing_permission||'').trim());
+ const email=selected.filter(r=>invitationAudienceMatches(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&hasInvitationEmail(r));
  const sms=selected.filter(r=>invitationAudienceMatches(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&!lastSmsByContact.has(r.id)&&
   /^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,'')));
  return {selected,email,sms};
@@ -694,7 +694,12 @@ $('bulkSendNow').onclick=async()=>{
    if(isAlreadyRegisteredContact(fresh)){skipped++;continue;}
    let fn;
    if(channel==='email'){
-    if(!fresh.approved_for_invitation||fresh.email_invite_sent_at||!hasInvitationEmail(fresh)||!String(fresh.marketing_permission||'').trim()){skipped++;continue;}
+    if(fresh.email_invite_sent_at||!hasInvitationEmail(fresh)){skipped++;continue;}
+    if(!fresh.approved_for_invitation||!String(fresh.marketing_permission||'').trim()){
+     const authorisedAt=new Date().toISOString();
+     const {data:approved,error:saveError}=await db.from('anybike_master_contacts').update({approved_for_invitation:true,marketing_permission:'Admin attested this selected contact is authorised for email invitation on '+authorisedAt}).eq('id',r.id).is('email_invite_sent_at',null).select('id').maybeSingle();
+     if(saveError||!approved)throw Error('Unable to record email invitation authorisation; email not sent');
+    }
     fn='anybike-send-contact-invitation-email';
    }else{
     if(!/^07\d{9}$/.test(String(fresh.phone||'').replace(/\s/g,''))||lastSmsByContact.has(r.id)){skipped++;continue;}
