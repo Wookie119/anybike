@@ -404,16 +404,16 @@ function renderContactCards(shown){
     '<div class="dealer-contact-meta">'+
      '<div><span>Email</span><strong>'+esc(email||'Not supplied')+'</strong></div>'+
      '<div><span>'+ (smsOK?'Mobile for SMS':'Telephone / mobile') +'</span><strong>'+esc(r.phone||'Not supplied')+'</strong>'+ (smsOK?'<small class="dealer-mobile-ready">UK mobile number found</small>':'<small class="dealer-mobile-note">No valid UK 07 mobile recorded</small>')+
- (smsOK&&!registered?'<label class="dealer-sms-approval"><input type="checkbox" data-approve-sms="'+id+'" '+(consent?'checked':'')+'> Approved for invitation</label>':'')+'</div>'+
+ (smsOK&&!registered?'<label class="dealer-sms-approval"><input type="checkbox" data-approve-sms="'+id+'" '+(consent?'checked':'')+'> Approve invitation (does not send SMS)</label>':'')+'</div>'+
      '<div><span>Last invitation</span><strong>'+esc(contactDate(r))+'</strong></div>'+
      '<div><span>Invitation permission</span><strong>'+esc(consent?'Approved':'Not approved')+'</strong></div>'+
     '</div><div class="dealer-contact-actions">'+
      '<button type="button" data-card-channel="both"'+(registered?' disabled':'')+'>'+(consent?'Review':'Review permission')+'</button>'+
      '<button type="button" data-card-channel="email"'+(prohibited||!emailOK?' disabled title="Approved permission and valid email required"':'')+'>Email invitation</button>'+
-     '<button type="button" data-card-channel="sms"'+(prohibited||!smsOK?' disabled title="'+(registered?'Already registered':!smsOK?'No valid UK 07 mobile recorded':'Review and approve invitation permission first')+'"':'')+'>SMS invitation</button>'+
+     '<button type="button" data-card-channel="sms"'+(prohibited||!smsOK?' disabled title="'+(registered?'Already registered':!smsOK?'No valid UK 07 mobile recorded':'Review and approve invitation permission first; approval does not send SMS')+'"':'')+'>SMS invitation</button>'+
      '<button type="button" data-card-edit="'+id+'">Edit contact</button>'+
     '</div><p class="dealer-contact-feedback" role="status">'+
-     (recentlySavedContactId===id?'✓ Saved successfully. Contact updated.':active?'Select Review, Email or SMS; a chargeable SMS still requires confirmation.':registered?'This contact is registered. Use Onboarding instead of sending a recruitment invitation.':!consent?(smsOK?'Mobile number is ready. Review invitation permission to enable SMS.':'Permission must be reviewed before an invitation can be prepared.'):already?'Previous invitation recorded. Check history before contacting again.':'Choose Email or SMS to preview. Nothing has been sent.')+
+     (recentlySavedContactId===id?'✓ Saved successfully. Contact updated.':active?'Select Review, Email or SMS; a chargeable SMS still requires confirmation.':registered?'This contact is registered. Use Onboarding instead of sending a recruitment invitation.':!consent?(smsOK?'Mobile number is ready. Review invitation permission to enable SMS.':'Permission must be reviewed before an invitation can be prepared.'):already?'Previous invitation recorded. Check history before contacting again.':smsOK?'Approval saved. Click SMS invitation to prepare the message, then confirm Send SMS from AnyBike in the preview.':'Choose Email invitation to prepare a draft. Nothing has been sent.')+
     '</p><div class="dealer-contact-preview"></div></article>';
  }).join(''):'<p style="padding:20px;border:1px solid #555;border-radius:10px;color:#ddd">No contacts match the current search. Try a different dealership, town or postcode.</p>';
  if(existing){
@@ -454,6 +454,8 @@ function renderContactCards(shown){
   Object.assign(record,data);
   recentlySavedContactId=id;
   render();
+  const feedback=$('contactCards')?.querySelector('[data-card-id="'+id+'"] .dealer-contact-feedback');
+  if(feedback)feedback.textContent=approved?'Approval saved — no SMS sent. Next: click SMS invitation on this card to review the text, then choose Send SMS from AnyBike and confirm.':'Invitation approval removed. No SMS sent.';
  });
  host.querySelectorAll('[data-card-select]').forEach(input=>input.onchange=()=>{
   const id=Number(input.dataset.cardSelect);
@@ -820,6 +822,7 @@ async function reviewSingleQuickInvite(channel='both',{inline=false,card=false,c
   status.textContent='This contact has no verified email address for a dealer invitation.';return;
  }
  if(channel==='sms'){
+  // Only preview here; direct provider submission requires the explicit Send SMS action and confirmation.
   const number=String(r.phone||'').replace(/\s/g,'');
   if(!/^07\d{9}$/.test(number)){status.textContent='A valid UK 07 mobile number is required for SMS.';return;}
   if(contactLastSent(r)&&!confirm('An invitation is already recorded for this contact. Review the history before preparing another SMS?'))return;
