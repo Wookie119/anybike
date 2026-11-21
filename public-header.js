@@ -3182,5 +3182,22 @@ async function anybikeShowPublicSignedInIdentity(){
  }
 })();
 
+/* Hold legacy embedded Move artwork behind the same Admin campaign gate.
+ * Existing page positions are preserved; only an authorised advert is visible.
+ */
+(function(){
+ if(document.getElementById('anybike-legacy-ad-control-style'))return;
+ const style=document.createElement('style');
+ style.id='anybike-legacy-ad-control-style';
+ style.textContent=[
+  'a[href*="movemotorcycles.co.uk"]:has(img):not([data-anybike-ad-authorized]){display:none!important}',
+  'a[href*="movemotorcycles.co.uk"]:has(picture):not([data-anybike-ad-authorized]){display:none!important}',
+  'section#moveMotorcyclesAdvert:not([data-anybike-ad-authorized]),',
+  'aside.move-dealer-promo:not([data-anybike-ad-authorized]),',
+  'aside[aria-label*="Move Motorcycles"]:not([data-anybike-ad-authorized]),',
+  'section[aria-label*="Move Motorcycles"]:not([data-anybike-ad-authorized]){display:none!important}'
+ ].join('');
+ document.head.appendChild(style);
+})();
 /* Shared UK-facing Move advert, available to guests and signed-in customers. */
 (function(){const path=location.pathname;if(/^\/(?:admin(?:-|\/)|markets\/|international-)/i.test(path))return;const start=()=>{if(document.getElementById('databaseHeroPhoto')&&document.getElementById('v2FormSubmit'))return;import('/advertising/universal-banner.mjs?v=20261122-edge-to-edge5').then(m=>m.renderMoveHouseOnUkPage()).catch(()=>{})};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start()})();
