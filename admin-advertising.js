@@ -155,11 +155,11 @@ function renderCoverage(){const list=matchingCoverage();$('coveragerows').replac
 modelPage=paginate(list,modelPage,'modelprev','modelnext','modelpage',n=>{modelPage=n;renderCoverage()});for(const r of list.slice(modelPage*pageSize,(modelPage+1)*pageSize)){const check=el('input');check.type='checkbox';check.checked=selectedModels.has(r.model_id);check.setAttribute('aria-label','Select '+r.manufacturer+' '+r.model);check.onchange=()=>{if(check.checked)selectedModels.add(r.model_id);else selectedModels.delete(r.model_id);$('selectedcoverage').textContent=selectedModels.size+' selected'};const assigned=campaigns.find(c=>c.id===r.assigned_campaign_id);const label=(r.campaign_name||assigned?.name||'')+(r.campaign_name||assigned?' · ':'')+(coverageLabels[r.coverage_status]||r.coverage_status);const model=el('a',r.model);model.href='/motorcycle-v2-master.html?make='+encodeURIComponent(r.manufacturer)+'&model='+encodeURIComponent(r.model);model.target='_blank';model.rel='noopener';row($('coveragerows'),[check,r.manufacturer,model,label,r.impressions,r.clicks,r.conversions])}}
 async function loadCoverage(){const out=[];for(let offset=0;;offset+=500){const {data,error}=await db.rpc('admin_model_advertising_coverage_v2').range(offset,offset+499);if(error)throw error;out.push(...(data||[]));if(!data||data.length<500)break}coverage=out;renderCoverage();renderMegaHealth()}
 async function changeCoverage(action){const ids=[...selectedModels];if(!ids.length)throw Error('Select at least one model page');const campaign=$('coveragecampaign').value;if(action==='assign'&&!campaign)throw Error('Choose a campaign');if(!window.confirm((action==='assign'?'Assign campaign to':action==='exclude'?'Exclude':'Restore automatic targeting for')+' '+ids.length+' selected model pages?'))return;let done=0;try{for(let i=0;i<ids.length;i+=100){const batch=ids.slice(i,i+100);const q=action==='reset'?db.from('advertising_model_overrides').delete().eq('placement','below_hero').in('catalogue_model_id',batch):db.from('advertising_model_overrides').upsert(batch.map(id=>({catalogue_model_id:id,placement:'below_hero',campaign_id:action==='assign'?campaign:null,suppressed:action==='exclude',updated_at:new Date().toISOString()})),{onConflict:'catalogue_model_id,placement'});const {error}=await q;if(error)throw error;done+=batch.length;for(const id of batch)selectedModels.delete(id)}await loadCoverage();status(done+' model pages updated')}catch(e){await loadCoverage();throw Error(done+' pages updated before error: '+(e.message||e))}}
-let pages=[];const selectedPages=new Set();function matchingPages(){const q=$('pagequery').value.trim().toLowerCase(),c=$('pagecategory').value,f=$('pagefilter').value;return pages.filter(p=>{
+let pages=[];const selectedPages=new Set();function matchingPages(){const q=$('pagequery').value.trim().toLowerCase(),c=$('pagecategory').value,f=$('pagefilter').value,d=$('pagedelivery')?.value||'';return pages.filter(p=>{
  const aliases=p.page_path==='/motorcycle-brand.html'?' suzuki brand manufacturer':
  p.page_path==='/motorcycle-v2-master.html'?' suzuki burgman 650 universal model template':
  p.page_path==='/motorcycle-model-guide.html'?' model guide suzuki burgman 650':'';
- return (p.page_path.toLowerCase()+aliases).includes(q)&&(!c||c===p.page_category)&&(!f||f===p.coverage_status);
+ return (p.page_path.toLowerCase()+aliases).includes(q)&&(!c||c===p.page_category)&&(!f||f===p.coverage_status)&&(!d||(d==='observed_any_7d'?Number(p.impressions_7d)>0&&p.placement_enabled&&!p.excluded&&Number(p.campaign_count)>0:d===p.observed_delivery_status));
 })}function renderPairedHousePreview(){
  const root=$('pairedHousePreview'),report=$('pairedHousePreviewStatus');if(!root||!report)return;
  root.replaceChildren();
@@ -192,6 +192,10 @@ function renderMegaHealth(){
  const missing=enabled.filter(p=>!Number(p.campaign_count));
  const observed=campaignReady.filter(p=>Number(p.impressions_24h)>0);
  const unverified=campaignReady.filter(p=>!Number(p.impressions_24h));
+ const observed7=campaignReady.filter(p=>Number(p.impressions_7d)>0);
+ const unseen7=campaignReady.filter(p=>!Number(p.impressions_7d));
+ const total7=pages.reduce((n,p)=>n+Number(p.impressions_7d||0),0);
+ const clicks7=pages.reduce((n,p)=>n+Number(p.clicks_7d||0),0);
  const excluded=pages.filter(p=>p.excluded);
  const disabled=pages.filter(p=>!p.placement_enabled&&!p.excluded);
  const totals=el('div');totals.className='mega-health-grid';
@@ -201,7 +205,11 @@ function renderMegaHealth(){
   [campaignReady.length,'With eligible campaigns'],
   [observed.length,'Impressions within 24h'],
   [missing.length,'Enabled without campaign'],
-  [unverified.length,'Awaiting delivery evidence'],
+  [unverified.length,'No impressions in 24h'],
+  [observed7.length,'Locations seen in 7d'],
+  [unseen7.length,'Not observed in 7d'],
+  [total7,'Impressions in 7d'],
+  [clicks7,'Clicks in 7d'],
   [disabled.length,'Disabled locations'],
   [excluded.length,'Excluded locations']
  ]){
@@ -210,7 +218,7 @@ function renderMegaHealth(){
   cell.append(strong,el('span',label));totals.append(cell);
  }
  root.append(totals);
- const note=el('p','A tick enables a location only. An eligible campaign is required before an advert can display. Recorded impressions confirm delivery, but zero impressions may simply mean no visitor saw that slot. All statuses use Supabase data, not a claim that a page was browser-tested.');
+ const note=el('p','A tick enables a location only. An eligible campaign is required to display an advert. Impressions confirm recorded views of a slot; zero views do not prove a failure. Seven-day figures are event totals, not unique visitors. This is Supabase reporting, not automated browser verification.');
  note.style.cssText='font-size:12px;color:#bbb;line-height:1.5;margin:9px 0';
  root.append(note);
  const model=el('p',coverage.length?
@@ -231,6 +239,13 @@ function renderMegaHealth(){
  view('Show missing campaigns ('+missing.length+')','missing');
  view('Show configured placements ('+campaignReady.length+')','covered');
  view('Show disabled locations ('+disabled.length+')','not_connected');
+ const deliveryButton=(label,mode)=>{const b=button(label,()=>{
+  $('pagefilter').value='';$('pagequery').value='';$('pagecategory').value='';
+  $('pagedelivery').value=mode;pagePage=0;renderPages();
+  $('pagecount').scrollIntoView({behavior:'smooth',block:'start'});
+ });issues.append(b)};
+ deliveryButton('Viewed in last 7 days ('+observed7.length+')','observed_any_7d');
+ deliveryButton('No views in last 7 days ('+unseen7.length+')','not_observed_7d');
  root.append(issues);
  const concerns=missing.slice(0,10);
  if(concerns.length){
@@ -320,7 +335,9 @@ market.onchange=run(async()=>{
 const health=el('span',p.delivery_diagnostic||'Not checked');
 health.title=p.last_impression_at?'Last recorded impression: '+new Date(p.last_impression_at).toLocaleString('en-GB'):'No recorded impression is not proof the advert failed; confirm via a real browser check.';
 health.style.cssText='font-size:12px;white-space:normal;min-width:160px;display:block;color:'+(p.impressions_24h>0?'#a7e9b5':'#d9d2bf');
-row($('pagerows'),[check,display,a,code,p.page_category,p.coverage_status.replaceAll('_',' '),health,locationSelect,sizeSelect,market,paired,partner])}}async function loadPages(){const {data,error}=await db.from('admin_advertising_page_inventory_v1').select('*').order('page_path');if(error)throw error;pages=data||[];renderPages();renderMegaHealth()}async function changePages(excluded){const ids=[...selectedPages];if(!ids.length)throw Error('Select pages first');if(!confirm((excluded?'Exclude ':'Restore ')+ids.length+' pages?'))return;let done=0;for(let i=0;i<ids.length;i+=50){const batch=ids.slice(i,i+50);const {error}=await db.from('advertising_page_inventory').update({excluded,updated_at:new Date().toISOString()}).in('page_path',batch);if(error){await loadPages();throw Error(done+' pages saved before error: '+error.message)}done+=batch.length;for(const p of batch)selectedPages.delete(p)}await loadPages();status(done+' pages updated')}async function changePlacement(enabled){const ids=[...selectedPages];if(!ids.length)throw Error('Select pages first');const supported=ids.filter(path=>{const p=pages.find(x=>x.page_path===path);const approvedAccounts=['/customer-dashboard.html','/my-selling.html','/my-dealership.html','/my-purchases.html'];return !!p&&(approvedAccounts.includes(path)||((/^(public|manufacturer_candidate|model)$/.test(p.page_category)||/^\/markets\/[a-z0-9-]+\.html$/i.test(path))&&!/^\/(?:admin-|customer-|my-|dealer-|shipper-|seller-|private-|underwrite|proforma|purchase-order|final-invoice)/.test(path)))});const targets=enabled?supported:ids;if(!targets.length)throw Error('Selected pages do not yet have a connected renderer');if(!confirm((enabled?'Enable ':'Disable ')+targets.length+' placements?'+(enabled&&ids.length!==targets.length?' Unsupported pages will be skipped.':'')))return;let done=0;for(let i=0;i<targets.length;i+=50){const batch=targets.slice(i,i+50);const {error}=await db.from('advertising_page_inventory').update({placement_enabled:enabled,updated_at:new Date().toISOString()}).in('page_path',batch);if(error){await loadPages();throw Error(done+' pages saved before error: '+error.message)}done+=batch.length;for(const p of batch)selectedPages.delete(p)}await loadPages();status(done+' placements updated; '+(ids.length-targets.length)+' skipped')}function initPages(){ $('pageenable').onclick=run(()=>changePlacement(true));$('pagedisable').onclick=run(()=>changePlacement(false));for(const id of ['pagequery','pagecategory','pagefilter'])$(id).addEventListener(id==='pagequery'?'input':'change',()=>{pagePage=0;renderPages()});$('pageload').onclick=run(loadPages);$('pageselect').onclick=()=>{for(const p of matchingPages())selectedPages.add(p.page_path);renderPages()};$('pageclear').onclick=()=>{selectedPages.clear();renderPages()};$('pageexclude').onclick=run(()=>changePages(true));$('pagerestore').onclick=run(()=>changePages(false))}
+const impressions=el('span',String(p.impressions_7d??0));impressions.title='Recorded impressions for this slot during the last seven days';
+const clicks=el('span',String(p.clicks_7d??0));clicks.title='Recorded clicks for this slot during the last seven days';
+row($('pagerows'),[check,display,a,code,p.page_category,p.coverage_status.replaceAll('_',' '),health,impressions,clicks,locationSelect,sizeSelect,market,paired,partner])}}async function loadPages(){const {data,error}=await db.from('admin_advertising_page_inventory_v1').select('*').order('page_path');if(error)throw error;pages=data||[];renderPages();renderMegaHealth()}async function changePages(excluded){const ids=[...selectedPages];if(!ids.length)throw Error('Select pages first');if(!confirm((excluded?'Exclude ':'Restore ')+ids.length+' pages?'))return;let done=0;for(let i=0;i<ids.length;i+=50){const batch=ids.slice(i,i+50);const {error}=await db.from('advertising_page_inventory').update({excluded,updated_at:new Date().toISOString()}).in('page_path',batch);if(error){await loadPages();throw Error(done+' pages saved before error: '+error.message)}done+=batch.length;for(const p of batch)selectedPages.delete(p)}await loadPages();status(done+' pages updated')}async function changePlacement(enabled){const ids=[...selectedPages];if(!ids.length)throw Error('Select pages first');const supported=ids.filter(path=>{const p=pages.find(x=>x.page_path===path);const approvedAccounts=['/customer-dashboard.html','/my-selling.html','/my-dealership.html','/my-purchases.html'];return !!p&&(approvedAccounts.includes(path)||((/^(public|manufacturer_candidate|model)$/.test(p.page_category)||/^\/markets\/[a-z0-9-]+\.html$/i.test(path))&&!/^\/(?:admin-|customer-|my-|dealer-|shipper-|seller-|private-|underwrite|proforma|purchase-order|final-invoice)/.test(path)))});const targets=enabled?supported:ids;if(!targets.length)throw Error('Selected pages do not yet have a connected renderer');if(!confirm((enabled?'Enable ':'Disable ')+targets.length+' placements?'+(enabled&&ids.length!==targets.length?' Unsupported pages will be skipped.':'')))return;let done=0;for(let i=0;i<targets.length;i+=50){const batch=targets.slice(i,i+50);const {error}=await db.from('advertising_page_inventory').update({placement_enabled:enabled,updated_at:new Date().toISOString()}).in('page_path',batch);if(error){await loadPages();throw Error(done+' pages saved before error: '+error.message)}done+=batch.length;for(const p of batch)selectedPages.delete(p)}await loadPages();status(done+' placements updated; '+(ids.length-targets.length)+' skipped')}function initPages(){ $('pageenable').onclick=run(()=>changePlacement(true));$('pagedisable').onclick=run(()=>changePlacement(false));for(const id of ['pagequery','pagecategory','pagefilter','pagedelivery'])$(id).addEventListener(id==='pagequery'?'input':'change',()=>{pagePage=0;renderPages()});$('pageload').onclick=run(loadPages);$('pageselect').onclick=()=>{for(const p of matchingPages())selectedPages.add(p.page_path);renderPages()};$('pageclear').onclick=()=>{selectedPages.clear();renderPages()};$('pageexclude').onclick=run(()=>changePages(true));$('pagerestore').onclick=run(()=>changePages(false))}
 function run(fn){return async e=>{e?.preventDefault();try{await fn()}catch(err){status(err.message||String(err))}}}function preview(){const v=values($('campaignform'),cf),root=$('campaignpreview');root.replaceChildren();for(const mobile of [false,true]){root.append(el('h3',mobile?'Mobile preview':'Desktop preview'));const card=el('div');card.className='preview';card.style.borderRadius='12px';card.style.overflow='hidden';if(mobile)card.style.maxWidth='360px';const text=el('div');text.append(el('strong',(v.headline_template||v.name||'').replaceAll('{{make}}','BMW').replaceAll('{{model}}','R 1300 GS')),el('p',v.subheading),el('span',v.cta_text),el('p',v.disclosure));card.append(text);const src=mobile?v.mobile_image_url:v.desktop_image_url;if(src&&/^https:\/\//i.test(src)){const img=el('img');img.src=src;img.alt=v.alt_text||'';img.style.borderRadius='10px';card.append(img)}root.append(card)}root.hidden=false}
 async function initQuotes(){
  const root=el('section');root.id='quotearea';$('adcontent').prepend(root);
