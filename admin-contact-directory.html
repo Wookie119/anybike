@@ -244,6 +244,7 @@
  <div id="bulkReviewResults" hidden>
   <div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">Individual invitation previews — not sent</h3><button type="button" id="closeBulkPreviews">Close previews (keep ticks)</button></div>
   <p id="bulkReviewSummary" role="status"></p>
+  <div class="row" style="align-items:center;flex-wrap:wrap;gap:8px"><button type="button" id="sendPrivateEmailTest" style="background:#333;border-color:#777">Send private invitation test to mocp@hotmail.co.uk</button><span id="emailTestStatus" role="status" style="font-size:12px;color:#bbb">Tests the real HTML email with the red button. No customer record is changed.</span></div>
   <p style="font-size:12px;color:#bbb;margin:6px 0 10px">Scroll inside the invitation list to review the next contact. The main page also scrolls normally.</p>
   <div id="bulkPreviewSlot" tabindex="0" role="region" aria-label="Scrollable invitation drafts"></div>
  </div>
@@ -341,7 +342,7 @@ function refreshBulkPreviewSummary(){
  const panel=$('bulkReviewResults'),summary=$('bulkReviewSummary');
  if(!panel||panel.hidden||!summary)return;
  const count=$('bulkPreviewSlot')?.querySelectorAll('[data-review-contact]').length||0;
- summary.textContent=count?count+' invitation draft'+(count===1?'':'s')+' still open. Nothing has been sent automatically. Open each Outlook draft individually, then confirm only after it appears in Sent Items.':'No invitation drafts remain open. Nothing has been sent automatically.';
+ summary.textContent=count?count+' invitation preview'+(count===1?'s':'')+' open. AnyBike sends emails directly with red buttons; only clicking Send email and confirming submits an invitation. Test email sends are independent.':'No invitation previews remain open.';
  if(count===0)closeBulkPreviewPanel();
 }
 function closeBulkPreviewPanel(){
@@ -688,6 +689,17 @@ $('saveBulkPermission').onclick=async()=>{
   $('bulkPermissionPanel').hidden=true;render();
   $('bulkSelectionStatus').textContent=updated+' contacts reviewed with recorded evidence. No invitations sent. Click Prepare approved email drafts to preview '+updated+' contacts.';
  }catch(error){status.textContent='Stopped after '+updated+' saved: '+error.message+' No invitations sent. Refresh before retrying.';}
+ finally{button.disabled=false;}
+};
+$('sendPrivateEmailTest').onclick=async()=>{
+ const button=$('sendPrivateEmailTest'),status=$('emailTestStatus');
+ if(!confirm('Send one PRIVATE motorcycle-selling invitation test to mocp@hotmail.co.uk from sales@anybike.co.uk now? No customer records will change.'))return;
+ button.disabled=true;status.textContent='Submitting test email…';
+ try{
+  const {data,error}=await db.functions.invoke('anybike-send-contact-invitation-email',{body:{action:'send_test',invitation_type:'private',confirm_send:true}});
+  if(error||!data?.success)throw Error(data?.error||error?.message||'Test not accepted');
+  status.textContent='Test accepted for '+data.recipient+'. Provider reference: '+data.message_id+'. Check Inbox and Junk. Delivery is not yet confirmed.';
+ }catch(e){status.textContent='Test not confirmed: '+e.message+'. Check provider history before retrying.';}
  finally{button.disabled=false;}
 };
 $('bulkReviewSelected').onclick=async()=>{
