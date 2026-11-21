@@ -270,6 +270,27 @@ function renderMegaHealth(){
    ' · AB-UK-STOCK-CARD · design, size and disclosure are shared across future advertiser creatives.');
   note.style.cssText='font-size:12px;color:#ddd;margin:12px 0 0';
   root.append(note);
+  const active=campaigns.filter(c=>c.status==='active'&&Array.isArray(c.countries)&&c.countries.includes('GB'));
+  const targeting=active.filter(c=>(!c.page_paths?.length||c.page_paths.includes(stock.page_path))&&
+    (!c.page_categories?.length||c.page_categories.includes('public')));
+  const ready=targeting.filter(c=>/^https:\/\//.test(c.stock_card_image_url||''));
+  const otherEvents=campaigns.filter(c=>c.status==='active'&&/Motorcycle Live|ABR Festival/i.test(c.name||''));
+  const readiness=el('div');
+  readiness.style.cssText='font-size:12px;line-height:1.6;color:#ddd;margin:10px 0 0;padding:12px;border:1px solid #444;border-radius:8px';
+  const heading=el('strong','Available Stock · approved 4:3 advert slot');
+  readiness.append(heading);
+  readiness.append(el('p',stock.rotation_enabled?
+   'Rotation enabled · every '+Number(stock.rotation_interval_minutes||30)+' minutes · '+ready.length+' campaign(s) with assigned stock-card artwork targeting this page.':
+   'Rotation disabled · currently uses the first eligible active campaign.'));
+  if(otherEvents.length){
+   const waiting=otherEvents.filter(c=>!c.stock_card_image_url||
+    !c.page_paths?.includes(stock.page_path));
+   if(waiting.length){
+    readiness.append(el('p','Additional event campaigns not yet ready for this stock slot: '+waiting.map(c=>c.name).join(' · ')+'. They remain on their existing assigned pages.'));
+   }
+  }
+  readiness.append(el('p','Stock-card creative files and eligibility must be confirmed before rotation can include another advertiser. Switching rotation never resizes the approved motorcycle-card position.'));
+  root.append(readiness);
  }
 }
 function renderPages(){const list=matchingPages();$('pagerows').replaceChildren();$('pagecount').textContent=pages.length+' inventoried · '+list.length+' matching · '+pages.filter(p=>p.coverage_status==='not_connected').length+' not connected';$('pageselected').textContent=selectedPages.size+' selected';pagePage=paginate(list,pagePage,'pageprev','pagenext','pagepage',n=>{pagePage=n;renderPages()});for(const p of list.slice(pagePage*pageSize,(pagePage+1)*pageSize)){const check=el('input');check.type='checkbox';check.checked=selectedPages.has(p.page_path);check.setAttribute('aria-label','Select row for bulk actions: '+p.page_path);check.title='Bulk actions only; does not control advert visibility';check.onchange=()=>{if(check.checked)selectedPages.add(p.page_path);else selectedPages.delete(p.page_path);$('pageselected').textContent=selectedPages.size+' selected'};const display=el('input');display.type='checkbox';display.checked=!!p.placement_enabled&&!p.excluded;
