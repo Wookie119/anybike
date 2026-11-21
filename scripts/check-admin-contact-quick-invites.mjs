@@ -389,6 +389,11 @@ assert(page.includes('The original 100 remain visible even after you untick them
 assert(page.includes('if(input.checked)chosen.add(id);else chosen.delete(id);'),'Unticking must remove the contact from the actual send selection');
 assert(page.includes('updateBulkContactReview();'),'Unticking must update email and SMS eligible counters');
 assert(page.includes("reviewBatchIds=[];"),'Clear selection must clear the persistent review checklist');
+assert(page.includes('id="bulkCheckSent"'),'Batch UI must offer a read-only provider submission results check');
+assert(page.includes('id="bulkSendResult" role="status" aria-live="polite"'),'Batch progress and results must have a prominent live status');
+assert(page.includes("select('status,contact_id,created_at').gte('created_at',since)"),'Email submission checker must query recorded provider attempts');
+assert(page.includes("select('status,contact_id,requested_at').gte('requested_at',since)"),'SMS submission checker must query recorded provider attempts');
+assert(page.includes('Acceptance is not delivery'), 'Batch outcomes must distinguish provider acceptance from actual delivery');
 const script=page.slice(page.lastIndexOf('<script>')+8,page.lastIndexOf('</script>'));
 assert.doesNotThrow(()=>new Function(script),'Admin invitation JavaScript syntax');
 console.log('PASS: single-contact review, email and SMS actions share the results area and retain send safeguards');
