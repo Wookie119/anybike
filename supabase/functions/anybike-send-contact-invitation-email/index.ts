@@ -11,13 +11,20 @@ function button(url:string,label:string){
 }
 function content(type:"dealer"|"private"|"both",name:string){
  const greeting=name&&name.length<35?"Hello "+esc(name)+",":"Hello,";
- const owner="<p>Do you have a motorcycle to sell? Private owners can submit their motorcycle to AnyBike <strong>for free</strong>, with no obligation to accept an offer.</p>"+button(urls.owner,"Sell your motorcycle free");
- const dealer="<p>Motorcycle dealers can register <strong>free</strong> to join the AnyBike UK trade network. Once approved, dealers can explore trade opportunities and make confidential offers.</p>"+button(urls.dealer,"Join AnyBike trade network");
- const intro=type==="both"?"<p>Whether you own a motorcycle or work in the motorcycle trade, AnyBike has something for you.</p>":"";
- const body=intro+(type==="both"?"<h2 style='font-size:18px'>For motorcycle owners</h2>"+owner+"<h2 style='font-size:18px'>For motorcycle dealers</h2>"+dealer:type==="private"?owner:dealer);
+ const privateBody="<p>Did you know you can sell your motorcycle through AnyBike for free?</p>"+
+  "<p>Whether you are thinking of changing bikes or simply want to see what offers are available, AnyBike gives private motorcycle owners a way to submit their motorcycle details for consideration by motorcycle trade buyers. Offers are not guaranteed, and you remain in control of whether to accept one.</p>"+
+  "<p>Find out how to sell your motorcycle for free:</p>"+button(urls.owner,"Sell your motorcycle free")+
+  "<p>There is no charge to submit your motorcycle to AnyBike.</p>";
+ const dealerBody="<p>We would like to invite your dealership to join AnyBike, a UK motorcycle trade network. Registered and approved dealers can explore suitable trade opportunities and submit confidential offers on motorcycles.</p>"+
+  "<p>You can learn more and register here:</p>"+button(urls.dealer,"Register with AnyBike")+
+  "<p>Registration is free. Access to restricted trade services is subject to AnyBike verification and approval.</p>";
+ const bothBody="<p>We would like to introduce you to AnyBike. Whether you own a motorcycle or work in the motorcycle trade, there is something here for you.</p>"+
+  "<h2 style='font-size:18px'>For motorcycle owners</h2><p>You can submit your motorcycle to AnyBike for sale completely free, with no obligation to accept an offer.</p>"+button(urls.owner,"Sell your motorcycle free")+
+  "<h2 style='font-size:18px'>For motorcycle dealers</h2><p>You can register free for the AnyBike UK motorcycle trade network. Once approved, you can explore trade opportunities and submit confidential offers.</p>"+button(urls.dealer,"Join AnyBike trade network");
+ const body=type==="both"?bothBody:type==="private"?privateBody:dealerBody;
  const subjects={dealer:"AnyBike invitation — UK motorcycle dealers",private:"AnyBike invitation — sell your motorcycle free",both:"AnyBike invitation — motorcycles for owners and dealers"};
  const plain="AnyBike invitation\n\n"+(type!=="dealer"?"Sell your motorcycle for free: "+urls.owner+"\n\n":"")+(type!=="private"?"Motorcycle dealers: register free for trade opportunities: "+urls.dealer+"\n\n":"")+"Kind regards,\nThe AnyBike Team";
- const html="<!doctype html><html><body style='background:#f1f1f1;padding:14px 8px;font-family:Arial,Helvetica,sans-serif;color:#202020'><table role='presentation' align='center' cellpadding='0' cellspacing='0' width='660' style='width:100%;max-width:660px;border-collapse:collapse;background:#ffffff;border-top:5px solid #ed1c24'><tr><td style='padding:24px 28px'><h1 style='font-size:24px;margin:0 0 20px;color:#111'>Any<span style='color:#ed1c24'>Bike</span> invitation</h1><p>"+greeting+"</p>"+body+"<p style='margin-top:24px'>Kind regards,<br>The AnyBike Team</p><p style='font-size:12px;color:#666;margin-top:24px'>AnyBike.co.uk</p></td></tr></table></body></html>";
+ const html="<!doctype html><html><body style='background:#f1f1f1;padding:14px 8px;font-family:Arial,Helvetica,sans-serif;color:#202020'><table role='presentation' align='center' cellpadding='0' cellspacing='0' width='660' style='width:100%;max-width:660px;border-collapse:collapse;background:#ffffff;border-top:5px solid #ed1c24'><tr><td style='padding:24px 28px'><h1 style='font-size:24px;margin:0 0 20px;color:#111'>Any<span style='color:#ed1c24'>Bike</span> invitation</h1><p>"+greeting+"</p>"+body+"<p style='margin-top:24px'>Kind regards,<br>The AnyBike Team</p><p style='font-size:12px;color:#666;margin-top:24px'>AnyBike.co.uk &middot; To stop receiving invitations, reply to sales@anybike.co.uk with 'unsubscribe'.</p></td></tr></table></body></html>";
  return {subject:subjects[type],html,plain};
 }
 Deno.serve(async req=>{
