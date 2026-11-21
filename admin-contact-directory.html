@@ -211,9 +211,19 @@
   <div class="bulk-review-buttons">
    <button type="button" id="bulkSelectVisible">Select 12 visible</button>
    <button type="button" id="bulkClearSelected">Clear selection</button>
-   <button type="button" id="bulkReviewContacts" disabled>Review selected contacts</button>
+   <button type="button" id="bulkReviewContacts" disabled>Bulk review selected</button>
    <button type="button" id="bulkReviewSelected" disabled>Prepare approved email drafts</button>
   </div>
+ </div>
+ <div id="bulkPermissionPanel" hidden style="border-top:1px solid #555;margin-top:12px;padding-top:12px">
+ <div class="row" style="align-items:center;justify-content:space-between;gap:8px"><strong>Bulk invitation permission review</strong><button type="button" id="closeBulkPermission">Close review (keep selections)</button></div>
+ <p id="bulkPermissionCount" role="status" style="color:#ddd;font-size:13px"></p>
+ <p style="color:#bbb;font-size:13px">Review this group together. A contact having a mobile number or email does not itself establish permission. Exclude private customers, sole traders and uncertain records unless you hold applicable opt-in evidence. No messages are sent here.</p>
+ <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap">
+ <label style="display:grid;gap:4px;min-width:290px">Basis applying to every selected recipient<select id="bulkPermissionBasis"><option value="">Choose verified permission basis</option><option value="documented_opt_in">Documented opt-in for email invitations</option><option value="verified_corporate">Verified corporate B2B email — eligibility reviewed</option></select></label>
+ <label style="display:grid;gap:4px;min-width:300px;flex:1">Evidence source / explanation (required)<input id="bulkPermissionEvidence" type="text" maxlength="240" placeholder="Opt-in source/date or verified corporate status" autocomplete="off"></label></div>
+ <label style="display:flex;align-items:start;gap:8px;margin:12px 0;font-size:13px"><input type="checkbox" id="bulkPermissionConfirmed" style="margin-top:3px"> I have confirmed this evidence applies to EVERY contact in the batch and checked the eligibility for email invitations.</label>
+ <div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" id="saveBulkPermission" class="primary">Save reviewed permission for selected contacts</button><span id="bulkPermissionStatus" role="status" style="font-size:13px"></span></div>
  </div>
  <div id="bulkReviewResults" hidden>
   <div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">Individual invitation previews — not sent</h3><button type="button" id="closeBulkPreviews">Close previews (keep ticks)</button></div>
@@ -320,7 +330,7 @@ function updateBulkContactReview(){
  $('bulkReviewSelected').disabled=!eligible.length;
  $('bulkReviewContacts').disabled=!selected.length;
  const pending=selected.filter(r=>!r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
- $('bulkReviewContacts').textContent=pending.length?'Review '+pending.length+' selected permissions':eligible.length?'Review '+eligible.length+' approved contacts':'Review selected contacts';
+ $('bulkReviewContacts').textContent=pending.length?'Bulk review '+pending.length+' selected permissions':eligible.length?'Review '+eligible.length+' approved contacts':'Bulk review selected';
  const visible=view().slice(page*pageSize(),page*pageSize()+pageSize());
  $('bulkSelectVisible').textContent='Select '+visible.length+' on this page';
 }
@@ -534,35 +544,40 @@ $('bulkClearSelected').onclick=()=>{
  closeBulkPreviewPanel();
  render();
 };
+function bulkPermissionCandidates(){
+ const matching=new Set(view().map(r=>r.id));
+ return items.filter(r=>chosen.has(r.id)&&matching.has(r.id)&&!r.approved_for_invitation&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&hasInvitationEmail(r));
+}
+$('closeBulkPermission').onclick=()=>{$('bulkPermissionPanel').hidden=true;};
 $('bulkReviewContacts').onclick=()=>{
- const candidates=view().filter(r=>chosen.has(r.id)&&!r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
- if(!candidates.length){
-  const approved=view().filter(r=>chosen.has(r.id)&&r.approved_for_invitation&&!isAlreadyRegisteredContact(r));
-  if(approved.length){$('bulkReviewSelected').click();return;}
-  $('bulkSelectionStatus').textContent='No selected contacts are currently eligible for an invitation. Registered dealers should use Onboarding.';
-  return;
- }
- const r=candidates[0];
- // If a selected contact is outside the current filter, make that contact
- // visible for the review rather than opening an editor with no matching card.
- let idx=view().findIndex(x=>x.id===r.id);
- if(idx<0){
-  cardQuickFilter='all';$('simpleContactQuery').value='';$('q').value='';
-  $('dealerSearch').value='';$('tagSearch').value='';$('postcodeSearch').value='';
-  $('recruitmentFilter').value='all';$('emailSentFilter').value='all';
-  $('hideUnknown').checked=false;$('onlyMobile').checked=false;$('onlyCompany').checked=false;$('tradeContactFilter').value='all';$('excludeInvited').checked=false;$('excludeRegistered').checked=false;
-  idx=view().findIndex(x=>x.id===r.id);
- }
- page=Math.max(0,Math.floor(idx/pageSize()));
- if($('directoryTable').hidden===false){
-  $('directoryTable').hidden=true;$('contactCards').hidden=false;
-  $('toggleDetailedColumns').textContent='Full directory table';
- }
- render();
- edit(r.id,{inCard:true});
- const card=$('contactCards').querySelector('[data-card-id="'+r.id+'"]');
- card?.scrollIntoView({behavior:'smooth',block:'nearest'});
- $('bulkSelectionStatus').textContent='Review '+(r.first_name||r.company||r.email)+', then save. Click Review selected contacts again for the next contact.';
+ const candidates=bulkPermissionCandidates();
+ if(!candidates.length){$('bulkSelectionStatus').textContent='No unapproved, uninvited, unregistered contacts with valid email remain selected. Check filters or prepare approved drafts.';return;}
+ $('bulkPermissionPanel').hidden=false;
+ $('bulkPermissionCount').textContent=candidates.length+' selected contacts eligible for group review. Previously invited, registered and unusable emails excluded.';
+ $('bulkPermissionBasis').value='';$('bulkPermissionEvidence').value='';$('bulkPermissionConfirmed').checked=false;
+ $('bulkPermissionStatus').textContent='Nothing has been approved or sent.';
+ $('bulkPermissionPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+};
+$('saveBulkPermission').onclick=async()=>{
+ const basis=$('bulkPermissionBasis').value,evidence=$('bulkPermissionEvidence').value.trim(),candidates=bulkPermissionCandidates(),status=$('bulkPermissionStatus');
+ if(!candidates.length){status.textContent='No eligible selected contacts remain.';return;}
+ if(candidates.length>100){status.textContent='Review up to 100 contacts per batch.';return;}
+ if(!['documented_opt_in','verified_corporate'].includes(basis)||evidence.length<12||!$('bulkPermissionConfirmed').checked){status.textContent='Select a verified basis, describe specific evidence (12+ characters), and tick confirmation.';return;}
+ if(basis==='verified_corporate'&&candidates.some(r=>!String(r.company||r.source_data?.Company||'').trim())){status.textContent='Corporate basis cannot be applied to contacts with no recorded company. Remove uncertain contacts or document their own opt-in.';return;}
+ if(!confirm('Approve invitation eligibility for '+candidates.length+' selected contacts using the recorded evidence? This sends no email or SMS.'))return;
+ const button=$('saveBulkPermission');button.disabled=true;status.textContent='Saving reviewed contacts…';let updated=0;
+ try{
+  const timestamp=new Date().toISOString(),note='Admin batch review '+timestamp+' | '+(basis==='documented_opt_in'?'Documented email opt-in':'Verified corporate B2B email')+' | '+evidence;
+  for(let offset=0;offset<candidates.length;offset+=25){
+   const batch=candidates.slice(offset,offset+25),ids=batch.map(r=>r.id);
+   const {data,error}=await db.from('anybike_master_contacts').update({approved_for_invitation:true,marketing_permission:note}).in('id',ids).eq('approved_for_invitation',false).is('email_invite_sent_at',null).select();
+   if(error||!data||data.length!==ids.length)throw Error('A batch could not be fully verified. '+(error?.message||'Refresh and review the remaining records.'));
+   const byId=new Map(data.map(r=>[r.id,r]));batch.forEach(r=>Object.assign(r,byId.get(r.id)));updated+=data.length;
+  }
+  $('bulkPermissionPanel').hidden=true;render();
+  $('bulkSelectionStatus').textContent=updated+' contacts reviewed with recorded evidence. No invitations sent. Prepare approved drafts when ready.';
+ }catch(error){status.textContent='Stopped after '+updated+' saved: '+error.message+' No invitations sent. Refresh before retrying.';}
+ finally{button.disabled=false;}
 };
 $('bulkReviewSelected').onclick=async()=>{
  const matchingIds=new Set(view().map(r=>r.id));const selected=items.filter(r=>chosen.has(r.id)&&matchingIds.has(r.id));
