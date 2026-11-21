@@ -28,6 +28,9 @@ function buildMoveHouseCard(ad,companion=false){
  const mobile=https(stock?ad.stock_card_image_url:(ad.compact_image_url||ad.mobile_image_url));
  if(!destination||!desktop||!mobile)return null;
  const card=node(stock?'article':'aside');
+ // The shared legacy-ad CSS checks the advert container as well as the link.
+ // This marker is assigned only after the campaign has passed the planner gate.
+ card.dataset.anybikeAdAuthorized='1';
  if(companion)card.dataset.anybikeCompanion='true';else card.id=moveHouseMarker;
  card.dataset.adPlacementKey=ad.placement_key;
  card.dataset.adCampaignId=ad.id;
