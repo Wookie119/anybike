@@ -379,11 +379,20 @@ function refreshBulkClassifyPanel(){
  panel.hidden=false;
  $('bulkClassifyCount').textContent=needs.length+' selected contacts need their type checked before AnyBike can choose a dealer or private invitation. Classification does not grant marketing permission.';
 }
+function canSelectForBatch(r){
+ if(!invitationAudienceMatches(r)||isAlreadyRegisteredContact(r)||contactLastSent(r))return false;
+ const emailEligible=hasInvitationEmail(r);
+ const smsEligible=/^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,''))&&
+  r.sms_invite_selected&&r.sms_permission_verified_at&&
+  String(r.sms_marketing_permission||'').trim().length>=12;
+ const emailSelected=$('bulkSendEmail').checked,smsSelected=$('bulkSendSms').checked;
+ return emailSelected||smsSelected?(emailSelected&&emailEligible)||(smsSelected&&smsEligible):emailEligible;
+}
 function select100UsableContacts(){
  const both=$('invitationAudience').value==='both';
  // "Both" first selects valid contacts for review, even where old imports
  // lack a dealer/private classification. It must never silently do nothing.
- const candidates=view().filter(r=>hasInvitationEmail(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&(both||invitationAudienceMatches(r)));
+ const candidates=view().filter(canSelectForBatch);
  const preserved=candidates.filter(r=>chosen.has(r.id)),extra=candidates.filter(r=>!chosen.has(r.id));
  const selected=[...preserved,...extra].slice(0,100),ids=selected.map(r=>r.id);
  if(!ids.length){
@@ -421,9 +430,9 @@ function updateBulkContactReview(){
  $('bulkReviewContacts').textContent=needsReview.length?'Review permission ('+needsReview.length+')':approved.length?'Permission already reviewed':'Review permission';
  $('bulkReviewContacts').disabled=!selected.length||(!unknown&&!needsReview.length);
  const both=$('invitationAudience').value==='both';
- const total=view().filter(r=>hasInvitationEmail(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&(both||invitationAudienceMatches(r))).length;
+ const total=view().filter(canSelectForBatch).length;
  const unclassified=0;
- const eligibleRecords=view().filter(r=>hasInvitationEmail(r)&&!isAlreadyRegisteredContact(r)&&!contactLastSent(r)&&(both||invitationAudienceMatches(r)));
+ const eligibleRecords=view().filter(canSelectForBatch);
  const batch=eligibleRecords.slice(0,100),allTicked=batch.length>0&&batch.every(r=>chosen.has(r.id));
  $('bulkSelectVisible').textContent=allTicked?'All '+batch.length+' matching selected':'Select '+Math.min(100,total)+' matching contacts';
  $('bulkSelectVisible').title=allTicked?'All '+batch.length+' available contacts are already ticked. Change filters or invitation type to see more; no messages sent.':total?'Select up to 100 eligible contacts for invitation review ('+total+' match your filters).':unclassified?'Select contacts needing dealer/private classification. No messages sent.':'No usable contacts match these filters.';
@@ -662,7 +671,8 @@ function updateBatchSend(){
  $('bulkSendCount').textContent=selected.length+' contacts selected · '+nEmail+' eligible emails · '+nSms+' eligible SMS · maximum 100';
  $('bulkSendNow').disabled=batchSending||!selected.length||selected.length>100||!(nEmail+nSms)||!$('bulkSendConfirmed').checked;
 }
-['bulkSendEmail','bulkSendSms','bulkSendConfirmed'].forEach(id=>$(id).addEventListener('change',updateBatchSend));
+['bulkSendEmail','bulkSendSms'].forEach(id=>$(id).addEventListener('change',updateBulkContactReview));
+$('bulkSendConfirmed').addEventListener('change',updateBatchSend);
 $('bulkSendStop').onclick=()=>{batchStop=true;$('bulkSendResult').textContent='Stop requested. Current submission may finish; no further contacts will be submitted.';};
 $('bulkSendNow').onclick=async()=>{
  if(batchSending)return;
