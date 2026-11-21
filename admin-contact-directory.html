@@ -249,6 +249,18 @@
    <section id="bulkExactEmailSection" hidden><h4>Email, including red button</h4><p id="bulkExactEmailSubject" style="font-size:13px"></p><iframe id="bulkExactEmailFrame" title="Actual HTML email template preview" sandbox="" style="border:1px solid #aaa;background:white;width:100%;height:440px;border-radius:5px"></iframe></section>
    <section id="bulkExactSmsSection" hidden><h4>Exact SMS text</h4><pre id="bulkExactSmsText" style="white-space:pre-wrap;overflow-wrap:anywhere;background:white;color:#222;padding:12px;border-radius:5px"></pre></section>
   </div>
+  <div id="secondBatchSmsRecovery" style="border:1px solid #555;border-radius:8px;padding:12px;margin:12px 0">
+   <strong>21 November · second batch SMS recovery</strong>
+   <p style="font-size:13px;color:#ccc;margin:7px 0">Recover only the SMS missing from the interrupted 13:38–13:41 batch. This does not resend emails or send anything until you confirm.</p>
+   <button type="button" id="loadSecondBatchSms">Find missing second-batch SMS</button>
+   <span id="secondBatchSmsStatus" role="status" style="font-size:13px;color:#ccc"></span>
+   <div id="secondBatchSmsReview" hidden>
+    <p style="font-size:13px">Untick anyone who should not receive a text. Previously submitted SMS numbers are excluded.</p>
+    <div id="secondBatchSmsList" style="max-height:320px;overflow:auto;border:1px solid #555;padding:8px"></div>
+    <button type="button" id="sendSecondBatchSms" style="margin-top:10px;background:#ed1c24;color:white;font-weight:700">Send missing SMS only</button>
+    <button type="button" id="stopSecondBatchSms" hidden>Stop SMS recovery</button>
+   </div>
+  </div>
   <p id="bulkSendResult" role="status" aria-live="polite" style="font-size:14px;font-weight:700;color:#fff;padding:10px;background:#292929;border-left:3px solid #ed1c24;margin:8px 0">Nothing sent. Choose email and/or SMS, select up to 100 contacts, confirm authorisation and send. Previously invited and registered users are excluded.</p>
  </div>
  <div id="bulkClassifyPanel" hidden aria-hidden="true" style="border-top:1px solid #555;margin-top:10px;padding-top:12px">
@@ -755,6 +767,83 @@ async function showRecentInvitationSuccess({announce=true}={}){
  render();
  return {emailCount,smsCount,outstanding,failed};
 }
+// One-off recovery for the interrupted second batch. Separate from ordinary
+// invitation selection because an accepted email must not hide an unsent SMS.
+let secondBatchSmsIds=[],secondBatchSmsBusy=false,secondBatchSmsStop=false;
+const secondBatchStart='2026-11-21T13:38:00+00:00',secondBatchEnd='2026-11-21T13:41:00+00:00';
+function secondBatchMobile(r){return String(r.phone||'').replace(/\\s/g,'');}
+function renderSecondBatchSms(){
+ const host=$('secondBatchSmsList');
+ host.innerHTML=secondBatchSmsIds.map(id=>{
+  const r=items.find(x=>x.id===id);if(!r)return '';
+  const name=[r.first_name,r.last_name].filter(Boolean).join(' ')||r.company||'Contact '+id;
+  return '<label style="display:flex;gap:8px;align-items:center;padding:7px;border-bottom:1px solid #333"><input type="checkbox" data-second-sms="'+Number(id)+'" checked> '+esc(name)+' · '+esc(secondBatchMobile(r))+'</label>';
+ }).join('');
+ $('secondBatchSmsReview').hidden=!secondBatchSmsIds.length;
+}
+$('loadSecondBatchSms').onclick=async()=>{
+ if(secondBatchSmsBusy)return;
+ const button=$('loadSecondBatchSms');button.disabled=true;
+ $('secondBatchSmsStatus').textContent='Checking second-batch email and SMS histories…';
+ try{
+  // Fetch the exact interrupted email batch, including the three email failures.
+  const {data:batch,error}=await db.from('anybike_contact_invitation_email_log')
+   .select('contact_id').gte('created_at',secondBatchStart).lt('created_at',secondBatchEnd).limit(150);
+  if(error)throw error;
+  await Promise.all([refreshContactSmsSummary(),refreshContactEmailSummary()]);
+  const ids=[...new Set((batch||[]).map(x=>Number(x.contact_id)).filter(Boolean))];
+  secondBatchSmsIds=ids.filter(id=>{
+   const r=items.find(x=>x.id===id);
+   return r&&/^07\\d{9}$/.test(secondBatchMobile(r))&&!lastSmsByContact.has(id)&&!isAlreadyRegisteredContact(r);
+  });
+  renderSecondBatchSms();
+  $('secondBatchSmsStatus').textContent=secondBatchSmsIds.length+' missing SMS candidates found from '+ids.length+' second-batch contacts. Review the list before sending. No messages sent.';
+ }catch(e){
+  secondBatchSmsIds=[];$('secondBatchSmsReview').hidden=true;
+  $('secondBatchSmsStatus').textContent='Unable to verify missing texts: '+e.message+'. Nothing sent.';
+ }finally{button.disabled=false;}
+};
+$('stopSecondBatchSms').onclick=()=>{secondBatchSmsStop=true;$('secondBatchSmsStatus').textContent='Stop requested; finishing current text only.';};
+$('sendSecondBatchSms').onclick=async()=>{
+ if(secondBatchSmsBusy||batchSending)return;
+ const checked=[...$('secondBatchSmsList').querySelectorAll('[data-second-sms]:checked')].map(x=>Number(x.dataset.secondSms));
+ if(!checked.length){$('secondBatchSmsStatus').textContent='No SMS selected. Nothing sent.';return;}
+ if(!confirm('SEND '+checked.length+' CHARGEABLE SMS INVITATIONS ONLY to these second-batch UK mobile contacts? You confirm each selected contact is authorised to receive an SMS. No emails will be sent.'))return;
+ secondBatchSmsBusy=true;secondBatchSmsStop=false;
+ $('sendSecondBatchSms').disabled=true;$('loadSecondBatchSms').disabled=true;$('stopSecondBatchSms').hidden=false;
+ let accepted=0,skipped=0,failed=0;const errors=[];
+ try{
+  // Recheck live provider records before any attempt.
+  await refreshContactSmsSummary();
+  for(const id of checked){
+   if(secondBatchSmsStop)break;
+   const r=items.find(x=>x.id===id);
+   if(!r||lastSmsByContact.has(id)){skipped++;continue;}
+   $('secondBatchSmsStatus').textContent='SMS only: '+accepted+' accepted · '+failed+' errors · '+skipped+' skipped. Keep this page open.';
+   try{
+    const {data:fresh,error:readError}=await db.from('anybike_master_contacts').select('*').eq('id',id).maybeSingle();
+    if(readError||!fresh||!/^07\\d{9}$/.test(secondBatchMobile(fresh))||isAlreadyRegisteredContact(fresh)){skipped++;continue;}
+    if(!fresh.sms_permission_verified_at||String(fresh.sms_marketing_permission||'').trim().length<12||!fresh.sms_invite_selected){
+     const now=new Date().toISOString();
+     const note='Admin confirmed marketing SMS authorisation during second-batch recovery on '+now;
+     const {data:verified,error:saveError}=await db.from('anybike_master_contacts')
+      .update({sms_invite_selected:true,sms_marketing_permission:note,sms_permission_verified_at:now})
+      .eq('id',id).select('id').maybeSingle();
+     if(saveError||!verified)throw Error('SMS permission could not be recorded');
+    }
+    const type=$('invitationAudience').value;
+    const inviteType=['dealer','private','both'].includes(type)?type:'both';
+    const {data,error}=await db.functions.invoke('anybike-send-dealer-invitation-sms',{body:{contact_id:id,invitation_type:inviteType,confirm_send:true}});
+    if(error||!data?.success)throw Error(data?.error||error?.message||'Provider not confirmed');
+    accepted++;lastSmsByContact.set(id,{status:'submitted',sent_at:new Date().toISOString()});
+   }catch(e){failed++;errors.push('#'+id+': '+String(e.message||e).slice(0,100));if(failed>=3){secondBatchSmsStop=true;break;}}
+  }
+  $('secondBatchSmsStatus').textContent=(secondBatchSmsStop?'Stopped. ':'Finished. ')+accepted+' SMS provider submissions · '+skipped+' skipped · '+failed+' errors. '+errors.slice(0,3).join(' | ')+' No emails were sent.';
+  await $('loadSecondBatchSms').onclick();
+ }catch(e){$('secondBatchSmsStatus').textContent='Stopped: '+e.message+'. Check sending results before retrying.';}
+ finally{secondBatchSmsBusy=false;$('sendSecondBatchSms').disabled=false;$('loadSecondBatchSms').disabled=false;$('stopSecondBatchSms').hidden=true;}
+};
+
 $('bulkSuccessButton').onclick=()=>{$('bulkCheckSent').click();};
 $('bulkCheckSent').onclick=async()=>{
  const button=$('bulkCheckSent');
