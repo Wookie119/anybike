@@ -253,7 +253,7 @@
   if(!/^\/(?:uk\/)?vmoto\.html$/i.test(location.pathname))return;
   const start=()=>{
     if(!document.querySelector('main'))return;
-    import('/advertising/universal-banner.mjs?v=20261122-stock-full-bleed13')
+    import('/advertising/universal-banner.mjs?v=20261122-unified-disclosure14')
       .then(module=>module.renderMoveHouseOnUkPage())
       .catch(error=>console.warn('VMoto managed advertising unavailable',error));
   };
