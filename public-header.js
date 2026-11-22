@@ -795,6 +795,7 @@ function anybikeAddUkDealerLocatorLinks(){
  const path=location.pathname.toLowerCase();
  const ukContext=path==='/markets/united-kingdom.html'||
    path==='/find-a-dealer.html'||
+   path==='/compare-motorcycles.html'||
    document.documentElement.classList.contains('anybike-uk-dealer');
  if(!ukContext)return;
  for(const selector of ['.public-nav','.mobile-nav']){
@@ -807,6 +808,13 @@ function anybikeAddUkDealerLocatorLinks(){
   const manufacturer=nav.querySelector('.public-manufacturers-menu,.mobile-manufacturers-menu');
   if(manufacturer)manufacturer.insertAdjacentElement('afterend',link);
   else nav.append(link);
+  if(!nav.querySelector('[data-anybike-uk-comparison-link]')){
+   const compare=document.createElement('a');
+   compare.href='/compare-motorcycles.html';
+   compare.textContent='Compare Motorcycles';
+   compare.dataset.anybikeUkComparisonLink='true';
+   link.insertAdjacentElement('afterend',compare);
+  }
  }
 }
 document.addEventListener('DOMContentLoaded',()=>{if(location.pathname==='/markets/united-kingdom.html')anybikeAddUkDealerLocatorLinks()});
