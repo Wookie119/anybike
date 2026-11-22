@@ -108,6 +108,15 @@ function renderFolder(){
   window.dispatchEvent(new CustomEvent('anybike:advertiser-upsell',{detail:{advertiser:client.name}}));
  };
 
+ // Dealer/franchise controls are inside the client file, never on individual pages.
+ let dealerBox=root.querySelector('#cal-uk-dealer-box');
+ if(!dealerBox){
+  dealerBox=document.createElement('section');dealerBox.id='cal-uk-dealer-box';
+  dealerBox.style.cssText='margin:14px 0;padding:15px;border:1px solid #484848;border-radius:10px;background:#1b1b1b';
+  $('cal-five').insertAdjacentElement('beforebegin',dealerBox);
+ }
+ dealerBox.textContent='Loading UK dealer brand settings…';
+ loadDealerBrandSettings(selected,dealerBox).catch(e=>{dealerBox.textContent='Dealer settings unavailable: '+e.message});
  const host=$('cal-five');host.replaceChildren();
  for(const [format,label,ratio,field] of formats){
   const card=make('div');card.style.cssText='min-width:0;border:1px solid #444;background:#202020;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px';
@@ -131,6 +140,94 @@ function renderFolder(){
   card.append(history);host.append(card);
  }
 }
+
+async function loadDealerBrandSettings(partner,host){
+ const [profileResult,brandsResult,selectedResult]=await Promise.all([
+  db.from('advertising_dealer_profiles').select('*').eq('partner_id',partner).maybeSingle(),
+  db.from('motorcycle_catalog_manufacturers').select('id,display_name').order('display_name'),
+  db.from('advertising_dealer_brand_selections').select('*').eq('partner_id',partner)
+ ]);
+ for(const x of [profileResult,brandsResult,selectedResult])if(x.error)throw x.error;
+ if(selected!==partner||!host.isConnected)return;
+ const existing=profileResult.data||{dealer_type:'not_dealer',country_code:'GB',city:'',postcode:'',public_listing_requested:false,public_listing_approved:false};
+ const selectedBrands=selectedResult.data||[],brands=brandsResult.data||[];
+ host.replaceChildren();
+ const h=make('h3','UK Find a Dealer · franchises & brands');h.style.margin='0 0 7px';host.append(h);
+ const p=make('p','For UK-facing directory only. Verified franchises can appear as authorised main dealers; other dealers appear as specialists. Nothing is published without approval.');p.style.color='#bbb';host.append(p);
+ const type=make('select');type.style.cssText='padding:10px;border-radius:8px;background:#282828;color:white;border:1px solid #777;max-width:100%';
+ for(const [key,label] of [['not_dealer','Not a motorcycle dealer'],['main_dealer','Authorised main dealer (franchise chooser)'],['independent','Independent dealer (brand chooser)']]){
+  const op=make('option',label);op.value=key;type.append(op)
+ }type.value=existing.dealer_type;host.append(type);
+ const details=make('div');details.style.marginTop='12px';host.append(details);
+ const locationRow=make('div');locationRow.style.cssText='display:flex;flex-wrap:wrap;gap:9px';
+ const city=make('input');city.placeholder='UK town or city';city.value=existing.city||'';
+ const postcode=make('input');postcode.placeholder='UK postcode';postcode.value=existing.postcode||'';
+ for(const n of [city,postcode])n.style.cssText='flex:1;min-width:155px;padding:9px;border-radius:7px;background:#292929;color:#fff;border:1px solid #666';
+ locationRow.append(city,postcode);details.append(locationRow);
+ const choicesHeading=make('strong','');choicesHeading.style.display='block';choicesHeading.style.margin='13px 0 8px';details.append(choicesHeading);
+ const choices=make('div');choices.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;max-height:230px;overflow:auto;border:1px solid #444;padding:10px;border-radius:9px';details.append(choices);
+ const verification=make('div');verification.style.cssText='border-top:1px solid #444;margin-top:12px;padding-top:10px';details.append(verification);
+ const request=make('input');request.type='checkbox';request.checked=existing.public_listing_requested===true;
+ const reqLabel=make('label');reqLabel.style.cssText='display:flex;gap:9px;align-items:center;margin:10px 0';
+ reqLabel.append(request,make('span','Request inclusion in UK Find a Dealer'));details.append(reqLabel);
+ const approval=make('input');approval.type='checkbox';approval.checked=existing.public_listing_approved===true;
+ const apprLabel=make('label');apprLabel.style.cssText='display:flex;gap:9px;align-items:center;margin:10px 0';
+ apprLabel.append(approval,make('span','Admin approves public UK listing'));details.append(apprLabel);
+ const save=button('Save dealer brands',async()=>{
+  save.disabled=true;
+  try{
+   const dealer_type=type.value,relationship=dealer_type==='main_dealer'?'franchise':'specialist';
+   const checkboxes=[...choices.querySelectorAll('input[type=checkbox]:checked')];
+   const requested=request.checked&&dealer_type!=='not_dealer';
+   const approved=approval.checked&&requested;
+   if(approved&&(!city.value.trim()||!postcode.value.trim()))throw Error('Town and postcode are required to publish a UK dealer listing.');
+   if(approved&&!checkboxes.length)throw Error('Choose at least one manufacturer before approving a public listing.');
+   if(dealer_type==='main_dealer'&&approved){
+    for(const box of checkboxes){
+     const ref=verification.querySelector('[data-ref="'+box.value+'"]');
+     if(!ref?.value.trim())throw Error('Each authorised main dealer franchise must have a verification reference.');
+    }
+   }
+   const profile={partner_id:partner,dealer_type,country_code:'GB',city:city.value.trim()||null,postcode:postcode.value.trim().toUpperCase()||null,public_listing_requested:requested,public_listing_approved:approved,updated_at:new Date().toISOString()};
+   const p=await db.from('advertising_dealer_profiles').upsert(profile,{onConflict:'partner_id'});
+   if(p.error)throw p.error;
+   const old=await db.from('advertising_dealer_brand_selections').delete().eq('partner_id',partner);if(old.error)throw old.error;
+   if(dealer_type!=='not_dealer'&&checkboxes.length){
+    const rows=checkboxes.map(box=>{
+     const reference=verification.querySelector('[data-ref="'+box.value+'"]')?.value.trim()||null;
+     const isVerified=dealer_type==='main_dealer'&&Boolean(reference);
+     return {partner_id:partner,manufacturer_id:Number(box.value),relationship_type:relationship,verified:isVerified,verification_reference:reference,verified_at:isVerified?new Date().toISOString():null,updated_at:new Date().toISOString()};
+    });
+    const x=await db.from('advertising_dealer_brand_selections').insert(rows);if(x.error)throw x.error;
+   }
+   status('Saved UK dealer selections for '+clients.find(c=>c.id===partner)?.name+'.');
+   await loadDealerBrandSettings(partner,host);
+  }catch(e){status('Could not save dealer details: '+e.message)}
+  finally{save.disabled=false}
+ },true);
+ details.append(save);
+ function repaint(){
+  details.hidden=type.value==='not_dealer';
+  choicesHeading.textContent=type.value==='main_dealer'?'Choose authorised manufacturer franchises':'Choose motorcycle brands this dealer specialises in';
+  choices.replaceChildren();verification.replaceChildren();
+  const kind=type.value==='main_dealer'?'franchise':'specialist';
+  const selectedSet=new Set(selectedBrands.filter(b=>b.relationship_type===kind).map(b=>String(b.manufacturer_id)));
+  for(const brand of brands){
+   const line=make('label');line.style.cssText='display:flex;align-items:center;gap:7px;padding:5px 7px;border:1px solid #333;border-radius:7px;font-size:13px';
+   const check=make('input');check.type='checkbox';check.value=String(brand.id);check.checked=selectedSet.has(check.value);line.append(check,make('span',brand.display_name));choices.append(line);
+   if(type.value==='main_dealer'){
+    const ref=make('input');ref.dataset.ref=String(brand.id);
+    ref.placeholder=brand.display_name+' franchise verification reference';
+    ref.value=selectedBrands.find(b=>b.relationship_type==='franchise'&&String(b.manufacturer_id)===String(brand.id))?.verification_reference||'';
+    ref.style.cssText='width:100%;padding:8px;margin-top:5px;background:#292929;color:#fff;border:1px solid #555;border-radius:6px';
+    const div=make('div');div.dataset.for=String(brand.id);div.hidden=!check.checked;div.append(make('small',brand.display_name+' · evidence/reference'),ref);verification.append(div);
+    check.onchange=()=>{div.hidden=!check.checked};
+   }
+  }
+ }
+ type.onchange=repaint;repaint();
+}
+
 $('cal-search').oninput=renderClients;
 $('cal-back').onclick=()=>{selected=null;$('cal-folder').hidden=true;renderClients()};
 (async()=>{
