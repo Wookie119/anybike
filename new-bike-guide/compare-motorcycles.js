@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id);
 const text=(tag,value)=>{const n=document.createElement(tag);if(value!==undefined)n.textContent=String(value);return n};
 const absolute=u=>{try{const x=new URL(u,location.origin);return x.origin===location.origin?x.href:null}catch{return null}};
 const MAX=4,MIN=2;
-let all=[],chosen=[null,null,null],categories=new Map(),activeCategory='';
+let all=[],chosen=[null,null,null],categories=new Map(),activeCategory='',capacity=new Map(),engineFilterEnabled=false,engineMin=null,engineMax=null;
 const FACTS_RPC='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_verified_model_facts_v1';
 const FACTS_KEY='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
 const factRequests=new Map();
@@ -81,6 +81,19 @@ function writeShareUrl(items){
  else url.searchParams.delete('bikes');
  history.replaceState(null,'',url.pathname+url.search+url.hash);
 }
+function matchesBike(bike){
+ if(activeCategory&&categories.get(bike.model_id)!==activeCategory)return false;
+ if(!engineFilterEnabled)return true;
+ const cc=capacity.get(bike.model_id)?.cc;
+ return Number.isInteger(cc)&&(engineMin===null||cc>=engineMin)&&(engineMax===null||cc<=engineMax);
+}
+function availableCount(){return all.filter(matchesBike).length}
+function applyFilters(){
+ chosen=chosen.map(bike=>bike&&matchesBike(bike)?bike:null);
+ renderSelectors();
+ const filtered=availableCount();
+ $('filter-count').textContent=engineFilterEnabled?filtered+' motorcycles with recorded engine size match your filters.':'Choose a riding style to narrow the motorcycles.';
+}
 function addSelector(){
  if(chosen.length>=MAX)return;
  chosen.push(null);renderSelectors();
@@ -89,7 +102,7 @@ function cardPicker(index){
  const shell=text('div');shell.className='compare-picker';
  const h=text('h3','Motorcycle '+(index+1));shell.append(h);
  const selected=chosen[index];
- const makes=[...new Set(all.filter(x=>!activeCategory||categories.get(x.model_id)===activeCategory).map(x=>x.make))].sort((a,b)=>a.localeCompare(b,'en'));
+ const makes=[...new Set(all.filter(matchesBike).map(x=>x.make))].sort((a,b)=>a.localeCompare(b,'en'));
  const fields=text('div');fields.className='compare-picker-fields';
  const makeLabel=text('label','Manufacturer');const make=text('select');
  const any=text('option','Choose manufacturer');any.value='';make.append(any);
@@ -98,7 +111,7 @@ function cardPicker(index){
  const modelLabel=text('label','Motorcycle model');const model=text('select');
  const refreshModels=()=>{
   model.replaceChildren();const blank=text('option','Choose model');blank.value='';model.append(blank);
-  const candidates=all.filter(x=>x.make===make.value&&(!activeCategory||categories.get(x.model_id)===activeCategory)).sort((a,b)=>a.model.localeCompare(b.model,'en'));
+  const candidates=all.filter(x=>x.make===make.value&&matchesBike(x)).sort((a,b)=>a.model.localeCompare(b.model,'en'));
   const usedIds=new Set(chosen.filter((c,i)=>i!==index&&c).map(c=>c.model_id));
   for(const bike of candidates){const op=text('option',bike.model);op.value=String(bike.model_id);op.disabled=usedIds.has(bike.model_id);model.append(op)}
   if(!candidates.length&&make.value){const unavailable=text('option','No motorcycles in this category');unavailable.disabled=true;model.append(unavailable)}
@@ -179,12 +192,51 @@ async function loadCategories(){
   const select=$('compare-category');if(!select)return;
   const groups=[...new Set(categories.values())].sort((a,b)=>a.localeCompare(b,'en'));
   for(const group of groups){const option=text('option',group);option.value=group;select.append(option)}
-  select.onchange=()=>{activeCategory=select.value;chosen=[null,null,null];renderSelectors();show(activeCategory?'Showing '+activeCategory+' motorcycles. Choose two or more to compare.':'Showing all motorcycle types.');};
+  select.onchange=()=>{activeCategory=select.value;applyFilters();show(activeCategory?'Choose motorcycles in the '+activeCategory+' category.':'Choose motorcycles from any riding style.');};
   if(chosen.some(Boolean))renderResults();
  }catch(e){console.warn('Optional catalogue category filter unavailable',e)}
 }
 // Read manufacturer navigation from the canonical Supabase catalogue.
 // The page contains no repeated brand list, so new brands appear automatically.
+async function loadEngineSizes(){
+ try{
+  const response=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_comparison_engine_sizes_v1',{
+   method:'POST',headers:{apikey:FACTS_KEY,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(8000)});
+  if(!response.ok)throw Error('Engine capacity service unavailable');
+  const rows=await response.json();
+  if(!Array.isArray(rows))throw Error('Engine capacity data invalid');
+  for(const row of rows)if(Number.isSafeInteger(row?.model_id)&&Number.isSafeInteger(row?.cc)&&
+   row.cc>0&&row.cc<=3000&&sourceUrl(row.source_url))capacity.set(row.model_id,{cc:row.cc,source_url:row.source_url});
+  $('capacity-preset').disabled=false;
+  $('capacity-min').disabled=false;
+  $('capacity-max').disabled=false;
+  $('capacity-preset').onchange=()=>{
+   const value=$('capacity-preset').value;
+   if(!value){$('capacity-min').value='';$('capacity-max').value=''}
+   else{
+    const [min,max]=value.split('-');
+    $('capacity-min').value=min||'';
+    $('capacity-max').value=max||'';
+   }
+   updateEngineSelection();
+  };
+  for(const id of ['capacity-min','capacity-max'])$(id).onchange=()=>{
+   $('capacity-preset').value='custom';updateEngineSelection();
+  };
+  applyFilters();
+ }catch(error){$('filter-count').textContent='Engine size filtering is temporarily unavailable.';console.warn('Engine capacity filter unavailable',error)}
+}
+function updateEngineSelection(){
+ const minText=$('capacity-min').value.trim(),maxText=$('capacity-max').value.trim();
+ const min=minText?Number(minText):null,max=maxText?Number(maxText):null;
+ if((min!==null&&(!Number.isInteger(min)||min<1||min>3000))||
+    (max!==null&&(!Number.isInteger(max)||max<1||max>3000))||
+    (min!==null&&max!==null&&min>max)){
+  $('filter-count').textContent='Enter an engine size between 1 and 3,000 cc, with minimum no greater than maximum.';return
+ }
+ engineMin=min;engineMax=max;engineFilterEnabled=min!==null||max!==null;
+ applyFilters();
+}
 async function loadComparisonManufacturers(){
  const host=$('comparison-manufacturer-links');if(!host)return;
  try{
@@ -212,6 +264,7 @@ async function start(){
   all=source.filter(x=>x&&Number.isSafeInteger(x.model_id)&&x.model_id>0&&typeof x.make==='string'&&typeof x.model==='string'&&/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(x.url||''));
   if(!all.length)throw Error('published model catalogue unavailable');
   restore();renderSelectors();
+  void loadEngineSizes();
   void loadComparisonManufacturers();
   // Category metadata is helpful for discovery, not a verified technical specification.
   loadCategories();
@@ -219,7 +272,8 @@ async function start(){
    // These are canonical, published AnyBike model IDs from the checked-in route manifest.
    const examples=[77,255,104].map(id=>all.find(model=>model.model_id===id));
    if(examples.some(x=>!x)){show('These motorcycles are currently unavailable. Please select other models.');return}
-   activeCategory='';
+   activeCategory='';engineFilterEnabled=false;engineMin=null;engineMax=null;
+   for(const id of ['capacity-min','capacity-max'])$(id).value='';$('capacity-preset').value='';
    const select=$('compare-category');if(select)select.value='';
    chosen=examples;
    renderSelectors();
@@ -228,6 +282,8 @@ async function start(){
   $('clear-comparison').onclick=()=>{
    chosen=[null,null,null];activeCategory='';
    const select=$('compare-category');if(select)select.value='';
+   engineFilterEnabled=false;engineMin=null;engineMax=null;
+   for(const id of ['capacity-min','capacity-max'])$(id).value='';$('capacity-preset').value='';
    renderSelectors();show('Comparison cleared. Choose two to four motorcycles.');
   };
   $('add-motorcycle').onclick=addSelector;
