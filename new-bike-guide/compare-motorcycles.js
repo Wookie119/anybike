@@ -217,7 +217,7 @@ async function loadCategories(){
   const seen=new Set(),groups=[];
   for(const card of cards){
    const href=card.getAttribute('href')||'';
-   const slug=href.match(/^\\/motorcycle-type-([a-z-]+)\\.html$/)?.[1];
+   const slug=href.match(/^\/motorcycle-type-([a-z-]+)\.html$/)?.[1];
    const label=card.querySelector('h3')?.textContent?.trim();
    if(!slug||!validSlugs.has(slug)||seen.has(slug)||!label)continue;
    seen.add(slug);groups.push({slug,label});
