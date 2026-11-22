@@ -13,11 +13,17 @@ async function load(){
   const db=getAdminSupabaseClient();
   const check=await db.rpc('anybike_is_admin');
   if(check.error||check.data!==true)throw Error('Admin permission required');
-  const {data,error}=await db.from('advertising_named_spaces').select('slot_code,display_name,page_template,page_path,anchor_key,format,grid_span,market_scope,status,maximum_per_page,frequency_every,notes,pricing_tier,guide_monthly_gbp').order('slot_code');
+  const {data,error}=await db.from('advertising_named_spaces').select('slot_code,display_name,page_template,page_path,anchor_key,format,grid_span,market_scope,status,maximum_per_page,frequency_every,notes,pricing_tier,guide_monthly_gbp,inherits_template').order('slot_code');
   if(error)throw error;
+  const summary=await db.rpc('admin_advertising_template_inventory_summary_v1');
+  const counts=new Map((summary.error?[]:summary.data||[]).map(x=>[x.slot_code,x]));
   for(const s of data||[]){
    const tr=document.createElement('tr');
    cell(tr,s.slot_code);cell(tr,s.display_name);cell(tr,s.page_template);
+   const applicability=counts.get(s.slot_code);
+   const inherited=applicability?.inheritance_enabled===true;
+   const coverage=inherited?'Template inheritance · '+(applicability.matching_entities??'—')+' matching records':'Single / proposed position';
+   cell(tr,coverage);
    cell(tr,s.format);cell(tr,s.market_scope);cell(tr,s.status);
    const pricing=document.createElement('td');pricing.style.cssText='min-width:255px';
    const tier=document.createElement('select');tier.setAttribute('aria-label','Pricing tier for '+s.slot_code);
@@ -47,11 +53,11 @@ async function load(){
    if(path){const a=document.createElement('a');a.href=path;a.target='_blank';a.rel='noopener';a.textContent='View page';td.append(a)}
    else td.textContent='Template';
    const detail=document.createElement('tr'),info=document.createElement('td');
-   info.colSpan=9;info.style.cssText='font-size:12px;color:#bbb;padding:2px 8px 12px';
+   info.colSpan=10;info.style.cssText='font-size:12px;color:#bbb;padding:2px 8px 12px';
    info.textContent='Anchor: '+s.anchor_key+' · '+s.notes;
    detail.append(info);rows.append(tr,detail);
   }
-  status.textContent=(data||[]).length+' named positions registered · planning inventory only; not automatically live or offered for sale.';
+  status.textContent=(data||[]).length+' template/individual definitions · '+[...counts.values()].filter(x=>x.inheritance_enabled).length+' inherited template rules. Matching records are inventory estimates, NOT verified live adverts.';
  }catch(e){status.textContent='Unable to load named spaces: '+(e.message||e)}
 }
 $('refreshNamedSpaces')?.addEventListener('click',load);
