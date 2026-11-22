@@ -558,6 +558,52 @@ export async function renderMoveHouseOnUkPage(options={}){
  }catch(error){console.warn('Move advertising campaign could not be verified',error);}
 }
 
+// Approved multi-advert layouts are delivered only by the central advertising service.
+// No matching published layout => the existing single advert remains untouched.
+function installPublishedLayout(layout,pagePath){
+ if(!Array.isArray(layout)||!layout.length||layout.length>4||!isPublicUkCustomerPage())return false;
+ const slot=[...document.querySelectorAll('main .managed-ad-space[data-ad-slot][data-market="GB"]')]
+  .find(el=>el.dataset.adSlot===String(layout[0]?.slot_code||""));
+ // The public service deliberately does not expose unpublished slot identifiers.
+ // The page inventory has one named slot per page; use that exact existing anchor.
+ const anchors=[...document.querySelectorAll('main .managed-ad-space[data-ad-slot][data-market="GB"]')];
+ const candidate=anchors.find(el=>layout.every(ad=>ad.slot_code===el.dataset.adSlot))||(!slot&&anchors.length===1?anchors[0]:slot);
+ if(!candidate||candidate.childElementCount)return false;
+ const permitted=new Set(["square","slim","stock_card","landscape","portrait"]);
+ if(layout.some(ad=>!permitted.has(ad.format)||!https(ad.image_url)||!https(ad.destination_url)||!ad.token))return false;
+ ensureAdvertHoverStyles();
+ const cssId='anybike-published-multi-layout-css';
+ if(!document.getElementById(cssId)){
+  const style=node('style');style.id=cssId;
+  style.textContent='.anybike-published-multi-layout{display:grid!important;grid-template-columns:repeat(var(--ad-count),minmax(0,1fr));gap:12px;width:100%;max-width:1200px;margin:10px auto 18px}.anybike-published-multi-layout article{min-width:0;margin:0;overflow:visible}.anybike-published-multi-layout a{display:block;overflow:hidden;border-radius:12px;clip-path:inset(0 round 12px);background:transparent}.anybike-published-multi-layout img{width:100%;height:auto;display:block;object-fit:contain;border-radius:12px}.anybike-published-multi-layout small{display:block;text-align:center;margin-top:4px;color:#aaa;font:11px/1.3 Arial,sans-serif}@media(max-width:680px){.anybike-published-multi-layout{grid-template-columns:1fr!important}}';
+  document.head.append(style);
+ }
+ const host=node('div');host.className='anybike-published-multi-layout';host.id=moveHouseMarker;
+ host.style.setProperty('--ad-count',String(layout.length));
+ for(const ad of layout){
+  const card=node('article'),link=node('a'),img=node('img'),caption=node('small');
+  link.href=https(ad.destination_url);link.target='_blank';link.rel='noopener sponsored';link.className='anybike-managed-ad-link';
+  link.dataset.anybikeAdAuthorized='1';card.dataset.anybikeAdAuthorized='1';
+  link.setAttribute('aria-label',String(ad.partner_name||'Advertiser')+' — visit website');
+  img.src=https(ad.image_url);img.alt=typeof ad.alt_text==='string'?ad.alt_text:'';img.loading='lazy';img.decoding='async';
+  const ratios={square:'1 / 1',slim:'3 / 1',stock_card:'4 / 3',landscape:'16 / 9',portrait:'4 / 5'};
+  img.style.aspectRatio=ratios[ad.format]||'auto';
+  img.onerror=()=>{card.remove()};
+  link.append(img);caption.textContent='Advertisement';card.append(link,caption);host.append(card);
+  let seen=false,clicked=false;
+  const emit=event_type=>send({action:'event',event_type,token:ad.token},true).catch(()=>{});
+  const impression=()=>{if(seen)return;seen=true;emit('impression')};
+  const click=()=>{if(clicked)return;clicked=true;impression();emit('click')};
+  link.addEventListener('click',click);
+  link.addEventListener('auxclick',e=>{if(e.button===1)click()});
+  if('IntersectionObserver'in window){
+   const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();observer.disconnect()}},{threshold:.5});
+   observer.observe(card);
+  }else impression();
+ }
+ candidate.append(host);return true;
+}
+
 // All campaigns use the SAME placement engine. Do not add per-page fallback
 // insertion after a hero: that was responsible for inconsistent locations.
 export async function renderAdvertising(context){
@@ -566,10 +612,12 @@ export async function renderAdvertising(context){
  const isModel=Number.isSafeInteger(context.modelId)&&context.modelId>0;
  if(!isModel&&!context.pagePath)return;
  try{
-  const {ad}=await send(isModel?
+  const {ad,layout}=await send(isModel?
    {action:'select',model_id:context.modelId,country:context.country}:
    {action:'select_page',page_path:context.pagePath,country:context.country});
-  if(n!==generation||!ad)return;
+  if(n!==generation)return;
+  if(Array.isArray(layout)&&layout.length){installPublishedLayout(layout,context.pagePath);return}
+  if(!ad)return;
   if(!await validateAdvertArtwork(ad))return;
   const ready=await verifiedCompanion(ad);
   setupStockAdvertRedraw(ready);
