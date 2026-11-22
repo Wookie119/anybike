@@ -30,6 +30,17 @@ function advertDisclosure(ad){
 function styleAdvertDisclosure(note){
  note.style.cssText='display:block;clear:both;width:100%;box-sizing:border-box;text-align:center;font:11px/1.35 Arial,sans-serif;color:#aaa;padding:4px 2px 0;margin:0;background:transparent;border:0;white-space:normal;position:static';
 }
+function ensureAdvertHoverStyles(){
+ if(document.getElementById('anybike-ad-hover-outline'))return;
+ const style=node('style');style.id='anybike-ad-hover-outline';
+ style.textContent=[
+  'a.anybike-managed-ad-link{position:relative!important;}',
+  'a.anybike-managed-ad-link::after{content:"";position:absolute;inset:0;border:2px solid #ed1c24;border-radius:inherit;box-sizing:border-box;pointer-events:none;opacity:0;transition:opacity .16s ease;z-index:5}',
+  '@media(hover:hover){a.anybike-managed-ad-link:hover::after{opacity:1}}',
+  'a.anybike-managed-ad-link:focus-visible::after{opacity:1}'
+ ].join('');
+ document.head.append(style);
+}
 function buildMoveHouseCard(ad,companion=false){
  const stock=ad.placement_key==='stock_grid';
  const destination=https(ad.destination_url);
@@ -49,7 +60,8 @@ function buildMoveHouseCard(ad,companion=false){
  card.style.cssText=stock
   ?'background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0;overflow:visible;display:flex;flex-direction:column;min-width:0;height:100%;box-sizing:border-box;align-self:stretch;position:relative'
   :'margin:12px 0 18px;width:100%;max-width:none;border-radius:12px;overflow:visible;min-width:0;box-sizing:border-box';
- const link=node('a');link.href=destination;link.target='_blank';link.rel='noopener sponsored';
+ ensureAdvertHoverStyles();
+  const link=node('a');link.classList.add('anybike-managed-ad-link');link.href=destination;link.target='_blank';link.rel='noopener sponsored';
  // This link exists only after the advertising service has selected an approved
  // campaign; let the shared legacy-ad visibility guard display it.
  link.dataset.anybikeAdAuthorized='1';
@@ -255,7 +267,9 @@ function adoptLegacyMove(ad){
  const anchors=legacyMoveAnchors();if(!anchors.length)return false;
  const urls=managedAdCreative(ad),destination=https(ad.destination_url);
  if(!urls.desktop||!urls.mobile||!destination)return false;
+ ensureAdvertHoverStyles();
  anchors.forEach((link,index)=>{
+  link.classList.add('anybike-managed-ad-link');
   link.href=destination;link.rel='noopener sponsored';link.target='_blank';
   link.dataset.anybikeAdAuthorized='1';
   const outer=link.closest('section#moveMotorcyclesAdvert,aside.move-dealer-promo,aside[aria-label*="Move Motorcycles"],section[aria-label*="Move Motorcycles"]');
