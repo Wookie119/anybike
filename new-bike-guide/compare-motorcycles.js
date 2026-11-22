@@ -6,6 +6,8 @@ const absolute=u=>{try{const x=new URL(u,location.origin);return x.origin===loca
 const MAX=4,MIN=2;
 let all=[],chosen=[null,null,null],categories=new Map(),ridingStyles=new Map(),activeCategory='';
 const FACTS_RPC='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_verified_model_facts_v1';
+const PRESENTATION_RPC='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_comparison_presentation_v1';
+let categoryArtwork=[],approvedModelArtwork=new Map();
 const FACTS_KEY='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
 const factRequests=new Map();
 let factsRenderGeneration=0;
@@ -80,6 +82,53 @@ function writeShareUrl(items){
  else url.searchParams.delete('bikes');
  history.replaceState(null,'',url.pathname+url.search+url.hash);
 }
+function approvedPhoto(photo){
+ if(!photo||typeof photo!=='object')return null;
+ const url=sourceUrl(photo.url),source=sourceUrl(photo.source);
+ if(!url||!source||typeof photo.alt!=='string'||!photo.alt.trim()||typeof photo.licence!=='string'||!photo.licence.trim())return null;
+ return {url,source,alt:photo.alt,attribution:typeof photo.attribution==='string'?photo.attribution:'',licence:photo.licence};
+}
+function photoCredit(photo){
+ const small=text('small');small.className='comparison-photo-credit';
+ const link=text('a','Photo credit · '+photo.licence);link.href=photo.source;link.rel='noopener noreferrer';link.target='_blank';
+ link.title=photo.attribution||photo.licence;small.append(link);return small;
+}
+function renderCategoryPhotos(){
+ const select=$('compare-category'),panel=select?.closest('.comparison-filter-panel');
+ if(!panel||!categoryArtwork.length)return;
+ let host=$('comparison-category-photos');
+ if(!host){host=text('nav');host.id='comparison-category-photos';host.className='comparison-category-photos';host.setAttribute('aria-label','Choose a motorcycle riding style');panel.insertAdjacentElement('afterend',host)}
+ const fragment=document.createDocumentFragment();
+ for(const category of categoryArtwork){
+  if(!category||!/^[a-z-]+$/.test(category.slug)||typeof category.label!=='string'||!category.label.trim())continue;
+  const wrap=text('div');wrap.className='comparison-category-photo-item';
+  const button=text('button');button.type='button';button.className='comparison-category-photo-card';
+  button.setAttribute('aria-pressed',String(activeCategory===category.slug));
+  const photo=approvedPhoto(category.image);
+  if(photo){
+   const img=text('img');img.src=photo.url;img.alt=photo.alt;img.loading='lazy';img.decoding='async';img.onerror=()=>{img.remove();button.classList.add('comparison-category-no-image')};button.append(img);
+  }else button.classList.add('comparison-category-no-image');
+  const title=text('span',category.label);title.className='comparison-category-photo-title';button.append(title);
+  button.onclick=()=>{activeCategory=activeCategory===category.slug?'':category.slug;select.value=activeCategory;applyFilters();show(activeCategory?'Choose motorcycles in the selected riding style.':'Choose motorcycles from all riding styles.')};
+  wrap.append(button);if(photo)wrap.append(photoCredit(photo));fragment.append(wrap);
+ }
+ host.replaceChildren(fragment);
+}
+function selectedPhoto(modelId){return approvedModelArtwork.get(modelId)||null}
+async function loadApprovedPresentation(){
+ try{
+  const response=await fetch(PRESENTATION_RPC,{method:'POST',headers:{apikey:FACTS_KEY,'Content-Type':'application/json'},body:'{}',cache:'no-store',signal:AbortSignal.timeout(9000)});
+  if(!response.ok)throw Error('Approved presentation '+response.status);
+  const data=await response.json();
+  if(!data||!Array.isArray(data.categories)||!Array.isArray(data.images))throw Error('Invalid approved imagery response');
+  const photos=new Map();
+  for(const item of data.images){const photo=approvedPhoto(item);if(Number.isSafeInteger(item?.model_id)&&photo)photos.set(item.model_id,photo)}
+  approvedModelArtwork=photos;
+  categoryArtwork=data.categories.filter(item=>item&&typeof item.slug==='string'&&typeof item.label==='string');
+  renderCategoryPhotos();renderSelectors();
+ }catch(error){console.warn('Approved imagery unavailable; comparison remains functional',error)}
+}
+
 // Simple customer-facing styles. Legacy catalogue categories remain in the source data.
 // Source of truth for customer-facing names: /motorcycle-types.html.
 // Map legacy catalogue terms only; do not create new public riding categories.
@@ -93,6 +142,7 @@ function applyFilters(){
  renderSelectors();
  const matching=all.filter(matchesBike);
  $('filter-count').textContent=matching.length+' motorcycles to choose from'+(activeCategory?' in this riding style':'')+'. Select the manufacturer and model below.';
+ renderCategoryPhotos();
 }
 function addSelector(){
  if(chosen.length>=MAX)return;
@@ -126,6 +176,11 @@ function cardPicker(index){
  refreshModels();
  makeLabel.append(make);modelLabel.append(model);fields.append(makeLabel,modelLabel);
  shell.append(fields);
+ if(selected){const photo=selectedPhoto(selected.model_id);if(photo){
+  const area=text('div');area.className='comparison-selected-photo';
+  const img=text('img');img.src=photo.url;img.alt=photo.alt;img.loading='lazy';img.decoding='async';img.onerror=()=>area.remove();
+  area.append(img,photoCredit(photo));shell.append(area);
+ }}
  const actions=text('div');actions.className='compare-actions';
  const remove=text('button','Remove');remove.type='button';remove.className='subtle-button';remove.setAttribute('aria-label','Remove motorcycle '+(index+1));
  remove.onclick=()=>{chosen.splice(index,1);while(chosen.length<MIN)chosen.push(null);renderSelectors()};
@@ -155,6 +210,18 @@ function renderResults(){
  const table=text('table');table.className='comparison-table';
  const head=text('thead'),tr=text('tr');tr.append(text('th','Comparison'));
  for(const x of items){tr.append(text('th',x.make+' '+x.model))}head.append(tr);table.append(head);
+ if(items.some(b=>selectedPhoto(b.model_id))){
+  const pBody=text('tbody'),pRow=text('tr');pRow.className='comparison-model-photo-row';pRow.append(text('th','Motorcycle photograph'));
+  for(const bike of items){
+   const cell=text('td'),photo=selectedPhoto(bike.model_id);
+   if(photo){
+    const img=text('img');img.src=photo.url;img.alt=photo.alt;img.loading='lazy';img.decoding='async';
+    img.onerror=()=>{img.remove();cell.prepend(text('span','Photograph unavailable'))};
+    cell.append(img,photoCredit(photo));
+   }else cell.append(text('span','Photograph not yet approved'));
+   pRow.append(cell);
+  }pBody.append(pRow);table.append(pBody);
+ }
  const body=text('tbody');
  const typeRow=text('tr');typeRow.append(text('th','Motorcycle type'));
  for(const bike of items)typeRow.append(text('td',categories.get(bike.model_id)||'—'));
@@ -196,6 +263,7 @@ function installDirectoryStyles(styles){
  select.onchange=()=>{
   activeCategory=select.value;
   applyFilters();
+  renderCategoryPhotos();
   show(activeCategory?'Choose motorcycles in the selected riding style.':'Choose motorcycles from all riding styles.');
  };
 }
@@ -247,6 +315,7 @@ async function start(){
   installDirectoryStyles(json.styles);
   restore();renderSelectors();applyFilters();
   void loadComparisonManufacturers();
+  void loadApprovedPresentation();
   $('clear-comparison').onclick=()=>{
    chosen=[null,null,null];activeCategory='';
    const select=$('compare-category');if(select)select.value='';
