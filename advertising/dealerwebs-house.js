@@ -7,7 +7,7 @@
   const form=document.getElementById('connectionForm');
   if(!form||document.getElementById('anybikeDealerFeedPartnerAd'))return;
   try{
-   const url='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/advertising_square_house_placements?select=slot_code,campaign_id,company_name,artwork_url,destination_url,image_alt&slot_code=eq.AB-DEALER-FEED-S01';
+   const url='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/advertising_square_house_placements?select=slot_code,campaign_id,company_name,artwork_url,destination_url,image_alt,position_key&slot_code=eq.AB-DEALER-FEED-S01';
    const response=await fetch(url,{headers:{apikey:'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK'},cache:'no-store'});
    if(!response.ok)return;
    const rows=await response.json();
@@ -33,7 +33,19 @@
    const disclosure=document.createElement('small');
    disclosure.textContent='Advertisement';disclosure.style.cssText='display:block;color:#aaa;font:11px/1.5 Arial,sans-serif;padding-top:5px';
    section.append(link,disclosure);
-   form.insertAdjacentElement('afterend',section);
+   // These are verified real anchors in the existing dealer-connect page.
+   // Use one position only; never clone the advert into several sections.
+   const positions={
+    before_feed_request:()=>form.insertAdjacentElement('beforebegin',section),
+    after_feed_request:()=>form.insertAdjacentElement('afterend',section),
+    after_stock_upload:()=>{
+     const upload=document.querySelector('.upload-panel');
+     if(!upload)throw Error('Stock upload position is unavailable');
+     upload.insertAdjacentElement('afterend',section);
+    }
+   };
+   const placement=positions[ad.position_key]||positions.after_feed_request;
+   placement();
   }catch(_){ /* No blank advert or layout gap on network failure. */ }
  };
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
