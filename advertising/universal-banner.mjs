@@ -473,6 +473,9 @@ function installMoveHouse(ad){
   // advertising slot, not the narrower default dimensions of a generic aside.
   // Never stretch the artwork: its intrinsic aspect ratio remains unchanged.
   anchor.style.setProperty('width','100%','important');
+  // The comparison template's fixed 1120px slot maximum becomes much narrower
+  // than its content at browser zoom-out. Follow the parent content width.
+  anchor.style.setProperty('max-width','none','important');
   anchor.style.setProperty('min-width','0','important');
   anchor.style.setProperty('box-sizing','border-box','important');
   card.style.setProperty('display','block','important');
@@ -509,7 +512,7 @@ function installMoveHouse(ad){
  // Preserve intrinsic image ratio; never crop, stretch or enlarge the artwork.
  // About Us uses a wider .wrap than the standard 1200px advert cap.
  // Match that existing content width without making the banner full-bleed.
- card.style.setProperty('max-width',ad.placement_key==='about_wrap'?'none':'1200px','important');
+ card.style.setProperty('max-width',location.pathname.toLowerCase()==='/compare-motorcycles.html'||ad.placement_key==='about_wrap'?'none':'1200px','important');
  card.style.setProperty('width','100%','important');
  card.style.setProperty('min-width','0','important');
  card.style.setProperty('margin-left','auto','important');
