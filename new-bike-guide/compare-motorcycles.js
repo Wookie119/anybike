@@ -183,6 +183,26 @@ async function loadCategories(){
   if(chosen.some(Boolean))renderResults();
  }catch(e){console.warn('Optional catalogue category filter unavailable',e)}
 }
+// Read manufacturer navigation from the canonical Supabase catalogue.
+// The page contains no repeated brand list, so new brands appear automatically.
+async function loadComparisonManufacturers(){
+ const host=$('comparison-manufacturer-links');if(!host)return;
+ try{
+  const response=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_comparison_manufacturers_v1',{
+   method:'POST',headers:{apikey:FACTS_KEY,'Content-Type':'application/json'},
+   body:'{}',signal:AbortSignal.timeout(8000)});
+  if(!response.ok)throw Error('Manufacturer directory unavailable');
+  const brands=await response.json();
+  if(!Array.isArray(brands)||!brands.length)return;
+  const fragment=document.createDocumentFragment();
+  for(const entry of brands){
+   if(!entry||typeof entry.name!=='string'||!entry.name.trim()||
+      typeof entry.url!=='string'||!/^\/[a-z0-9-]+\.html(?:\?make=[^&#]+)?$/i.test(entry.url))continue;
+   const link=text('a',entry.name);link.href=entry.url;fragment.append(link);
+  }
+  if(fragment.childNodes.length)host.replaceChildren(fragment);
+ }catch(error){console.warn('Manufacturer links unavailable',error)}
+}
 async function start(){
  try{
   const response=await fetch('/data/universal-v2-model-routes.json',{cache:'no-cache',signal:AbortSignal.timeout(10000)});
@@ -192,6 +212,7 @@ async function start(){
   all=source.filter(x=>x&&Number.isSafeInteger(x.model_id)&&x.model_id>0&&typeof x.make==='string'&&typeof x.model==='string'&&/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(x.url||''));
   if(!all.length)throw Error('published model catalogue unavailable');
   restore();renderSelectors();
+  void loadComparisonManufacturers();
   // Category metadata is helpful for discovery, not a verified technical specification.
   loadCategories();
   $('sample-comparison').onclick=()=>{
