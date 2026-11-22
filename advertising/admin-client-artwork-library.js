@@ -48,6 +48,30 @@ function currentArt(format,field){
  }
  return campaigns.find(c=>c.partner_id===selected&&c[field])?.[field]||null;
 }
+async function checkFinishedArtwork(source,format){
+ let img;
+ try{
+  const file=typeof source==='string' ? await (async()=>{const res=await fetch(source,{mode:'cors',cache:'no-store'});if(!res.ok)throw Error('Artwork cannot be checked ('+res.status+'). Upload the original WebP to the advertiser file.');return await res.blob()})() : source;
+  img=await createImageBitmap(file);
+  const w=img.width,h=img.height,r=w/h;
+  if(w<600||h<200||Math.abs(r/ratios[format]-1)>.006)throw Error('The artwork does not match the '+format.replace('_',' ')+' frame. It would leave gaps or be cropped.');
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+  const ctx=cv.getContext('2d',{willReadFrequently:true});if(!ctx)throw Error('Unable to inspect image.');
+  ctx.drawImage(img,0,0);
+  const alpha=(x,y)=>ctx.getImageData(Math.floor(x),Math.floor(y),1,1).data[3];
+  const radius=Math.round(Math.min(w,h)*.055);
+  for(const [x,y] of [[0,0],[w-1,0],[0,h-1],[w-1,h-1]]){
+   if(alpha(x,y)>12)throw Error('Corners are square or contain an opaque border. Save true transparent rounded corners in the WebP.');
+  }
+  for(const [x,y] of [[w/2,0],[w/2,h-1],[0,h/2],[w-1,h/2],[radius,radius],[w-radius-1,radius],[radius,h-radius-1],[w-radius-1,h-radius-1]]){
+   if(alpha(x,y)<245)throw Error('There is transparent padding or missing artwork along the advert edge. Artwork must fill the rounded frame.');
+  }
+  for(const [x,y] of [[radius/3,0],[w-1-radius/3,0],[radius/3,h-1],[w-1-radius/3,h-1]]){
+   if(alpha(x,y)>90)throw Error('The corner curve is too shallow or inconsistent. Re-export with genuine rounded corners.');
+  }
+  return {width:w,height:h};
+ }finally{img?.close?.()}
+}
 async function uploadFile(format,file){
  if(!file)return status('Choose a WebP image first.');
  if(file.type!=='image/webp'||!file.size||file.size>10*1024*1024)return status('Use WebP artwork under 10 MB.');
@@ -62,6 +86,7 @@ async function uploadFile(format,file){
   context.drawImage(bitmap,0,0);
   const corners=[[0,0],[bitmap.width-1,0],[0,bitmap.height-1],[bitmap.width-1,bitmap.height-1]];
   if(corners.some(([x,y])=>context.getImageData(x,y,1,1).data[3]>20))throw Error('Artwork must have rounded, transparent corners saved into the file. No page cropping or corner masks.');
+  await checkFinishedArtwork(file,format);
   const name=file.name.toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(-100);
   const path='clients/'+selected+'/'+format+'/'+crypto.randomUUID()+'-'+name;
   status('Uploading '+file.name+'…');
@@ -76,8 +101,9 @@ async function uploadFile(format,file){
 }
 async function approve(v){
  if(v.storage_path?.startsWith('linked-existing/')||v.source_label?.startsWith('Existing '))return status('This is a source advert, not a finished master. Upload the properly sized WebP with rounded corners first.');
- if(!confirm('Approve this finished artwork for '+clients.find(c=>c.id===selected)?.name+'? Confirm rights, wording and visible rounded corners.'))return;
+ if(!confirm('Approve this finished artwork for '+clients.find(c=>c.id===selected)?.name+'? Confirm the design and wording. The image dimensions and transparent corners will be checked.'))return;
  try{
+  await checkFinishedArtwork(v.public_url,v.creative_format);
   const r=await db.from('advertising_client_artwork').update({status:'approved',approved_at:new Date().toISOString()}).eq('id',v.id).eq('status','draft').select('id').single();
   if(r.error)throw r.error;
   await load();status('Approved '+v.file_name+'. You can now make it live.');
@@ -88,6 +114,7 @@ async function activate(v,format,field){
  const owner=clients.find(c=>c.id===selected);
  if(!confirm('Assign this approved '+format.replace('_',' ')+' artwork as the '+owner.name+' master? All existing campaign destinations will be preserved.'))return;
  try{
+  await checkFinishedArtwork(v.public_url,format);
   // Every partner has five permanent master-format records, even without campaigns.
   const folder=await db.from('advertising_partner_artwork_library').update({
    active_artwork_id:v.id,updated_at:new Date().toISOString()
@@ -183,7 +210,7 @@ function renderFolder(){
   labelStatus.style.cssText='color:'+(activeVersion?'#7ed6a5':'#ddd')+';font-size:12px';
   card.append(labelStatus);
   const imageUrl=currentArt(format,field),imageBox=make('div');
-  imageBox.style.cssText='height:160px;display:grid;place-items:center;background:#111;border-radius:11px;overflow:hidden';
+  imageBox.style.cssText='width:100%;aspect-ratio:'+ratios[format]+';display:grid;place-items:center;background:#111;border-radius:11px;overflow:hidden';
   if(imageUrl){const image=make('img');image.src=imageUrl;image.alt=client.name+' '+label+' advert';image.loading='lazy';image.style.cssText='display:block;width:100%;height:100%;object-fit:contain';imageBox.append(image)}
   else imageBox.append(make('span','No artwork yet'));
   card.append(imageBox);
@@ -200,7 +227,7 @@ function renderFolder(){
    const dependencies=artworkDependencies(v);
    const title=make('div',v.file_name);title.style.cssText='font-weight:700;overflow-wrap:anywhere';line.append(title);
    const preview=make('img');preview.src=v.public_url;preview.alt='Preview of '+v.file_name;preview.loading='lazy';
-   preview.style.cssText='display:block;width:100%;max-height:180px;object-fit:contain;background:#111;border:1px solid #555;border-radius:8px';
+   preview.style.cssText='display:block;width:100%;aspect-ratio:'+ratios[format]+';height:auto;object-fit:contain;background:#111;border:1px solid #555;border-radius:8px';
    line.append(preview);
    const state=make('small',(v.status==='approved'?'Approved':'Draft')+(master?.active_artwork_id===v.id?' · SELECTED MASTER':'')+(dependencies.campaign?' · USED BY CAMPAIGN':'')+(dependencies.slot||dependencies.placement?' · USED ON WEBSITE':''));
    state.style.cssText='color:'+(dependencies.used?'#eac07c':'#ccc')+';font-weight:700';line.append(state);
