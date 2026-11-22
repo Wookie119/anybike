@@ -7,7 +7,7 @@ const secure=v=>{try{const u=new URL(v);return u.protocol==='https:'?u.href:null
 function css(){
  if(document.getElementById('abMegaDealerStyles'))return;
  const style=document.createElement('style');style.id='abMegaDealerStyles';
- style.textContent='.ab-mega-dealer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:1020px;width:100%;margin:20px auto 26px}.ab-mega-dealer-card{text-align:center;min-width:0}.ab-mega-dealer-card a{display:block;aspect-ratio:1/1;width:100%;overflow:hidden;border:1px solid #444;border-radius:10px;background:#101010}.ab-mega-dealer-card img{width:100%;height:100%;object-fit:contain;display:block}.ab-mega-dealer-card small{display:block;color:#aaa;font:11px/1.5 Arial,sans-serif;padding-top:5px}@media(max-width:750px){.ab-mega-dealer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.ab-mega-dealer-grid{grid-template-columns:1fr;max-width:340px}}';
+ style.textContent='.ab-mega-dealer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:1020px;width:100%;margin:20px auto 26px}.ab-mega-dealer-card{text-align:center;min-width:0}.ab-mega-dealer-card a{display:block;aspect-ratio:1/1;width:100%;overflow:hidden;border:1px solid #444;border-radius:10px;background:#101010}.ab-mega-dealer-card img{width:100%;height:100%;object-fit:fill;display:block;border:0;border-radius:9px}.ab-mega-dealer-card small{display:block;color:#aaa;font:11px/1.5 Arial,sans-serif;padding-top:5px}@media(max-width:750px){.ab-mega-dealer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.ab-mega-dealer-grid{grid-template-columns:1fr;max-width:340px}}';
  document.head.append(style);
 }
 async function start(){
@@ -40,7 +40,7 @@ async function start(){
     const image=document.createElement('img');image.src=secure(ad.artwork_url);image.alt=ad.image_alt||ad.company_name;
     image.loading='lazy';image.decoding='async';
     // DealerWebs creative includes large baked-in black margins; scale just its image within the existing square.
-    if(ad.slot_code==='AB-DEALER-FEED-S01')image.style.transform='scale(1.85)';
+    if(ad.slot_code==='AB-DEALER-FEED-S01'){image.style.objectFit='contain';image.style.transform='scale(2.05)';}
     // Preserve the entire supplied artwork for every campaign; never crop or zoom a creative.
     image.addEventListener('error',()=>{card.remove();if(!grid.children.length)grid.remove()},{once:true});
     anchor.append(image);
