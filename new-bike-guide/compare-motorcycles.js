@@ -82,21 +82,22 @@ function writeShareUrl(items){
  history.replaceState(null,'',url.pathname+url.search+url.hash);
 }
 // Simple customer-facing styles. Legacy catalogue categories remain in the source data.
-const styleGroups=[
- ['Adventure',['adventure','adventure & gs','adventure scooters','dual sport','rally']],
- ['Sports',['sports','sport','sport & performance','racing']],
- ['Touring',['touring','touring & roadsters','sport touring','sports touring']],
- ['Naked & Roadsters',['roadsters','roadster','naked & roadsters']],
- ['Cruisers',['cruisers','heritage / cruiser']],
- ['Classics',['classics','classic','modern classics','heritage & historic']],
- ['Off-road',['off-road','motocross','trials','supermoto']],
- ['Scooters & Commuters',['scooters','scooter / electric','electric scooters','underbone','commuters']]
-];
-const customerStyles=[...styleGroups.map(group=>group[0]),'Other Motorcycles'];
+// Source of truth for customer-facing names: /motorcycle-types.html.
+// Map legacy catalogue terms only; do not create new public riding categories.
+const styleAliases={
+ 'adventure':['adventure','adventure & gs','adventure scooters','dual sport','rally'],
+ 'touring':['touring','touring & roadsters','sport touring','sports touring'],
+ 'sports':['sports','sport','sport & performance','racing'],
+ 'roadsters':['roadsters','roadster','naked & roadsters','commuters'],
+ 'classics':['classics','classic','modern classics','heritage & historic'],
+ 'cruisers':['cruisers','heritage / cruiser'],
+ 'scooters':['scooters','scooter / electric','electric scooters','underbone'],
+ 'off-road':['off-road','motocross','trials','supermoto']
+};
 function ridingStyle(id){
  const raw=(categories.get(id)||'').toLowerCase().trim();
- const found=styleGroups.find(([,aliases])=>aliases.includes(raw));
- return found?.[0]||'Other Motorcycles';
+ const match=Object.entries(styleAliases).find(([,aliases])=>aliases.includes(raw));
+ return match?.[0]||'';
 }
 function matchesBike(bike){
  if(activeCategory&&ridingStyle(bike.model_id)!==activeCategory)return false;
@@ -207,10 +208,23 @@ async function loadCategories(){
    if(Number.isSafeInteger(m.model_id)&&typeof m.category==='string'&&m.category.trim())categories.set(m.model_id,m.category.trim());
   }
   const select=$('compare-category');if(!select)return;
-  const found=new Set(all.map(m=>ridingStyle(m.model_id)));
-  const groups=customerStyles.filter(style=>found.has(style));
+  // Reuse the site's eight official motorcycle-type headings and routes.
+  const typeResponse=await fetch('/motorcycle-types.html',{cache:'no-cache',signal:AbortSignal.timeout(6500)});
+  if(!typeResponse.ok)throw Error('Motorcycle types unavailable');
+  const typeDocument=new DOMParser().parseFromString(await typeResponse.text(),'text/html');
+  const cards=typeDocument.querySelectorAll('a.card[href^="/motorcycle-type-"]');
+  const validSlugs=new Set(Object.keys(styleAliases));
+  const seen=new Set(),groups=[];
+  for(const card of cards){
+   const href=card.getAttribute('href')||'';
+   const slug=href.match(/^\\/motorcycle-type-([a-z-]+)\\.html$/)?.[1];
+   const label=card.querySelector('h3')?.textContent?.trim();
+   if(!slug||!validSlugs.has(slug)||seen.has(slug)||!label)continue;
+   seen.add(slug);groups.push({slug,label});
+  }
+  if(groups.length!==8)throw Error('Motorcycle type directory incomplete');
   select.querySelectorAll('option:not([value=""])').forEach(option=>option.remove());
-  for(const group of groups){const option=text('option',group);option.value=group;select.append(option)}
+  for(const group of groups){const option=text('option',group.label);option.value=group.slug;select.append(option)}
   applyFilters();
   select.onchange=()=>{activeCategory=select.value;applyFilters();show(activeCategory?'Choose motorcycles in the '+activeCategory+' category.':'Choose motorcycles from any riding style.');};
   if(chosen.some(Boolean))renderResults();
