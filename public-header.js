@@ -3238,3 +3238,11 @@ async function anybikeShowPublicSignedInIdentity(){
   }
  }).catch(()=>{}); // Keep the original advert visible if the network is unavailable.
 })();
+
+/* Specific complimentary dealer-software placement: DealerWebs only. */
+if(location.pathname==='/dealer-connect-stock.html'){
+ const script=document.createElement('script');
+ script.src='/advertising/dealerwebs-house.js?v=1';
+ script.defer=true;
+ document.head.appendChild(script);
+}
