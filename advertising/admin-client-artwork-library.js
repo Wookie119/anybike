@@ -79,32 +79,76 @@ async function checkFinishedArtwork(source,format){
   return {width:w,height:h};
  }finally{img?.close?.()}
 }
+async function bakeArtworkCorners(source,format,filename){
+ let bitmap;
+ try{
+  let blob=source;
+  if(typeof source==='string'){
+   const response=await fetch(source,{mode:'cors',cache:'no-store'});
+   if(!response.ok)throw Error('Original artwork is unavailable for conversion (HTTP '+response.status+').');
+   blob=await response.blob();
+  }
+  bitmap=await createImageBitmap(blob);
+  const w=bitmap.width,h=bitmap.height;
+  if(w<600||h<200||Math.abs(w/h/ratios[format]-1)>.006)throw Error('Original size is not suitable for this '+format.replace('_',' ')+' slot. Nothing was cropped.');
+  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d',{alpha:true});
+  if(!ctx)throw Error('Canvas unavailable.');
+  ctx.drawImage(bitmap,0,0);
+  // Transparent corner pixels are burned into the WebP itself. No CSS radius, scaling or cropping.
+  const radius=Math.max(16,Math.round(Math.min(w,h)*.055));
+  ctx.globalCompositeOperation='destination-in';
+  ctx.fillStyle='#fff';
+  ctx.beginPath();
+  ctx.moveTo(radius,0);ctx.lineTo(w-radius,0);ctx.quadraticCurveTo(w,0,w,radius);
+  ctx.lineTo(w,h-radius);ctx.quadraticCurveTo(w,h,w-radius,h);
+  ctx.lineTo(radius,h);ctx.quadraticCurveTo(0,h,0,h-radius);
+  ctx.lineTo(0,radius);ctx.quadraticCurveTo(0,0,radius,0);
+  ctx.closePath();ctx.fill();
+  const out=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('WebP export failed')),'image/webp',.96));
+  if(out.type!=='image/webp')throw Error('Browser did not export a WebP.');
+  const cleanName=(filename||'approved-advert.webp').replace(/\.webp$/i,'')+'-rounded.webp';
+  const converted=new File([out],cleanName,{type:'image/webp'});
+  await checkFinishedArtwork(converted,format);
+  return converted;
+ }finally{bitmap?.close?.()}
+}
+async function saveRoundedVersion(v,format){
+ if(v.partner_id!==selected||v.creative_format!==format)return status('Open the original artwork in its own client file.');
+ const owner=clients.find(c=>c.id===selected);
+ if(!owner)return status('Advertiser missing.');
+ if(!confirm('Save a new rounded-corner WebP version of '+v.file_name+' for '+owner.name+'? Original artwork and live campaigns will not change.'))return;
+ try{
+  status('Baking transparent rounded corners into a separate WebP version…');
+  const converted=await bakeArtworkCorners(v.public_url,format,v.file_name);
+  const safe=converted.name.toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(-100);
+  const path='clients/'+selected+'/'+format+'/'+crypto.randomUUID()+'-'+safe;
+  const upload=await db.storage.from('advertising-creatives').upload(path,converted,{upsert:false,contentType:'image/webp',cacheControl:'31536000'});
+  if(upload.error)throw upload.error;
+  const url=db.storage.from('advertising-creatives').getPublicUrl(path).data.publicUrl;
+  const row=await db.from('advertising_client_artwork').insert({partner_id:selected,creative_format:format,storage_path:path,public_url:url,file_name:converted.name,source_label:'Transparent rounded corners baked into source WebP · original retained',alt_text:owner.name+' advertisement',status:'draft'});
+  if(row.error)throw row.error;
+  await load();
+  status('Rounded WebP saved as a new draft under '+owner.name+'. Original and live advert unchanged. Review the version and approve it when satisfied.');
+ }catch(e){status('Unable to round the artwork: '+e.message)}
+}
 async function uploadFile(format,file){
  if(!file)return status('Choose a WebP image first.');
  if(file.type!=='image/webp'||!file.size||file.size>10*1024*1024)return status('Use WebP artwork under 10 MB.');
- let bitmap;
  try{
-  bitmap=await createImageBitmap(file);
-  if(Math.abs(bitmap.width/bitmap.height/ratios[format]-1)>.006)throw Error('Wrong dimensions: '+bitmap.width+' × '+bitmap.height+'. Save the finished '+format.replace('_',' ')+' artwork at the required aspect ratio.');
-  if(bitmap.width<600||bitmap.height<200)throw Error('Resolution too small.');
-  const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;
-  const context=canvas.getContext('2d',{willReadFrequently:true});
-  if(!context)throw Error('Artwork could not be checked.');
-  context.drawImage(bitmap,0,0);
-  const corners=[[0,0],[bitmap.width-1,0],[0,bitmap.height-1],[bitmap.width-1,bitmap.height-1]];
-  if(corners.some(([x,y])=>context.getImageData(x,y,1,1).data[3]>20))throw Error('Artwork must have rounded, transparent corners saved into the file. No page cropping or corner masks.');
-  await checkFinishedArtwork(file,format);
-  const name=file.name.toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(-100);
-  const path='clients/'+selected+'/'+format+'/'+crypto.randomUUID()+'-'+name;
-  status('Uploading '+file.name+'…');
-  const u=await db.storage.from('advertising-creatives').upload(path,file,{upsert:false,cacheControl:'31536000',contentType:'image/webp'});
-  if(u.error)throw u.error;
-  const {data:pub}=db.storage.from('advertising-creatives').getPublicUrl(path);
-  const row=await db.from('advertising_client_artwork').insert({partner_id:selected,creative_format:format,storage_path:path,public_url:pub.publicUrl,file_name:file.name,source_label:'Client artwork',alt_text:clients.find(c=>c.id===selected)?.name+' advertisement',status:'draft'});
+  status('Preparing genuine transparent rounded corners…');
+  const prepared=await bakeArtworkCorners(file,format,file.name);
+  if(prepared.size>10*1024*1024)throw Error('Rounded WebP exceeds 10 MB.');
+  const safe=prepared.name.toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(-100);
+  const path='clients/'+selected+'/'+format+'/'+crypto.randomUUID()+'-'+safe;
+  const upload=await db.storage.from('advertising-creatives').upload(path,prepared,{upsert:false,cacheControl:'31536000',contentType:'image/webp'});
+  if(upload.error)throw upload.error;
+  const url=db.storage.from('advertising-creatives').getPublicUrl(path).data.publicUrl;
+  const row=await db.from('advertising_client_artwork').insert({partner_id:selected,creative_format:format,storage_path:path,public_url:url,file_name:prepared.name,source_label:'Original design · transparent corners baked into WebP on upload',alt_text:clients.find(c=>c.id===selected)?.name+' advertisement',status:'draft'});
   if(row.error)throw row.error;
-  await load();status('Saved in this client file as a draft. Review and approve it below.');
+  await load();
+  status('Rounded artwork saved as a new draft. Review the actual image and approve before use. Live adverts unchanged.');
  }catch(e){status('Upload failed: '+e.message)}
- finally{bitmap?.close?.()}
 }
 async function approve(v){
  if(v.storage_path?.startsWith('linked-existing/')||v.source_label?.startsWith('Existing '))return status('This is a source advert, not a finished master. Upload the properly sized WebP with rounded corners first.');
@@ -243,6 +287,7 @@ function renderFolder(){
    state.style.cssText='color:'+(dependencies.used?'#eac07c':'#ccc')+';font-weight:700';line.append(state);
    const controls=make('div');controls.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
    const legacy=Boolean(v.storage_path?.startsWith('linked-existing/')||v.source_label?.startsWith('Existing '));
+   controls.append(button('Bake rounded corners',()=>saveRoundedVersion(v,format)));
    if(v.status==='draft'&&!legacy)controls.append(button('Approve',()=>approve(v)));
    if(v.status==='approved'&&master?.active_artwork_id!==v.id)controls.append(button('Use this artwork',()=>activate(v,format,field),true));
    const del=button(dependencies.used?'In use — cannot delete':'Delete',()=>deleteArtwork(v));
@@ -346,7 +391,7 @@ async function loadDealerBrandSettings(partner,host){
 
 function addZipImporter(){
  const bar=make('div');bar.style.cssText='padding:12px;margin:0 0 14px;background:#222;border:1px solid #555;border-radius:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap';
- const info=make('p','Import approved original artwork for multiple advertisers in one ZIP. Preserves each WebP exactly as supplied, checks its actual dimensions and rounded transparent corners, and saves to its own client file. Does not change live adverts.');info.style.cssText='width:100%;color:#ccc;margin:0';
+ const info=make('p','Import finished artwork for multiple advertisers. Automatically bakes transparent rounded corners into each WebP at its original size. Does not crop, stretch, or change live adverts.');info.style.cssText='width:100%;color:#ccc;margin:0';
  const file=make('input');file.type='file';file.accept='.zip,application/zip';file.setAttribute('aria-label','Choose advertiser artwork ZIP');
  const go=button('Import approved client artwork ZIP',async()=>{
   if(!file.files?.[0])return status('Choose the ZIP file first.');
@@ -378,16 +423,13 @@ function addZipImporter(){
      const webp=new File([bytes],name,{type:'image/webp'});
      image=await createImageBitmap(webp);
      if(image.width!==wh[0]||image.height!==wh[1])throw Error('Image pixel size mismatch');
-     const cv=document.createElement('canvas');cv.width=image.width;cv.height=image.height;
-     const ctx=cv.getContext('2d',{willReadFrequently:true});
-     if(!ctx)throw Error('Cannot verify artwork');
-     ctx.drawImage(image,0,0);
-     if([[0,0],[cv.width-1,0],[0,cv.height-1],[cv.width-1,cv.height-1]].some(([x,y])=>ctx.getImageData(x,y,1,1).data[3]>20))throw Error('Rounded transparent corners required');
-     const path='clients/'+client.id+'/'+format+'/'+crypto.randomUUID()+'-'+name;
-     const upload=await db.storage.from('advertising-creatives').upload(path,webp,{upsert:false,contentType:'image/webp',cacheControl:'31536000'});
+     const rounded=await bakeArtworkCorners(webp,format,name);
+     if(rounded.size>10000000)throw Error('Rounded WebP exceeds 10 MB.');
+     const path='clients/'+client.id+'/'+format+'/'+crypto.randomUUID()+'-'+rounded.name;
+     const upload=await db.storage.from('advertising-creatives').upload(path,rounded,{upsert:false,contentType:'image/webp',cacheControl:'31536000'});
      if(upload.error)throw upload.error;
      const url=db.storage.from('advertising-creatives').getPublicUrl(path).data.publicUrl;
-     const save=await db.from('advertising_client_artwork').insert({partner_id:client.id,creative_format:format,storage_path:path,public_url:url,file_name:name,alt_text:client.name+' advertisement',source_label:ownerApproved?'Owner-approved original artwork — imported without resizing or cropping':'Artwork pending owner approval — imported without resizing or cropping',status:ownerApproved?'approved':'draft',...(ownerApproved?{approved_at:new Date().toISOString()}:{})}).select('id').single();
+     const save=await db.from('advertising_client_artwork').insert({partner_id:client.id,creative_format:format,storage_path:path,public_url:url,file_name:rounded.name,alt_text:client.name+' advertisement',source_label:ownerApproved?'Owner-approved artwork · baked transparent rounded corners; dimensions preserved':'Artwork pending approval · baked transparent rounded corners; dimensions preserved',status:ownerApproved?'approved':'draft',...(ownerApproved?{approved_at:new Date().toISOString()}:{})}).select('id').single();
      if(save.error)throw save.error;
      if(ownerApproved&&!libraryFormats.some(a=>a.partner_id===client.id&&a.creative_format===format&&a.active_artwork_id)){
       const master=await db.from('advertising_partner_artwork_library').update({active_artwork_id:save.data.id}).eq('partner_id',client.id).eq('creative_format',format).is('active_artwork_id',null);
