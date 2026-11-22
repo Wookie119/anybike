@@ -110,3 +110,60 @@
  refresh.addEventListener('click',load);
  load();
 })();
+
+// All named dealer-feed adverts are managed by the Mega System, not page-specific HTML.
+(()=>{
+'use strict';
+const root=document.getElementById('namedAdvertisingSpaces');if(!root)return;
+const section=document.createElement('section');section.id='megaDealerFeedSlots';
+const title=document.createElement('h2');title.textContent='Dealer Stock Connection · 3 managed advert spaces';
+const note=document.createElement('p');note.style.cssText='color:#bbb;font-size:13px';
+note.textContent='Artwork, link, placement and visibility are read from the central advertising database. Changes apply on page refresh. Only enabled entries are publicly visible.';
+const status=document.createElement('p');status.setAttribute('role','status');
+const table=document.createElement('table');table.innerHTML='<thead><tr><th>Slot</th><th>Campaign</th><th>Preview</th><th>Visible</th><th>Position</th><th>Save</th></tr></thead>';
+const body=document.createElement('tbody');table.append(body);
+const wrap=document.createElement('div');wrap.className='scroll';wrap.append(table);
+const refresh=document.createElement('button');refresh.type='button';refresh.textContent='Refresh all three';
+section.append(title,note,refresh,status,wrap);root.insertAdjacentElement('afterend',section);
+const td=(tr,child)=>{const cell=document.createElement('td');if(typeof child==='string')cell.textContent=child;else if(child)cell.append(child);tr.append(cell);return cell};
+async function load(){
+ status.textContent='Loading managed advert spaces…';body.replaceChildren();refresh.disabled=true;
+ try{
+  const db=getAdminSupabaseClient();const admin=await db.rpc('anybike_is_admin');
+  if(admin.error||admin.data!==true)throw Error('Admin permission required');
+  const result=await db.from('advertising_square_house_placements').select('slot_code,campaign_id,company_name,artwork_url,destination_url,enabled,position_key').like('slot_code','AB-DEALER-FEED-%').order('slot_code');
+  if(result.error)throw result.error;
+  const rows=(result.data||[]).filter(x=>/^AB-DEALER-FEED-S[0-9]+$/.test(x.slot_code));
+  for(const row of rows){
+   const tr=document.createElement('tr');td(tr,row.slot_code);td(tr,row.company_name);
+   const image=document.createElement('img');image.alt='Preview: '+row.company_name;image.src=row.artwork_url;image.loading='lazy';
+   image.style.cssText='width:110px;max-height:110px;object-fit:cover;border:1px solid #555;border-radius:5px';
+   td(tr,image);
+   const toggle=document.createElement('input');toggle.type='checkbox';toggle.checked=row.enabled;toggle.setAttribute('aria-label','Show '+row.company_name);
+   td(tr,toggle);
+   const pos=document.createElement('select');pos.setAttribute('aria-label','Position for '+row.company_name);
+   for(const [val,label] of [['before_feed_request','Above feed form'],['after_feed_request','Below feed form'],['after_stock_upload','Below upload panel']]){
+    const op=document.createElement('option');op.value=val;op.textContent=label;pos.append(op);
+   }
+   pos.value=row.position_key;td(tr,pos);
+   const save=document.createElement('button');save.type='button';save.textContent='Save';
+   save.onclick=async()=>{
+    save.disabled=true;toggle.disabled=true;pos.disabled=true;
+    try{
+     const update=await db.from('advertising_square_house_placements')
+      .update({enabled:toggle.checked,position_key:pos.value,updated_at:new Date().toISOString()})
+      .eq('slot_code',row.slot_code).eq('campaign_id',row.campaign_id)
+      .select('slot_code,enabled,position_key').single();
+     if(update.error||!update.data)throw update.error||Error('No row updated');
+     status.textContent='Saved '+row.company_name+' · '+(update.data.enabled?'visible':'hidden')+'. Refresh public page to verify.';
+    }catch(e){toggle.checked=row.enabled;pos.value=row.position_key;status.textContent='Save failed: '+(e?.message||e)}
+    finally{save.disabled=false;toggle.disabled=false;pos.disabled=false}
+   };
+   td(tr,save);body.append(tr);
+  }
+  status.textContent=rows.length+' database-managed dealer feed advert spaces · '+rows.filter(x=>x.enabled).length+' currently enabled.';
+ }catch(e){status.textContent='Unable to load advert spaces: '+(e?.message||e)}
+ finally{refresh.disabled=false}
+}
+refresh.onclick=load;load();
+})();
