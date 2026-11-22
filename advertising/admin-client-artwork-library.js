@@ -15,7 +15,7 @@ let db,clients=[],campaigns=[],slots=[],placements=[],versions=[],libraryFormats
 async function load(){
  const results=await Promise.all([
   db.from('commercial_partners').select('id,name').order('name'),
-  db.from('advertising_campaigns').select('id,partner_id,stock_card_image_url,slim_image_url,desktop_image_url,mobile_image_url'),
+  db.from('advertising_campaigns').select('id,partner_id,stock_card_image_url,slim_image_url,desktop_image_url,mobile_image_url,compact_image_url'),
   db.from('advertising_client_artwork_slots').select('slot_code,partner_id,creative_format,active_artwork_id'),
   db.from('advertising_partner_artwork_library').select('partner_id,creative_format,active_artwork_id'),
   db.from('advertising_square_house_placements').select('slot_code,artwork_url'),
@@ -108,6 +108,45 @@ async function activate(v,format,field){
   await load();status('Approved '+format.replace('_',' ')+' artwork saved as '+owner.name+' master. All compatible linked placements were updated centrally.');
  }catch(e){await load().catch(()=>{});status('Master assignment could not be completed: '+e.message)}
 }
+function artworkDependencies(v){
+ const master=libraryFormats.some(x=>x.active_artwork_id===v.id);
+ const slot=slots.some(x=>x.active_artwork_id===v.id);
+ const campaign=campaigns.some(c=>c.partner_id===v.partner_id&&[c.desktop_image_url,c.mobile_image_url,c.slim_image_url,c.stock_card_image_url,c.compact_image_url].includes(v.public_url));
+ const placement=placements.some(p=>p.artwork_url===v.public_url);
+ return {master,slot,campaign,placement,used:master||slot||campaign||placement};
+}
+async function deleteArtwork(v){
+ if(v.partner_id!==selected)return status('Open the correct advertiser before deleting artwork.');
+ const owner=clients.find(c=>c.id===selected);
+ if(!owner)return status('Advertiser not found.');
+ const checks=artworkDependencies(v);
+ if(checks.used)return status('This artwork is currently selected as a master or used by a campaign. Choose another approved artwork for that format and remove its campaign assignment before deleting it.');
+ if(!confirm('Permanently delete "'+v.file_name+'" from '+owner.name+' artwork versions? The original artwork version will be removed. This cannot be undone.'))return;
+ try{
+  // Recheck the latest database state, not just the loaded gallery state.
+  const [l,sl,ca,pl,rep]=await Promise.all([
+   db.from('advertising_partner_artwork_library').select('partner_id').eq('active_artwork_id',v.id).limit(1),
+   db.from('advertising_client_artwork_slots').select('slot_code').eq('active_artwork_id',v.id).limit(1),
+   db.from('advertising_campaigns').select('id,desktop_image_url,mobile_image_url,slim_image_url,stock_card_image_url,compact_image_url').eq('partner_id',v.partner_id),
+   db.from('advertising_square_house_placements').select('slot_code').eq('artwork_url',v.public_url).limit(1),
+   db.from('advertising_client_artwork').select('id').eq('replaced_by',v.id).limit(1)
+  ]);
+  for(const check of [l,sl,ca,pl,rep])if(check.error)throw check.error;
+  const campaignUsed=(ca.data||[]).some(c=>[c.desktop_image_url,c.mobile_image_url,c.slim_image_url,c.stock_card_image_url,c.compact_image_url].includes(v.public_url));
+  if(l.data?.length||sl.data?.length||pl.data?.length||rep.data?.length||campaignUsed)throw Error('Artwork is still referenced by a master, campaign or another record. Select a replacement first.');
+  const del=await db.from('advertising_client_artwork').delete().eq('id',v.id).eq('partner_id',selected).select('id');
+  if(del.error)throw del.error;
+  if(del.data?.length!==1)throw Error('Artwork could not be deleted. Refresh and try again.');
+  // Remove only client-owned uploads, never shared campaign or website source images.
+  let cleanup='';
+  if(v.storage_path?.startsWith('clients/'+selected+'/')){
+   const storage=await db.storage.from('advertising-creatives').remove([v.storage_path]);
+   if(storage.error)cleanup=' Its old storage image could not be cleaned up: '+storage.error.message;
+  }
+  await load();
+  status('Deleted "'+v.file_name+'" from '+owner.name+' artwork versions.'+cleanup+' Live adverts were unchanged.');
+ }catch(e){await load().catch(()=>{});status('Delete blocked: '+e.message)}
+}
 function renderFolder(){
  const client=clients.find(c=>c.id===selected);
  if(!client){$('cal-folder').hidden=true;return}
@@ -157,12 +196,23 @@ function renderFolder(){
   const rows=versions.filter(v=>v.partner_id===selected&&v.creative_format===format);
   const history=make('details');const summary=make('summary','Artwork versions ('+rows.length+')');summary.style.cursor='pointer';history.append(summary);
   for(const v of rows){
-   const line=make('div');line.style.cssText='border-top:1px solid #444;padding:8px 0;font-size:12px';
+   const line=make('div');line.style.cssText='border-top:1px solid #444;padding:10px 0;font-size:12px;display:flex;flex-direction:column;gap:7px';
+   const dependencies=artworkDependencies(v);
+   const title=make('div',v.file_name);title.style.cssText='font-weight:700;overflow-wrap:anywhere';line.append(title);
+   const preview=make('img');preview.src=v.public_url;preview.alt='Preview of '+v.file_name;preview.loading='lazy';
+   preview.style.cssText='display:block;width:100%;max-height:180px;object-fit:contain;background:#111;border:1px solid #555;border-radius:8px';
+   line.append(preview);
+   const state=make('small',(v.status==='approved'?'Approved':'Draft')+(master?.active_artwork_id===v.id?' · SELECTED MASTER':'')+(dependencies.campaign?' · USED BY CAMPAIGN':'')+(dependencies.slot||dependencies.placement?' · USED ON WEBSITE':''));
+   state.style.cssText='color:'+(dependencies.used?'#eac07c':'#ccc')+';font-weight:700';line.append(state);
+   const controls=make('div');controls.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
    const legacy=Boolean(v.storage_path?.startsWith('linked-existing/')||v.source_label?.startsWith('Existing '));
-   line.append(make('div',v.file_name+' · '+(legacy?'Source artwork · not placement-ready':v.status)));
-   if(legacy)line.append(make('small','Saved in this advertiser file. Prepare the correct finished size with transparent rounded corners before approval.'));
-   if(v.status==='draft'&&!legacy)line.append(button('Approve',()=>approve(v)));
-   if(v.status==='approved')line.append(button('Use this artwork',()=>activate(v,format,field),true));
+   if(v.status==='draft'&&!legacy)controls.append(button('Approve',()=>approve(v)));
+   if(v.status==='approved'&&master?.active_artwork_id!==v.id)controls.append(button('Use this artwork',()=>activate(v,format,field),true));
+   const del=button(dependencies.used?'In use — cannot delete':'Delete',()=>deleteArtwork(v));
+   del.style.cssText='padding:8px 12px;border:1px solid '+(dependencies.used?'#555':'#ed1c24')+';border-radius:7px;background:#282828;color:'+(dependencies.used?'#aaa':'#fff')+';cursor:'+(dependencies.used?'not-allowed':'pointer');
+   del.disabled=dependencies.used;
+   controls.append(del);line.append(controls);
+   if(dependencies.used)line.append(make('small','To delete this version, first select another approved master and remove any campaign using this artwork.'));
    history.append(line);
   }
   card.append(history);host.append(card);
