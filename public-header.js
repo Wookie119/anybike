@@ -93,7 +93,7 @@
     links.forEach(function(link){
       const href=String(link.getAttribute("href")||"");
       if(href.includes("public-header.css")){
-        link.setAttribute("href","/public-header.css?v=20261016-dealer-dropdown-350");
+        link.setAttribute("href","/public-header.css?v=20261122-categorized-nav1");
       }
     });
   }catch(e){}
@@ -840,6 +840,20 @@ async function loadPublicHeader(){
     // Identify approved test accounts before slower navigation/profile setup.
     anybikeShowPublicSignedInIdentity().catch(()=>{});
     await setupPublicHeader();
+    // Explore is the same categorized, keyboard-accessible dropdown for every role.
+    document.querySelectorAll('.public-services-menu').forEach(function(menu){
+      const button=menu.querySelector('.public-services-trigger');
+      if(!button)return;
+      const close=()=>{menu.classList.remove('services-open');button.setAttribute('aria-expanded','false')};
+      button.addEventListener('click',function(e){
+        e.stopPropagation();
+        const open=menu.classList.toggle('services-open');
+        button.setAttribute('aria-expanded',String(open));
+      });
+      menu.addEventListener('keydown',function(e){if(e.key==='Escape'){close();button.focus()}});
+      document.addEventListener('click',function(e){if(!menu.contains(e.target))close()});
+      menu.addEventListener('focusout',function(e){if(!menu.contains(e.relatedTarget))close()});
+    });
     // International VQ gallery is separately secured and must not enable the legacy public stock feed.
     document.querySelectorAll(".export-dropdown-links,.mobile-export-links").forEach(function(host){
       if(host.querySelector(".anybike-international-vq-link"))return;
@@ -886,6 +900,7 @@ function anybikePublicNavLabel(node){
   if(node.classList?.contains("public-markets-menu")) return "Markets";
   if(node.classList?.contains("public-export-menu")) return "Export Services";
   if(node.classList?.contains("public-account")) return "My AnyBike";
+   if(node.classList?.contains("public-services-menu")) return "Explore";
   return node.textContent.trim();
 }
 
@@ -992,6 +1007,26 @@ function anybikeSortMyAnyBikeMenus(){
   anybikeSortAccountMenuAlphabetically(document.getElementById("mobileLoggedInMenu"));
 }
 
+function anybikeGroupUkDealerAccountMenus(){
+ if(!document.documentElement.classList.contains('anybike-uk-dealer'))return;
+ const groups=[
+  ['Your dealership',['My Dealership','My Selling','My Purchases','Start Here']],
+  ['Account & support',['Accounts & Documents','Messages','My Profile']]
+ ];
+ for(const id of ['loggedInMenu','mobileLoggedInMenu']){
+  const menu=document.getElementById(id);if(!menu||menu.querySelector('.anybike-dealer-account-groups'))continue;
+  const links=[...menu.querySelectorAll(':scope > a')];
+  const wrap=document.createElement('div');wrap.className='anybike-dealer-account-groups';
+  for(const [title,names] of groups){
+   const section=document.createElement('section');section.className='anybike-dealer-account-group';
+   const heading=document.createElement('strong');heading.textContent=title;section.append(heading);
+   for(const name of names){const link=links.find(a=>a.textContent.trim()===name);if(link)section.append(link)}
+   wrap.append(section);
+  }
+  const logout=links.find(a=>a.textContent.trim()==='Logout'||a.id.includes('Logout'));
+  menu.insertBefore(wrap,logout||null);
+ }
+}
 async function addMyDealershipMenuIfEligible(user){
   if(!user || typeof sb === "undefined")return;
   try{
@@ -1108,6 +1143,7 @@ async function addMyDealershipMenuIfEligible(user){
       }
     }
     anybikeSortMyAnyBikeMenus();
+    anybikeGroupUkDealerAccountMenus();
   }catch(error){console.warn("Dealer menu check unavailable",error);}
 }
 
