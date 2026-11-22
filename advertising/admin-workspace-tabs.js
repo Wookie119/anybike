@@ -144,7 +144,25 @@ cb.title=live?'Already shown recently on this page — cannot create a duplicate
 cb.onchange=()=>{cb.checked?selected.add(p.page_path):selected.delete(p.page_path);
 const n=[...selected].filter(path=>!pages.some(p=>p.page_path===path&&p.placement_enabled&&current.status==='active'&&recentlySeen.has(current.id+'|'+path))).length;
 count.textContent=n+' new/draft location'+(n===1?'':'s')+' selected';save.disabled=n===0};
-const span=document.createElement('span');const strong=document.createElement('strong');strong.textContent=p.page_path;const small=document.createElement('small');small.textContent=p.slot_code+' · '+(live?'RECENTLY DISPLAYED — enabled, recorded in last 7 days':draft?'SAVED DRAFT — not published':p.placement_enabled?'Available — enabled position':'Available — position currently disabled');span.append(strong,small);label.append(cb,span);pagesEl.append(label);
+const span=document.createElement('span');const strong=document.createElement('strong');strong.textContent=p.page_path;const small=document.createElement('small');small.textContent=p.slot_code+' · '+(live?'RECENTLY DISPLAYED — enabled, recorded in last 7 days':draft?'SAVED DRAFT — not published':p.placement_enabled?'Available — enabled position':'Available — position currently disabled');span.append(strong,small);
+const actions=document.createElement('span');actions.style.cssText='display:flex;gap:9px;flex-wrap:wrap;margin-top:7px';
+const view=document.createElement('a');view.href=p.page_path;view.target='_blank';view.rel='noopener noreferrer';view.textContent='View website page';view.style.fontSize='12px';actions.append(view);
+if(draft&&!live){
+ const remove=document.createElement('button');remove.type='button';remove.textContent='Remove draft';
+ remove.style.cssText='font-size:12px;padding:3px 8px;background:#222;border:1px solid #777';
+ remove.onclick=async ev=>{
+  ev.preventDefault();if(!confirm('Remove draft placement for '+current.name+' on '+p.page_path+'? No live advertising will change.'))return;
+  remove.disabled=true;
+  try{
+   const result=await db.from('advertising_customer_page_plans').delete().eq('campaign_id',current.id).eq('page_path',p.page_path).select('page_path');
+   if(result.error)throw result.error;if(!result.data?.length)throw Error('Draft not found or already removed');
+   plans=plans.filter(plan=>!(plan.campaign_id===current.id&&plan.page_path===p.page_path));
+   selected.delete(p.page_path);draw();status.textContent='Draft removed for '+p.page_path+'. Website adverts unchanged.';
+  }catch(e){status.textContent='Could not remove draft: '+(e.message||e);remove.disabled=false}
+ };
+ actions.append(remove);
+}
+span.append(actions);label.append(cb,span);pagesEl.append(label);
 }
 status.textContent=filtered.length+' suitable inventoried positions'+(filtered.length>120?' · displaying first 120, narrow your search':'')+'. Live positions are locked against duplicate drafting; draft selections remain editable.';
 }
