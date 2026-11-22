@@ -8,6 +8,9 @@
 import {installVerifiedModelFacts,approvedResearchSectionHeading} from '/model-template/public-verified-model-facts.mjs?v=20261115-research-runtime20';
 const ENDPOINT='https://tuehtnezhdnkqbbhttgp.supabase.co';
 const KEY='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
+// Network reads must not hold the entire public model page indefinitely.
+// Optional public sources time out cleanly; published identity checks remain mandatory.
+const bounded=(task,ms=3500)=>Promise.race([Promise.resolve(task),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Optional model lookup timed out')),ms))]);
 const $=id=>document.getElementById(id);
 const str=x=>typeof x==='string'?x.trim():'';
 const normalize=s=>str(s).toLocaleLowerCase('en-GB').replace(/[^a-z0-9]+/g,' ').trim();
@@ -449,7 +452,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   let candidates=[],liveCatalogueLoaded=false;
   if(client){
    try{
-    const {data,error}=await client.rpc('public_anybike_manufacturer_catalogue_names_v1',{p_make:wantMake});
+    const {data,error}=await bounded(client.rpc('public_anybike_manufacturer_catalogue_names_v1',{p_make:wantMake}),3500);
     if(error)throw error;
     if(!Array.isArray(data))throw Error('Unexpected catalogue response');
     candidates=data;liveCatalogueLoaded=true;
@@ -505,10 +508,10 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     // Editorial must match the canonical catalogue ID, not merely similarly
     // spelt make/model fields. When no ID is available, show verified facts only.
     if(hasCanonicalId){
-     const {data,error}=await client.from('motorcycle_model_v2_editorial')
+     const {data,error}=await bounded(client.from('motorcycle_model_v2_editorial')
       .select('model_id,slug,editorial').eq('preview_visible',true)
       .eq('model_id',canonicalId)
-      .eq('editorial->>make',make).eq('editorial->>model',model).limit(1).maybeSingle();
+      .eq('editorial->>make',make).eq('editorial->>model',model).limit(1).maybeSingle(),3000);
      if(!error&&data?.editorial&&Number(data.model_id)===canonicalId&&
         normalize(data.editorial.make)===normalize(make)&&
         normalize(data.editorial.model)===normalize(model)){
@@ -571,9 +574,9 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // the returned identity and rejects unreferenced generations.
   if(approvedDedicatedRoute&&normalize(make)==='bmw'&&client){
    try{
-    const {data,error}=await client.rpc('public_bmw_model_history_v1',{
+    const {data,error}=await bounded(client.rpc('public_bmw_model_history_v1',{
      requested_path:approvedDedicatedRoute
-    });
+    }),2500);
     if(error)throw error;
     const {mergeApprovedBmwHistory}=await import('/model-template/approved-v2-bmw-history-bridge.mjs');
     guide=mergeApprovedBmwHistory(guide,data,{make,model,approvedRoute:approvedDedicatedRoute,preferExisting:publishedV2Editorial});
@@ -648,7 +651,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    let routes=null;
    if(client){
     try{
-     const {data,error}=await client.rpc('public_anybike_manufacturer_model_routes_v1',{p_make:make});
+     const {data,error}=await bounded(client.rpc('public_anybike_manufacturer_model_routes_v1',{p_make:make}),2500);
      if(error)throw error;
      if(Array.isArray(data))routes=data;
     }catch(error){console.warn('Supabase JS canonical routes unavailable',error);}
@@ -800,7 +803,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const photoData=async name=>{
    if(client){
     try{
-     const result=await client.rpc(name,{p_make:make,p_model:model});
+     const result=await bounded(client.rpc(name,{p_make:make,p_model:model}),2500);
      if(!result.error)return result.data;
     }catch(error){console.warn('Supabase JS media request failed',error);}
    }
@@ -1229,7 +1232,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // invented specifications or blank mandatory panels.
   let factCount=0;
    try{
-    factCount=await installVerifiedModelFacts({body:$('body'),make,model,client});
+    factCount=await bounded(installVerifiedModelFacts({body:$('body'),make,model,client}),5000);
    }catch(error){
     // Verified research is optional; a public facts RPC outage must not
     // disable the model's sourcing enquiry or exact-model stock.
