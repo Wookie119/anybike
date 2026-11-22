@@ -844,6 +844,18 @@ async function loadPublicHeader(){
     document.querySelectorAll('.public-services-menu').forEach(function(menu){
       const button=menu.querySelector('.public-services-trigger');
       if(!button)return;
+      // Pin the panel below the shared header, including its signed-in identity row.
+      // Fixed positioning prevents parent navigation bars from clipping links.
+      const positionPanel=()=>{
+        const header=document.querySelector('.public-header');
+        const rect=header?.getBoundingClientRect();
+        const bottom=Math.max(55,Math.ceil(rect?.bottom||button.getBoundingClientRect().bottom));
+        menu.style.setProperty('--ab-explore-panel-top',Math.min(bottom+2,window.innerHeight-130)+'px');
+      };
+      menu.addEventListener('pointerenter',positionPanel);
+      menu.addEventListener('focusin',positionPanel);
+      window.addEventListener('resize',positionPanel,{passive:true});
+      positionPanel();
       const close=()=>{menu.classList.remove('services-open');button.setAttribute('aria-expanded','false')};
       button.addEventListener('click',function(e){
         e.stopPropagation();
