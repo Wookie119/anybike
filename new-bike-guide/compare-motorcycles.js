@@ -51,10 +51,10 @@ async function fillVerifiedComparisons(bikes,tableBody){
  const generation=++factsRenderGeneration;
  const positions=new Map();
  for(const [heading,category,label,unit] of measuredRows){
-  const row=text('tr');row.append(text('th',heading+' · source-verified record'));
+  const row=text('tr');row.append(text('th',heading));
   const cells=[];
   for(const bike of bikes){
-   const cell=text('td','Checking published research…');cells.push(cell);row.append(cell);
+   const cell=text('td','Loading…');cells.push(cell);row.append(cell);
   }
   positions.set(heading,cells);tableBody.append(row);
  }
@@ -65,7 +65,7 @@ async function fillVerifiedComparisons(bikes,tableBody){
   facts.forEach((result,index)=>{
    const cell=cells[index];cell.replaceChildren();
    const found=result.status==='fulfilled'?exactMeasurement(result.value,category,label,unit):null;
-   if(!found){cell.textContent='No matching source-verified figure published';return}
+   if(!found){cell.textContent='—';return}
    cell.append(text('span',found.display),text('span',' '));
    const link=text('a','Source');link.href=found.source;link.target='_blank';link.rel='noopener noreferrer';
    link.className='compare-fact-source';cell.append(link);
@@ -101,7 +101,7 @@ function cardPicker(index){
   const candidates=all.filter(x=>x.make===make.value&&(!activeCategory||categories.get(x.model_id)===activeCategory)).sort((a,b)=>a.model.localeCompare(b.model,'en'));
   const usedIds=new Set(chosen.filter((c,i)=>i!==index&&c).map(c=>c.model_id));
   for(const bike of candidates){const op=text('option',bike.model);op.value=String(bike.model_id);op.disabled=usedIds.has(bike.model_id);model.append(op)}
-  if(!candidates.length&&make.value){const unavailable=text('option','No models in this category');unavailable.disabled=true;model.append(unavailable)}
+  if(!candidates.length&&make.value){const unavailable=text('option','No motorcycles in this category');unavailable.disabled=true;model.append(unavailable)}
   model.disabled=!make.value;
   model.value=chosen[index]?.make===make.value?String(chosen[index]?.model_id||''):'';
  };
@@ -133,8 +133,8 @@ function renderResults(){
  if(linkField){linkField.value=valid?location.href:'';linkField.hidden=!valid}
  if(items.length<MIN){show('Choose at least two motorcycles to build a comparison.');return}
  if(!valid){show('Please choose different motorcycles in each position.');return}
- show('Comparison ready — '+items.length+' motorcycles from AnyBike’s published catalogue.');
- const intro=text('p','Compare the selected motorcycles below. Current UK new-bike prices, year-specific specifications and variant equipment will appear only after they have been independently verified or supplied under a licensed manufacturer feed.');
+ show('Comparing '+items.length+' motorcycles.');
+ const intro=text('p','Explore your chosen motorcycles side by side. Select a motorcycle’s model page for additional information.');
  host.append(intro);
  const wrap=text('div');wrap.className='comparison-table-scroll';
  const table=text('table');table.className='comparison-table';
@@ -144,13 +144,13 @@ function renderResults(){
  const data=[
   ['Manufacturer',x=>x.make],
   ['Model',x=>x.model],
-  ['Catalogue category (provisional)',x=>categories.get(x.model_id)||'Not classified'],
-  ['Current UK model range',()=> 'Not yet verified'],
-  ['UK list price',()=> 'Awaiting verified current UK price'],
-  ['Model year / variant',()=> 'Choose on verified model page'],
-  ['Engine / power / torque',()=> 'See verified model research'],
-  ['Seat height / weight',()=> 'See verified model research'],
-  ['UK authorised dealers',()=> 'UK listings are being verified']
+  ['Motorcycle type',x=>categories.get(x.model_id)||'Not listed'],
+  ['UK new-bike availability',()=> 'Ask a dealer'],
+  ['UK new price',()=> 'Ask a dealer'],
+  ['Model years and versions',()=> 'See model details'],
+  ['Engine and performance',()=> 'See model details'],
+  ['Dimensions and weight',()=> 'See model details'],
+  ['Find a UK dealer',()=> 'Browse UK dealers']
  ];
  for(const [label,get] of data){const row=text('tr');row.append(text('th',label));for(const x of items)row.append(text('td',get(x)));body.append(row)}
  // Append independent sourced measurements without blocking the basic comparison table.
@@ -159,7 +159,7 @@ function renderResults(){
  const links=text('tr');links.append(text('th','Research this model'));
  for(const x of items){const td=text('td'),a=text('a','View AnyBike model page');a.href=absolute(x.url)||'/motorcycle-manufacturers.html';td.append(a);links.append(td)}
  body.append(links);table.append(body);wrap.append(table);host.append(wrap);
- const notice=text('p','AnyBike comparisons are independent. Manufacturer trademarks identify the motorcycles; no brand endorsement is implied. Specifications vary by model year, market and variant. No unverified figures or copied manufacturer artwork are displayed here.');
+ const notice=text('p','Specifications can vary by model year, version and market. Follow the source links for published figures and check current prices with a UK dealer.');
  notice.className='comparison-notice';host.append(notice);
  // Comparison URL is synchronised by writeShareUrl, including when a selection is cleared.
 }
@@ -188,7 +188,7 @@ async function loadCategories(){
   const select=$('compare-category');if(!select)return;
   const groups=[...new Set(categories.values())].sort((a,b)=>a.localeCompare(b,'en'));
   for(const group of groups){const option=text('option',group);option.value=group;select.append(option)}
-  select.onchange=()=>{activeCategory=select.value;chosen=[null,null,null];renderSelectors();show(activeCategory?'Showing catalogue models in '+activeCategory+'. Select two or more motorcycles.':'Showing motorcycles from all catalogue categories.');};
+  select.onchange=()=>{activeCategory=select.value;chosen=[null,null,null];renderSelectors();show(activeCategory?'Showing '+activeCategory+' motorcycles. Choose two or more to compare.':'Showing all motorcycle types.');};
   if(chosen.some(Boolean))renderResults();
  }catch(e){console.warn('Optional catalogue category filter unavailable',e)}
 }
@@ -206,12 +206,12 @@ async function start(){
   $('sample-comparison').onclick=()=>{
    // These are canonical, published AnyBike model IDs from the checked-in route manifest.
    const examples=[77,255,104].map(id=>all.find(model=>model.model_id===id));
-   if(examples.some(x=>!x)){show('Example motorcycles are not currently in the published model directory.');return}
+   if(examples.some(x=>!x)){show('These motorcycles are currently unavailable. Please select other models.');return}
    activeCategory='';
    const select=$('compare-category');if(select)select.value='';
    chosen=examples;
    renderSelectors();
-   show('Example loaded: BMW R 1300 GS, Triumph Tiger 1200 and Ducati Multistrada V4. Current UK specifications remain subject to verification.');
+   show('Ready to compare BMW, Triumph and Ducati.');
   };
   $('clear-comparison').onclick=()=>{
    chosen=[null,null,null];activeCategory='';
@@ -222,7 +222,7 @@ async function start(){
   $('share-comparison').onclick=share;
   $('print-comparison').onclick=()=>window.print();
   window.addEventListener('popstate',()=>{restore();renderSelectors()});
- }catch(error){show('The published motorcycle directory could not be loaded. Please try again.');console.warn('AnyBike comparison directory unavailable',error)}
+ }catch(error){show('Motorcycles could not be loaded. Please refresh the page.');console.warn('AnyBike comparison directory unavailable',error)}
 }
 start();
 })();
