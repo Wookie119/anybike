@@ -13,7 +13,7 @@
  panel.id='softwareCreativeImporter';
  panel.innerHTML='<h2>Stock-feed software adverts · bulk artwork import</h2>'+
   '<p style="font-size:13px;color:#bbb">Upload the seven square WebP files from the AnyBike artwork pack in one selection. Each image is attached only to its matching company draft, using the existing campaign and creative storage. Nothing goes live automatically.</p>'+
-  '<div class="bar"><input id="softwareCreativeFiles" type="file" multiple accept=".webp,image/webp" aria-label="Select seven square software adverts"><button id="softwareCreativeReview" type="button">Check artwork</button><button id="softwareCreativeUpload" type="button" class="primary" disabled>Import checked drafts</button></div>'+
+  '<div class="bar"><input id="softwareCreativeFiles" type="file" multiple accept=".zip,.webp,image/webp,application/zip" aria-label="Select seven square software adverts"><button id="softwareCreativeReview" type="button">Check artwork</button><button id="softwareCreativeUpload" type="button" class="primary" disabled>Import checked drafts</button></div>'+
   '<p id="softwareCreativeStatus" role="status" aria-live="polite"></p><div class="scroll"><table><thead><tr><th>Company</th><th>File</th><th>Campaign</th><th>Result</th></tr></thead><tbody id="softwareCreativeRows"></tbody></table></div>';
  root.insertAdjacentElement('afterend',panel);
  let verified=[];
@@ -23,10 +23,41 @@
   for(const value of [company,file,campaign,result]){const td=document.createElement('td');td.textContent=value;tr.append(td)}
   $('softwareCreativeRows').append(tr);
  }
+ let zipLibraryLoading=null;
+ async function readArtworkFiles(){
+  const chosen=[...($('softwareCreativeFiles').files||[])];
+  if(chosen.length===1&&/\\.zip$/i.test(chosen[0].name)){
+   const zipFile=chosen[0];
+   if(zipFile.size>12*1024*1024||zipFile.size<=0)throw Error('ZIP must be between 1 byte and 12 MB.');
+   if(!window.JSZip){
+    if(!zipLibraryLoading)zipLibraryLoading=new Promise((resolve,reject)=>{
+     const script=document.createElement('script');
+     script.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+     script.onload=()=>window.JSZip?resolve():reject(Error('ZIP reader not available'));
+     script.onerror=()=>reject(Error('ZIP reader failed to load; select the extracted WebP files instead'));
+     document.head.appendChild(script);
+    });
+    await zipLibraryLoading;
+   }
+   const archive=await window.JSZip.loadAsync(zipFile,{checkCRC32:true});
+   const entries=Object.values(archive.files).filter(x=>!x.dir);
+   if(entries.length!==7||entries.some(x=>!/^([a-z0-9_-]+)-square\\.webp$/i.test(x.name)))
+    throw Error('Expected exactly the seven named square WebP adverts at the ZIP root.');
+   const files=[];
+   for(const entry of entries){
+    const data=await entry.async('uint8array');
+    if(!data.length||data.length>10*1024*1024)throw Error('Invalid or oversized artwork: '+entry.name);
+    files.push(new File([data],entry.name,{type:'image/webp'}));
+   }
+   return files;
+  }
+  if(chosen.some(f=>/\\.zip$/i.test(f.name)))throw Error('Select either one ZIP or individual WebP files, not both.');
+  return chosen;
+ }
  async function check(){
   verified=[];$('softwareCreativeUpload').disabled=true;$('softwareCreativeRows').replaceChildren();
-  const files=[...($('softwareCreativeFiles').files||[])];
-  if(!files.length){setStatus('Select the extracted square WebP files first.');return}
+  const files=await readArtworkFiles();
+  if(!files.length){setStatus('Select the ZIP pack or the extracted WebP files first.');return}
   if(files.length>7){setStatus('At most seven company adverts can be imported in one batch.');return}
   const db=getAdminSupabaseClient();
   const auth=await db.rpc('anybike_is_admin');
