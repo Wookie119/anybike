@@ -12,7 +12,7 @@ const refresh=document.createElement('button');refresh.type='button';refresh.tex
 const status=document.createElement('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.style.cssText='font-size:13px;color:#ccc';
 const scroll=document.createElement('div');scroll.className='scroll';
 const table=document.createElement('table');const head=document.createElement('thead');const header=document.createElement('tr');
-for(const h of ['Space ID / name','Format / market','Campaign','Stage','Preview','Actions']){const th=document.createElement('th');th.textContent=h;header.append(th)}
+for(const h of ['Space ID / name','Placement / verify','Format / market','Campaign','Stage','Preview','Actions']){const th=document.createElement('th');th.textContent=h;header.append(th)}
 head.append(header);const body=document.createElement('tbody');table.append(head,body);scroll.append(table);
 section.append(heading,note,bar,status,scroll);
 anchor.insertAdjacentElement('afterend',section);
@@ -29,7 +29,7 @@ async function refreshRows(){
   const admin=await db.rpc('anybike_is_admin');
   if(admin.error||admin.data!==true)throw Error('Admin permission required');
   const results=await Promise.all([
-    db.from('advertising_named_spaces').select('slot_code,display_name,page_template,format,market_scope,status,pricing_tier,guide_monthly_gbp').order('slot_code'),
+    db.from('advertising_named_spaces').select('slot_code,display_name,page_template,page_path,anchor_key,inherits_template,format,market_scope,status,pricing_tier,guide_monthly_gbp').order('slot_code'),
     db.from('advertising_space_assignments').select('slot_code,campaign_id,assignment_status'),
     db.from('advertising_campaigns').select('id,name,status,campaign_category,countries,desktop_image_url,mobile_image_url,slim_image_url,compact_image_url,stock_card_image_url,destination_url,partner_id').order('name'),
     db.from('commercial_partners').select('id,name')
@@ -43,6 +43,14 @@ async function refreshRows(){
    const tr=document.createElement('tr');
    const spaceCell=textCell(tr,space.slot_code);
    const small=document.createElement('div');small.style.cssText='font-size:12px;color:#aaa;margin-top:3px';small.textContent=space.display_name;spaceCell.append(small);
+   const placementCell=textCell(tr,space.inherits_template?'Inherited '+(space.page_template||'page')+' template':'Individual page');
+   const location=document.createElement('div');location.style.cssText='font-size:12px;color:#aaa;margin-top:3px';
+   location.textContent='Anchor: '+(space.anchor_key||'not mapped');placementCell.append(location);
+   if(typeof space.page_path==='string'&&/^\\/[a-z0-9\\/-]+\\.html$/i.test(space.page_path)){
+    const view=document.createElement('a');view.href=space.page_path;view.target='_blank';view.rel='noopener noreferrer';
+    view.textContent='Open public page';view.style.cssText='display:block;font-size:12px;margin-top:4px';
+    placementCell.append(view);
+   }
    textCell(tr,(space.format||'Unspecified')+' · '+(space.market_scope||'all')+' · '+(space.pricing_tier||'standard')+' · '+(space.status||'planned'));
    const campaignCell=document.createElement('td');const select=document.createElement('select');select.setAttribute('aria-label','Campaign for '+space.slot_code);
    const empty=document.createElement('option');empty.value='';empty.textContent='Choose campaign';select.append(empty);
@@ -111,7 +119,7 @@ async function refreshRows(){
    };
    actions.append(save,clear);tr.append(actions);body.append(tr);
   }
-  status.textContent=spaces.length+' named spaces · '+assignments.length+' planned assignments. These controls do not change live advertising.';
+  status.textContent=spaces.length+' named spaces · '+assignments.length+' planning assignments · '+spaces.filter(x=>x.inherits_template).length+' inherited template positions. These controls do not change live advertising.';
  }catch(e){status.textContent='Unable to load space assignments: '+(e?.message||e)}
 }
 refresh.addEventListener('click',refreshRows);
