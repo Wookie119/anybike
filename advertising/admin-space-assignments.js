@@ -19,6 +19,9 @@ anchor.insertAdjacentElement('afterend',section);
 const textCell=(tr,text)=>{const td=document.createElement('td');td.textContent=String(text??'—');tr.append(td);return td};
 let db;
 const formats={square:'compact_image_url',stock_card:'stock_card_image_url',model_card:'stock_card_image_url',vertical:'mobile_image_url',landscape:'desktop_image_url',paired_50_50:'desktop_image_url'};
+const softwareDrafts=c=>/^AnyBike complimentary software showcase — /.test(c.name||'')&&!/Dealerwebs$/i.test(c.name||'');
+const artworkFits=(space,c)=>Boolean(c&&/^https:\/\//.test(c[formats[space.format]]||''));
+const marketFits=(space,c)=>space.market_scope==='all'||!Array.isArray(c.countries)||!c.countries.length||(space.market_scope==='GB'?c.countries.includes('GB'):c.countries.some(x=>x!=='GB'));
 async function refreshRows(){
  status.textContent='Loading named-space assignments…';body.replaceChildren();
  try{
@@ -26,9 +29,9 @@ async function refreshRows(){
   const admin=await db.rpc('anybike_is_admin');
   if(admin.error||admin.data!==true)throw Error('Admin permission required');
   const results=await Promise.all([
-    db.from('advertising_named_spaces').select('slot_code,display_name,page_template,format,market_scope,status').order('slot_code'),
+    db.from('advertising_named_spaces').select('slot_code,display_name,page_template,format,market_scope,status,pricing_tier,guide_monthly_gbp').order('slot_code'),
     db.from('advertising_space_assignments').select('slot_code,campaign_id,assignment_status'),
-    db.from('advertising_campaigns').select('id,name,status,campaign_category,desktop_image_url,mobile_image_url,slim_image_url,compact_image_url,stock_card_image_url,destination_url,partner_id').order('name'),
+    db.from('advertising_campaigns').select('id,name,status,campaign_category,countries,desktop_image_url,mobile_image_url,slim_image_url,compact_image_url,stock_card_image_url,destination_url,partner_id').order('name'),
     db.from('commercial_partners').select('id,name')
   ]);
   const failure=results.find(r=>r.error);if(failure)throw failure.error;
@@ -40,11 +43,19 @@ async function refreshRows(){
    const tr=document.createElement('tr');
    const spaceCell=textCell(tr,space.slot_code);
    const small=document.createElement('div');small.style.cssText='font-size:12px;color:#aaa;margin-top:3px';small.textContent=space.display_name;spaceCell.append(small);
-   textCell(tr,(space.format||'Unspecified')+' · '+(space.market_scope||'all'));
+   textCell(tr,(space.format||'Unspecified')+' · '+(space.market_scope||'all')+' · '+(space.pricing_tier||'standard')+' · '+(space.status||'planned'));
    const campaignCell=document.createElement('td');const select=document.createElement('select');select.setAttribute('aria-label','Campaign for '+space.slot_code);
    const empty=document.createElement('option');empty.value='';empty.textContent='Choose campaign';select.append(empty);
    for(const c of campaigns){
-    const option=document.createElement('option');option.value=c.id;option.textContent=c.name+' · '+(ownerMap.get(c.partner_id)||'Unassigned')+' ('+c.status+')';select.append(option);
+    // The other six software suppliers remain private drafts; never offer them for placement.
+    if(softwareDrafts(c)&&current?.campaign_id!==c.id)continue;
+    if(!artworkFits(space,c)&&current?.campaign_id!==c.id)continue;
+    if(!marketFits(space,c)&&current?.campaign_id!==c.id)continue;
+    const option=document.createElement('option');option.value=c.id;
+    const warning=artworkFits(space,c)&&marketFits(space,c)?'':' · incompatible artwork/market';
+    option.textContent=c.name+' · '+(ownerMap.get(c.partner_id)||'Unassigned')+' ('+c.status+warning+')';
+    option.disabled=!!warning||softwareDrafts(c);
+    select.append(option);
    }
    select.value=current?.campaign_id||'';
    campaignCell.append(select);tr.append(campaignCell);
@@ -74,11 +85,15 @@ async function refreshRows(){
     try{
      const c=campaigns.find(x=>x.id===select.value);
      if(!c)throw Error('Campaign not available');
+     if(softwareDrafts(c))throw Error('Only DealerWebs may be considered among software suppliers. Other six remain unpublished.');
+     if(!artworkFits(space,c))throw Error('Artwork for '+space.format+' is missing. Upload a compatible creative first.');
+     if(!marketFits(space,c))throw Error('Campaign territory does not match this named position.');
+     if(stage.value==='reserved'&&space.status!=='ready'&&space.status!=='active')throw Error('This space is still planned and cannot be reserved until verified ready.');
      if(!window.confirm('Save '+c.name+' as '+stage.value+' for '+space.slot_code+'? This is planning only; nothing will appear on the website.'))return;
      const result=await db.from('advertising_space_assignments').upsert({slot_code:space.slot_code,campaign_id:c.id,assignment_status:stage.value,updated_at:new Date().toISOString()},{onConflict:'slot_code'}).select('slot_code').single();
      if(result.error)throw result.error;
-     status.textContent='Saved planning assignment for '+space.slot_code+'. No advert activated.';
      await refreshRows();
+     status.textContent='Saved planning assignment for '+space.slot_code+'. No advert activated.';
     }catch(e){status.textContent='Assignment not saved: '+(e?.message||e)}
     finally{save.disabled=false;clear.disabled=false}
    };
@@ -89,8 +104,8 @@ async function refreshRows(){
     try{
      const result=await db.from('advertising_space_assignments').delete().eq('slot_code',space.slot_code).select('slot_code').maybeSingle();
      if(result.error||!result.data)throw Error(result.error?.message||'No assignment removed');
-     status.textContent='Cleared planned assignment for '+space.slot_code+'. Campaign preserved.';
      await refreshRows();
+     status.textContent='Cleared planned assignment for '+space.slot_code+'. Campaign preserved.';
     }catch(e){status.textContent='Could not clear assignment: '+(e?.message||e)}
     finally{clear.disabled=false}
    };
