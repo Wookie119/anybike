@@ -551,6 +551,7 @@ export async function renderMoveHouseOnUkPage(options={}){
  }catch{return;}
  try{
   const result=await send(request);
+  if(Array.isArray(result?.layout)&&result.layout.length){installPublishedLayout(result.layout,request.page_path||location.pathname);return}
   if(!result?.ad||!await validateAdvertArtwork(result.ad))return;
   const ad=await verifiedCompanion(result.ad);
   setupStockAdvertRedraw(ad);
@@ -567,7 +568,7 @@ function installPublishedLayout(layout,pagePath){
  // The public service deliberately does not expose unpublished slot identifiers.
  // The page inventory has one named slot per page; use that exact existing anchor.
  const anchors=[...document.querySelectorAll('main .managed-ad-space[data-ad-slot][data-market="GB"]')];
- const candidate=anchors.find(el=>layout.every(ad=>ad.slot_code===el.dataset.adSlot))||(!slot&&anchors.length===1?anchors[0]:slot);
+ const candidate=anchors.find(el=>layout.every(ad=>ad.slot_code===el.dataset.adSlot));
  if(!candidate||candidate.childElementCount)return false;
  const permitted=new Set(["square","slim","stock_card","landscape","portrait"]);
  if(layout.some(ad=>!permitted.has(ad.format)||!https(ad.image_url)||!https(ad.destination_url)||!ad.token))return false;
