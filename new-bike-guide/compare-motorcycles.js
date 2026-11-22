@@ -6,6 +6,73 @@ const text=(tag,value)=>{const n=document.createElement(tag);if(value!==undefine
 const absolute=u=>{try{const x=new URL(u,location.origin);return x.origin===location.origin?x.href:null}catch{return null}};
 const MAX=4,MIN=2;
 let all=[],chosen=[null,null,null],categories=new Map(),activeCategory='';
+const FACTS_RPC='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_verified_model_facts_v1';
+const FACTS_KEY='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
+const factRequests=new Map();
+let factsRenderGeneration=0;
+const measuredRows=[
+ ['Engine displacement','engine','Engine displacement','cc'],
+ ['Power','performance','Maximum power','hp'],
+ ['Torque','performance','Maximum torque','Nm'],
+ ['Seat height','dimensions','Seat height','mm'],
+ ['Fuel tank','dimensions','Fuel tank','litres'],
+ ['Unladen road-ready weight','dimensions','Unladen road-ready weight','kg']
+];
+function sourceUrl(v){try{const u=new URL(v);return u.protocol==='https:'?u.href:null}catch{return null}}
+async function fetchVerifiedFacts(bike){
+ const key=bike.model_id;
+ if(factRequests.has(key))return factRequests.get(key);
+ const job=(async()=>{
+  const response=await fetch(FACTS_RPC,{method:'POST',headers:{apikey:FACTS_KEY,'Content-Type':'application/json'},
+   body:JSON.stringify({p_make:bike.make,p_model:bike.model}),signal:AbortSignal.timeout(6500)});
+  if(!response.ok)throw Error('Verified facts service '+response.status);
+  const rows=await response.json();
+  if(!Array.isArray(rows))throw Error('Invalid source-verified facts response');
+  return rows.filter(f=>f&&f.make===bike.make&&f.model?.toLowerCase()===bike.model.toLowerCase()&&
+   Number.isSafeInteger(Number(f.fact_id))&&Number(f.fact_id)>0&&sourceUrl(f.source_url)&&
+   typeof f.category==='string'&&typeof f.label==='string');
+ })();
+ factRequests.set(key,job);
+ job.catch(()=>{if(factRequests.get(key)===job)factRequests.delete(key)});
+ return job;
+}
+function exactMeasurement(rows,category,label,unit){
+ const matches=rows.filter(f=>f.category===category&&f.label.toLowerCase()===label.toLowerCase()&&
+  f.value&&typeof f.value==='object'&&!Array.isArray(f.value)&&
+  typeof f.value.amount==='number'&&Number.isFinite(f.value.amount)&&f.value.amount>=0&&
+  f.value.unit===unit&&sourceUrl(f.source_url));
+ if(matches.length!==1)return null; // no ambiguous generations or conflicting units
+ const f=matches[0];
+ const qualifier=typeof f.value.qualifier==='string'&&/^[a-zA-Z0-9 .,()\/-]{1,70}$/.test(f.value.qualifier)?f.value.qualifier:'';
+ return {display:f.value.amount.toLocaleString('en-GB',{maximumFractionDigits:2})+' '+unit+
+   (qualifier?' ('+qualifier+')':''),source:f.source_url};
+}
+async function fillVerifiedComparisons(bikes,tableBody){
+ const generation=++factsRenderGeneration;
+ const positions=new Map();
+ for(const [heading,category,label,unit] of measuredRows){
+  const row=text('tr');row.append(text('th',heading+' · source-verified record'));
+  const cells=[];
+  for(const bike of bikes){
+   const cell=text('td','Checking published research…');cells.push(cell);row.append(cell);
+  }
+  positions.set(heading,cells);tableBody.append(row);
+ }
+ const facts=await Promise.allSettled(bikes.map(fetchVerifiedFacts));
+ if(generation!==factsRenderGeneration||!tableBody.isConnected)return;
+ measuredRows.forEach(([heading,category,label,unit])=>{
+  const cells=positions.get(heading);
+  facts.forEach((result,index)=>{
+   const cell=cells[index];cell.replaceChildren();
+   const found=result.status==='fulfilled'?exactMeasurement(result.value,category,label,unit):null;
+   if(!found){cell.textContent='No matching source-verified figure published';return}
+   cell.append(text('span',found.display),text('span',' '));
+   const link=text('a','Source');link.href=found.source;link.target='_blank';link.rel='noopener noreferrer';
+   link.className='compare-fact-source';cell.append(link);
+  });
+ });
+}
+
 function show(message){$('compare-status').textContent=message}
 function selectedIds(){return chosen.filter(Boolean).map(x=>x.model_id)}
 function writeShareUrl(items){
@@ -86,6 +153,9 @@ function renderResults(){
   ['UK authorised dealers',()=> 'UK listings are being verified']
  ];
  for(const [label,get] of data){const row=text('tr');row.append(text('th',label));for(const x of items)row.append(text('td',get(x)));body.append(row)}
+ // Append independent sourced measurements without blocking the basic comparison table.
+ const factBody=text('tbody');factBody.className='comparison-facts';table.append(factBody);
+ void fillVerifiedComparisons(items,factBody);
  const links=text('tr');links.append(text('th','Research this model'));
  for(const x of items){const td=text('td'),a=text('a','View AnyBike model page');a.href=absolute(x.url)||'/motorcycle-manufacturers.html';td.append(a);links.append(td)}
  body.append(links);table.append(body);wrap.append(table);host.append(wrap);
