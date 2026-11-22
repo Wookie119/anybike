@@ -179,7 +179,7 @@ function cardPicker(index){
  makeLabel.append(make);modelLabel.append(model);fields.append(makeLabel,modelLabel);
  shell.append(fields);
  if(selected){const photo=selectedPhoto(selected.model_id);if(photo){
-  const area=text('div');area.className='comparison-selected-photo';
+  const area=text('div');area.className='comparison-selected-photo comparison-photo-frame';area.style.setProperty('--comparison-photo','url('+JSON.stringify(photo.url)+')');
   const img=text('img');img.src=photo.url;img.alt=photo.alt;img.loading='lazy';img.decoding='async';img.onerror=()=>area.remove();
   area.append(img,photoCredit(photo));shell.append(area);
  }}
@@ -253,9 +253,10 @@ function renderResults(){
   for(const bike of items){
    const cell=text('td'),photo=selectedPhoto(bike.model_id);
    if(photo){
-    const img=text('img');img.src=photo.url;img.alt=photo.alt;img.loading='lazy';img.decoding='async';
-    img.onerror=()=>{img.remove();cell.prepend(text('span','Photograph unavailable'))};
-    cell.append(img,photoCredit(photo));
+     const frame=text('div');frame.className='comparison-photo-frame';frame.style.setProperty('--comparison-photo','url('+JSON.stringify(photo.url)+')');
+     const img=text('img');img.src=photo.url;img.alt=photo.alt;img.loading='lazy';img.decoding='async';
+     img.onerror=()=>{frame.remove();cell.prepend(text('span','Photograph unavailable'))};
+     frame.append(img);cell.append(frame,photoCredit(photo));
    }else cell.append(text('span','Photograph not yet approved'));
    pRow.append(cell);
   }pBody.append(pRow);table.append(pBody);
