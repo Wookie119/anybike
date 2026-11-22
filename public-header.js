@@ -3201,3 +3201,40 @@ async function anybikeShowPublicSignedInIdentity(){
 })();
 /* Shared UK-facing Move advert, available to guests and signed-in customers. */
 (function(){const path=location.pathname;if(/^\/(?:admin(?:-|\/)|markets\/|international-)/i.test(path))return;const start=()=>{if(document.getElementById('databaseHeroPhoto')&&document.getElementById('v2FormSubmit'))return;import('/advertising/universal-banner.mjs?v=20261122-compact-standard18').then(m=>m.renderMoveHouseOnUkPage()).catch(()=>{})};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start()})();
+
+
+/* AnyBike-owned existing red adverts: central visibility only.
+   The original HTML, artwork, link and dimensions remain untouched.
+   Failure to read the control record preserves existing page behaviour. */
+(function anybikeHouseAdVisibility(){
+ 'use strict';
+ const supported=new Set(['/index.html','/my-selling.html','/my-dealership.html',
+  '/my-purchases.html','/customer-dashboard.html','/dealer-connect-stock.html',
+  '/international-markets.html','/trade-opportunities.html']);
+ const path=location.pathname==='/'?'/index.html':location.pathname;
+ if(!supported.has(path))return;
+ const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/advertising_house_visibility';
+ const publicKey='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
+ fetch(endpoint+'?select=enabled&page_path=eq.'+encodeURIComponent(path),{
+  headers:{apikey:publicKey},cache:'no-store'
+ }).then(response=>{if(!response.ok)throw Error('Visibility unavailable');return response.json()})
+ .then(rows=>{
+  if(!Array.isArray(rows)||rows.length!==1||typeof rows[0].enabled!=='boolean')return;
+  const visible=rows[0].enabled;
+  const apply=()=>{
+   document.querySelectorAll('img[src*="/assets/move-advert-landscape.webp"],img[src*="/assets/move-advert-portrait.webp"]').forEach(img=>{
+    const link=img.closest('a');
+    if(!link||!link.href.startsWith('https://www.movemotorcycles.co.uk/'))return;
+    const wrap=link.closest('aside')||link.closest('#moveMotorcyclesAdvert')||link;
+    if(!visible){if(!wrap.hasAttribute('data-anybike-house-hidden')){wrap.setAttribute('data-anybike-house-hidden','1');wrap.style.setProperty('display','none','important')}}
+    else if(wrap.hasAttribute('data-anybike-house-hidden')){wrap.removeAttribute('data-anybike-house-hidden');wrap.style.removeProperty('display')}
+   });
+  };
+  apply();
+  if(!visible){
+   const observer=new MutationObserver(apply);
+   observer.observe(document.documentElement,{childList:true,subtree:true});
+   window.addEventListener('pagehide',()=>observer.disconnect(),{once:true});
+  }
+ }).catch(()=>{}); // Keep the original advert visible if the network is unavailable.
+})();
