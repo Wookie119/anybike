@@ -81,8 +81,27 @@ function writeShareUrl(items){
  else url.searchParams.delete('bikes');
  history.replaceState(null,'',url.pathname+url.search+url.hash);
 }
+const styleGroups=[
+ ['Adventure',['adventure','adventure & gs','adventure scooters','dual sport','rally']],
+ ['Sports',['sports','sport','sport & performance','racing']],
+ ['Sport Touring',['sport touring','sports touring']],
+ ['Touring',['touring','touring & roadsters']],
+ ['Naked & Roadsters',['roadsters','roadster','naked & roadsters']],
+ ['Cruisers',['cruisers','heritage / cruiser']],
+ ['Classic & Heritage',['classics','classic','modern classics','heritage & historic']],
+ ['Off-road',['off-road','motocross','trials','supermoto']],
+ ['Scooters',['scooters','scooter / electric','electric scooters','underbone']],
+ ['Electric Motorcycles',['electric motorcycles']],
+ ['Commuters',['commuters']],
+ ['Trikes',['trikes']]
+];
+function ridingStyle(id){
+ const raw=(categories.get(id)||'').toLowerCase().trim();
+ const found=styleGroups.find(([,aliases])=>aliases.includes(raw));
+ return found?.[0]||'Other';
+}
 function matchesBike(bike){
- if(activeCategory&&categories.get(bike.model_id)!==activeCategory)return false;
+ if(activeCategory&&ridingStyle(bike.model_id)!==activeCategory)return false;
  if(!engineFilterEnabled)return true;
  const cc=capacity.get(bike.model_id)?.cc;
  return Number.isInteger(cc)&&(engineMin===null||cc>=engineMin)&&(engineMax===null||cc<=engineMax);
@@ -92,7 +111,7 @@ function applyFilters(){
  chosen=chosen.map(bike=>bike&&matchesBike(bike)?bike:null);
  renderSelectors();
  const filtered=availableCount();
- $('filter-count').textContent=engineFilterEnabled?filtered+' motorcycles with recorded engine size match your filters.':'Choose a riding style to narrow the motorcycles.';
+ $('filter-count').textContent=filtered+' motorcycle'+(filtered===1?'':'s')+' match'+(filtered===1?'es':'')+' your selection'+(engineFilterEnabled?' (models with a documented engine capacity only).':'.');
 }
 function addSelector(){
  if(chosen.length>=MAX)return;
@@ -190,8 +209,9 @@ async function loadCategories(){
    if(Number.isSafeInteger(m.model_id)&&typeof m.category==='string'&&m.category.trim())categories.set(m.model_id,m.category.trim());
   }
   const select=$('compare-category');if(!select)return;
-  const groups=[...new Set(categories.values())].sort((a,b)=>a.localeCompare(b,'en'));
+  const groups=[...new Set(all.map(m=>ridingStyle(m.model_id)))].sort((a,b)=>a.localeCompare(b,'en'));
   for(const group of groups){const option=text('option',group);option.value=group;select.append(option)}
+  applyFilters();
   select.onchange=()=>{activeCategory=select.value;applyFilters();show(activeCategory?'Choose motorcycles in the '+activeCategory+' category.':'Choose motorcycles from any riding style.');};
   if(chosen.some(Boolean))renderResults();
  }catch(e){console.warn('Optional catalogue category filter unavailable',e)}
