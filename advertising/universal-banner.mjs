@@ -631,7 +631,7 @@ function installStockPublishedLayout(layout){
   if(!bikes.length)return;
   // Slot positions are proportional to the displayed results, including filters.
   const anchors=cards.map((_,i)=>bikes[Math.min(bikes.length-1,Math.max(0,Math.ceil((i+1)*bikes.length/(cards.length+1))-1))]);
-  const correct=cards.every((card,i)=>card.parentElement===grid&&card.previousElementSibling===anchors[i]);
+  const correct=cards.every((card,i)=>{if(card.parentElement!==grid)return false;let previous=card.previousElementSibling;while(previous?.classList.contains('anybike-multi-stock-ad'))previous=previous.previousElementSibling;return previous===anchors[i]});
   if(!correct){
    for(const card of cards)card.remove();
    for(let i=cards.length-1;i>=0;i--)anchors[i].after(cards[i]);
@@ -648,7 +648,7 @@ function installStockPublishedLayout(layout){
   }
  }
  const schedule=()=>{if(pending)return;pending=true;requestAnimationFrame(place)};
- const observer=new MutationObserver(schedule);observer.observe(grid,{childList:true});
+ const observer=new MutationObserver(records=>{if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n.nodeType===1&&!n.classList?.contains('anybike-multi-stock-ad'))))schedule()});observer.observe(grid,{childList:true});
  grid.__anybikePublishedStockLayout={cards,observer};
  if(typeof ResizeObserver==='function'){const resize=new ResizeObserver(schedule);resize.observe(grid);grid.__anybikePublishedStockLayout.resize=resize}
  schedule();return true;
