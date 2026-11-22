@@ -131,7 +131,10 @@ function cardPicker(index){
  const modelLabel=text('label','Motorcycle model');const model=text('select');
  const refreshModels=()=>{
   model.replaceChildren();const blank=text('option','Choose model');blank.value='';model.append(blank);
-  const candidates=all.filter(x=>x.make===make.value&&matchesBike(x)).sort((a,b)=>a.model.localeCompare(b.model,'en'));
+  const candidates=all.filter(x=>x.make===make.value&&matchesBike(x)).sort((a,b)=>{
+   if(engineFilterEnabled){const missingA=!Number.isInteger(capacity.get(a.model_id)?.cc),missingB=!Number.isInteger(capacity.get(b.model_id)?.cc);if(missingA!==missingB)return missingA?1:-1}
+   return a.model.localeCompare(b.model,'en');
+  });
   const usedIds=new Set(chosen.filter((c,i)=>i!==index&&c).map(c=>c.model_id));
   for(const bike of candidates){const missing=engineFilterEnabled&&!Number.isInteger(capacity.get(bike.model_id)?.cc);const op=text('option',bike.model+(missing?' (cc not recorded)':''));op.value=String(bike.model_id);op.disabled=usedIds.has(bike.model_id);model.append(op)}
   if(!candidates.length&&make.value){const unavailable=text('option','No motorcycles in this category');unavailable.disabled=true;model.append(unavailable)}
