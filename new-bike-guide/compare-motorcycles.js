@@ -32,12 +32,14 @@ function cardPicker(index){
  const refreshModels=()=>{
   model.replaceChildren();const blank=text('option','Choose model');blank.value='';model.append(blank);
   const candidates=all.filter(x=>x.make===make.value&&(!activeCategory||categories.get(x.model_id)===activeCategory)).sort((a,b)=>a.model.localeCompare(b.model,'en'));
-  for(const bike of candidates){const op=text('option',bike.model);op.value=String(bike.model_id);model.append(op)}
+  const usedIds=new Set(chosen.filter((c,i)=>i!==index&&c).map(c=>c.model_id));
+  for(const bike of candidates){const op=text('option',bike.model);op.value=String(bike.model_id);op.disabled=usedIds.has(bike.model_id);model.append(op)}
+  if(!candidates.length&&make.value){const unavailable=text('option','No models in this category');unavailable.disabled=true;model.append(unavailable)}
   model.disabled=!make.value;
   model.value=chosen[index]?.make===make.value?String(chosen[index]?.model_id||''):'';
  };
  make.onchange=()=>{chosen[index]=null;refreshModels();renderResults()};
- model.onchange=()=>{chosen[index]=all.find(x=>x.model_id===Number(model.value))||null;renderResults()};
+ model.onchange=()=>{chosen[index]=all.find(x=>x.model_id===Number(model.value))||null;renderSelectors()};
  refreshModels();
  makeLabel.append(make);modelLabel.append(model);fields.append(makeLabel,modelLabel);
  shell.append(fields);
@@ -95,6 +97,7 @@ async function share(){
  catch{const input=prompt('Copy your comparison link:',url);if(input!==null)show('Your comparison link is shown above.')}
 }
 function restore(){
+ chosen=[null,null,null];
  const parts=(new URLSearchParams(location.search).get('bikes')||'').split(',').filter(Boolean);
  if(parts.length<2||parts.length>MAX||parts.some(x=>!/^[1-9][0-9]*$/.test(x)))return;
  const ids=parts.map(Number);
@@ -145,6 +148,7 @@ async function start(){
   $('add-motorcycle').onclick=addSelector;
   $('share-comparison').onclick=share;
   $('print-comparison').onclick=()=>window.print();
+  window.addEventListener('popstate',()=>{restore();renderSelectors()});
  }catch(error){show('The published motorcycle directory could not be loaded. Please try again.');console.warn('AnyBike comparison directory unavailable',error)}
 }
 start();
