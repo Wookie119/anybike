@@ -5,6 +5,7 @@ const text=(tag,value)=>{const n=document.createElement(tag);if(value!==undefine
 const absolute=u=>{try{const x=new URL(u,location.origin);return x.origin===location.origin?x.href:null}catch{return null}};
 const MAX=4,MIN=2;
 let all=[],chosen=[null,null,null],categories=new Map(),ridingStyles=new Map(),activeCategory='';
+let stockShortlist=new Set();
 const FACTS_RPC='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_verified_model_facts_v1';
 const PRESENTATION_RPC='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_comparison_presentation_v1';
 let categoryArtwork=[],approvedModelArtwork=new Map();
@@ -192,6 +193,41 @@ function renderSelectors(){
  $('add-motorcycle').disabled=chosen.length>=MAX;
  renderResults();
 }
+// A customer can shortlist one or two of their compared motorcycles for Available Stock.
+function renderStockShortlist(items){
+ let host=$('comparison-stock-shortlist');
+ if(!host){host=text('section');host.id='comparison-stock-shortlist';host.className='comparison-stock-shortlist';host.setAttribute('aria-label','Find compared motorcycles for sale');$('comparison-results').prepend(host)}
+ const validIds=new Set(items.map(b=>b.model_id));
+ stockShortlist=new Set([...stockShortlist].filter(id=>validIds.has(id)));
+ const title=text('h3','Find your next motorcycle');
+ const description=text('p','Choose one or two of the motorcycles you compared, then search Available Stock.');
+ const choices=text('div');choices.className='comparison-stock-choices';
+ for(const bike of items){
+  const label=text('label');label.className='comparison-stock-choice';
+  const check=text('input');check.type='checkbox';check.value=String(bike.model_id);check.checked=stockShortlist.has(bike.model_id);
+  const name=text('span',bike.make+' '+bike.model);
+  check.onchange=()=>{
+   if(check.checked){if(stockShortlist.size>=2){check.checked=false;return}stockShortlist.add(bike.model_id)}
+   else stockShortlist.delete(bike.model_id);
+   renderStockShortlist(items);
+  };
+  label.append(check,name);choices.append(label);
+ }
+ const action=text('button','Find Bikes for Sale');action.type='button';action.className='comparison-find-stock';
+ action.disabled=stockShortlist.size===0||stockShortlist.size>2;
+ action.onclick=()=>{
+  const bikes=items.filter(b=>stockShortlist.has(b.model_id)).slice(0,2);
+  if(!bikes.length)return;
+  const url=new URL('/available-stock.html',location.origin);
+  url.searchParams.set('compare',bikes.map(b=>b.model_id).join(','));
+  url.searchParams.set('bikes',bikes.map(b=>b.model_id).join(','));
+  url.searchParams.set('makes',bikes.map(b=>b.make).join('|'));
+  url.searchParams.set('models',bikes.map(b=>b.model).join('|'));
+  location.assign(url.href);
+ };
+ const help=text('small',stockShortlist.size+' of 2 shortlisted');
+ host.replaceChildren(title,description,choices,action,help);
+}
 function renderResults(){
  const host=$('comparison-results');host.replaceChildren();
  const items=chosen.filter(Boolean),ids=selectedIds(),distinct=new Set(ids);
@@ -204,6 +240,7 @@ function renderResults(){
  if(items.length<MIN){show('Choose at least two motorcycles to build a comparison.');return}
  if(!valid){show('Please choose different motorcycles in each position.');return}
  show('Comparing '+items.length+' motorcycles.');
+ renderStockShortlist(items);
  const intro=text('p','Compare key specifications and open each motorcycle’s model page for more details.');
  host.append(intro);
  const wrap=text('div');wrap.className='comparison-table-scroll';
@@ -317,7 +354,7 @@ async function start(){
   void loadComparisonManufacturers();
   void loadApprovedPresentation();
   $('clear-comparison').onclick=()=>{
-   chosen=[null,null,null];activeCategory='';
+   chosen=[null,null,null];activeCategory='';stockShortlist.clear();
    const select=$('compare-category');if(select)select.value='';
    applyFilters();show('Comparison cleared. Choose two to four motorcycles.');
   };
