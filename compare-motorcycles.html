@@ -122,8 +122,27 @@ main>section[aria-label="Choose motorcycles"]>h2::before{content:"";display:bloc
 <section class="guide-next"><h2>Ready to explore further?</h2><p>Find out more about each motorcycle, or discover UK dealers who can help with your next purchase.</p><p><a href="/find-a-dealer.html">Find a UK motorcycle dealer</a> · <a href="/motorcycle-manufacturers.html">Explore motorcycle manufacturers</a></p></section>
 <section class="managed-ad-space" id="anybikeComparisonFooterAdvertSpace" data-ad-slot="AB-UK-COMPARE-FOOTER-01" data-market="GB" aria-label="Advertising"></section>
 </main>
-<script src="/public-header.js"></script>
-<script src="/new-bike-guide/compare-motorcycles.js?v=23" defer></script>
+<!-- Comparison is independent of account/auth header loading: start it first. -->
+<script src="/new-bike-guide/compare-motorcycles.js?v=24" defer onerror="document.getElementById('compare-status').textContent='Comparison script failed to load. Please reload the page.'"></script>
+<script src="/public-header.js" defer></script>
+<script>
+/* If an extension or slow connection stalls script loading, never leave an
+   indefinite 'Loading motorcycles' message with no explanation. */
+window.addEventListener('DOMContentLoaded',()=>{
+ setTimeout(()=>{
+  const status=document.getElementById('compare-status');
+  const selectors=document.getElementById('compare-selectors');
+  if(!status||!selectors||selectors.children.length)return;
+  if(/loading/i.test(status.textContent||'')){
+   status.textContent='The motorcycle list is taking too long to load. Reload the page to try again.';
+   const retry=document.createElement('button');
+   retry.type='button';retry.textContent='Reload comparison';retry.className='subtle-button';
+   retry.style.marginLeft='12px';retry.onclick=()=>location.reload();
+   status.append(' ',retry);
+  }
+ },16000);
+});
+</script>
 <script type="module">
 // Campaigns must be selected and tracked centrally by the Advertising Mega System.
 // This is an approved page-template entry point, not a hardcoded advertisement.
