@@ -68,3 +68,5 @@ Build a UK-facing guide for buyers of **new motorcycles**, grounded in manufactu
 - UK-context shared navigation link committed. Existing model pages left untouched.
 - Two named potential comparison advertising spaces registered with Mega System as **planned**, and comparison-page inventory remains disabled until reviewed artwork/campaign approval. No test advert publication.
 - **Not yet browser-verified.** Further QA required: selector, shared links, navigation visibility and eventual feed-driven specification module.
+
+**Comparison UX improvement:** The UK shared template now supports optional catalogue riding-category filtering (explicitly provisional), a one-click BMW R 1300 GS / Triumph Tiger 1200 / Ducati Multistrada V4 example, a clear-selection control, and link-sync when selections are changed or removed. All changes are within the single comparison template; model pages are untouched. Current UK new-model price/specification facts remain deliberately unpublished pending independent verification and rights review. Live browser testing remains outstanding.
