@@ -98,14 +98,36 @@ pageButton.onclick=()=>{
  }
  pageWrap.hidden=false;
  const slotCode=current.slotCode,pagePath=current.pagePath;
- pageFrame.onload=()=>{
+ pageFrame.onload=async()=>{
   try{
    const doc=pageFrame.contentDocument;
    if(!doc||pageFrame.contentWindow.location.origin!==location.origin)throw Error('Same-origin preview unavailable');
-   const slot=[...doc.querySelectorAll('.managed-ad-space[data-ad-slot]')].find(n=>n.dataset.adSlot===slotCode);
-   if(!slot)throw Error('This page has no implemented advertising position for '+slotCode);
+   let slot=[...doc.querySelectorAll('.managed-ad-space[data-ad-slot]')].find(n=>n.dataset.adSlot===slotCode);
+   if(!slot){
+    const inv=await db.from('advertising_page_inventory').select('slot_code,placement_key').eq('page_path',pagePath).maybeSingle();
+    if(inv.error||inv.data?.slot_code!==slotCode)throw Error('Advertising location unavailable');
+    const main=doc.querySelector('main'),key=inv.data.placement_key;
+    if(!main||!['main_end','about_wrap','before_sources','export_wrap','freight_wrap','sell_wrap'].includes(key))throw Error('No suitable page advertising position');
+    slot=doc.createElement('section');slot.className='managed-ad-space';slot.dataset.adSlot=slotCode;slot.dataset.market='GB';
+    slot.style.cssText='width:100%;max-width:1200px;min-width:0;margin:16px auto 22px;box-sizing:border-box;clear:both;display:block';
+    let parent=main,before=null;
+    if(key==='before_sources'){
+     if(!main.querySelector('#databaseHeroPhoto')||!main.querySelector('#nextAction'))throw Error('This model template is missing its advert position');
+     before=main.querySelector('#modelSources');
+    }else if(key==='about_wrap'){
+     let wrap=doc.getElementById('anybike-move-about-wrap');
+     if(!wrap){wrap=doc.createElement('div');wrap.className='wrap';wrap.id='anybike-move-about-wrap';wrap.style.cssText='margin:20px auto 24px;box-sizing:border-box;min-width:0';main.append(wrap)}
+     parent=wrap;
+    }else if(key==='export_wrap'||key==='freight_wrap'||key==='sell_wrap'){
+     const wrap=doc.createElement('div');wrap.style.cssText='width:100%;max-width:1200px;margin:20px auto 24px;box-sizing:border-box;min-width:0';main.append(wrap);parent=wrap;
+    }
+    // Replace the existing visible advert only inside the private preview.
+    const live=doc.getElementById('anybike-move-universal-house-ad');
+    if(live)live.style.display='none';
+    if(before)parent.insertBefore(slot,before);else parent.append(slot);
+   }
    const style=doc.createElement('style');
-   style.textContent='.anybike-private-layout-preview{display:grid!important;grid-template-columns:repeat('+items.length+',minmax(0,1fr));gap:12px;width:100%;max-width:none;margin:10px auto}.anybike-private-layout-preview article{min-width:0;margin:0;background:transparent;border:0}.anybike-private-layout-preview img{display:block;width:100%;height:auto;object-fit:contain;border-radius:12px}.anybike-private-layout-preview small{display:block;color:#aaa;text-align:center;font:11px Arial,sans-serif;margin-top:4px}@media(max-width:680px){.anybike-private-layout-preview{grid-template-columns:1fr!important}}';
+   style.textContent='.anybike-private-layout-preview{display:grid!important;grid-template-columns:repeat('+items.length+',minmax(0,1fr));gap:clamp(8px,1.3vw,16px);width:100%;max-width:1200px;min-width:0;margin:10px auto}.anybike-private-layout-preview article{min-width:0;margin:0;background:transparent;border:0}.anybike-private-layout-preview img{display:block;width:100%;height:auto;object-fit:contain;border-radius:12px}.anybike-private-layout-preview small{display:block;color:#aaa;text-align:center;font:11px Arial,sans-serif;margin-top:4px}@media(max-width:680px){.anybike-private-layout-preview{grid-template-columns:repeat(2,minmax(0,1fr))!important}}@media(max-width:420px){.anybike-private-layout-preview{grid-template-columns:1fr!important}}';
    doc.head.append(style);
    const host=doc.createElement('div');host.className='anybike-private-layout-preview';
    for(const item of items){
