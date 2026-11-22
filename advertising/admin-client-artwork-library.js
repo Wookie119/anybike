@@ -194,6 +194,26 @@ function artworkDependencies(v){
  const placement=placements.some(p=>p.artwork_url===v.public_url);
  return {master,slot,campaign,placement,used:master||slot||campaign||placement};
 }
+async function unlinkLegacyArtwork(v){
+ if(v.partner_id!==selected||!v.storage_path?.startsWith('linked-existing/'))return status('This action only removes old linked artwork from a client file.');
+ const owner=clients.find(c=>c.id===selected);
+ if(!owner)return status('Client not found.');
+ if(!confirm('Remove old artwork entry "'+v.file_name+'" from '+owner.name+' client file? Shared files and website adverts will NOT be deleted or changed.'))return;
+ try{
+  const [a,b,refs]=await Promise.all([
+   db.from('advertising_partner_artwork_library').select('partner_id').eq('active_artwork_id',v.id).limit(1),
+   db.from('advertising_client_artwork_slots').select('slot_code').eq('active_artwork_id',v.id).limit(1),
+   db.from('advertising_client_artwork').select('id').eq('replaced_by',v.id).limit(1)
+  ]);
+  for(const x of [a,b,refs])if(x.error)throw x.error;
+  if(a.data?.length||b.data?.length||refs.data?.length)throw Error('This version is directly selected as artwork. Select a replacement first.');
+  const del=await db.from('advertising_client_artwork').delete().eq('id',v.id).eq('partner_id',selected).eq('status','draft').like('storage_path','linked-existing/%').select('id');
+  if(del.error)throw del.error;
+  if(del.data?.length!==1)throw Error('Entry was already changed or removed.');
+  await load();
+  status('Removed obsolete artwork entry from '+owner.name+' client file. Live adverts and shared image file are unchanged.');
+ }catch(e){status('Cannot remove old artwork entry: '+e.message)}
+}
 async function deleteArtwork(v){
  if(v.partner_id!==selected)return status('Open the correct advertiser before deleting artwork.');
  const owner=clients.find(c=>c.id===selected);
@@ -295,11 +315,14 @@ function renderFolder(){
    controls.append(button('Bake rounded corners',()=>saveRoundedVersion(v,format)));
    if(v.status==='draft'&&!legacy)controls.append(button('Approve',()=>approve(v)));
    if(v.status==='approved'&&master?.active_artwork_id!==v.id)controls.append(button('Use this artwork',()=>activate(v,format,field),true));
-   const del=button(dependencies.used?'In use — cannot delete':'Delete',()=>deleteArtwork(v));
-   del.style.cssText='padding:8px 12px;border:1px solid '+(dependencies.used?'#555':'#ed1c24')+';border-radius:7px;background:#282828;color:'+(dependencies.used?'#aaa':'#fff')+';cursor:'+(dependencies.used?'not-allowed':'pointer');
-   del.disabled=dependencies.used;
+   const removableLink=legacy&&v.status==='draft'&&!dependencies.master&&!dependencies.slot;
+   const blocked=dependencies.used&&!removableLink;
+   const del=button(removableLink?'Remove from client file':blocked?'In use — cannot delete':'Delete',()=>removableLink?unlinkLegacyArtwork(v):deleteArtwork(v));
+   del.style.cssText='padding:8px 12px;border:1px solid '+(blocked?'#555':'#ed1c24')+';border-radius:7px;background:#282828;color:'+(blocked?'#aaa':'#fff')+';cursor:'+(blocked?'not-allowed':'pointer');
+   del.disabled=blocked;
    controls.append(del);line.append(controls);
-   if(dependencies.used)line.append(make('small','To delete this version, first select another approved master and remove any campaign using this artwork.'));
+   if(removableLink&&dependencies.used)line.append(make('small','This removes only the old entry from this client file. It does not alter any linked live advert.'));
+   else if(blocked)line.append(make('small','To delete this version, first select another approved master and remove any campaign using this artwork.'));
    history.append(line);
   }
   card.append(history);host.append(card);
