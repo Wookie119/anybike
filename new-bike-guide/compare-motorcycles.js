@@ -99,6 +99,7 @@ function renderCategoryPhotos(){
  if(!panel||!categoryArtwork.length)return;
  let host=$('comparison-category-photos');
  if(!host){host=text('nav');host.id='comparison-category-photos';host.className='comparison-category-photos';host.setAttribute('aria-label','Choose a motorcycle riding style');panel.insertAdjacentElement('afterend',host)}
+ host.hidden=!categoryArtwork.some(category=>approvedPhoto(category?.image));
  const fragment=document.createDocumentFragment();
  for(const category of categoryArtwork){
   if(!category||!/^[a-z-]+$/.test(category.slug)||typeof category.label!=='string'||!category.label.trim())continue;
