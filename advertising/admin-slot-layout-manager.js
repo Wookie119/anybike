@@ -52,7 +52,7 @@ function showPreview(){
    const img=document.createElement('img');img.src=artwork(c,format);img.alt=c.alt_text||c.name;img.loading='lazy';
    frame.append(img);art.append(frame);
   }
-  const note=document.createElement('small');note.textContent=(formatNames[format]||format)+' · Draft preview only · Advertisement';art.append(note);preview.append(art);
+  const note=document.createElement('small');note.textContent='Advertisement';art.append(note);preview.append(art);
  }
  save.disabled=!current||!unique;pageButton.disabled=!current||!unique;
 }
@@ -107,7 +107,7 @@ pageButton.onclick=()=>{
    for(const item of items){
     const card=doc.createElement('article'),img=doc.createElement('img'),label=doc.createElement('small');
     img.src=item.src;img.alt=item.alt;img.loading='eager';img.style.aspectRatio=item.ratio;
-    label.textContent='Advertisement · '+item.name;
+    label.textContent='Advertisement';
     card.append(img,label);host.append(card);
    }
    const apply=()=>{
