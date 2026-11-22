@@ -37,8 +37,12 @@ for(let i=0;i<num;i++){
  function populate(id){sel.replaceChildren(new Option('Choose advertiser and advert',''));for(const c of options(shape.value)){const owner=customers.find(p=>p.id===c.partner_id);sel.append(new Option((owner?.name||'Unassigned')+' · '+c.name,c.id))}if([...sel.options].some(o=>o.value===id))sel.value=id;}
  populate(values[i]||'');
  shape.onchange=()=>{const previous=sel.value;selectedFormats[i]=shape.value;populate(previous);showPreview()};
- sel.onchange=()=>{const selected=selections().filter(Boolean);if(new Set(selected).size!==selected.length){sel.value='';status.textContent='Choose a different campaign for each advert.';}showPreview()};
- campaignLabel.append(sel);group.append(shapeLabel,campaignLabel);choosers.append(group);
+ sel.onchange=()=>{const selected=selections().filter(Boolean);if(new Set(selected).size!==selected.length){sel.value='';status.textContent='Choose a different campaign for each advert.';}else{status.textContent='Replacement selected. Preview the page, then save or publish when eligible.';}showPreview()};
+ campaignLabel.append(sel);
+ const replace=document.createElement('button');replace.type='button';replace.textContent='Replace advert '+(i+1);
+ replace.className='ab-slot-replace';replace.style.cssText='justify-self:start;padding:7px 12px;background:#242424;border:1px solid #666;border-radius:7px;color:#fff';
+ replace.onclick=()=>{sel.focus();sel.scrollIntoView({block:'nearest',behavior:'smooth'});status.textContent='Choose the replacement for advert '+(i+1)+'. The other adverts and artwork shapes will stay the same.'};
+ group.append(shapeLabel,campaignLabel,replace);choosers.append(group);
  }
  showPreview()}
 function showPreview(){
