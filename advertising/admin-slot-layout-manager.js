@@ -1,10 +1,13 @@
 // AnyBike advertiser-first slot editor. Draft-only; existing live ads are untouched.
 (()=>{'use strict';
 const root=document.getElementById('adcontent');if(!root)return;
+// Simple page finder replaces the legacy 333-row technical placement editor.
+const picker=document.createElement('section');picker.id='abAdvertPageFinder';picker.dataset.abWorkspaceArea='placements';
+picker.innerHTML='<h2>Choose a website page</h2><p style="color:#bbb;font-size:13px">Find a page, then manage its adverts. The template will make space automatically where supported.</p><div class="bar" style="gap:9px;align-items:center"><input type="search" id="abAdvertPageSearch" placeholder="Find a page, e.g. about-us or compare" aria-label="Find an advertising page" style="flex:1;min-width:180px"><button id="abAdvertPageReload" type="button">Refresh pages</button></div><p id="abAdvertPageStatus" role="status" style="color:#aaa;margin:9px 0"></p><div id="abAdvertPageList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:8px;max-height:430px;overflow:auto"></div>';
 const section=document.createElement('section');section.id='abSlotAdvertManager';section.dataset.abWorkspaceArea='placements';section.hidden=true;
 section.innerHTML='<div class="bar" style="justify-content:space-between"><h2>Manage adverts for this page</h2><button type="button" id="abSlotClose">Close</button></div><p id="abSlotLocation"></p><p style="color:#bbb;font-size:13px">Choose adverts, preview the page, and publish when ready. Nothing changes publicly until you confirm.</p><label style="max-width:320px">Number of adverts<select id="abSlotCount"><option value="1">1 advert</option><option value="2">2 adverts</option><option value="3">3 adverts</option><option value="4">4 adverts</option></select></label><div id="abSlotChoosers" class="ab-slot-choosers"></div><h3>Layout preview</h3><div id="abSlotPreview" class="ab-slot-preview"></div><p id="abSlotStatus" role="status" style="color:#ccc"></p><div class="bar" style="gap:8px"><button type="button" id="abSlotDraftSave" class="primary" disabled>Save draft</button><button type="button" id="abSlotPreviewPage" disabled>Preview page</button><button type="button" id="abSlotCopyOpen" disabled>Choose pages</button><button type="button" id="abSlotPublishCheck" hidden disabled>Check publication readiness</button><button type="button" id="abSlotPublish" class="primary" disabled>Publish adverts</button><button type="button" id="abSlotRestore" hidden>Undo last publication</button></div><div id="abSlotCopyPanel" hidden style="margin-top:14px;padding:13px;border:1px solid #515151;border-radius:10px"><div class="bar" style="justify-content:space-between"><strong>Copy this layout to other pages</strong><button type="button" id="abSlotCopyClose">Close</button></div><p style="color:#bbb;font-size:12px">Tick the pages you want. Copies are saved safely; the current live adverts stay as they are.</p><label>Find page<input type="search" id="abSlotCopySearch" placeholder="Search page address"></label><p id="abSlotCopySummary" role="status"></p><div class="bar" style="margin:8px 0"><button type="button" id="abSlotCopy50">Select up to 50 matching pages</button><button type="button" id="abSlotCopyClear">Clear selection</button></div><div id="abSlotCopyTargets" style="display:grid;gap:7px;max-height:260px;overflow:auto;margin:10px 0"></div><button type="button" id="abSlotCopySave" class="primary" disabled>Save selected pages together</button></div><div id="abSlotPagePreview" hidden style="margin-top:16px;border:1px solid #555;border-radius:10px;padding:12px"><div class="bar" style="justify-content:space-between;margin-bottom:9px"><strong>Page preview · private draft, not published</strong><button type="button" id="abSlotHidePage">Close preview</button></div><p style="font-size:12px;color:#bbb">The existing public advert is replaced only inside this admin preview, not on the live website. Scroll within the preview to see the placement.</p><iframe id="abSlotPageFrame" title="Private preview of proposed adverts in the actual page" style="display:block;width:100%;height:690px;border:1px solid #444;border-radius:8px;background:#090909"></iframe></div>';
 const style=document.createElement('style');style.textContent='#adcontent .ab-slot-choosers{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px;margin:12px 0}#adcontent .ab-slot-ad-choice{display:grid;gap:9px;padding:11px;border:1px solid #484848;border-radius:9px;background:#161616;min-width:0}#adcontent .ab-slot-choosers label{display:grid;gap:5px;min-width:0}#adcontent .ab-slot-choosers select{width:100%;min-width:0}#adcontent .ab-slot-preview{display:grid;grid-template-columns:repeat(var(--count,1),minmax(0,1fr));gap:12px;margin:10px 0 15px}#adcontent .ab-slot-preview article{min-width:0;border:1px solid #555;border-radius:10px;background:#111;padding:10px;overflow:hidden}#adcontent .ab-slot-image-frame{display:grid;place-items:center;width:100%;max-width:100%;overflow:hidden;border-radius:10px;background:transparent}#adcontent .ab-slot-preview img{display:block;width:100%;height:100%;object-fit:contain;border-radius:10px}#adcontent .ab-slot-preview strong{display:block;font-size:12px;margin-bottom:8px;overflow-wrap:anywhere}#adcontent .ab-slot-preview small{display:block;width:100%;text-align:center;color:#aaa;font-size:11px}#adcontent #abSlotPublishCheck[hidden]{display:none!important}#adcontent #abSlotPagePreview[hidden]{display:none!important}#adcontent #abSlotPagePreview iframe{max-width:100%}@media(max-width:730px){#adcontent .ab-slot-preview{grid-template-columns:1fr!important}}';document.head.append(style);
-const before=document.getElementById('namedAdvertisingSpaces');before?root.insertBefore(section,before):root.append(section);
+const before=document.getElementById('namedAdvertisingSpaces');if(before){root.insertBefore(picker,before);root.insertBefore(section,before)}else{root.append(picker,section)};
 const $=id=>document.getElementById(id),loc=$('abSlotLocation'),cnt=$('abSlotCount'),choosers=$('abSlotChoosers'),preview=$('abSlotPreview'),status=$('abSlotStatus'),save=$('abSlotDraftSave'),pageButton=$('abSlotPreviewPage'),pageWrap=$('abSlotPagePreview'),pageFrame=$('abSlotPageFrame'),copyOpen=$('abSlotCopyOpen'),copyPanel=$('abSlotCopyPanel'),copySearch=$('abSlotCopySearch'),copyTargets=$('abSlotCopyTargets'),copySummary=$('abSlotCopySummary'),copySave=$('abSlotCopySave'),copy50=$('abSlotCopy50'),copyClear=$('abSlotCopyClear'),checkPublish=$('abSlotPublishCheck'),publish=$('abSlotPublish'),restore=$('abSlotRestore');
 let db,campaigns=[],customers=[],current=null,draft=null,artworkMasters=new Map(),selectedFormats=[],copyInventory=[],copySelected=new Set(),copyExisting=new Set(),publishedRecord=null,publicationReady=false;
 const formatNames={slim:'Slim banner · 3:1',square:'Square advert · 1:1',stock_card:'Stock card · 4:3',landscape:'Landscape · 16:9',portrait:'Portrait · 4:5'};
@@ -308,6 +311,39 @@ copySave.onclick=async()=>{
  }catch(e){copySummary.textContent='Some pages could not be saved ('+created+' completed): '+(e.message||e)}
  finally{copySave.disabled=!copySelected.size}
 };
+
+
+const finderInput=document.getElementById('abAdvertPageSearch'),finderList=document.getElementById('abAdvertPageList'),finderStatus=document.getElementById('abAdvertPageStatus');
+let finderPages=[],finderReady=false;
+const supportedPageKeys=new Set(['main_end','about_wrap','before_sources','export_wrap','freight_wrap','sell_wrap']);
+function renderFinder(){
+ const q=finderInput.value.trim().toLowerCase();
+ const matching=finderPages.filter(p=>!q||(p.page_path+' '+p.slot_code).toLowerCase().includes(q));
+ finderList.replaceChildren();
+ for(const p of matching.slice(0,48)){
+  const card=document.createElement('div');card.style.cssText='display:flex;gap:9px;align-items:center;justify-content:space-between;border:1px solid #484848;border-radius:9px;padding:10px;background:#171717;min-width:0';
+  const name=document.createElement('span');name.textContent=p.page_path;name.style.cssText='min-width:0;overflow-wrap:anywhere;font-size:13px';
+  const button=document.createElement('button');button.type='button';button.textContent='Manage adverts';
+  button.onclick=()=>open({pagePath:p.page_path,slotCode:p.slot_code});
+  card.append(name,button);finderList.append(card);
+ }
+ finderStatus.textContent=matching.length+' advertising page'+(matching.length===1?'':'s')+' found'+(matching.length>48?' · showing first 48; type to narrow the list':'');
+}
+async function loadFinder(){
+ if(typeof getAdminSupabaseClient!=='function')return;
+ finderStatus.textContent='Loading website pages…';
+ try{
+  const client=getAdminSupabaseClient();
+  const admin=await client.rpc('anybike_is_admin');if(admin.error||admin.data!==true)throw Error('Administrator access required');
+  const result=await client.from('advertising_page_inventory').select('page_path,slot_code,placement_key,excluded').order('page_path').limit(1000);
+  if(result.error)throw result.error;
+  finderPages=(result.data||[]).filter(p=>p.slot_code&&/^AB-[A-Z0-9-]+$/.test(p.slot_code)&&p.page_path&&/^\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.html$/i.test(p.page_path)&&!p.excluded&&supportedPageKeys.has(p.placement_key));
+  finderReady=true;renderFinder();
+ }catch(error){finderStatus.textContent='Unable to load pages: '+(error.message||error)}
+}
+finderInput.oninput=()=>{if(finderReady)renderFinder()};
+document.getElementById('abAdvertPageReload').onclick=loadFinder;
+loadFinder();
 
 window.addEventListener('anybike:manage-slot-adverts',event=>open(event.detail));
 })();
