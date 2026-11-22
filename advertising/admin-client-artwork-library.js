@@ -96,6 +96,18 @@ function renderFolder(){
  const client=clients.find(c=>c.id===selected);
  if(!client){$('cal-folder').hidden=true;return}
  $('cal-folder').hidden=false;$('cal-title').textContent=client.name+' · 5 advert sizes';
+ let upsell=root.querySelector('#cal-upsell');
+ if(!upsell){
+  upsell=button('Upsell Package',()=>{
+   window.dispatchEvent(new CustomEvent('anybike:advertiser-upsell',{detail:{advertiser:client.name}}));
+  },true);
+  upsell.id='cal-upsell';
+  $('cal-title').insertAdjacentElement('afterend',upsell);
+ }
+ upsell.onclick=()=>{
+  window.dispatchEvent(new CustomEvent('anybike:advertiser-upsell',{detail:{advertiser:client.name}}));
+ };
+
  const host=$('cal-five');host.replaceChildren();
  for(const [format,label,ratio,field] of formats){
   const card=make('div');card.style.cssText='min-width:0;border:1px solid #444;background:#202020;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px';
