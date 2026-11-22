@@ -149,12 +149,13 @@ pageButton.onclick=()=>{
      };
      const observer=new MutationObserver(records=>{if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n.nodeType===1&&!n.classList?.contains('anybike-private-stock-ad'))))schedule()});
      observer.observe(stock,{childList:true});
-     // A timed check also handles stock data loaded after iframe load,
-     // filtered results and slower browsers without relying solely on DOM events.
+     // The stock template now notifies the preview after each completed render.
+     // This is reliable even when filtering replaces all motorcycle cards.
+     stock.addEventListener('anybike:stock-grid-updated',schedule);
      let checks=0;
      const poll=window.setInterval(()=>{
       if(pageWrap.hidden||!pageFrame.isConnected||pageFrame.contentDocument!==doc||++checks>35){
-       window.clearInterval(poll);observer.disconnect();return
+       window.clearInterval(poll);observer.disconnect();stock.removeEventListener('anybike:stock-grid-updated',schedule);return
       }
       schedule();
      },400);
