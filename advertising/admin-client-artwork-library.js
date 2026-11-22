@@ -298,21 +298,38 @@ function renderFolder(){
   const cardFeedback=make('p');cardFeedback.setAttribute('role','status');cardFeedback.style.cssText='color:#eee;font-size:12px;line-height:1.45;margin:0;overflow-wrap:anywhere';cardFeedback.hidden=true;
   const save=button('Upload replacement',()=>uploadFile(format,upload.files?.[0],cardFeedback),true);
   upload.addEventListener('change',()=>{if(upload.files?.[0]){cardFeedback.textContent='Selected: '+upload.files[0].name+'. Click Upload replacement to save a draft.';cardFeedback.hidden=false}});
-  card.append(upload,save,cardFeedback);
+  const replaceBox=make('details');
+  replaceBox.style.cssText='border-top:1px solid #383838;padding-top:7px';
+  const replaceLabel=make('summary','Replace approved artwork');replaceLabel.style.cssText='cursor:pointer;font-size:12px;color:#ccc';
+  replaceBox.append(replaceLabel,upload,save,cardFeedback);
+  card.append(replaceBox);
   const rows=versions.filter(v=>v.partner_id===selected&&v.creative_format===format);
-  const history=make('details');const summary=make('summary','Artwork versions ('+rows.length+')');summary.style.cursor='pointer';history.append(summary);
+  const history=make('details');
+  history.style.cssText='border-top:1px solid #383838;padding-top:7px';
+  const summary=make('summary','Older artwork & versions ('+rows.length+')');
+  summary.style.cssText='cursor:pointer;font-size:12px;color:#ccc';
+  history.append(summary);
+  const hint=make('small','All versions are retained, including red and blue artwork. Opening this history never changes the selected master.');
+  hint.style.cssText='display:block;color:#aaa;margin:7px 0';history.append(hint);
   for(const v of rows){
-   const line=make('div');line.style.cssText='border-top:1px solid #444;padding:10px 0;font-size:12px;display:flex;flex-direction:column;gap:7px';
+   const line=make('details');line.style.cssText='border-top:1px solid #3b3b3b;padding:8px 0;font-size:12px;min-width:0';
    const dependencies=artworkDependencies(v);
-   const title=make('div',v.file_name);title.style.cssText='font-weight:700;overflow-wrap:anywhere';line.append(title);
+   const selectedMaster=master?.active_artwork_id===v.id;
+   const title=make('summary',selectedMaster?'Current approved master · '+v.file_name:(v.status==='approved'?'Approved alternative · ':'Draft · ')+v.file_name);
+   title.style.cssText='font-weight:700;overflow-wrap:anywhere;cursor:pointer;line-height:1.5';
+   line.append(title);
    const preview=make('img');preview.src=v.public_url;preview.alt='Preview of '+v.file_name;preview.loading='lazy';
-   preview.style.cssText='display:block;width:100%;aspect-ratio:'+ratios[format]+';height:auto;object-fit:contain;background:transparent;border:0;border-radius:0';
+   preview.style.cssText='display:block;width:100%;aspect-ratio:'+ratios[format]+';height:auto;object-fit:contain;background:transparent;border:0;border-radius:12px;margin:9px 0';
    line.append(preview);
    const state=make('small',(v.status==='approved'?'Approved':'Draft')+(master?.active_artwork_id===v.id?' · SELECTED MASTER':'')+(dependencies.campaign?' · USED BY CAMPAIGN':'')+(dependencies.slot||dependencies.placement?' · USED ON WEBSITE':''));
    state.style.cssText='color:'+(dependencies.used?'#eac07c':'#ccc')+';font-weight:700';line.append(state);
    const controls=make('div');controls.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
    const legacy=Boolean(v.storage_path?.startsWith('linked-existing/')||v.source_label?.startsWith('Existing '));
-   controls.append(button('Bake rounded corners',()=>saveRoundedVersion(v,format)));
+   // Corner treatment is standard; an old-file repair is available only
+   // inside this version's expanded tools, not repeated on every card.
+   const repair=button('Repair old file corners',()=>saveRoundedVersion(v,format));
+   repair.title='Only for an old image whose source corners need rebuilding';
+   controls.append(repair);
    if(v.status==='draft'&&!legacy)controls.append(button('Approve',()=>approve(v)));
    if(v.status==='approved'&&master?.active_artwork_id!==v.id)controls.append(button('Use this artwork',()=>activate(v,format,field),true));
    const removableLink=legacy&&v.status==='draft'&&!dependencies.master&&!dependencies.slot;
