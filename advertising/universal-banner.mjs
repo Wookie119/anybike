@@ -561,14 +561,42 @@ export async function renderMoveHouseOnUkPage(options={}){
 
 // Approved multi-advert layouts are delivered only by the central advertising service.
 // No matching published layout => the existing single advert remains untouched.
+// All database-driven templates share one adaptive advertisement slot contract.
+// The page grows naturally around its advert(s); no empty space before publication.
+function ensureAdaptivePublishedSlot(layout){
+ const main=document.querySelector('main');
+ if(!main||!Array.isArray(layout)||!layout.length)return null;
+ const code=String(layout[0].slot_code||'');
+ if(!/^AB-[A-Z0-9-]+$/.test(code)||layout.some(ad=>ad.slot_code!==code))return null;
+ const named=[...main.querySelectorAll('.managed-ad-space[data-ad-slot][data-market="GB"]')].find(el=>el.dataset.adSlot===code);
+ if(named)return named;
+ const key=String(layout[0].placement_key||'');
+ if(layout.some(ad=>ad.placement_key!==key))return null;
+ // A template's existing placement key determines where its content flows.
+ // Never invent a stock grid card or add a slot inside private forms.
+ if(!['main_end','about_wrap','before_sources','export_wrap','freight_wrap','sell_wrap'].includes(key))return null;
+ let parent=main,before=null;
+ if(key==='before_sources'){
+  if(!main.querySelector('#databaseHeroPhoto')||!main.querySelector('#nextAction'))return null;
+  before=main.querySelector('#modelSources');
+ }else if(key==='about_wrap'){
+  let wrap=document.getElementById('anybike-move-about-wrap');
+  if(!wrap){wrap=node('div');wrap.id='anybike-move-about-wrap';wrap.className='wrap';wrap.style.cssText='margin:20px auto 24px;min-width:0;box-sizing:border-box';main.append(wrap)}
+  parent=wrap;
+ }else if(key==='export_wrap'||key==='freight_wrap'||key==='sell_wrap'){
+  // These editorial pages have different DOM, but the shared container obeys
+  // the same content width rather than stretching to the viewport.
+  const wrap=node('div');wrap.style.cssText='width:100%;max-width:1200px;padding:0 16px;margin:20px auto 24px;box-sizing:border-box;min-width:0';main.append(wrap);parent=wrap;
+ }
+ const slot=node('section');slot.className='managed-ad-space anybike-adaptive-slot';
+ slot.dataset.adSlot=code;slot.dataset.market='GB';slot.setAttribute('aria-label','Advertising');
+ if(before)parent.insertBefore(slot,before);else parent.append(slot);
+ return slot;
+}
+
 function installPublishedLayout(layout,pagePath){
  if(!Array.isArray(layout)||!layout.length||layout.length>4||!isPublicUkCustomerPage())return false;
- const slot=[...document.querySelectorAll('main .managed-ad-space[data-ad-slot][data-market="GB"]')]
-  .find(el=>el.dataset.adSlot===String(layout[0]?.slot_code||""));
- // The public service deliberately does not expose unpublished slot identifiers.
- // The page inventory has one named slot per page; use that exact existing anchor.
- const anchors=[...document.querySelectorAll('main .managed-ad-space[data-ad-slot][data-market="GB"]')];
- const candidate=anchors.find(el=>layout.every(ad=>ad.slot_code===el.dataset.adSlot));
+ const candidate=ensureAdaptivePublishedSlot(layout);
  if(!candidate||candidate.childElementCount)return false;
  const permitted=new Set(["square","slim","stock_card","landscape","portrait"]);
  if(layout.some(ad=>!permitted.has(ad.format)||!https(ad.image_url)||!https(ad.destination_url)||!ad.token))return false;
@@ -576,7 +604,7 @@ function installPublishedLayout(layout,pagePath){
  const cssId='anybike-published-multi-layout-css';
  if(!document.getElementById(cssId)){
   const style=node('style');style.id=cssId;
-  style.textContent='.anybike-published-multi-layout{display:grid!important;grid-template-columns:repeat(var(--ad-count),minmax(0,1fr));gap:12px;width:100%;max-width:1200px;margin:10px auto 18px}.anybike-published-multi-layout article{min-width:0;margin:0;overflow:visible}.anybike-published-multi-layout a{display:block;overflow:hidden;border-radius:12px;clip-path:inset(0 round 12px);background:transparent}.anybike-published-multi-layout img{width:100%;height:auto;display:block;object-fit:contain;border-radius:12px}.anybike-published-multi-layout small{display:block;text-align:center;margin-top:4px;color:#aaa;font:11px/1.3 Arial,sans-serif}@media(max-width:680px){.anybike-published-multi-layout{grid-template-columns:1fr!important}}';
+  style.textContent='.managed-ad-space.anybike-adaptive-slot{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;clear:both;padding:0!important;height:auto!important;overflow:visible!important}.anybike-published-multi-layout{display:grid!important;grid-template-columns:repeat(var(--ad-count),minmax(0,1fr));gap:clamp(8px,1.3vw,16px);width:100%;max-width:1200px;min-width:0;box-sizing:border-box;margin:16px auto 22px;align-items:start}.anybike-published-multi-layout article{min-width:0;margin:0;overflow:visible;box-sizing:border-box}.anybike-published-multi-layout a{display:block;width:100%;overflow:hidden;border-radius:12px;clip-path:inset(0 round 12px);background:transparent}.anybike-published-multi-layout img{width:100%;max-width:100%;height:auto;display:block;object-fit:contain;border-radius:12px}.anybike-published-multi-layout small{display:block;width:100%;text-align:center;margin-top:4px;color:#aaa;font:11px/1.3 Arial,sans-serif}@media(max-width:680px){.anybike-published-multi-layout{grid-template-columns:repeat(2,minmax(0,1fr))!important}}@media(max-width:420px){.anybike-published-multi-layout{grid-template-columns:1fr!important}}';
   document.head.append(style);
  }
  const host=node('div');host.className='anybike-published-multi-layout';host.id=moveHouseMarker;
@@ -602,7 +630,7 @@ function installPublishedLayout(layout,pagePath){
    observer.observe(card);
   }else impression();
  }
- candidate.append(host);return true;
+ candidate.classList.add('anybike-adaptive-slot');candidate.append(host);return true;
 }
 
 // All campaigns use the SAME placement engine. Do not add per-page fallback
