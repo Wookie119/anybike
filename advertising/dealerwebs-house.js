@@ -21,13 +21,13 @@
    section.dataset.adSlotCode=ad.slot_code;
    section.dataset.adCampaignId=ad.campaign_id;
    section.setAttribute('aria-label','Advertisement · DealerWebs');
-   section.style.cssText='margin:22px auto;max-width:340px;width:100%;box-sizing:border-box;text-align:center';
+   section.style.cssText='margin:18px auto 24px;max-width:320px;width:100%;box-sizing:border-box;text-align:center';
    const link=document.createElement('a');link.href=target;link.target='_blank';link.rel='noopener noreferrer sponsored';
-   link.style.cssText='display:block;width:100%;border:1px solid #444;border-radius:12px;overflow:hidden;background:#101010;text-decoration:none';
+   link.style.cssText='display:block;width:100%;aspect-ratio:1/1;border:1px solid #444;border-radius:10px;overflow:hidden;background:#101010;text-decoration:none';
    const image=document.createElement('img');image.src=imageUrl;
    image.alt=ad.image_alt||'DealerWebs motorcycle dealer software';
    image.loading='lazy';image.decoding='async';
-   image.style.cssText='width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;display:block;border:0';
+   image.style.cssText='width:100%;height:100%;object-fit:cover;object-position:center;display:block;border:0;transform:scale(1.62);transform-origin:center';
    image.addEventListener('error',()=>section.remove(),{once:true});
    link.append(image);
    const disclosure=document.createElement('small');
