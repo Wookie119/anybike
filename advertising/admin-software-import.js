@@ -12,10 +12,20 @@
  const panel=document.createElement('section');
  panel.id='softwareCreativeImporter';
  panel.innerHTML='<h2>Stock-feed software adverts · bulk artwork import</h2>'+
-  '<p style="font-size:13px;color:#bbb">Upload the seven square WebP files from the AnyBike artwork pack in one selection. Each image is attached only to its matching company draft, using the existing campaign and creative storage. Nothing goes live automatically.</p>'+
+  '<p style="font-size:13px;color:#bbb">This section is ONLY for seven specific stock-feed software company square adverts (Catalyst, Click Dealer, DealerWebs, Deep Blue, EVOPOS, Media Links and Pyramid). Do NOT use it for the Move / ABR Festival / Motorcycle Live client artwork ZIP. Nothing goes live automatically.</p>'+
   '<div class="bar"><input id="softwareCreativeFiles" type="file" multiple accept=".zip,.webp,image/webp,application/zip" aria-label="Select seven square software adverts"><button id="softwareCreativeReview" type="button">Check artwork</button><button id="softwareCreativeUpload" type="button" class="primary" disabled>Import checked drafts</button></div>'+
   '<p id="softwareCreativeStatus" role="status" aria-live="polite"></p><div class="scroll"><table><thead><tr><th>Company</th><th>File</th><th>Campaign</th><th>Result</th></tr></thead><tbody id="softwareCreativeRows"></tbody></table></div>';
  root.insertAdjacentElement('afterend',panel);
+ const redirect=document.createElement('button');redirect.type='button';redirect.textContent='Import Move / ABR / Motorcycle Live artwork instead';
+ redirect.style.cssText='margin:8px 0;padding:9px 14px;border:1px solid #ed1c24;border-radius:8px;background:#292929;color:#fff;font-weight:700;cursor:pointer';
+ redirect.addEventListener('click',()=>{
+  const client=document.getElementById('client-artwork-library');
+  if(!client){setStatus('Advertiser files are loading. Refresh this page and open Advertiser files.');return}
+  client.scrollIntoView({behavior:'smooth',block:'start'});
+  client.style.outline='2px solid #ed1c24';
+  window.setTimeout(()=>{client.style.outline=''},2000);
+ });
+ panel.querySelector('.bar')?.insertAdjacentElement('afterend',redirect);
  let verified=[];
  const gallery=document.createElement('div');gallery.id='softwareArtworkGallery';gallery.style.marginTop='14px';
  const galleryHeader=document.createElement('div');galleryHeader.className='bar';
@@ -103,7 +113,7 @@
    const archive=await window.JSZip.loadAsync(zipFile,{checkCRC32:true});
    const entries=Object.values(archive.files).filter(x=>!x.dir);
    if(entries.length!==7||entries.some(x=>!/^([a-z0-9_-]+)-square\.webp$/i.test(x.name)))
-    throw Error('Expected exactly the seven named square WebP adverts at the ZIP root.');
+    throw Error('Wrong ZIP for this importer. The approved Move / DealerWebs / ABR / Motorcycle Live artwork ZIP belongs in Advertiser files → Import artwork ZIP. Use the button below to jump there. This stock-feed importer accepts only seven square software company adverts.');
    const files=[];
    for(const entry of entries){
     const data=await entry.async('uint8array');
