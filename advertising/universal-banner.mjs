@@ -407,12 +407,15 @@ function placementMatchesTemplate(ad){
  const path=location.pathname.toLowerCase(),key=ad?.placement_key;
  const main=document.querySelector('main');
  if(!main)return false;
- if(path==='/compare-motorcycles.html'){
-  // Only the centrally assigned campaign slot can occupy this template anchor.
-  const slot=String(ad?.slot_code||'');
-  return /^AB-UK-COMPARE-(?:CONTENT|FOOTER)-01$/.test(slot)&&
-   !!main.querySelector('.managed-ad-space[data-ad-slot="'+slot+'"]');
- }
+ // A template opts in explicitly by declaring its database-assigned slot code.
+ // Future pages inherit this rule without new per-page renderer branches.
+ const slot=String(ad?.slot_code||'');
+ const namedSlot=slot&&[...main.querySelectorAll('.managed-ad-space[data-ad-slot][data-market="GB"]')]
+  .find(el=>el.dataset.adSlot===slot);
+ if(namedSlot)return true;
+ // The comparison template must never fall back to appending an advert
+ // somewhere else when its exact named slot is missing.
+ if(path==='/compare-motorcycles.html')return false;
  if(key==='stock_grid')return path==='/available-stock.html'&&!!document.getElementById('stockGrid');
  if(key==='existing_house')return legacyMoveAnchors().length>0;
  if(key==='before_sources')return !!main.querySelector('#databaseHeroPhoto')&&
@@ -497,10 +500,12 @@ function installMoveHouse(ad){
  card.style.setProperty('margin-right','auto');
  card.style.setProperty('min-width','0');
  card.style.setProperty('box-sizing','border-box');
- if(location.pathname.toLowerCase()==='/compare-motorcycles.html'){
-  const slot=String(ad.slot_code||'');
-  const anchor=main.querySelector('.managed-ad-space[data-ad-slot="'+slot+'"]');
-  if(!anchor)return false;
+ // The same opt-in slot and proportional rendering work on all future
+ // templates; legacy placements continue using their approved positions.
+ const slot=String(ad.slot_code||'');
+ const anchor=slot&&[...main.querySelectorAll('.managed-ad-space[data-ad-slot][data-market="GB"]')]
+  .find(el=>el.dataset.adSlot===slot);
+ if(anchor){
   anchor.append(card);
   fitManagedAdvertToSlot(anchor,card);
  }else switch(ad.placement_key){
@@ -518,7 +523,7 @@ function installMoveHouse(ad){
  // Preserve intrinsic image ratio; never crop, stretch or enlarge the artwork.
  // About Us uses a wider .wrap than the standard 1200px advert cap.
  // Match that existing content width without making the banner full-bleed.
- card.style.setProperty('max-width',location.pathname.toLowerCase()==='/compare-motorcycles.html'||ad.placement_key==='about_wrap'?'none':'1200px','important');
+ card.style.setProperty('max-width',anchor||ad.placement_key==='about_wrap'?'none':'1200px','important');
  card.style.setProperty('width','100%','important');
  card.style.setProperty('min-width','0','important');
  card.style.setProperty('margin-left','auto','important');
