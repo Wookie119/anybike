@@ -795,35 +795,8 @@ async function anybikeEnsureHeaderAuthClient(){
     );
   }
 }
-// A UK-facing dealer locator must not appear in international page navigation.
-// Country location is NOT inferred from currency or browser language.
-function anybikeAddUkDealerLocatorLinks(){
- const path=location.pathname.toLowerCase();
- const ukContext=path==='/markets/united-kingdom.html'||
-   path==='/find-a-dealer.html'||
-   path==='/compare-motorcycles.html'||
-   document.documentElement.classList.contains('anybike-uk-dealer');
- if(!ukContext)return;
- for(const selector of ['.public-nav','.mobile-nav']){
-  const nav=document.querySelector(selector);
-  if(!nav||nav.querySelector('[data-anybike-uk-dealer-locator]'))continue;
-  const link=document.createElement('a');
-  link.href='/find-a-dealer.html';
-  link.textContent='Find a Dealer';
-  link.dataset.anybikeUkDealerLocator='true';
-  const manufacturer=nav.querySelector('.public-manufacturers-menu,.mobile-manufacturers-menu');
-  if(manufacturer)manufacturer.insertAdjacentElement('afterend',link);
-  else nav.append(link);
-  if(!nav.querySelector('[data-anybike-uk-comparison-link]')){
-   const compare=document.createElement('a');
-   compare.href='/compare-motorcycles.html';
-   compare.textContent='Compare Motorcycles';
-   compare.dataset.anybikeUkComparisonLink='true';
-   link.insertAdjacentElement('afterend',compare);
-  }
- }
-}
-document.addEventListener('DOMContentLoaded',()=>{if(location.pathname==='/markets/united-kingdom.html')anybikeAddUkDealerLocatorLinks()});
+// Find a Dealer navigation is intentionally postponed until the new-bike
+// authorised franchise directory is ready. Keep its page/data untouched.
 async function loadPublicHeader(){
   const holder = document.getElementById("publicHeader");
 
@@ -841,7 +814,7 @@ async function loadPublicHeader(){
     }
 
     holder.innerHTML = await headerRes.text();
-    anybikeAddUkDealerLocatorLinks();
+    
     try{await anybikeEnsureHeaderAuthClient();}catch(e){console.warn("Header authentication unavailable",e);}
     // Identify approved test accounts before slower navigation/profile setup.
     anybikeShowPublicSignedInIdentity().catch(()=>{});
@@ -1079,7 +1052,7 @@ async function addMyDealershipMenuIfEligible(user){
       // shortcuts from its account menu. Do not change other account types.
       if(["uk_dealer","uk_distributor"].includes(customerType)){
         document.documentElement.classList.add("anybike-uk-dealer");
-        anybikeAddUkDealerLocatorLinks();
+        
         // Hide only UK dealer top-level public Trade and VMoto links (desktop/mobile).
         for(const navSelector of [".public-nav",".mobile-nav"]){
           const nav=document.querySelector(navSelector);
