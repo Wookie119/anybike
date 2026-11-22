@@ -170,7 +170,7 @@ function positionEditorialMoveAdvert(main,card){
    main.append(wrap);
   }
   wrap.append(card);
-  card.style.cssText='width:100%;max-width:1200px;margin:0;min-width:0;box-sizing:border-box;overflow:visible;border-radius:12px';
+  card.style.cssText='width:100%;max-width:none;margin:0;min-width:0;box-sizing:border-box;overflow:visible;border-radius:12px';
   return;
  }
  main.append(card);
@@ -482,7 +482,9 @@ function installMoveHouse(ad){
  // The approved Available Stock grid card bypasses this entire block.
  // Keep the approved full content width; two companion ads divide that width 50/50.
  // Preserve intrinsic image ratio; never crop, stretch or enlarge the artwork.
- card.style.setProperty('max-width','1200px','important');
+ // About Us uses a wider .wrap than the standard 1200px advert cap.
+ // Match that existing content width without making the banner full-bleed.
+ card.style.setProperty('max-width',ad.placement_key==='about_wrap'?'none':'1200px','important');
  card.style.setProperty('width','100%','important');
  card.style.setProperty('min-width','0','important');
  card.style.setProperty('margin-left','auto','important');
