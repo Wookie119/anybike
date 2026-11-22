@@ -25,7 +25,7 @@
  let advancedView='reach';
  const known={
   advertisingReadiness:'overview',advertisingMegaHealthSection:'overview',
-  pairedHousePreviewSection:'overview',
+  pairedHousePreviewSection:'advanced',
   'client-artwork-library':'advertisers',
   quotearea:'campaigns',editor:'campaigns',
   namedAdvertisingSpaces:'placements',
