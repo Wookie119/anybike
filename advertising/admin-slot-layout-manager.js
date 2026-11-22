@@ -126,7 +126,13 @@ pageButton.onclick=()=>{
       // Remove only the old Move card in this private preview.
       for(const ad of [...stock.querySelectorAll(':scope > .anybike-move-stock-ad')])ad.style.display='none';
       const bikes=[...stock.querySelectorAll(':scope > article.card:not(.anybike-move-stock-ad):not(.anybike-private-stock-ad)')];
-      if(!bikes.length){status.textContent='Waiting for the stock cards to load in preview…';return}
+      if(!bikes.length){
+       // Stock data loads asynchronously; show the draft now and reflow it
+       // around motorcycle cards as soon as the stock grid is populated.
+       for(const card of cards)if(card.parentElement!==stock)stock.append(card);
+       status.textContent='Showing three advert previews. Waiting for motorcycle listings to load…';
+       return;
+      }
       const anchors=cards.map((_,i)=>bikes[Math.min(bikes.length-1,Math.max(0,Math.ceil((i+1)*bikes.length/(cards.length+1))-1))]);
       const correct=cards.every((card,i)=>{if(card.parentElement!==stock)return false;let prev=card.previousElementSibling;while(prev?.classList.contains('anybike-private-stock-ad'))prev=prev.previousElementSibling;return prev===anchors[i]});
       if(!correct){cards.forEach(c=>c.remove());for(let i=cards.length-1;i>=0;i--)anchors[i].after(cards[i])}
@@ -136,10 +142,22 @@ pageButton.onclick=()=>{
       if(cards[0].isConnected&&!stock.__anybikeScrolledForPreview){stock.__anybikeScrolledForPreview=true;cards[0].scrollIntoView({block:'center',behavior:'instant'})}
      };
      let pending=false;
-     const schedule=()=>{if(pending)return;pending=true;pageFrame.contentWindow.requestAnimationFrame(()=>{pending=false;apply()})};
+     const schedule=()=>{if(pending)return;pending=true;
+      const view=doc.defaultView;
+      if(!view||view.closed){pending=false;return}
+      view.requestAnimationFrame(()=>{pending=false;try{apply()}catch(e){status.textContent='Stock preview failed: '+(e.message||e)}})
+     };
      const observer=new MutationObserver(records=>{if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n.nodeType===1&&!n.classList?.contains('anybike-private-stock-ad'))))schedule()});
      observer.observe(stock,{childList:true});
-     if(typeof doc.defaultView.ResizeObserver==='function'){const resize=new doc.defaultView.ResizeObserver(schedule);resize.observe(stock)}
+     // A timed check also handles stock data loaded after iframe load,
+     // filtered results and slower browsers without relying solely on DOM events.
+     let checks=0;
+     const poll=window.setInterval(()=>{
+      if(pageWrap.hidden||!pageFrame.isConnected||pageFrame.contentDocument!==doc||++checks>35){
+       window.clearInterval(poll);observer.disconnect();return
+      }
+      schedule();
+     },400);
      schedule();return;
     }
     if(!main||!['main_end','about_wrap','before_sources','export_wrap','freight_wrap','sell_wrap'].includes(key))throw Error('No suitable page advertising position');
