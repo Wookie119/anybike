@@ -266,7 +266,7 @@ function addZipImporter(){
   go.disabled=true;
   let saved=0,failed=0,skipped=0;const errors=[];
   const ownerApproved=confirm('Have you personally approved the artwork in this ZIP? OK saves valid files as approved client artwork. Cancel saves them as drafts. Neither option changes live advertising placements.');
-  const seen=new Set();
+
   try{
    const archive=await JSZip.loadAsync(file.files[0],{checkCRC32:true});
    const entries=Object.values(archive.files).filter(e=>!e.dir&&e.name.toLowerCase().endsWith('.webp'));
@@ -285,10 +285,7 @@ function addZipImporter(){
      if(Math.abs(wh[0]/wh[1]/ratios[format]-1)>.006)throw Error('Artwork does not match '+format.replace('_',' ')+' proportions');
      const bytes=await item.async('uint8array');
      if(!bytes.length||bytes.length>10000000)throw Error('Image too large or empty');
-     const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
-     const hashKey=client.id+':'+format+':'+Array.from(hash,b=>b.toString(16).padStart(2,'0')).join('');
-     if(seen.has(hashKey)){skipped++;continue}
-     seen.add(hashKey);
+
      const webp=new File([bytes],name,{type:'image/webp'});
      image=await createImageBitmap(webp);
      if(image.width!==wh[0]||image.height!==wh[1])throw Error('Image pixel size mismatch');
