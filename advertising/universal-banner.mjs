@@ -435,6 +435,39 @@ function pairedManagedCard(ad){
  pair.append(primary,secondary);
  return pair;
 }
+// Standard responsive contract for database-approved advert spaces on every
+// present or future page template. Position belongs to the template/slot;
+// sizing belongs to this renderer. Do not change stock-card placements.
+function fitManagedAdvertToSlot(slot,card){
+ slot.style.setProperty('width','100%','important');
+ slot.style.setProperty('max-width','none','important');
+ slot.style.setProperty('min-width','0','important');
+ slot.style.setProperty('box-sizing','border-box','important');
+ card.style.setProperty('display','block','important');
+ card.style.setProperty('width','100%','important');
+ card.style.setProperty('max-width','none','important');
+ card.style.setProperty('min-width','0','important');
+ card.style.setProperty('box-sizing','border-box','important');
+ const banners=card.matches?.('a.anybike-managed-ad-link')?[card]:[...card.querySelectorAll('a.anybike-managed-ad-link')];
+ for(const banner of banners){
+  banner.style.setProperty('width','100%','important');
+  banner.style.setProperty('max-width','none','important');
+  banner.style.setProperty('height','auto','important');
+  const picture=banner.querySelector('picture');
+  if(picture){
+   picture.style.setProperty('width','100%','important');
+   picture.style.setProperty('max-width','none','important');
+  }
+  const artwork=picture?.querySelector('img');
+  if(artwork){
+   artwork.style.setProperty('display','block','important');
+   artwork.style.setProperty('width','100%','important');
+   artwork.style.setProperty('max-width','none','important');
+   artwork.style.setProperty('height','auto','important');
+   artwork.style.setProperty('object-fit','contain','important');
+  }
+ }
+}
 function installMoveHouse(ad){
  if(!isPublicUkCustomerPage()||!ad)return false;
  // Adopt the exact position of existing approved Move artwork in dealer,
@@ -469,34 +502,7 @@ function installMoveHouse(ad){
   const anchor=main.querySelector('.managed-ad-space[data-ad-slot="'+slot+'"]');
   if(!anchor)return false;
   anchor.append(card);
-  // The comparison template owns the position. Fill its existing responsive
-  // advertising slot, not the narrower default dimensions of a generic aside.
-  // Never stretch the artwork: its intrinsic aspect ratio remains unchanged.
-  anchor.style.setProperty('width','100%','important');
-  // The comparison template's fixed 1120px slot maximum becomes much narrower
-  // than its content at browser zoom-out. Follow the parent content width.
-  anchor.style.setProperty('max-width','none','important');
-  anchor.style.setProperty('min-width','0','important');
-  anchor.style.setProperty('box-sizing','border-box','important');
-  card.style.setProperty('display','block','important');
-  card.style.setProperty('width','100%','important');
-  card.style.setProperty('max-width','none','important');
-  const banner=card.querySelector('a.anybike-managed-ad-link');
-  if(banner){
-   banner.style.setProperty('width','100%','important');
-   banner.style.setProperty('max-width','none','important');
-   banner.style.setProperty('height','auto','important');
-   const picture=banner.querySelector('picture');
-   if(picture){picture.style.setProperty('width','100%','important');picture.style.setProperty('max-width','none','important');}
-   const artwork=picture?.querySelector('img');
-   if(artwork){
-    artwork.style.setProperty('display','block','important');
-    artwork.style.setProperty('width','100%','important');
-    artwork.style.setProperty('max-width','none','important');
-    artwork.style.setProperty('height','auto','important');
-    artwork.style.setProperty('object-fit','contain','important');
-   }
-  }
+  fitManagedAdvertToSlot(anchor,card);
  }else switch(ad.placement_key){
   case 'before_sources':positionModelMoveAdvert(main,card);break;
   case 'about_wrap':positionEditorialMoveAdvert(main,card);break;
