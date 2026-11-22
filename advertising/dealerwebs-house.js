@@ -1,52 +1,59 @@
-// UK-only, centrally controlled DealerWebs house advert on Dealer Stock Connection.
-// Does not publish any other software supplier or alter existing adverts.
+// Mega advertising system: render centrally assigned, enabled dealer feed slots.
+// All creative, URLs, position and visibility come from Supabase. No embedded advertisers.
 (()=>{
- 'use strict';
- if(location.pathname!=='/dealer-connect-stock.html')return;
- const start=async()=>{
-  const form=document.getElementById('connectionForm');
-  if(!form||document.getElementById('anybikeDealerFeedPartnerAd'))return;
-  try{
-   const url='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/advertising_square_house_placements?select=slot_code,campaign_id,company_name,artwork_url,destination_url,image_alt,position_key&slot_code=eq.AB-DEALER-FEED-S01';
-   const response=await fetch(url,{headers:{apikey:'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK'},cache:'no-store'});
-   if(!response.ok)return;
-   const rows=await response.json();
-   if(!Array.isArray(rows)||rows.length!==1)return;
-   const ad=rows[0];
-   const valid=value=>{try{const u=new URL(value);return u.protocol==='https:'?u.href:null}catch{return null}};
-   const imageUrl=valid(ad.artwork_url),target=valid(ad.destination_url);
-   if(!imageUrl||!target||ad.slot_code!=='AB-DEALER-FEED-S01'||ad.company_name!=='DealerWebs')return;
-   const section=document.createElement('section');
-   section.id='anybikeDealerFeedPartnerAd';
-   section.dataset.adSlotCode=ad.slot_code;
-   section.dataset.adCampaignId=ad.campaign_id;
-   section.setAttribute('aria-label','Advertisement · DealerWebs');
-   section.style.cssText='margin:18px auto 24px;max-width:320px;width:100%;box-sizing:border-box;text-align:center';
-   const link=document.createElement('a');link.href=target;link.target='_blank';link.rel='noopener noreferrer sponsored';
-   link.style.cssText='display:block;width:100%;aspect-ratio:1/1;border:1px solid #444;border-radius:10px;overflow:hidden;background:#101010;text-decoration:none';
-   const image=document.createElement('img');image.src=imageUrl;
-   image.alt=ad.image_alt||'DealerWebs motorcycle dealer software';
-   image.loading='lazy';image.decoding='async';
-   image.style.cssText='width:100%;height:100%;object-fit:cover;object-position:center;display:block;border:0;transform:scale(1.62);transform-origin:center';
-   image.addEventListener('error',()=>section.remove(),{once:true});
-   link.append(image);
-   const disclosure=document.createElement('small');
-   disclosure.textContent='Advertisement';disclosure.style.cssText='display:block;color:#aaa;font:11px/1.5 Arial,sans-serif;padding-top:5px';
-   section.append(link,disclosure);
-   // These are verified real anchors in the existing dealer-connect page.
-   // Use one position only; never clone the advert into several sections.
-   const positions={
-    before_feed_request:()=>form.insertAdjacentElement('beforebegin',section),
-    after_feed_request:()=>form.insertAdjacentElement('afterend',section),
-    after_stock_upload:()=>{
-     const upload=document.querySelector('.upload-panel');
-     if(!upload)throw Error('Stock upload position is unavailable');
-     upload.insertAdjacentElement('afterend',section);
-    }
-   };
-   const placement=positions[ad.position_key]||positions.after_feed_request;
-   placement();
-  }catch(_){ /* No blank advert or layout gap on network failure. */ }
- };
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+'use strict';
+if(location.pathname!=='/dealer-connect-stock.html')return;
+const secure=v=>{try{const u=new URL(v);return u.protocol==='https:'?u.href:null}catch{return null}};
+function css(){
+ if(document.getElementById('abMegaDealerStyles'))return;
+ const style=document.createElement('style');style.id='abMegaDealerStyles';
+ style.textContent='.ab-mega-dealer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:1020px;width:100%;margin:20px auto 26px}.ab-mega-dealer-card{text-align:center;min-width:0}.ab-mega-dealer-card a{display:block;aspect-ratio:1/1;width:100%;overflow:hidden;border:1px solid #444;border-radius:10px;background:#101010}.ab-mega-dealer-card img{width:100%;height:100%;object-fit:cover;display:block}.ab-mega-dealer-card small{display:block;color:#aaa;font:11px/1.5 Arial,sans-serif;padding-top:5px}@media(max-width:750px){.ab-mega-dealer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.ab-mega-dealer-grid{grid-template-columns:1fr;max-width:340px}}';
+ document.head.append(style);
+}
+async function start(){
+ const form=document.getElementById('connectionForm');
+ if(!form||document.getElementById('abMegaDealerContainer'))return;
+ try{
+  const url='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/advertising_square_house_placements?select=slot_code,campaign_id,company_name,artwork_url,destination_url,image_alt,position_key&slot_code=like.AB-DEALER-FEED-%25&order=slot_code.asc';
+  const response=await fetch(url,{headers:{apikey:'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK'},cache:'no-store'});
+  if(!response.ok)return;
+  const rows=await response.json();
+  if(!Array.isArray(rows))return;
+  const entries=rows.filter(x=>/^AB-DEALER-FEED-S[0-9]+$/.test(x.slot_code||'')&&x.campaign_id&&secure(x.artwork_url)&&secure(x.destination_url));
+  if(!entries.length)return;
+  css();
+  const wrapper=document.createElement('div');wrapper.id='abMegaDealerContainer';
+  const groups=new Map();
+  for(const ad of entries){
+   const position=['before_feed_request','after_feed_request','after_stock_upload'].includes(ad.position_key)?ad.position_key:'after_feed_request';
+   if(!groups.has(position))groups.set(position,[]);
+   groups.get(position).push(ad);
+  }
+  for(const [position,ads] of groups){
+   const grid=document.createElement('section');grid.className='ab-mega-dealer-grid';grid.setAttribute('aria-label','Advertisements');
+   for(const ad of ads){
+    const card=document.createElement('article');card.className='ab-mega-dealer-card';
+    card.dataset.adSlotCode=ad.slot_code;card.dataset.adCampaignId=ad.campaign_id;
+    const anchor=document.createElement('a');anchor.href=secure(ad.destination_url);
+    anchor.target='_blank';anchor.rel='noopener noreferrer sponsored';
+    anchor.setAttribute('aria-label','Visit '+ad.company_name);
+    const image=document.createElement('img');image.src=secure(ad.artwork_url);image.alt=ad.image_alt||ad.company_name;
+    image.loading='lazy';image.decoding='async';
+    // Legacy DealerWebs file has internal empty margins; maintain original art with fitted crop.
+    if(ad.slot_code==='AB-DEALER-FEED-S01')image.style.transform='scale(1.6)';
+    image.addEventListener('error',()=>{card.remove();if(!grid.children.length)grid.remove()},{once:true});
+    anchor.append(image);
+    const disclosure=document.createElement('small');disclosure.textContent='Advertisement';
+    card.append(anchor,disclosure);grid.append(card);
+   }
+   if(position==='before_feed_request')form.insertAdjacentElement('beforebegin',grid);
+   else if(position==='after_stock_upload'){
+    const upload=document.querySelector('.upload-panel');
+    if(upload)upload.insertAdjacentElement('afterend',grid);else form.insertAdjacentElement('afterend',grid);
+   }else form.insertAdjacentElement('afterend',grid);
+  }
+  wrapper.hidden=true;document.body.append(wrapper);
+ }catch(_){/* fail closed: no empty ad frames */}
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
