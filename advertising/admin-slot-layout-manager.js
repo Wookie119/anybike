@@ -159,7 +159,12 @@ async function publicationEligibility(){
  const documentSnapshot=new DOMParser().parseFromString(html,'text/html');
  const anchor=[...documentSnapshot.querySelectorAll('.managed-ad-space[data-ad-slot][data-market="GB"]')]
   .find(n=>n.dataset.adSlot===current.slotCode);
- if(!anchor)return {ready:false,message:'This page does not yet have the required named advertising slot.'};
+ if(!anchor){
+  const supported=new Set(['main_end','about_wrap','before_sources','export_wrap','freight_wrap','sell_wrap']);
+  const main=documentSnapshot.querySelector('main');
+  if(!main||!supported.has(p.placement_key)||p.placement_key==='before_sources'&&(!main.querySelector('#databaseHeroPhoto')||!main.querySelector('#nextAction')))
+   return {ready:false,message:'This page does not yet have a suitable advertising space in its template.'};
+ }
  if(!ids.every((id,i)=>artworkMasters.has(campaigns.find(x=>x.id===id)?.partner_id+'|'+formats[i])))
   return {ready:false,message:'At least one advert needs an approved artwork master for its selected shape.'};
  return {ready:true,message:'All campaigns are eligible for this page and approved artwork shapes are available. Publishing will replace the existing live layout.'};
