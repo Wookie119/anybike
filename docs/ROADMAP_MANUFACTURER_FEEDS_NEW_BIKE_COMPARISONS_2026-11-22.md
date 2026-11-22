@@ -49,6 +49,8 @@ Build a UK-facing guide for buyers of **new motorcycles**, grounded in manufactu
 
 
 ## Future country-by-country rollout (deferred)
+**Existing AnyBike country pages are the foundation.** AnyBike already has a dedicated page for each supported country; the future international buyer guide, local dealer locator, market-specific comparisons and advertising must extend those existing country pages and navigation, not create a separate website or duplicate country-page network. The global Supabase and Mega System remain shared, with local feeds, currency, language, models and ads controlled per market.
+
 **Future phase only — not to be implemented during the UK launch.**
 
 - Prove the UK new-motorcycle buyers guide, manufacturer data feeds, authorised-dealer directory, cross-brand comparisons and paid/affiliate advertising model first.
