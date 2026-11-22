@@ -319,7 +319,8 @@ display.onchange=run(async()=>{
   ' · '+p.slot_code+(enabled&&p.campaign_count===0?' · No active eligible campaign yet':''));
 });
 const a=el('a',p.page_path);a.href=p.page_path==='/motorcycle-brand.html'?'/motorcycle-brand.html?make=Suzuki':p.page_path==='/motorcycle-v2-master.html'?'/models/suzuki/burgman-650.html':p.page_path;a.target='_blank';a.rel='noopener';a.title=p.page_path==='/motorcycle-brand.html'?'Shared manufacturer template · opens Suzuki example':p.page_path==='/motorcycle-v2-master.html'?'Universal model template · opens Suzuki Burgman 650 example':'Open this page';const locationSelect=el('select');
-const positions=p.page_path==='/available-stock.html'?[['stock_grid','Among motorcycles']]:
+const positions=p.page_path==='/compare-motorcycles.html'?[['main_end','Between comparison sections']]:
+ p.page_path==='/available-stock.html'?[['stock_grid','Among motorcycles']]:
  p.page_path==='/motorcycle-v2-master.html'?[['before_sources','After model information']]:
  p.placement_key==='existing_house'?[['existing_house','Existing approved location']]:
  [[p.page_path==='/about-us.html'?'about_wrap':p.page_path==='/export-services.html'?'export_wrap':p.page_path==='/freight-forwarders.html'?'freight_wrap':p.page_path==='/sell-your-motorcycle.html'?'sell_wrap':'main_end','Approved bottom placement'],['main_end','End of page']];
