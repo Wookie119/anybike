@@ -5,9 +5,15 @@ const $=id=>document.getElementById(id);
 const text=(tag,value)=>{const n=document.createElement(tag);if(value!==undefined)n.textContent=String(value);return n};
 const absolute=u=>{try{const x=new URL(u,location.origin);return x.origin===location.origin?x.href:null}catch{return null}};
 const MAX=4,MIN=2;
-let all=[],chosen=[null,null,null];
+let all=[],chosen=[null,null,null],categories=new Map(),activeCategory='';
 function show(message){$('compare-status').textContent=message}
 function selectedIds(){return chosen.filter(Boolean).map(x=>x.model_id)}
+function writeShareUrl(items){
+ const url=new URL(location.href);
+ if(items.length>=MIN&&new Set(items.map(x=>x.model_id)).size===items.length){url.searchParams.set('bikes',items.map(x=>x.model_id).join(','))}
+ else url.searchParams.delete('bikes');
+ history.replaceState(null,'',url.pathname+url.search+url.hash);
+}
 function addSelector(){
  if(chosen.length>=MAX)return;
  chosen.push(null);renderSelectors();
@@ -25,7 +31,7 @@ function cardPicker(index){
  const modelLabel=text('label','Motorcycle model');const model=text('select');
  const refreshModels=()=>{
   model.replaceChildren();const blank=text('option','Choose model');blank.value='';model.append(blank);
-  const candidates=all.filter(x=>x.make===make.value).sort((a,b)=>a.model.localeCompare(b.model,'en'));
+  const candidates=all.filter(x=>x.make===make.value&&(!activeCategory||categories.get(x.model_id)===activeCategory)).sort((a,b)=>a.model.localeCompare(b.model,'en'));
   for(const bike of candidates){const op=text('option',bike.model);op.value=String(bike.model_id);model.append(op)}
   model.disabled=!make.value;
   model.value=chosen[index]?.make===make.value?String(chosen[index]?.model_id||''):'';
@@ -49,6 +55,7 @@ function renderResults(){
  const host=$('comparison-results');host.replaceChildren();
  const items=chosen.filter(Boolean),ids=selectedIds(),distinct=new Set(ids);
  const valid=items.length>=MIN&&distinct.size===items.length;
+ writeShareUrl(valid?items:[]);
  $('share-comparison').disabled=!valid;
  $('print-comparison').disabled=!valid;
  if(items.length<MIN){show('Choose at least two motorcycles to build a comparison.');return}
@@ -64,6 +71,7 @@ function renderResults(){
  const data=[
   ['Manufacturer',x=>x.make],
   ['Model',x=>x.model],
+  ['Catalogue category (provisional)',x=>categories.get(x.model_id)||'Not classified'],
   ['Current UK model range',()=> 'Not yet verified'],
   ['UK list price',()=> 'Awaiting verified current UK price'],
   ['Model year / variant',()=> 'Choose on verified model page'],
@@ -77,9 +85,7 @@ function renderResults(){
  body.append(links);table.append(body);wrap.append(table);host.append(wrap);
  const notice=text('p','AnyBike comparisons are independent. Manufacturer trademarks identify the motorcycles; no brand endorsement is implied. Specifications vary by model year, market and variant. No unverified figures or copied manufacturer artwork are displayed here.');
  notice.className='comparison-notice';host.append(notice);
- // Only a validated set of canonical integer model IDs can enter the shared URL.
- const url=new URL('/compare-motorcycles.html',location.origin);url.searchParams.set('bikes',items.map(x=>x.model_id).join(','));
- history.replaceState(null,'',url.pathname+url.search);
+ // Comparison URL is synchronised by writeShareUrl, including when a selection is cleared.
 }
 async function share(){
  const url=location.href;
@@ -94,6 +100,20 @@ function restore(){
  const resolved=ids.map(id=>all.find(x=>x.model_id===id));
  if(resolved.every(Boolean))chosen=resolved;
 }
+async function loadCategories(){
+ try{
+  const response=await fetch('/data/motorcycle-catalogue-master.json',{cache:'force-cache',signal:AbortSignal.timeout(6500)});
+  if(!response.ok)return;
+  const data=await response.json();
+  for(const m of Array.isArray(data.models)?data.models:[]){
+   if(Number.isSafeInteger(m.model_id)&&typeof m.category==='string'&&m.category.trim())categories.set(m.model_id,m.category.trim());
+  }
+  const select=$('compare-category');if(!select)return;
+  const groups=[...new Set(categories.values())].sort((a,b)=>a.localeCompare(b,'en'));
+  for(const group of groups){const option=text('option',group);option.value=group;select.append(option)}
+  select.onchange=()=>{activeCategory=select.value;chosen=[null,null,null];renderSelectors();show(activeCategory?'Showing catalogue models in '+activeCategory+'. Select two or more motorcycles.':'Showing motorcycles from all catalogue categories.');};
+ }catch(e){console.warn('Optional catalogue category filter unavailable',e)}
+}
 async function start(){
  try{
   const response=await fetch('/data/universal-v2-model-routes.json',{cache:'no-cache',signal:AbortSignal.timeout(10000)});
@@ -103,6 +123,8 @@ async function start(){
   all=source.filter(x=>x&&Number.isSafeInteger(x.model_id)&&x.model_id>0&&typeof x.make==='string'&&typeof x.model==='string'&&/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(x.url||''));
   if(!all.length)throw Error('published model catalogue unavailable');
   restore();renderSelectors();
+  // Category metadata is helpful for discovery, not a verified technical specification.
+  loadCategories();
   $('add-motorcycle').onclick=addSelector;
   $('share-comparison').onclick=share;
   $('print-comparison').onclick=()=>window.print();
