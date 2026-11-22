@@ -951,6 +951,20 @@ async function billingReviews(){
  }
  async function lines(){const data=await checked(db.from('advertising_quotation_items').select('*').eq('quotation_id',qid).order('created_at'));const t=el('table');row(t,['Advert','Format','Targeted pages','Qty','Unit price','Net','']);for(const l of data)row(t,[l.description,l.artwork_format.replaceAll('_',' '),scopeSummary(l),l.quantity,money(l.unit_price_gbp),money(l.line_total_gbp),button('Remove',run(async()=>{if(!confirm('Remove this draft placement?'))return;await checked(db.from('advertising_quotation_items').delete().eq('id',l.id));await lines();await list()}))]);$('quotelines').replaceChildren(t);const q=await checked(db.from('admin_advertising_quotation_totals_v1').select('*').eq('id',qid).single());$('quotetotals').textContent='Subtotal '+money(q.subtotal_gbp)+' · Discount '+money(q.discount_gbp)+' · VAT '+money(q.vat_gbp)+' · Total '+money(q.total_gbp)}
  async function open(id){$('quoteemailpanel')?.remove();qid=id||null;advertiserOptions();f.reset();quoteContacts=[];contactRequest++;$('quoteContacts').replaceChildren();lf.reset();$('quoteplacementpreset').value='';clearScope();$('quoteeditor').hidden=false;$('quotelinearea').hidden=!qid;const m=lf.elements.manufacturer;m.replaceChildren(new Option('Select manufacturer (optional)',''));for(const brand of [...new Set(coverage.map(x=>x.manufacturer))].sort())m.add(new Option(brand,brand));if(qid){const q=await checked(db.from('advertising_quotations').select('*').eq('id',qid).single());lf.elements.countries.value=q.audience==='UK'?'GB':'';if(q.status!=='draft'){qid=null;$('quoteeditor').hidden=true;throw Error('Only draft quotations can be edited')}for(const field of f.elements)if(field.name&&q[field.name]!=null)field.value=q[field.name];$('quotetitle').textContent='AB-ADQ-'+String(q.quote_number).padStart(6,'0');await contactOptions();await lines()}else $('quotetitle').textContent='New quotation'}
+ // Client-file upsell: open a new quotation prefilled with this advertiser; existing campaigns stay unchanged.
+ window.addEventListener('anybike:advertiser-upsell',event=>{
+  const advertiser=String(event.detail?.advertiser||'').trim();
+  if(!advertiser)return;
+  run(async()=>{
+   await open();
+   f.elements.advertiser_name.value=advertiser;
+   f.elements.title.value='Advertising Package Upgrade';
+   f.elements.notes.value='Additional advertising opportunities for existing advertiser. Quote before making changes to existing placements.';
+   await contactOptions();
+   $('quotearea').scrollIntoView({behavior:'smooth',block:'start'});
+   status('Upgrade quotation ready for '+advertiser+' — choose package, placements and price.');
+  })();
+ });
  $('newquote').onclick=run(()=>open());$('refreshquotes').onclick=run(list);$('quoteclose').onclick=()=>$('quoteeditor').hidden=true;
  f.onsubmit=run(async()=>{const v=Object.fromEntries(new FormData(f));v.partner_id=partners.find(p=>p.name.trim().toLowerCase()===v.advertiser_name.trim().toLowerCase())?.id||null;for(const k of ['duration_days','discount_gbp','vat_rate'])v[k]=Number(v[k]);v.valid_until=v.valid_until||null;v.updated_at=new Date().toISOString();qid=await save('advertising_quotations',v,qid);await open(qid);await list();status('Quotation saved')});
  lf.elements.manufacturer.onchange=()=>{const brand=lf.elements.manufacturer.value;const currentCountries=lf.elements.countries.value;clearScope();lf.elements.manufacturer.value=brand;lf.elements.countries.value=currentCountries;if(!brand){lf.elements.quantity.value=1;return}const matching=coverage.filter(x=>x.manufacturer===brand&&x.coverage_status!=='excluded');scope.manufacturers=[brand];scope.catalogue_model_ids=matching.map(x=>x.model_id);for(const m of matching.sort((a,b)=>String(a.model).localeCompare(String(b.model))))lf.elements.model.add(new Option(m.model,String(m.model_id)));lf.elements.quantity.value=scope.catalogue_model_ids.length;$('quoteselectedcount').textContent=scope.catalogue_model_ids.length+' model pages proposed'};
