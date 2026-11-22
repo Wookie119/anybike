@@ -59,3 +59,12 @@ Build a UK-facing guide for buyers of **new motorcycles**, grounded in manufactu
 - Use the existing Advertising Mega System for country-specific paid advertising, local affiliate programmes, sponsorship, client creative variants and commercial reporting; do not create separate advertising backends.
 - Each country should have its own useful localised content and search experience, not a duplicated UK page with the currency converted.
 - **Do not implement new international buyer guides, comparison pages or dealer locators now.** First finish the UK platform, feed reliability, advertising workflow and real-world validation.
+
+## Implementation update — 22 November 2026
+- First UK comparison template committed at `/compare-motorcycles.html`; dynamic selector module `/new-bike-guide/compare-motorcycles.js`.
+- Uses the existing reviewed permanent-route index (`/data/universal-v2-model-routes.json`, 979 model records), never hardcoded manufacturer lists or individual model-page edits.
+- Visitors choose two to four motorcycles, compare basic canonical identities, open existing model research and copy/print a stable comparison URL built from exact model IDs. Example IDs: BMW R 1300 GS 77, Triumph TIGER 1200 255, Ducati Multistrada V4 104.
+- **Research preview only, noindex** until current UK-market model/variant verification and sourced like-for-like technical specifications are complete. No fabricated 2027 pricing, manufacturer photographs or current-model claims.
+- UK-context shared navigation link committed. Existing model pages left untouched.
+- Two named potential comparison advertising spaces registered with Mega System as **planned**, and comparison-page inventory remains disabled until reviewed artwork/campaign approval. No test advert publication.
+- **Not yet browser-verified.** Further QA required: selector, shared links, navigation visibility and eventual feed-driven specification module.
