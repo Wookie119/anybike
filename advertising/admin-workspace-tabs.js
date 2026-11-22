@@ -131,20 +131,20 @@ let db,partners=[],ads=[],pages=[],plans=[],selected=new Set(),current=null,rece
 const eligible=p=>Boolean(p.slot_code&&!p.excluded&&p.page_category!=='model'&&!/^\/(?:admin-|customer-|my-|dealer-|shipper-|seller-)/.test(p.page_path));
 function draw(){
 pagesEl.replaceChildren();
-const plannedCount=[...selected].filter(path=>!recentlySeen.has((current?.id||'')+'|'+path)).length;
+const plannedCount=[...selected].filter(path=>!pages.some(p=>p.page_path===path&&p.placement_enabled&&current?.status==='active'&&recentlySeen.has(current.id+'|'+path))).length;
 count.textContent=plannedCount+' new/draft location'+(plannedCount===1?'':'s')+' selected';save.disabled=!current||plannedCount===0;
 if(!current)return;
 const match=search.value.trim().toLowerCase(),filtered=pages.filter(p=>eligible(p)&&(!match||(p.page_path+' '+p.slot_code).toLowerCase().includes(match)));
 for(const p of filtered.slice(0,120)){
 const label=document.createElement('label');label.className='ab-cp-page';
-const live=recentlySeen.has(current.id+'|'+p.page_path);
+const live=p.placement_enabled&&current.status==='active'&&recentlySeen.has(current.id+'|'+p.page_path);
 const draft=plans.some(plan=>plan.campaign_id===current.id&&plan.page_path===p.page_path);
 const cb=document.createElement('input');cb.type='checkbox';cb.checked=live||selected.has(p.page_path);cb.disabled=live;
 cb.title=live?'Already shown recently on this page — cannot create a duplicate draft':'Select this page for draft planning';
 cb.onchange=()=>{cb.checked?selected.add(p.page_path):selected.delete(p.page_path);
-const n=[...selected].filter(path=>!recentlySeen.has(current.id+'|'+path)).length;
+const n=[...selected].filter(path=>!pages.some(p=>p.page_path===path&&p.placement_enabled&&current.status==='active'&&recentlySeen.has(current.id+'|'+path))).length;
 count.textContent=n+' new/draft location'+(n===1?'':'s')+' selected';save.disabled=n===0};
-const span=document.createElement('span');const strong=document.createElement('strong');strong.textContent=p.page_path;const small=document.createElement('small');small.textContent=p.slot_code+' · '+(live?'LIVE — impression recorded in last 7 days':draft?'SAVED DRAFT — not published':p.placement_enabled?'Available — enabled position':'Available — position currently disabled');span.append(strong,small);label.append(cb,span);pagesEl.append(label);
+const span=document.createElement('span');const strong=document.createElement('strong');strong.textContent=p.page_path;const small=document.createElement('small');small.textContent=p.slot_code+' · '+(live?'RECENTLY DISPLAYED — enabled, recorded in last 7 days':draft?'SAVED DRAFT — not published':p.placement_enabled?'Available — enabled position':'Available — position currently disabled');span.append(strong,small);label.append(cb,span);pagesEl.append(label);
 }
 status.textContent=filtered.length+' suitable inventoried positions'+(filtered.length>120?' · displaying first 120, narrow your search':'')+'. Live positions are locked against duplicate drafting; draft selections remain editable.';
 }
@@ -160,9 +160,19 @@ if(url&&/^https:\/\//.test(url)){const image=document.createElement('img');image
 }
 owner.onchange=()=>{campaign.replaceChildren(new Option('Choose advert',''));for(const ad of ads.filter(a=>a.partner_id===owner.value))campaign.append(new Option(ad.name+' · '+ad.status,ad.id));campaign.disabled=!owner.value;campaign.value='';current=null;selected.clear();showCampaign()};
 campaign.onchange=showCampaign;search.oninput=draw;
+window.addEventListener('anybike:advertiser-placement',event=>{
+ const partnerId=event.detail?.partnerId;
+ if(!partnerId||!partners.some(p=>p.id===partnerId)){status.textContent='Advertiser file not yet available in the planner.';return}
+ owner.value=partnerId;owner.onchange();
+ const available=ads.filter(a=>a.partner_id===partnerId);
+ const preferred=available.find(a=>a.status==='active')||available[0];
+ if(preferred){campaign.value=preferred.id;showCampaign()}
+ section.scrollIntoView({block:'start',behavior:'smooth'});
+});
+
 save.onclick=async()=>{
 if(!current||!selected.size)return;
-const entries=pages.filter(p=>selected.has(p.page_path)&&eligible(p)&&!recentlySeen.has(current.id+'|'+p.page_path)).map(p=>({campaign_id:current.id,page_path:p.page_path,slot_code:p.slot_code,plan_status:'draft',updated_at:new Date().toISOString()}));
+const entries=pages.filter(p=>selected.has(p.page_path)&&eligible(p)&&!(p.placement_enabled&&current.status==='active'&&recentlySeen.has(current.id+'|'+p.page_path))).map(p=>({campaign_id:current.id,page_path:p.page_path,slot_code:p.slot_code,plan_status:'draft',updated_at:new Date().toISOString()}));
 if(!entries.length||!confirm('Save '+entries.length+' draft locations for '+current.name+'? Nothing will go live.'))return;
 save.disabled=true;
 try{
