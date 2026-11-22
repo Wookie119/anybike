@@ -90,3 +90,16 @@ Approved AnyBike categories, matching the existing eight headings on `/motorcycl
 `public_anybike_comparison_manufacturers_v1()` is refreshed to derive brands from the catalogue with the existing official manufacturer identities and dedicated routes applied, avoiding reliance on manual additions to the manufacturer registry. `public_anybike_comparison_engine_sizes_v1()` and `public_anybike_verified_model_facts_v1` still provide sourced cc/specifications; missing values remain unverified. Advertising inventory and campaigns stay under the central database Mega System; no campaigns were activated.
 
 **Validation:** Supabase anonymous-role SQL confirms 979 models, 8 riding styles, 51 manufacturers, one VMoto and one Indian Motorcycle link, and both Triumph Tiger 660 URLs present. JavaScript syntax validated; live desktop/mobile browser smoke test not available in this development session. No individual motorcycle model pages edited.
+
+
+## PRIORITY NEXT — Comparison shortlist → Find Bikes for Sale (22 November 2026)
+**Owner-approved idea — develop ASAP after the essential DealerWebs/Available Stock feed and comparison reliability work; not yet implemented.**
+
+- After comparing 2–4 motorcycles, let the visitor mark **one or two preferred motorcycles** (retain original comparison selections and share link). Provide a clear **Find Bikes for Sale** action.
+- Pass **canonical model IDs, manufacturer and exact model** for the chosen one/two bikes to the existing **Available Stock** search as structured filters, preserving supported year, price, mileage and location filters and UK market. Do not rely on loosely matched free text or create another separate stock database.
+- Display matches for both shortlisted models together, with an easy option to show either separately. Source results exclusively from genuine, available dealer stock; respect UK/international image rules and existing feed permissions.
+- If there are no matching bikes, offer **Save this search / stock alert** using the existing customer searches system, subject to the user's consent. Do not manufacture listings, availability or alerts.
+- Build and configure the handoff in central **Supabase** and the shared comparison/stock templates; never edit individual motorcycle pages. Retain the approved BMW V2 design, AnyBike red/charcoal palette, rounded artwork and Mega System advert controls.
+- Feature should be optional and usable even while users compare models without sufficient specification data. As DealerWebs feed coverage grows, matching available stock should populate automatically.
+- Acceptance tests: shortlist exactly 1 and 2 distinct models out of 2–4 compared, refresh/share link roundtrip, correct exact-model filter match in Available Stock, empty-state/save-search path, responsive mobile view, and no alteration to existing unrelated stock searches.
+- **Priority:** next commercial conversion workstream; schedule as soon as reliable end-to-end stock filters are confirmed, not a vague long-term idea.
