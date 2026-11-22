@@ -923,21 +923,18 @@ function loadMessageCentreNotifications(){
 }
 
 let anybikeAdminInitialised=false;
-let anybikeAdminRecheckRunning=false;
+let anybikeAdminRecheckPromise=null;
 let anybikeAdminNotificationTimer=null;
 
+// Share the in-flight authorisation result across page load, pageshow and focus.
+// Previously a simultaneous pageshow could re-hide the page and get a false
+// "already running" result, leaving an authorised admin with a black screen.
 async function recheckAdminSession(){
-  if(anybikeAdminRecheckRunning){
-    return false;
-  }
-
-  anybikeAdminRecheckRunning=true;
-
-  try{
-    return await requireAdminSession();
-  }finally{
-    anybikeAdminRecheckRunning=false;
-  }
+  if(anybikeAdminRecheckPromise)return anybikeAdminRecheckPromise;
+  const task=requireAdminSession();
+  anybikeAdminRecheckPromise=task;
+  try{return await task}
+  finally{if(anybikeAdminRecheckPromise===task)anybikeAdminRecheckPromise=null}
 }
 
 async function initialiseAdmin(){
