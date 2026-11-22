@@ -594,8 +594,69 @@ function ensureAdaptivePublishedSlot(layout){
  return slot;
 }
 
+// Stock advertising is a reusable card template. One to four distinct adverts
+// are distributed among the motorcycle results instead of forming a wide strip.
+function installStockPublishedLayout(layout){
+ const grid=document.getElementById('stockGrid');
+ if(!grid||location.pathname.toLowerCase()!=='/available-stock.html')return false;
+ if(grid.__anybikePublishedStockLayout)return true;
+ if(layout.some(ad=>ad.placement_key!=='stock_grid'||!['square','stock_card'].includes(ad.format)||!https(ad.image_url)||!https(ad.destination_url)||!ad.token))return false;
+ ensureAdvertHoverStyles();
+ const style=node('style');style.id='anybike-stock-multi-ad-css';
+ style.textContent='.anybike-multi-stock-ad{position:relative;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important;align-self:start!important}.anybike-multi-stock-ad>a{display:block;position:relative;width:100%;min-width:0;overflow:hidden;border-radius:12px;background:#101010;clip-path:inset(0 round 12px)}.anybike-multi-stock-ad img{display:block;width:100%;height:100%;object-fit:contain;border-radius:12px}.anybike-multi-stock-ad small{position:absolute;top:100%;left:0;right:0;text-align:center;color:#aaa;font:11px/1.3 Arial,sans-serif;padding-top:3px}.anybike-multi-stock-ad a:hover{outline:2px solid #ed1c24;outline-offset:2px}';
+ if(!document.getElementById(style.id))document.head.append(style);
+ const cards=layout.map((ad,i)=>{
+  const article=node('article'),link=node('a'),img=node('img'),caption=node('small');
+  article.className='card anybike-multi-stock-ad';article.dataset.anybikeAdAuthorized='1';article.dataset.adCampaignId=ad.id;
+  if(i===0)article.id=moveHouseMarker;
+  article.style.cssText='background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important;min-width:0';
+  link.href=https(ad.destination_url);link.rel='noopener sponsored';link.target='_blank';link.dataset.anybikeAdAuthorized='1';link.className='anybike-managed-ad-link';link.setAttribute('aria-label',String(ad.partner_name||'Advertiser')+' — visit website');
+  img.src=https(ad.image_url);img.alt=String(ad.alt_text||'');img.loading='lazy';img.decoding='async';
+  caption.textContent='Advertisement';link.append(img);article.append(link,caption);
+  let seen=false,clicked=false;
+  const emit=event_type=>send({action:'event',event_type,token:ad.token},true).catch(()=>{});
+  const impression=()=>{if(seen)return;seen=true;emit('impression')};
+  const click=()=>{if(clicked)return;clicked=true;impression();emit('click')};
+  link.addEventListener('click',click);link.addEventListener('auxclick',e=>{if(e.button===1)click()});
+  if('IntersectionObserver'in window){
+   const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();observer.disconnect()}},{threshold:.5});
+   observer.observe(article);
+  }else impression();
+  return article;
+ });
+ let pending=false;
+ function place(){
+  pending=false;
+  const bikes=[...grid.querySelectorAll(':scope > article.card:not(.anybike-move-stock-ad):not(.anybike-multi-stock-ad)')];
+  if(!bikes.length)return;
+  // Slot positions are proportional to the displayed results, including filters.
+  const anchors=cards.map((_,i)=>bikes[Math.min(bikes.length-1,Math.max(0,Math.ceil((i+1)*bikes.length/(cards.length+1))-1))]);
+  const correct=cards.every((card,i)=>card.parentElement===grid&&card.previousElementSibling===anchors[i]);
+  if(!correct){
+   for(const card of cards)card.remove();
+   for(let i=cards.length-1;i>=0;i--)anchors[i].after(cards[i]);
+  }
+  const bikeHeight=Math.ceil(bikes[0].getBoundingClientRect().height);
+  if(bikeHeight>=100){
+   for(const card of cards){
+    card.style.setProperty('height',bikeHeight+'px','important');
+    card.style.setProperty('min-height',bikeHeight+'px','important');
+    const link=card.querySelector(':scope > a');
+    if(link)link.style.height=bikeHeight+'px';
+   }
+   grid.style.setProperty('row-gap','24px');
+  }
+ }
+ const schedule=()=>{if(pending)return;pending=true;requestAnimationFrame(place)};
+ const observer=new MutationObserver(schedule);observer.observe(grid,{childList:true});
+ grid.__anybikePublishedStockLayout={cards,observer};
+ if(typeof ResizeObserver==='function'){const resize=new ResizeObserver(schedule);resize.observe(grid);grid.__anybikePublishedStockLayout.resize=resize}
+ schedule();return true;
+}
+
 function installPublishedLayout(layout,pagePath){
  if(!Array.isArray(layout)||!layout.length||layout.length>4||!isPublicUkCustomerPage())return false;
+ if(layout[0]?.placement_key==='stock_grid')return installStockPublishedLayout(layout);
  const candidate=ensureAdaptivePublishedSlot(layout);
  if(!candidate||candidate.childElementCount)return false;
  const permitted=new Set(["square","slim","stock_card","landscape","portrait"]);
