@@ -42,12 +42,12 @@ function addLegacyInventoryPanel(){
  const h=document.createElement('h2');h.textContent='Existing adverts · AnyBike-owned placements';
  const desc=document.createElement('p');
  desc.style.cssText='font-size:13px;color:#bbb';
- desc.textContent='Source-verified adverts already embedded on AnyBike. These are mapped to the AnyBike house campaign. Legacy embeds still use their original artwork and links: campaign status changes do not yet switch those embeds on or off.';
+ desc.textContent='Source-verified adverts already embedded on AnyBike. These are mapped to the AnyBike house campaign. The visibility checkbox enables or hides an existing red advert on that page after refresh. Campaign status is separate; artwork and links are unchanged.';
  const state=document.createElement('p');state.id='existingHouseAdvertsState';state.setAttribute('role','status');
  const wrap=document.createElement('div');wrap.className='scroll';
  const table=document.createElement('table');
  const head=document.createElement('thead'),headrow=document.createElement('tr');
- for(const name of ['Page','Advert','Owner','Campaign status','Integration','View']){const th=document.createElement('th');th.textContent=name;headrow.append(th)}
+ for(const name of ['Page','Advert','Owner','Campaign status','Visibility','Integration','View']){const th=document.createElement('th');th.textContent=name;headrow.append(th)}
  head.append(headrow);
  const body=document.createElement('tbody');body.id='existingHouseAdvertsRows';
  table.append(head,body);wrap.append(table);section.append(h,desc,state,wrap);
@@ -61,6 +61,9 @@ async function loadExistingHouseAdverts(){
   const db=getAdminSupabaseClient();
   const check=await db.rpc('anybike_is_admin');
   if(check.error||check.data!==true)throw Error('Admin permission required');
+  const flags=await db.from('advertising_house_visibility').select('page_path,enabled');
+  if(flags.error)throw flags.error;
+  const flagMap=new Map((flags.data||[]).map(x=>[x.page_path,x.enabled]));
   const result=await db.from('advertising_existing_placements').select('page_path,placement_name,asset_path,integration_state,campaign_id').order('page_path');
   if(result.error)throw result.error;
   const ids=[...new Set((result.data||[]).map(r=>r.campaign_id))];
@@ -74,13 +77,32 @@ async function loadExistingHouseAdverts(){
    const tr=document.createElement('tr');
    cell(tr,entry.page_path);cell(tr,entry.placement_name);
    cell(tr,owner?.name||'Unassigned');cell(tr,campaign?.status||'Unknown');
-   cell(tr,entry.integration_state==='managed'?'Managed':'Existing embed · not remotely switchable');
+   const toggleCell=document.createElement('td');
+   const toggle=document.createElement('input');toggle.type='checkbox';
+   toggle.checked=flagMap.get(entry.page_path)===true;
+   toggle.setAttribute('aria-label','Display house advert on '+entry.page_path);
+   toggle.title='Show or hide this existing advert without changing its artwork';
+   toggle.addEventListener('change',async()=>{
+    const desired=toggle.checked;toggle.disabled=true;
+    const {data,error}=await db.from('advertising_house_visibility')
+      .update({enabled:desired,updated_at:new Date().toISOString()})
+      .eq('page_path',entry.page_path).select('page_path').maybeSingle();
+    if(error||!data){
+      toggle.checked=!desired;
+      status.textContent='Could not update '+entry.page_path+': '+(error?.message||'No permission or record');
+    }else{
+      status.textContent=(desired?'Enabled':'Disabled')+' existing house advert for '+entry.page_path+'. Refresh that page to verify.';
+    }
+    toggle.disabled=false;
+   });
+   toggleCell.append(toggle);tr.append(toggleCell);
+   cell(tr,'AnyBike house visibility managed');
    const td=cell(tr,'');
    const path=safePath(entry.page_path);
    if(path){const a=document.createElement('a');a.href=path;a.target='_blank';a.rel='noopener';a.textContent='View page';td.append(a)}
    rows.append(tr);
   }
-  status.textContent=(result.data||[]).length+' existing placements mapped to campaign records. No live advert appearance has been changed.';
+  status.textContent=(result.data||[]).length+' existing house advert positions registered. Visibility can be changed per page; artwork, links and dimensions stay unchanged.';
  }catch(e){status.textContent='Existing advert inventory unavailable: '+(e.message||e)}
 }
 loadExistingHouseAdverts();
