@@ -42,7 +42,9 @@ function cardPicker(index){
  makeLabel.append(make);modelLabel.append(model);fields.append(makeLabel,modelLabel);
  shell.append(fields);
  const actions=text('div');actions.className='compare-actions';
- if(index>1){const remove=text('button','Remove');remove.type='button';remove.className='subtle-button';remove.onclick=()=>{chosen.splice(index,1);renderSelectors()};actions.append(remove)}
+ const remove=text('button','Remove');remove.type='button';remove.className='subtle-button';remove.setAttribute('aria-label','Remove motorcycle '+(index+1));
+ remove.onclick=()=>{chosen.splice(index,1);while(chosen.length<MIN)chosen.push(null);renderSelectors()};
+ actions.append(remove);
  shell.append(actions);return shell
 }
 function renderSelectors(){
