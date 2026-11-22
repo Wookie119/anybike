@@ -7,14 +7,14 @@ const secure=v=>{try{const u=new URL(v);return u.protocol==='https:'?u.href:null
 function css(){
  if(document.getElementById('abMegaDealerStyles'))return;
  const style=document.createElement('style');style.id='abMegaDealerStyles';
- style.textContent='.ab-mega-dealer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:1020px;width:100%;margin:20px auto 26px}.ab-mega-dealer-card{text-align:center;min-width:0}.ab-mega-dealer-card a{display:block;aspect-ratio:1/1;width:100%;overflow:hidden;border:0!important;outline:0!important;box-shadow:none!important;border-radius:14px!important;background:#101010;isolation:isolate;clip-path:inset(0 round 14px)}.ab-mega-dealer-card img{width:100%;height:100%;object-fit:fill;display:block;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important}.ab-mega-dealer-card small{display:block;color:#aaa;font:11px/1.5 Arial,sans-serif;padding-top:5px}@media(max-width:750px){.ab-mega-dealer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.ab-mega-dealer-grid{grid-template-columns:1fr;max-width:340px}}';
+ style.textContent='.ab-mega-dealer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:1020px;width:100%;margin:20px auto 26px}.ab-mega-dealer-card{text-align:center;min-width:0}.ab-mega-dealer-card a{display:block;aspect-ratio:1/1;width:100%;overflow:hidden;border:0!important;outline:0!important;box-shadow:none!important;border-radius:14px!important;background:#101010;isolation:isolate;clip-path:inset(0 round 14px)}.ab-mega-dealer-card img{width:100%;height:100%;object-fit:cover;display:block;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important}.ab-mega-dealer-card small{display:block;color:#aaa;font:11px/1.5 Arial,sans-serif;padding-top:5px}@media(max-width:750px){.ab-mega-dealer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.ab-mega-dealer-grid{grid-template-columns:1fr;max-width:340px}}';
  document.head.append(style);
 }
 async function start(){
  const form=document.getElementById('connectionForm');
  if(!form||document.getElementById('abMegaDealerContainer'))return;
  try{
-  const url='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/advertising_square_house_placements?select=slot_code,campaign_id,company_name,artwork_url,destination_url,image_alt,position_key&slot_code=like.AB-DEALER-FEED-%25&order=slot_code.asc';
+  const url='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/advertising_square_house_placements?select=slot_code,campaign_id,company_name,artwork_url,destination_url,image_alt,position_key&slot_code=like.AB-DEALER-FEED-%25&enabled=eq.true&order=slot_code.asc';
   const response=await fetch(url,{headers:{apikey:'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK'},cache:'no-store'});
   if(!response.ok)return;
   const rows=await response.json();
