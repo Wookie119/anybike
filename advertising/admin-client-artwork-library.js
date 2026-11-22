@@ -132,11 +132,12 @@ async function saveRoundedVersion(v,format){
   status('Rounded WebP saved as a new draft under '+owner.name+'. Original and live advert unchanged. Review the version and approve it when satisfied.');
  }catch(e){status('Unable to round the artwork: '+e.message)}
 }
-async function uploadFile(format,file){
- if(!file)return status('Choose a WebP image first.');
- if(file.type!=='image/webp'||!file.size||file.size>10*1024*1024)return status('Use WebP artwork under 10 MB.');
+async function uploadFile(format,file,report){
+ const say=message=>{status(message);if(report){report.textContent=message;report.hidden=false;report.scrollIntoView({block:'nearest'});}};
+ if(!file)return say('Choose a replacement image first using Choose file.');
+ if(!['image/webp','image/png','image/jpeg'].includes(file.type)||!file.size||file.size>10*1024*1024)return say('Choose a WebP, PNG or JPEG image under 10 MB.');
  try{
-  status('Preparing genuine transparent rounded corners…');
+  say('Checking image and baking transparent rounded corners…');
   const prepared=await bakeArtworkCorners(file,format,file.name);
   if(prepared.size>10*1024*1024)throw Error('Rounded WebP exceeds 10 MB.');
   const safe=prepared.name.toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(-100);
@@ -146,9 +147,9 @@ async function uploadFile(format,file){
   const url=db.storage.from('advertising-creatives').getPublicUrl(path).data.publicUrl;
   const row=await db.from('advertising_client_artwork').insert({partner_id:selected,creative_format:format,storage_path:path,public_url:url,file_name:prepared.name,source_label:'Original design · transparent corners baked into WebP on upload',alt_text:clients.find(c=>c.id===selected)?.name+' advertisement',status:'draft'});
   if(row.error)throw row.error;
+  say('Saved to the correct client file as a draft. Nothing published. Review the new artwork under Artwork versions.');
   await load();
-  status('Rounded artwork saved as a new draft. Review the actual image and approve before use. Live adverts unchanged.');
- }catch(e){status('Upload failed: '+e.message)}
+ }catch(e){say('Upload failed: '+e.message)}
 }
 async function approve(v){
  if(v.storage_path?.startsWith('linked-existing/')||v.source_label?.startsWith('Existing '))return status('This is a source advert, not a finished master. Upload the properly sized WebP with rounded corners first.');
@@ -273,8 +274,11 @@ function renderFolder(){
   else {const missing=make('span','No approved master selected for this format');missing.style.cssText='color:#bbb;text-align:center;padding:12px;font-size:12px';imageBox.append(missing)}
   card.append(imageBox);
   if(activeVersion){const repair=button('Save this master with baked rounded corners',()=>saveRoundedVersion(activeVersion,format));repair.style.cssText='padding:9px 12px;border-radius:8px;border:1px solid #777;background:#292929;color:#fff;font-weight:700;cursor:pointer';card.append(repair)}
-  const upload=make('input');upload.type='file';upload.accept='image/webp';upload.setAttribute('aria-label','Choose '+label+' advert for '+client.name);upload.style.cssText='max-width:100%;font-size:12px';
-  const save=button('Upload replacement',()=>uploadFile(format,upload.files?.[0]),true);card.append(upload,save);
+  const upload=make('input');upload.type='file';upload.accept='image/webp,image/png,image/jpeg';upload.setAttribute('aria-label','Choose '+label+' replacement image for '+client.name);upload.style.cssText='max-width:100%;font-size:12px';
+  const cardFeedback=make('p');cardFeedback.setAttribute('role','status');cardFeedback.style.cssText='color:#eee;font-size:12px;line-height:1.45;margin:0;overflow-wrap:anywhere';cardFeedback.hidden=true;
+  const save=button('Upload replacement',()=>uploadFile(format,upload.files?.[0],cardFeedback),true);
+  upload.addEventListener('change',()=>{if(upload.files?.[0]){cardFeedback.textContent='Selected: '+upload.files[0].name+'. Click Upload replacement to save a draft.';cardFeedback.hidden=false}});
+  card.append(upload,save,cardFeedback);
   const rows=versions.filter(v=>v.partner_id===selected&&v.creative_format===format);
   const history=make('details');const summary=make('summary','Artwork versions ('+rows.length+')');summary.style.cursor='pointer';history.append(summary);
   for(const v of rows){
