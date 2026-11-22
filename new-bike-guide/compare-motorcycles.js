@@ -125,6 +125,21 @@ async function start(){
   restore();renderSelectors();
   // Category metadata is helpful for discovery, not a verified technical specification.
   loadCategories();
+  $('sample-comparison').onclick=()=>{
+   // These are canonical, published AnyBike model IDs from the checked-in route manifest.
+   const examples=[77,255,104].map(id=>all.find(model=>model.model_id===id));
+   if(examples.some(x=>!x)){show('Example motorcycles are not currently in the published model directory.');return}
+   activeCategory='';
+   const select=$('compare-category');if(select)select.value='';
+   chosen=examples;
+   renderSelectors();
+   show('Example loaded: BMW R 1300 GS, Triumph Tiger 1200 and Ducati Multistrada V4. Current UK specifications remain subject to verification.');
+  };
+  $('clear-comparison').onclick=()=>{
+   chosen=[null,null,null];activeCategory='';
+   const select=$('compare-category');if(select)select.value='';
+   renderSelectors();show('Comparison cleared. Choose two to four motorcycles.');
+  };
   $('add-motorcycle').onclick=addSelector;
   $('share-comparison').onclick=share;
   $('print-comparison').onclick=()=>window.print();
