@@ -90,4 +90,33 @@ AnyBike events must go far beyond headline exhibitions. Worldwide demand also in
 
 **Protect ongoing priorities:** Do not interrupt existing DealerWebs feed onboarding, advertising controls, stock integrity or approved universal model-page designs.
 
+
+## Manufacturer launches, press activity and creator/editorial network (22 November 2026)
+
+Extend the global community/events system to include:
+
+- **Manufacturer new-model launches:** worldwide reveals, regional unveilings, dealer launches, public demonstrations, press presentations and launch livestreams.
+- **Press test rides and launch ride-outs:** distinguish invitation-only media events from public rides, with controlled access information; never present private press access as a public event.
+- **YouTubers, bloggers, motorcycle journalists and contributors:** credited creator profiles, event appearances, previews, reviews, video coverage, interviews and links to original publisher channels.
+- **Marketing and promotional articles:** branded motorcycle announcements, paid editorials, sponsor-led features, launch promotions and independent editorial coverage; sponsorship and affiliate relationships must be disclosed clearly.
+- **Manufacturer press releases:** preserve source attribution, publication date and approvals; do not republish full protected images/articles without permission.
+
+### Content architecture
+
+Use **one core event database** for dated activities with event type, location/country, dates, host, manufacturer/model associations, official URLs and access rules. Use a **related editorial/article entity** for news, reviews, articles, video features, launch summaries and evergreen explainers. Link each article and event to the relevant motorcycle manufacturer/model records, creator and organiser profiles, and international market pages.
+
+Support relations such as: new motorcycle model ↔ global launch event ↔ press test ride ↔ owner review ↔ YouTube review ↔ dealer stock ↔ advertising campaign. One event may have many articles and videos, and an article may reference multiple models. A free event listing does not automatically grant editorial publication rights.
+
+### Commercial and trust rules
+
+- AnyBike can offer **paid sponsored articles, manufacturer launch packages, creator/brand promotion, featured event listings and native editorial placements**, controlled through the Advertising Mega System's quotations, approvals, invoicing, reporting and country targeting.
+- Make **Advertisement**, **Sponsored**, affiliate or similar disclosures visible and unambiguous; do not pass marketing copy off as independent reviews or manipulate editorial rankings.
+- Include clear author, source, publication/update date, photo rights and correction process; use original reporting or permissioned content rather than thin rewrites.
+- Independent reviews remain editorially separate from paid campaigns. Creator links and videos should respect licensing and embedding preferences.
+- Build a universal article template plus contributor/manufacturer profiles rather than individually coded pages. Prioritise distinctive launches and useful coverage rather than mass-produced SEO content.
+- Dates, access and embargo rules must be respected for manufacturer press launches.
+- Editorial material should continue delivering traffic after an event, connecting visitors naturally to the same models in AnyBike's catalogue, Available Stock and classic/parts listings.
+
+**Phase:** roadmap architecture approved; implement after stabilising existing Advertising Mega System and DealerWebs feed priorities, without redesigning approved manufacturer/model pages.
+
 **Core rule:** One database, one event template, many useful recurring event pages, centrally maintained and monetized.
