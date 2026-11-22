@@ -3251,7 +3251,7 @@ async function anybikeShowPublicSignedInIdentity(){
 /* Specific complimentary dealer-software placement: DealerWebs only. */
 if(location.pathname==='/dealer-connect-stock.html'){
  const script=document.createElement('script');
- script.src='/advertising/dealerwebs-house.js?v=5';
+ script.src='/advertising/dealerwebs-house.js?v=6';
  script.defer=true;
  document.head.appendChild(script);
 }
