@@ -10,7 +10,7 @@
   {id:'overview',title:'Overview',description:'At a glance: launch readiness and live advertising health. Start with a task below.'},
   {id:'advertisers',title:'Advertisers & artwork',description:'Open an advertiser file, review artwork in five sizes or maintain approved partner details.'},
   {id:'campaigns',title:'Campaigns & quotations',description:'Create a quotation, manage existing campaigns, check their status and preview artwork before publishing.'},
-  {id:'placements',title:'Where adverts appear',description:'See the named advertising spaces and control already-configured website placements.'},
+  {id:'placements',title:'Where adverts appear',description:'Find a website page, configure its advertising position and review named spaces.'},
   {id:'results',title:'Results & money',description:'Review advertising income, commission and reporting. Campaign impressions and clicks are in Campaigns.'},
   {id:'advanced',title:'Advanced setup',description:'Detailed template reach, model-page assignments and the full website placement inventory.'}
  ];
@@ -38,7 +38,8 @@
   if(/advertis(ing|er) partner|artwork files|artwork gallery|bulk artwork|software advert/.test(name))return 'advertisers';
   if(/quotation|campaign performance|campaign editor|campaign/.test(name))return 'campaigns';
   if(/commission|revenue|income|billing|payment/.test(name))return 'results';
-  if(/model page advertising coverage|wider website advertising coverage|template advertising reach|live catalogue/.test(name))return 'advanced';
+  if(/wider website advertising coverage/.test(name))return 'placements';
+  if(/model page advertising coverage|template advertising reach|live catalogue/.test(name))return 'advanced';
   if(/named advertising spaces|managed advert spaces|house adverts|live advertising controls|existing adverts|dealer stock connection|placement/.test(name))return 'placements';
   if(/inventory health|launch readiness|layout preview/.test(name))return 'overview';
   return 'advanced';
@@ -65,6 +66,17 @@
   const current=areas.find(a=>a.id===id)||areas[0];active=current.id;
   for(const [key,button] of buttons)button.setAttribute('aria-selected',key===active?'true':'false');
   heading.textContent=current.title;description.textContent=current.description;quick.replaceChildren();
+  if(active==='placements'){
+   const jump=document.createElement('button');jump.type='button';
+   jump.textContent='Find a website page';
+   jump.addEventListener('click',()=>{
+    const query=document.getElementById('pagequery');
+    if(!query)return;
+    query.closest('section')?.scrollIntoView({behavior:'smooth',block:'start'});
+    query.focus({preventScroll:true});
+   });
+   quick.append(jump);
+  }
   if(active==='overview'){
    for(const [target,label] of [['advertisers','Open advertiser files'],['campaigns','Manage campaigns'],['placements','Choose advert positions'],['results','See results']]){
     const button=document.createElement('button');button.type='button';button.textContent=label;
@@ -72,7 +84,7 @@
    }
   }
   if(active==='advanced'){
-   const choices=[['reach','Template reach'],['models','Model pages · 979'],['pages','Website pages · 333']];
+   const choices=[['reach','Template reach'],['models','Model pages · 979']];
    for(const [target,label] of choices){
     const button=document.createElement('button');button.type='button';button.textContent=label;
     button.setAttribute('aria-pressed',advancedView===target?'true':'false');
