@@ -430,7 +430,7 @@ async function initQuotes(){
  const premiumLabel=el('label');premiumLabel.style.cssText='display:flex;align-items:center;gap:7px';
  const premium=el('input');premium.type='checkbox';premiumLabel.append(premium,document.createTextNode('Include premium placement options'));
  extras.append(premiumLabel);
- const apply=button('Apply to quotation',()=>{
+ const apply=button('Apply to quotation',run(async()=>{
   const selected=brandsInput.value.split(',').map(x=>x.trim()).filter(Boolean);
   const unique=[...new Set(selected.map(x=>x.toLowerCase()))];
   const target={one:1,two:2,three:3,all:null}[tier.value];
@@ -452,7 +452,7 @@ async function initQuotes(){
   ].join(' | ');
   quoteForm.elements.notes.value=summary;
   status('Brand package prepared. Save the quotation, then add its individual placement lines and approved prices. No advertising activated.');
- });
+ }));
  apply.type='button';apply.className='primary';
  const result=el('p');result.style.cssText='font-size:12px;color:#bbb;margin:8px 0 0';
  result.textContent='The package defines coverage only. No automatic prices or promises of impressions.';
