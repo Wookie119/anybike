@@ -11,7 +11,7 @@
 <section class="hero"><div class="eyebrow">AnyBike worldwide events</div><h1>Global Motorcycle Events Calendar</h1><p>Motorcycle shows, racing, rallies and festivals from around the world. Discover upcoming events by month, country or event type, and follow official organisers for tickets and the latest details.</p></section>
 <div class="controls" aria-label="Event filters">
 <label>Country<select id="country"><option value="">All countries</option></select></label>
-<label>Event type<select id="type"><option value="">All event types</option><option value="show">Motorcycle shows</option><option value="race">Racing</option><option value="festival">Festivals</option><option value="rally">Rallies</option><option value="other">Other</option></select></label>
+<label>Event type<select id="type"><option value="">All event types</option><option value="show">Motorcycle shows</option><option value="race">Racing</option><option value="festival">Festivals</option><option value="rally">Rallies</option><option value="dealer_open_day">Dealer open days</option><option value="dealer_open_house">Dealer open houses</option><option value="model_launch">New model launches</option><option value="press_launch">Press launches &amp; test rides</option><option value="ride_out">Ride-outs</option><option value="club_meet">Owners club meetings</option><option value="bike_night">Bike nights</option><option value="classic_show">Classic motorcycle shows</option><option value="autojumble">Autojumbles &amp; swap meets</option><option value="charity_ride">Charity rides</option><option value="creator_event">YouTuber &amp; creator events</option><option value="other">Other</option></select></label>
 <label>Year<select id="year"><option value="">All years</option></select></label>
 <label>Search events<input id="search" type="search" placeholder="Event, city or venue"></label>
 <button id="upcoming" type="button" class="selected">Upcoming</button><button id="all" type="button">All editions</button>
@@ -52,7 +52,7 @@ function render(){
  for(const e of rows){const card=document.createElement('article');card.className='event';card.id='event-'+e.id;
  const category=document.createElement('small');category.textContent=e.event_type.toUpperCase()+' · '+e.country_name;card.append(category);
  const title=document.createElement('strong');title.textContent=e.title;card.append(title);
- const date=document.createElement('div');date.className='date';date.textContent=e.date_status==='awaiting_confirmation'?'Dates awaiting official confirmation':fmt(e.start_date)+(e.end_date!==e.start_date?' – '+fmt(e.end_date):'')+(e.date_status==='provisional'?' · provisional':'');card.append(date);
+ const date=document.createElement('div');date.className='date';date.textContent=e.cancelled?'CANCELLED · '+(e.start_date?fmt(e.start_date):'Date to be confirmed'):e.date_status==='awaiting_confirmation'?'Dates awaiting official confirmation':fmt(e.start_date)+(e.end_date!==e.start_date?' – '+fmt(e.end_date):'')+(e.date_status==='provisional'?' · provisional':'');card.append(date);
  const place=document.createElement('div');place.className='meta';place.textContent=[e.city,e.venue].filter(Boolean).join(' · ');card.append(place);
  const p=document.createElement('p');p.textContent=e.summary;card.append(p);
  const links=document.createElement('div');links.className='actions';
@@ -69,7 +69,7 @@ function setup(){let countries=new Map(records.map(x=>[x.country_code,x.country_
  $('next').onclick=()=>{month=new Date(month.getFullYear(),month.getMonth()+1,1);render()};
  render()
 }
-fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/motorcycle_global_events?select=id,title,event_type,country_code,country_name,city,venue,start_date,end_date,date_status,edition_year,official_url,guide_path,summary&published=eq.true&order=start_date.asc.nullslast&limit=500',{headers:{apikey:'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK'},cache:'no-store'})
+fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/motorcycle_global_events?select=id,title,event_type,country_code,country_name,city,venue,start_date,end_date,date_status,edition_year,official_url,guide_path,summary,cancelled&published=eq.true&order=start_date.asc.nullslast&limit=500',{headers:{apikey:'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK'},cache:'no-store'})
 .then(x=>{if(!x.ok)throw Error('Events temporarily unavailable');return x.json()}).then(x=>{records=Array.isArray(x)?x:[];setup();$('status').textContent='Event dates are checked against official organisers and updated when confirmed.'}).catch(e=>{$('count').textContent='Unavailable';$('status').textContent=e.message;});
 })();
 </script></body></html>
