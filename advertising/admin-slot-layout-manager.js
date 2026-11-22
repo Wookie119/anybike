@@ -110,6 +110,38 @@ pageButton.onclick=()=>{
     const inv=await db.from('advertising_page_inventory').select('slot_code,placement_key').eq('page_path',pagePath).maybeSingle();
     if(inv.error||inv.data?.slot_code!==slotCode)throw Error('Advertising location unavailable');
     const main=doc.querySelector('main'),key=inv.data.placement_key;
+    if(key==='stock_grid'){
+     const stock=doc.getElementById('stockGrid');
+     if(!stock)throw Error('Available Stock motorcycle grid is unavailable');
+     const old=doc.getElementById('anybike-move-universal-house-ad');if(old)old.style.display='none';
+     const cards=items.map(item=>{
+      const card=doc.createElement('article'),image=doc.createElement('img'),label=doc.createElement('small');
+      card.className='card anybike-private-stock-ad';card.style.cssText='display:flex;flex-direction:column;position:relative;min-width:0;background:transparent;border:0;box-shadow:none;overflow:visible';
+      image.src=item.src;image.alt=item.alt;image.style.cssText='display:block;width:100%;height:100%;object-fit:contain;border-radius:12px';
+      label.textContent='Advertisement';label.style.cssText='position:absolute;top:100%;left:0;right:0;padding-top:3px;text-align:center;font:11px Arial,sans-serif;color:#aaa';
+      card.append(image,label);return card;
+     });
+     const apply=()=>{
+      if(pageWrap.hidden||!pageFrame.isConnected)return;
+      // Remove only the old Move card in this private preview.
+      for(const ad of [...stock.querySelectorAll(':scope > .anybike-move-stock-ad')])ad.style.display='none';
+      const bikes=[...stock.querySelectorAll(':scope > article.card:not(.anybike-move-stock-ad):not(.anybike-private-stock-ad)')];
+      if(!bikes.length){status.textContent='Waiting for the stock cards to load in preview…';return}
+      const anchors=cards.map((_,i)=>bikes[Math.min(bikes.length-1,Math.max(0,Math.ceil((i+1)*bikes.length/(cards.length+1))-1))]);
+      const correct=cards.every((card,i)=>{if(card.parentElement!==stock)return false;let prev=card.previousElementSibling;while(prev?.classList.contains('anybike-private-stock-ad'))prev=prev.previousElementSibling;return prev===anchors[i]});
+      if(!correct){cards.forEach(c=>c.remove());for(let i=cards.length-1;i>=0;i--)anchors[i].after(cards[i])}
+      const height=Math.ceil(bikes[0].getBoundingClientRect().height);
+      if(height>=100)for(const card of cards){card.style.height=height+'px';card.querySelector('img').style.height=height+'px'}
+      stock.style.rowGap='24px';status.textContent='Private Available Stock preview: '+cards.length+' adverts placed among motorcycles. Nothing published.';
+      if(cards[0].isConnected&&!stock.__anybikeScrolledForPreview){stock.__anybikeScrolledForPreview=true;cards[0].scrollIntoView({block:'center',behavior:'instant'})}
+     };
+     let pending=false;
+     const schedule=()=>{if(pending)return;pending=true;pageFrame.contentWindow.requestAnimationFrame(()=>{pending=false;apply()})};
+     const observer=new MutationObserver(records=>{if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n.nodeType===1&&!n.classList?.contains('anybike-private-stock-ad'))))schedule()});
+     observer.observe(stock,{childList:true});
+     if(typeof doc.defaultView.ResizeObserver==='function'){const resize=new doc.defaultView.ResizeObserver(schedule);resize.observe(stock)}
+     schedule();return;
+    }
     if(!main||!['main_end','about_wrap','before_sources','export_wrap','freight_wrap','sell_wrap'].includes(key))throw Error('No suitable page advertising position');
     slot=doc.createElement('section');slot.className='managed-ad-space';slot.dataset.adSlot=slotCode;slot.dataset.market='GB';
     slot.style.cssText='width:100%;max-width:1200px;min-width:0;margin:16px auto 22px;box-sizing:border-box;clear:both;display:block';
@@ -166,7 +198,7 @@ async function publicationEligibility(){
  ]);
  if(inventory.error||publicAds.error)throw inventory.error||publicAds.error;
  const p=inventory.data;
- if(!p||!p.placement_enabled||p.excluded||p.slot_code!==current.slotCode||p.placement_key==='stock_grid')return {ready:false,message:'This named advertising location is not currently eligible for a published multi-advert layout.'};
+ if(!p||!p.placement_enabled||p.excluded||p.slot_code!==current.slotCode)return {ready:false,message:'This named advertising location is not currently eligible for a published multi-advert layout.'};
  const matches=publicAds.data||[],bad=[];
  for(const id of ids){
   const c=campaigns.find(x=>x.id===id),a=matches.find(x=>x.id===id);
@@ -185,9 +217,9 @@ async function publicationEligibility(){
  const anchor=[...documentSnapshot.querySelectorAll('.managed-ad-space[data-ad-slot][data-market="GB"]')]
   .find(n=>n.dataset.adSlot===current.slotCode);
  if(!anchor){
-  const supported=new Set(['main_end','about_wrap','before_sources','export_wrap','freight_wrap','sell_wrap']);
+  const supported=new Set(['main_end','about_wrap','before_sources','export_wrap','freight_wrap','sell_wrap','stock_grid']);
   const main=documentSnapshot.querySelector('main');
-  if(!main||!supported.has(p.placement_key)||p.placement_key==='before_sources'&&(!main.querySelector('#databaseHeroPhoto')||!main.querySelector('#nextAction')))
+  if(!main||!supported.has(p.placement_key)||p.placement_key==='stock_grid'&&!main.querySelector('#stockGrid')||p.placement_key==='before_sources'&&(!main.querySelector('#databaseHeroPhoto')||!main.querySelector('#nextAction')))
    return {ready:false,message:'This page does not yet have a suitable advertising space in its template.'};
  }
  if(!ids.every((id,i)=>artworkMasters.has(campaigns.find(x=>x.id===id)?.partner_id+'|'+formats[i])))
@@ -315,7 +347,7 @@ copySave.onclick=async()=>{
 
 const finderInput=document.getElementById('abAdvertPageSearch'),finderList=document.getElementById('abAdvertPageList'),finderStatus=document.getElementById('abAdvertPageStatus');
 let finderPages=[],finderReady=false;
-const supportedPageKeys=new Set(['main_end','about_wrap','before_sources','export_wrap','freight_wrap','sell_wrap']);
+const supportedPageKeys=new Set(['main_end','about_wrap','before_sources','export_wrap','freight_wrap','sell_wrap','stock_grid']);
 function renderFinder(){
  const q=finderInput.value.trim().toLowerCase();
  const matching=finderPages.filter(p=>!q||(p.page_path+' '+p.slot_code).toLowerCase().includes(q));
