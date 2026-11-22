@@ -144,7 +144,7 @@ function renderFolder(){
 async function loadDealerBrandSettings(partner,host){
  const [profileResult,brandsResult,selectedResult]=await Promise.all([
   db.from('advertising_dealer_profiles').select('*').eq('partner_id',partner).maybeSingle(),
-  db.from('motorcycle_catalog_manufacturers').select('id,display_name').order('display_name'),
+  db.rpc('admin_anybike_advertiser_manufacturers_v1'),
   db.from('advertising_dealer_brand_selections').select('*').eq('partner_id',partner)
  ]);
  for(const x of [profileResult,brandsResult,selectedResult])if(x.error)throw x.error;
