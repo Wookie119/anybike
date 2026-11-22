@@ -47,6 +47,15 @@
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>updateLinks(document));
   else updateLinks(document);
 })();
+(function loadUniversalCountryTemplateContract(){
+ if(!/^\/markets\/[a-z0-9-]+\.html$/i.test(location.pathname))return;
+ if(document.querySelector('script[data-anybike-country-contract]'))return;
+ const script=document.createElement('script');
+ script.src='/market-page-template-contract.js?v=20261122-1';
+ script.defer=true;
+ script.dataset.anybikeCountryContract='1';
+ document.head.appendChild(script);
+})();
 (function loadMarketPageStandardisation(){
   try{
     if(!window.location.pathname.toLowerCase().includes("/markets/"))return;
