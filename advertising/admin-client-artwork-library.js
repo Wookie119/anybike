@@ -223,15 +223,11 @@ function renderFolder(){
   const labelStatus=make('small',activeVersion?'Approved master artwork':'Master artwork missing · upload and approve');
   labelStatus.style.cssText='color:'+(activeVersion?'#7ed6a5':'#ddd')+';font-size:12px';
   card.append(labelStatus);
-  const imageUrl=currentArt(format,field),imageBox=make('div');
+  const imageUrl=activeVersion?.public_url||null,imageBox=make('div');
   imageBox.style.cssText='width:100%;aspect-ratio:'+ratios[format]+';display:grid;place-items:center;background:transparent;border:0;border-radius:0;overflow:visible';
   if(imageUrl){const image=make('img');image.src=imageUrl;image.alt=client.name+' '+label+' advert';image.loading='lazy';image.style.cssText='display:block;width:100%;height:100%;object-fit:contain';imageBox.append(image)}
-  else imageBox.append(make('span','No artwork yet'));
+  else {const missing=make('span','No approved master selected for this format');missing.style.cssText='color:#bbb;text-align:center;padding:12px;font-size:12px';imageBox.append(missing)}
   card.append(imageBox);
-  if(imageUrl&&!activeVersion){
-   const note=make('small','Existing campaign artwork shown for reference only. It is not an approved master for this size.');
-   note.style.cssText='color:#d7c7ac;font-size:12px;line-height:1.4';card.append(note);
-  }
   const upload=make('input');upload.type='file';upload.accept='image/webp';upload.setAttribute('aria-label','Choose '+label+' advert for '+client.name);upload.style.cssText='max-width:100%;font-size:12px';
   const save=button('Upload replacement',()=>uploadFile(format,upload.files?.[0]),true);card.append(upload,save);
   const rows=versions.filter(v=>v.partner_id===selected&&v.creative_format===format);
