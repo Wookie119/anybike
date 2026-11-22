@@ -11,6 +11,13 @@ const make=(tag,t)=>{const e=document.createElement(tag);if(t!==undefined)e.text
 const button=(label,fn,primary=false)=>{const b=make('button',label);b.type='button';b.style.cssText='padding:9px 12px;border-radius:8px;border:1px solid '+(primary?'#ed1c24':'#555')+';background:'+(primary?'#ed1c24':'#282828')+';color:#fff;font-weight:700;cursor:pointer';b.onclick=fn;return b};
 const formats=[['square','Square','1:1','square'],['stock_card','Available Stock','4:3','stock_card_image_url'],['slim','Slim banner','3:1','slim_image_url'],['landscape','Landscape','16:9','desktop_image_url'],['portrait','Portrait','4:5','mobile_image_url']];
 const ratios={square:1,stock_card:4/3,slim:3,landscape:16/9,portrait:4/5};
+const formatGuides={
+ square:{usage:'A small spot advert',location:'Beside motorcycle listings, inside a page grid, or in a group of three or four adverts',example:'Works best when the message stays readable at card size'},
+ stock_card:{usage:'Available Stock advertising',location:'An advert taking the space of a motorcycle listing card in Available Stock',example:'Should look balanced alongside motorcycle photos and stock cards'},
+ slim:{usage:'A thin horizontal banner',location:'Across the bottom or between sections of a desktop page',example:'Good for a short headline, company logo and one call to action'},
+ landscape:{usage:'A larger horizontal feature advert',location:'A wider page section where a full-width advertisement has been allocated',example:'More room for a vehicle or product photograph and supporting message'},
+ portrait:{usage:'A tall advert',location:'A vertical page column or mobile-friendly placement where the layout allows',example:'Useful for photographic advertising without stretching a landscape advert'}
+};
 let db,clients=[],campaigns=[],slots=[],placements=[],versions=[],libraryFormats=[],selected=null;
 async function load(){
  const results=await Promise.all([
@@ -203,6 +210,13 @@ function renderFolder(){
  for(const [format,label,ratio,field] of formats){
   const card=make('div');card.style.cssText='min-width:0;border:1px solid #444;background:#202020;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px';
   card.append(make('strong',label+' · '+ratio));
+  const help=formatGuides[format],helpBox=make('div');helpBox.style.cssText='font:12px/1.45 Arial,sans-serif;color:#ddd;min-height:94px';
+  const uses=make('strong','Best used for: '+help.usage);uses.style.cssText='display:block;color:#fff;margin-bottom:4px';
+  const placement=make('span',help.location);placement.style.display='block';
+  helpBox.append(uses,placement);card.append(helpBox);
+  const example=make('details'),exampleSummary=make('summary','How to judge this size');exampleSummary.style.cssText='cursor:pointer;font-size:12px;color:#ddd';
+  example.append(exampleSummary,make('p',help.example));example.style.cssText='font-size:12px;color:#ccc';
+  card.append(example);
   const master=libraryFormats.find(a=>a.partner_id===selected&&a.creative_format===format);
   const activeVersion=versions.find(v=>v.id===master?.active_artwork_id&&v.status==='approved');
   const previews=versions.filter(v=>v.partner_id===selected&&v.creative_format===format);
