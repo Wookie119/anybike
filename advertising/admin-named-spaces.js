@@ -13,19 +13,41 @@ async function load(){
   const db=getAdminSupabaseClient();
   const check=await db.rpc('anybike_is_admin');
   if(check.error||check.data!==true)throw Error('Admin permission required');
-  const {data,error}=await db.from('advertising_named_spaces').select('slot_code,display_name,page_template,page_path,anchor_key,format,grid_span,market_scope,status,maximum_per_page,frequency_every,notes').order('slot_code');
+  const {data,error}=await db.from('advertising_named_spaces').select('slot_code,display_name,page_template,page_path,anchor_key,format,grid_span,market_scope,status,maximum_per_page,frequency_every,notes,pricing_tier,guide_monthly_gbp').order('slot_code');
   if(error)throw error;
   for(const s of data||[]){
    const tr=document.createElement('tr');
    cell(tr,s.slot_code);cell(tr,s.display_name);cell(tr,s.page_template);
    cell(tr,s.format);cell(tr,s.market_scope);cell(tr,s.status);
+   const pricing=document.createElement('td');pricing.style.cssText='min-width:255px';
+   const tier=document.createElement('select');tier.setAttribute('aria-label','Pricing tier for '+s.slot_code);
+   for(const name of ['standard','premium','exclusive']){const op=document.createElement('option');op.value=name;op.textContent=name[0].toUpperCase()+name.slice(1);tier.append(op)}
+   tier.value=s.pricing_tier||'standard';
+   const price=document.createElement('input');price.type='number';price.min='0';price.step='0.01';price.placeholder='£/month — not set';
+   price.value=s.guide_monthly_gbp==null?'':String(s.guide_monthly_gbp);
+   price.setAttribute('aria-label','Internal monthly guide rate for '+s.slot_code);
+   price.style.cssText='width:118px;margin:0 5px';
+   const save=document.createElement('button');save.type='button';save.textContent='Save';
+   save.addEventListener('click',async()=>{
+    save.disabled=true;
+    const raw=price.value.trim();
+    const amount=raw===''?null:Number(raw);
+    if(amount!==null&&(!Number.isFinite(amount)||amount<0)){save.disabled=false;status.textContent='Enter a valid non-negative amount or leave guide price blank.';return}
+    const {data,error}=await db.from('advertising_named_spaces').update({
+     pricing_tier:tier.value,guide_monthly_gbp:amount,updated_at:new Date().toISOString()
+    }).eq('slot_code',s.slot_code).select('slot_code').maybeSingle();
+    status.textContent=error||!data?'Not saved: '+(error?.message||'No authorised row updated'):
+     'Saved '+s.slot_code+' · '+tier.value+' · '+(amount===null?'unpriced':'£'+amount.toFixed(2)+'/month')+' (internal guide only).';
+    save.disabled=false;
+   });
+   pricing.append(tier,price,save);tr.append(pricing);
    cell(tr,s.frequency_every?'Every '+s.frequency_every+' items':'One position');
    const td=cell(tr,'');
    const path=safePath(s.page_path);
    if(path){const a=document.createElement('a');a.href=path;a.target='_blank';a.rel='noopener';a.textContent='View page';td.append(a)}
    else td.textContent='Template';
    const detail=document.createElement('tr'),info=document.createElement('td');
-   info.colSpan=8;info.style.cssText='font-size:12px;color:#bbb;padding:2px 8px 12px';
+   info.colSpan=9;info.style.cssText='font-size:12px;color:#bbb;padding:2px 8px 12px';
    info.textContent='Anchor: '+s.anchor_key+' · '+s.notes;
    detail.append(info);rows.append(tr,detail);
   }
