@@ -325,11 +325,7 @@ function renderFolder(){
    state.style.cssText='color:'+(dependencies.used?'#eac07c':'#ccc')+';font-weight:700';line.append(state);
    const controls=make('div');controls.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
    const legacy=Boolean(v.storage_path?.startsWith('linked-existing/')||v.source_label?.startsWith('Existing '));
-   // Corner treatment is standard; an old-file repair is available only
-   // inside this version's expanded tools, not repeated on every card.
-   const repair=button('Repair image',()=>saveRoundedVersion(v,format));
-   repair.title='Optional image repair for older artwork';
-   controls.append(repair);
+   // Artwork processing remains automatic; no manual corner controls.
    if(v.status==='draft'&&!legacy)controls.append(button('Approve',()=>approve(v)));
    if(v.status==='approved'&&master?.active_artwork_id!==v.id)controls.append(button('Use this artwork',()=>activate(v,format,field),true));
    const removableLink=legacy&&v.status==='draft'&&!dependencies.master&&!dependencies.slot;
