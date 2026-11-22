@@ -393,6 +393,12 @@ function placementMatchesTemplate(ad){
  const path=location.pathname.toLowerCase(),key=ad?.placement_key;
  const main=document.querySelector('main');
  if(!main)return false;
+ if(path==='/compare-motorcycles.html'){
+  // Only the centrally assigned campaign slot can occupy this template anchor.
+  const slot=String(ad?.slot_code||'');
+  return /^AB-UK-COMPARE-(?:CONTENT|FOOTER)-01$/.test(slot)&&
+   !!main.querySelector('.managed-ad-space[data-ad-slot="'+slot+'"]');
+ }
  if(key==='stock_grid')return path==='/available-stock.html'&&!!document.getElementById('stockGrid');
  if(key==='existing_house')return legacyMoveAnchors().length>0;
  if(key==='before_sources')return !!main.querySelector('#databaseHeroPhoto')&&
@@ -444,7 +450,12 @@ function installMoveHouse(ad){
  card.style.setProperty('margin-right','auto');
  card.style.setProperty('min-width','0');
  card.style.setProperty('box-sizing','border-box');
- switch(ad.placement_key){
+ if(location.pathname.toLowerCase()==='/compare-motorcycles.html'){
+  const slot=String(ad.slot_code||'');
+  const anchor=main.querySelector('.managed-ad-space[data-ad-slot="'+slot+'"]');
+  if(!anchor)return false;
+  anchor.append(card);
+ }else switch(ad.placement_key){
   case 'before_sources':positionModelMoveAdvert(main,card);break;
   case 'about_wrap':positionEditorialMoveAdvert(main,card);break;
   case 'export_wrap':positionExportMoveAdvert(main,card);break;
