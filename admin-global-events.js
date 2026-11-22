@@ -16,7 +16,7 @@ function editor(item){
 }
 function render(){
  const q=$('filter').value.trim().toLowerCase(),state=$('state').value;
- const rows=items.filter(x=>(!q||[x.title,x.country_name,x.city,x.organiser_name].join(' ').toLowerCase().includes(q))&&(!state||(state==='published'===x.published)));
+ const rows=items.filter(x=>(!q||[x.title,x.country_name,x.city,x.organiser_name].join(' ').toLowerCase().includes(q))&&(!state||(state==='published' ? x.published===true : x.published===false)));
  $('count').textContent=items.length+' events in database · '+rows.length+' matching · '+items.filter(x=>x.published).length+' published';
  $('rows').replaceChildren();
  for(const item of rows){
