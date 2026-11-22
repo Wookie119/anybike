@@ -105,6 +105,66 @@ pageButton.onclick=()=>{
   try{
    const doc=pageFrame.contentDocument;
    if(!doc||pageFrame.contentWindow.location.origin!==location.origin)throw Error('Same-origin preview unavailable');
+   // Stock grid is its own template: render directly, without waiting for
+   // inventory lookups or the named-slot mechanism used by editorial pages.
+   if(pagePath==='/available-stock.html'&&slotCode==='AB-UK-STOCK-CARD'){
+    const grid=doc.getElementById('stockGrid');
+    if(!grid)throw Error('Stock grid unavailable on this page');
+    const view=doc.defaultView;
+    const styles=doc.createElement('style');
+    styles.textContent='#stockGrid>.anybike-private-stock-ad{display:flex!important;position:relative!important;flex-direction:column!important;min-width:0!important;overflow:visible!important;border:0!important;background:transparent!important;box-shadow:none!important}#stockGrid>.anybike-private-stock-ad img{display:block!important;width:100%!important;object-fit:contain!important;border-radius:12px!important}#stockGrid>.anybike-private-stock-ad small{display:block!important;text-align:center!important;color:#aaa!important;font:11px/1.3 Arial,sans-serif!important;padding-top:4px!important}';
+    doc.head.append(styles);
+    const cards=items.map(item=>{
+      const card=doc.createElement('article'),img=doc.createElement('img'),caption=doc.createElement('small');
+      card.className='anybike-private-stock-ad';card.setAttribute('aria-label','Advertisement');
+      img.src=item.src;img.alt=item.alt;img.loading='eager';
+      caption.textContent='Advertisement';card.append(img,caption);
+      return card;
+    });
+    const arrange=()=>{
+      if(pageWrap.hidden||!pageFrame.isConnected||pageFrame.contentDocument!==doc)return;
+      const original=grid.querySelector(':scope > .anybike-move-stock-ad');
+      if(original)original.style.setProperty('display','none','important');
+      const bikes=[...grid.querySelectorAll(':scope > article.card:not(.anybike-move-stock-ad)')];
+      // When the page has a single motorcycle, the three adverts become its
+      // three companion cards. With more stock they spread between the bikes.
+      if(!bikes.length){
+        for(const card of cards)if(card.parentElement!==grid)grid.append(card);
+      }else{
+        const anchors=cards.map((_,i)=>bikes[Math.min(bikes.length-1,Math.floor((i+1)*bikes.length/(cards.length+1)))]);
+        for(const card of cards)if(card.parentElement===grid)card.remove();
+        for(let i=cards.length-1;i>=0;i--)anchors[i].after(cards[i]);
+        const h=Math.ceil(bikes[0].getBoundingClientRect().height);
+        if(h>100)for(const card of cards){
+          card.style.setProperty('height',h+'px','important');
+          card.querySelector('img').style.setProperty('height',Math.max(100,h-18)+'px','important');
+        }
+      }
+      grid.style.setProperty('row-gap','24px');
+      status.textContent='Three adverts displayed among the Available Stock cards. This is a private preview only.';
+    };
+    // The stock page redraws its grid after its data request and when filters
+    // change; those updates replace card nodes. Restore only preview cards.
+    let busy=false;
+    const schedule=()=>{
+      if(busy||pageWrap.hidden)return;
+      busy=true;view.requestAnimationFrame(()=>{busy=false;arrange()});
+    };
+    const watch=new MutationObserver(records=>{
+      if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n.nodeType===1&&!n.classList?.contains('anybike-private-stock-ad'))))schedule();
+    });
+    watch.observe(grid,{childList:true});
+    grid.addEventListener('anybike:stock-grid-updated',schedule);
+    let rounds=0;
+    const timer=window.setInterval(()=>{
+      if(++rounds>40||pageWrap.hidden||!pageFrame.isConnected||pageFrame.contentDocument!==doc){
+        clearInterval(timer);watch.disconnect();grid.removeEventListener('anybike:stock-grid-updated',schedule);return;
+      }
+      if(cards.some(c=>c.parentElement!==grid))schedule();
+    },350);
+    schedule();
+    return;
+   }
    let slot=[...doc.querySelectorAll('.managed-ad-space[data-ad-slot]')].find(n=>n.dataset.adSlot===slotCode);
    if(!slot){
     const inv=await db.from('advertising_page_inventory').select('slot_code,placement_key').eq('page_path',pagePath).maybeSingle();
