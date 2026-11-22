@@ -24,7 +24,7 @@ async function publicCatalogueRpc(make){
   method:'POST',
   headers:{apikey:KEY,'Content-Type':'application/json'},
   body:JSON.stringify({p_make:make}),
-  cache:'no-store'
+  cache:'no-store',signal:AbortSignal.timeout(3500)
  });
  if(!response.ok)throw Error('Published model catalogue HTTP '+response.status);
  const rows=await response.json();
@@ -534,7 +534,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     url.searchParams.set('editorial->>make','eq.'+make);
     url.searchParams.set('editorial->>model','eq.'+model);
     url.searchParams.set('limit','2');
-    const response=await fetch(url,{headers:{apikey:KEY},cache:'no-store'});
+    const response=await fetch(url,{headers:{apikey:KEY},cache:'no-store',signal:AbortSignal.timeout(3500)});
     if(response.ok){
      const rows=await response.json();
      if(Array.isArray(rows)&&rows.length===1&&
@@ -659,7 +659,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    if(!routes){
     const response=await fetch(ENDPOINT+'/rest/v1/rpc/public_anybike_manufacturer_model_routes_v1',{
      method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},
-     body:JSON.stringify({p_make:make}),cache:'no-store'
+     body:JSON.stringify({p_make:make}),cache:'no-store',signal:AbortSignal.timeout(3500)
     });
     if(response.ok){
      const data=await response.json();
@@ -795,7 +795,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     throw Error('Unapproved media RPC');
    const response=await fetch(ENDPOINT+'/rest/v1/rpc/'+name,{
     method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({p_make:make,p_model:model}),cache:'no-store'
+    body:JSON.stringify({p_make:make,p_model:model}),cache:'no-store',signal:AbortSignal.timeout(3500)
    });
    if(!response.ok)throw Error('Public media HTTP '+response.status);
    return response.json();
