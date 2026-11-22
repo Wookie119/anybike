@@ -1,11 +1,10 @@
-/* AnyBike UK motorcycle comparison — one template, checked-in canonical model routes.
-   No invented specs and no per-model edits. */
+/* AnyBike UK motorcycle comparison — one Supabase directory, verified specifications; no per-model edits. */
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
 const text=(tag,value)=>{const n=document.createElement(tag);if(value!==undefined)n.textContent=String(value);return n};
 const absolute=u=>{try{const x=new URL(u,location.origin);return x.origin===location.origin?x.href:null}catch{return null}};
 const MAX=4,MIN=2;
-let all=[],chosen=[null,null,null],categories=new Map(),ridingStyles=new Map(),activeCategory='',capacity=new Map(),engineFilterEnabled=false,engineMin=null,engineMax=null;
+let all=[],chosen=[null,null,null],categories=new Map(),ridingStyles=new Map(),activeCategory='';
 const FACTS_RPC='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_verified_model_facts_v1';
 const FACTS_KEY='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
 const factRequests=new Map();
@@ -86,27 +85,14 @@ function writeShareUrl(items){
 // Map legacy catalogue terms only; do not create new public riding categories.
 // Approved riding-style classification comes from Supabase, not a browser-side alias list.
 function ridingStyle(id){return ridingStyles.get(id)||'';}
-function capacityStatus(bike){
- if(!engineFilterEnabled)return 'unfiltered';
- const cc=capacity.get(bike.model_id)?.cc;
- if(!Number.isInteger(cc))return 'unknown';
- return (engineMin===null||cc>=engineMin)&&(engineMax===null||cc<=engineMax)?'confirmed':'outside';
-}
 function matchesBike(bike){
- if(activeCategory&&ridingStyle(bike.model_id)!==activeCategory)return false;
- return capacityStatus(bike)!=='outside';
+ return !activeCategory||ridingStyle(bike.model_id)===activeCategory;
 }
-function availableCount(){return all.filter(matchesBike).length}
 function applyFilters(){
  chosen=chosen.map(bike=>bike&&matchesBike(bike)?bike:null);
  renderSelectors();
- const matching=all.filter(b=>matchesBike(b));
- const confirmed=engineFilterEnabled?matching.filter(b=>capacityStatus(b)==='confirmed').length:matching.length;
- const unknown=engineFilterEnabled?matching.filter(b=>capacityStatus(b)==='unknown').length:0;
- $('filter-count').textContent=engineFilterEnabled
-  ? confirmed+' confirmed engine-size match'+(confirmed===1?'':'es')+'. '+(unknown?unknown+' other motorcycles have no recorded engine size; you can still search or compare them, but their capacity is unconfirmed.':'')
-  : matching.length+' motorcycles available in this riding style.';
- $('clear-cc-filter').hidden=!engineFilterEnabled;
+ const matching=all.filter(matchesBike);
+ $('filter-count').textContent=matching.length+' motorcycles to choose from'+(activeCategory?' in this riding style':'')+'. Select the manufacturer and model below.';
 }
 function addSelector(){
  if(chosen.length>=MAX)return;
@@ -123,48 +109,27 @@ function cardPicker(index){
  for(const brand of makes){const o=text('option',brand);o.value=brand;make.append(o)}
  make.value=selected?.make||'';
  const modelLabel=text('label','Motorcycle model');const model=text('select');
- const find=text('input');find.type='search';find.className='compare-model-search';find.placeholder='Search models (e.g. Tiger 660)';
- find.setAttribute('aria-label','Search '+(index+1)+' motorcycle models');
- const capacityHelp=text('small');capacityHelp.className='compare-model-note';
  const refreshModels=()=>{
   model.replaceChildren();const blank=text('option','Choose model');blank.value='';model.append(blank);
-  const query=find.value.trim().toLocaleLowerCase('en-GB');
-  const candidates=all.filter(x=>x.make===make.value&&matchesBike(x)&&
-   (!query||x.model.toLocaleLowerCase('en-GB').includes(query))).sort((a,b)=>{
-   if(engineFilterEnabled){const aa=capacityStatus(a)==='confirmed',bb=capacityStatus(b)==='confirmed';if(aa!==bb)return aa?-1:1}
-   return a.model.localeCompare(b.model,'en');
-  });
+  const candidates=all.filter(x=>x.make===make.value&&matchesBike(x)).sort((a,b)=>a.model.localeCompare(b.model,'en'));
   const usedIds=new Set(chosen.filter((c,i)=>i!==index&&c).map(c=>c.model_id));
-  const confirmed=candidates.filter(b=>capacityStatus(b)==='confirmed');
-  const unknown=candidates.filter(b=>capacityStatus(b)==='unknown');
-  const appendBikes=(parent,bikes,unconfirmed)=>{
-   for(const bike of bikes){
-    const label=bike.model+(unconfirmed?' — cc not recorded':'');
-    const op=text('option',label);op.value=String(bike.model_id);
-    op.disabled=usedIds.has(bike.model_id);parent.append(op);
-   }
-  };
-  if(engineFilterEnabled){
-   if(confirmed.length){const group=text('optgroup');group.label='Matches selected cc range';appendBikes(group,confirmed,false);model.append(group)}
-   if(unknown.length){const group=text('optgroup');group.label='Engine capacity not recorded — unconfirmed';appendBikes(group,unknown,true);model.append(group)}
-  }else appendBikes(model,candidates,false);
+  for(const bike of candidates){
+   const op=text('option',bike.model);op.value=String(bike.model_id);
+   op.disabled=usedIds.has(bike.model_id);model.append(op);
+  }
   if(!candidates.length&&make.value){const unavailable=text('option','No models found');unavailable.disabled=true;model.append(unavailable)}
   model.disabled=!make.value;
   model.value=chosen[index]?.make===make.value?String(chosen[index]?.model_id||''):'';
-  capacityHelp.textContent=engineFilterEnabled&&make.value?
-    'Only models in the confirmed group are verified within your chosen cc range.':'';
  };
- find.oninput=refreshModels;
- make.onchange=()=>{chosen[index]=null;find.value='';refreshModels();renderResults()};
+ make.onchange=()=>{chosen[index]=null;refreshModels();renderResults()};
  model.onchange=()=>{chosen[index]=all.find(x=>x.model_id===Number(model.value))||null;renderSelectors()};
  refreshModels();
- makeLabel.append(make);modelLabel.append(find,model,capacityHelp);fields.append(makeLabel,modelLabel);
+ makeLabel.append(make);modelLabel.append(model);fields.append(makeLabel,modelLabel);
  shell.append(fields);
  const actions=text('div');actions.className='compare-actions';
  const remove=text('button','Remove');remove.type='button';remove.className='subtle-button';remove.setAttribute('aria-label','Remove motorcycle '+(index+1));
  remove.onclick=()=>{chosen.splice(index,1);while(chosen.length<MIN)chosen.push(null);renderSelectors()};
- actions.append(remove);
- shell.append(actions);return shell
+ actions.append(remove);shell.append(actions);return shell;
 }
 function renderSelectors(){
  const host=$('compare-selectors');host.replaceChildren();
@@ -236,46 +201,6 @@ function installDirectoryStyles(styles){
 }
 // Read manufacturer navigation from the canonical Supabase catalogue.
 // The page contains no repeated brand list, so new brands appear automatically.
-async function loadEngineSizes(){
- try{
-  const response=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_comparison_engine_sizes_v1',{
-   method:'POST',headers:{apikey:FACTS_KEY,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(8000)});
-  if(!response.ok)throw Error('Engine capacity service unavailable');
-  const rows=await response.json();
-  if(!Array.isArray(rows))throw Error('Engine capacity data invalid');
-  for(const row of rows)if(Number.isSafeInteger(row?.model_id)&&Number.isSafeInteger(row?.cc)&&
-   row.cc>0&&row.cc<=3000&&sourceUrl(row.source_url))capacity.set(row.model_id,{cc:row.cc,source_url:row.source_url});
-  $('capacity-preset').disabled=false;
-  $('capacity-min').disabled=false;
-  $('capacity-max').disabled=false;
-  $('capacity-preset').onchange=()=>{
-   const value=$('capacity-preset').value;
-   if(!value){$('capacity-min').value='';$('capacity-max').value=''}
-   else{
-    const [min,max]=value.split('-');
-    $('capacity-min').value=min||'';
-    $('capacity-max').value=max||'';
-   }
-   updateEngineSelection();
-  };
-  for(const id of ['capacity-min','capacity-max'])$(id).onchange=()=>{
-   $('capacity-preset').value='custom';updateEngineSelection();
-  };
-
-  applyFilters();
- }catch(error){$('filter-count').textContent='Engine size filtering is temporarily unavailable.';console.warn('Engine capacity filter unavailable',error)}
-}
-function updateEngineSelection(){
- const minText=$('capacity-min').value.trim(),maxText=$('capacity-max').value.trim();
- const min=minText?Number(minText):null,max=maxText?Number(maxText):null;
- if((min!==null&&(!Number.isInteger(min)||min<1||min>3000))||
-    (max!==null&&(!Number.isInteger(max)||max<1||max>3000))||
-    (min!==null&&max!==null&&min>max)){
-  $('filter-count').textContent='Enter an engine size between 1 and 3,000 cc, with minimum no greater than maximum.';return
- }
- engineMin=min;engineMax=max;engineFilterEnabled=min!==null||max!==null;
- applyFilters();
-}
 async function loadComparisonManufacturers(){
  const host=$('comparison-manufacturer-links');if(!host)return;
  try{
@@ -321,31 +246,11 @@ async function start(){
   }
   installDirectoryStyles(json.styles);
   restore();renderSelectors();applyFilters();
-  void loadEngineSizes();
   void loadComparisonManufacturers();
-  $('sample-comparison').onclick=()=>{
-   // These are canonical, published AnyBike model IDs from the live central catalogue.
-   const examples=[77,255,104].map(id=>all.find(model=>model.model_id===id));
-   if(examples.some(x=>!x)){show('These motorcycles are currently unavailable. Please select other models.');return}
-   activeCategory='';engineFilterEnabled=false;engineMin=null;engineMax=null;
-   for(const id of ['capacity-min','capacity-max'])$(id).value='';$('capacity-preset').value='';
-   const select=$('compare-category');if(select)select.value='';
-   chosen=examples;
-   renderSelectors();
-   show('Ready to compare BMW, Triumph and Ducati.');
-  };
   $('clear-comparison').onclick=()=>{
    chosen=[null,null,null];activeCategory='';
    const select=$('compare-category');if(select)select.value='';
-   engineFilterEnabled=false;engineMin=null;engineMax=null;
-   for(const id of ['capacity-min','capacity-max'])$(id).value='';$('capacity-preset').value='';
-   renderSelectors();show('Comparison cleared. Choose two to four motorcycles.');
-  };
-  $('clear-cc-filter').onclick=()=>{
-   engineFilterEnabled=false;engineMin=null;engineMax=null;
-   $('capacity-preset').value='';
-   $('capacity-min').value='';$('capacity-max').value='';
-   applyFilters();show('Choose motorcycles from your selected riding style.');
+   applyFilters();show('Comparison cleared. Choose two to four motorcycles.');
   };
   $('add-motorcycle').onclick=addSelector;
   $('share-comparison').onclick=share;
