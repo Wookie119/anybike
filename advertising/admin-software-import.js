@@ -26,7 +26,7 @@
  let zipLibraryLoading=null;
  async function readArtworkFiles(){
   const chosen=[...($('softwareCreativeFiles').files||[])];
-  if(chosen.length===1&&/\\.zip$/i.test(chosen[0].name)){
+  if(chosen.length===1&&/\.zip$/i.test(chosen[0].name)){
    const zipFile=chosen[0];
    if(zipFile.size>12*1024*1024||zipFile.size<=0)throw Error('ZIP must be between 1 byte and 12 MB.');
    if(!window.JSZip){
@@ -41,7 +41,7 @@
    }
    const archive=await window.JSZip.loadAsync(zipFile,{checkCRC32:true});
    const entries=Object.values(archive.files).filter(x=>!x.dir);
-   if(entries.length!==7||entries.some(x=>!/^([a-z0-9_-]+)-square\\.webp$/i.test(x.name)))
+   if(entries.length!==7||entries.some(x=>!/^([a-z0-9_-]+)-square\.webp$/i.test(x.name)))
     throw Error('Expected exactly the seven named square WebP adverts at the ZIP root.');
    const files=[];
    for(const entry of entries){
@@ -51,7 +51,7 @@
    }
    return files;
   }
-  if(chosen.some(f=>/\\.zip$/i.test(f.name)))throw Error('Select either one ZIP or individual WebP files, not both.');
+  if(chosen.some(f=>/\.zip$/i.test(f.name)))throw Error('Select either one ZIP or individual WebP files, not both.');
   return chosen;
  }
  async function check(){
