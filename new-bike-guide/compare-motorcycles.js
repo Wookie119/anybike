@@ -81,24 +81,22 @@ function writeShareUrl(items){
  else url.searchParams.delete('bikes');
  history.replaceState(null,'',url.pathname+url.search+url.hash);
 }
+// Simple customer-facing styles. Legacy catalogue categories remain in the source data.
 const styleGroups=[
  ['Adventure',['adventure','adventure & gs','adventure scooters','dual sport','rally']],
  ['Sports',['sports','sport','sport & performance','racing']],
- ['Sport Touring',['sport touring','sports touring']],
- ['Touring',['touring','touring & roadsters']],
+ ['Touring',['touring','touring & roadsters','sport touring','sports touring']],
  ['Naked & Roadsters',['roadsters','roadster','naked & roadsters']],
  ['Cruisers',['cruisers','heritage / cruiser']],
- ['Classic & Heritage',['classics','classic','modern classics','heritage & historic']],
+ ['Classics',['classics','classic','modern classics','heritage & historic']],
  ['Off-road',['off-road','motocross','trials','supermoto']],
- ['Scooters',['scooters','scooter / electric','electric scooters','underbone']],
- ['Electric Motorcycles',['electric motorcycles']],
- ['Commuters',['commuters']],
- ['Trikes',['trikes']]
+ ['Scooters & Commuters',['scooters','scooter / electric','electric scooters','underbone','commuters']]
 ];
+const customerStyles=[...styleGroups.map(group=>group[0]),'Other Motorcycles'];
 function ridingStyle(id){
  const raw=(categories.get(id)||'').toLowerCase().trim();
  const found=styleGroups.find(([,aliases])=>aliases.includes(raw));
- return found?.[0]||'Other';
+ return found?.[0]||'Other Motorcycles';
 }
 function matchesBike(bike){
  if(activeCategory&&ridingStyle(bike.model_id)!==activeCategory)return false;
@@ -209,7 +207,9 @@ async function loadCategories(){
    if(Number.isSafeInteger(m.model_id)&&typeof m.category==='string'&&m.category.trim())categories.set(m.model_id,m.category.trim());
   }
   const select=$('compare-category');if(!select)return;
-  const groups=[...new Set(all.map(m=>ridingStyle(m.model_id)))].sort((a,b)=>a.localeCompare(b,'en'));
+  const found=new Set(all.map(m=>ridingStyle(m.model_id)));
+  const groups=customerStyles.filter(style=>found.has(style));
+  select.querySelectorAll('option:not([value=""])').forEach(option=>option.remove());
   for(const group of groups){const option=text('option',group);option.value=group;select.append(option)}
   applyFilters();
   select.onchange=()=>{activeCategory=select.value;applyFilters();show(activeCategory?'Choose motorcycles in the '+activeCategory+' category.':'Choose motorcycles from any riding style.');};
