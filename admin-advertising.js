@@ -460,6 +460,72 @@ async function initQuotes(){
  packagePanel.append(packageTitle,packageExplanation,packageFields,departments,extras,apply,result);
  const existingQuoteForm=$('quoteform');existingQuoteForm.parentNode.insertBefore(packagePanel,existingQuoteForm);
 
+
+ // Named commercial space guide rates: these are internal planning prices, not accepted offers.
+ // Existing quotation lines and validations remain the authority for issued amounts.
+ const namedChoicePanel=el('div');namedChoicePanel.id='namedSpaceQuoteGuide';
+ namedChoicePanel.style.cssText='border:1px solid #464646;background:#151515;padding:11px;margin:12px 0;border-radius:8px';
+ const namedHeader=el('h3','Named-space pricing guide');namedHeader.style.margin='0 0 8px';
+ const namedDescription=el('p','Select an actual named position. A saved monthly guide rate is optional; the final quotation still requires a manually confirmed price. Planned spaces are not automatically sellable.');
+ namedDescription.style.cssText='color:#bbb;font-size:13px;margin:0 0 8px';
+ const namedRow=el('div');namedRow.className='bar';
+ const namedSelect=el('select');namedSelect.setAttribute('aria-label','Named advertising space for quotation');
+ const namedUse=button('Use named position',run(async()=>{
+  if(!qid)throw Error('Save the quotation first.');
+  const item=namedInventory.find(x=>x.slot_code===namedSelect.value);
+  if(!item)throw Error('Choose a named position.');
+  if(!item.page_path||item.status==='planned'||item.status==='paused')
+   throw Error('This position is a planning candidate, not verified quotation inventory.');
+  const audience=f.elements.audience.value;
+  if(item.market_scope==='GB'&&audience==='International')
+   throw Error('UK positions require UK or Worldwide quotation audience.');
+  if(item.market_scope==='international'&&audience==='UK')
+   throw Error('International positions require an International or Worldwide quotation.');
+  clearScope();
+  scope.page_paths=[item.page_path];
+  scope.planner_slot_codes=[item.slot_code];
+  const format={square:'compact_mobile',vertical:'large_portrait',landscape:'large_landscape',stock_card:'stock_card',model_card:'stock_card',paired_50_50:'slim_landscape'}[item.format]||'slim_landscape';
+  lf.elements.description.value=item.display_name+' · '+item.pricing_tier+' placement';
+  lf.elements.artwork_format.value=format;
+  lf.elements.quantity.value='1';
+  lf.elements.countries.value=item.market_scope==='GB'?'GB':'';
+  if(item.market_scope==='international')status('Enter the actual two-letter country codes before adding this placement.');
+  const price=item.guide_monthly_gbp==null?null:Number(item.guide_monthly_gbp);
+  if(price!==null&&Number.isFinite(price)&&price>0){
+    const duration=Number(f.elements.duration_days.value);
+    if(duration===30){
+      lf.elements.unit_price_gbp.value=price.toFixed(2);
+      namedNote.textContent='Internal guide £'+price.toFixed(2)+'/month copied for a 30-day quote. Review and agree the amount before issuing.';
+    }else{
+      lf.elements.unit_price_gbp.value='';
+      namedNote.textContent='Internal monthly guide £'+price.toFixed(2)+'; quote duration is '+duration+' days. Calculate and confirm the actual rate manually.';
+    }
+  }else{
+    lf.elements.unit_price_gbp.value='';
+    namedNote.textContent='No guide price saved. Enter a confirmed price before adding the quotation line.';
+  }
+  $('quoteselectedcount').textContent='Named space '+item.slot_code+' · '+item.status+' · '+item.pricing_tier;
+  status('Named position prepared for a quotation line. No advert published.');
+ }));
+ namedUse.type='button';
+ namedRow.append(namedSelect,namedUse);
+ const namedNote=el('p','No price is automatically agreed.');namedNote.style.cssText='color:#bbb;font-size:12px;margin:8px 0 0';
+ namedChoicePanel.append(namedHeader,namedDescription,namedRow,namedNote);
+ $('quotelinearea').insertBefore(namedChoicePanel,$('quotelineform'));
+ let namedInventory=[];
+ async function reloadNamedInventory(){
+  const data=await checked(db.from('advertising_named_spaces').select('slot_code,display_name,page_path,format,market_scope,status,pricing_tier,guide_monthly_gbp').order('slot_code'));
+  namedInventory=data||[];
+  const previous=namedSelect.value;namedSelect.replaceChildren();
+  const placeholder=el('option','Choose a named advertising position');placeholder.value='';namedSelect.append(placeholder);
+  for(const item of namedInventory){
+   const opt=el('option',item.slot_code+' · '+item.display_name+' · '+item.pricing_tier+(item.status==='planned'?' · not yet sellable':''));
+   opt.value=item.slot_code;namedSelect.append(opt);
+  }
+  if([...namedSelect.options].some(o=>o.value===previous))namedSelect.value=previous;
+ }
+ await reloadNamedInventory();
+
  // Central inventory feeds quotation locations; no duplicate page lists.
  const queuedPlannerSlots=new Set();
  const plannerFormat=p=>p.creative_format==='stock_card'?'stock_card':p.creative_format==='large_landscape'?'large_landscape':'slim_landscape';
