@@ -17,7 +17,68 @@
   '<p id="softwareCreativeStatus" role="status" aria-live="polite"></p><div class="scroll"><table><thead><tr><th>Company</th><th>File</th><th>Campaign</th><th>Result</th></tr></thead><tbody id="softwareCreativeRows"></tbody></table></div>';
  root.insertAdjacentElement('afterend',panel);
  let verified=[];
+ const gallery=document.createElement('div');gallery.id='softwareArtworkGallery';gallery.style.marginTop='14px';
+ const galleryHeader=document.createElement('div');galleryHeader.className='bar';
+ const galleryTitle=document.createElement('h3');galleryTitle.textContent='Imported software adverts · artwork gallery';
+ galleryTitle.style.cssText='font-size:16px;margin:0';
+ const galleryRefresh=document.createElement('button');galleryRefresh.type='button';galleryRefresh.textContent='Refresh gallery';
+ galleryHeader.append(galleryTitle,galleryRefresh);
+ const galleryStatus=document.createElement('p');galleryStatus.setAttribute('role','status');galleryStatus.style.cssText='font-size:13px;color:#bbb';
+ const galleryCards=document.createElement('div');galleryCards.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-top:10px';
+ gallery.append(galleryHeader,galleryStatus,galleryCards);panel.append(gallery);
  const setStatus=text=>{$('softwareCreativeStatus').textContent=text};
+ async function loadGallery(){
+  galleryStatus.textContent='Loading saved artwork…';galleryCards.replaceChildren();
+  try{
+   const db=getAdminSupabaseClient();
+   const check=await db.rpc('anybike_is_admin');
+   if(check.error||check.data!==true)throw Error('Admin permission required');
+   const [p,c]=await Promise.all([
+    db.from('commercial_partners').select('id,name').eq('kind','stock_feed'),
+    db.from('advertising_campaigns').select('id,name,partner_id,status,compact_image_url,destination_url')
+      .like('name','AnyBike complimentary software showcase — %').order('name')
+   ]);
+   if(p.error||c.error)throw(p.error||c.error);
+   const partners=new Map((p.data||[]).map(x=>[x.id,x.name]));
+   let ready=0;
+   for(const campaign of c.data||[]){
+    const card=document.createElement('div');card.style.cssText='border:1px solid #494949;border-radius:9px;padding:10px;background:#141414;min-width:0';
+    const title=document.createElement('strong');title.textContent=partners.get(campaign.partner_id)||campaign.name;
+    title.style.cssText='display:block;margin-bottom:7px';
+    card.append(title);
+    if(campaign.compact_image_url && /^https:\/\//.test(campaign.compact_image_url)){
+     ready++;
+     const img=document.createElement('img');img.src=campaign.compact_image_url;
+     img.loading='lazy';img.alt='AnyBike draft software advert preview for '+title.textContent;
+     img.style.cssText='display:block;aspect-ratio:1/1;width:100%;object-fit:contain;border-radius:6px;background:#090909';
+     img.onerror=()=>{img.alt='Artwork could not load'};
+     card.append(img);
+    }else{
+     const missing=document.createElement('div');missing.textContent='Square artwork not uploaded';
+     missing.style.cssText='aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;text-align:center;color:#bbb;background:#222;border-radius:6px;font-size:13px';
+     card.append(missing);
+    }
+    const detail=document.createElement('p');detail.textContent='Campaign: '+campaign.status+' · 1:1 square';
+    detail.style.cssText='font-size:12px;color:#bbb;margin:7px 0';card.append(detail);
+    const links=document.createElement('div');links.className='bar';
+    if(campaign.destination_url&&/^https:\/\//.test(campaign.destination_url)){
+     const a=document.createElement('a');a.href=campaign.destination_url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Destination';links.append(a);
+    }
+    const edit=document.createElement('button');edit.type='button';edit.textContent='Edit campaign';
+    edit.addEventListener('click',()=>{
+     const rows=[...document.querySelectorAll('#campaignrows tr')];
+     const row=rows.find(r=>r.firstElementChild?.textContent===campaign.name);
+     const button=row?.querySelector('button');
+     if(!button){galleryStatus.textContent='Refresh Campaign performance above, then try Edit campaign again.';return}
+     button.click();
+    });
+    links.append(edit);card.append(links);galleryCards.append(card);
+   }
+   galleryStatus.textContent=ready+' of '+(c.data||[]).length+' square adverts uploaded · previews are drafts, not live placements.';
+  }catch(e){galleryStatus.textContent='Unable to load artwork gallery: '+(e?.message||e)}
+ }
+ galleryRefresh.addEventListener('click',loadGallery);
+ loadGallery();
  function addRow(company,file,campaign,result){
   const tr=document.createElement('tr');
   for(const value of [company,file,campaign,result]){const td=document.createElement('td');td.textContent=value;tr.append(td)}
@@ -124,6 +185,7 @@
    }
    setStatus(done+' imported, '+failed+' failed. Refresh campaign performance to see the newly linked artwork. All campaigns remain drafts.');
    verified=[];
+   await loadGallery();
   }catch(e){setStatus('Import stopped: '+e.message)}
   finally{button.disabled=true}
  });
