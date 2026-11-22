@@ -46,3 +46,14 @@ Build a UK-facing guide for buyers of **new motorcycles**, grounded in manufactu
 - Advertising should sit **between major comparison sections and beneath useful content**, not over specifications, pricing evidence, the comparison table or share controls. Keep a readable mobile experience and cap density.
 - Paid and affiliate links must carry `rel="sponsored"` and clear **Advertisement** disclosure; affiliate commissions must be accounted for. No paid influence on specification facts, objective rankings, model suggestions or alleged manufacturer endorsements.
 - Prefer relevant advertising: touring luggage on adventure comparisons, equipment on sports-bike guides, and verified UK dealer promotions for UK new-bike searches. Do not assume rights to manufacturer logos/creative without permission.
+
+
+## Future country-by-country rollout (deferred)
+**Future phase only — not to be implemented during the UK launch.**
+
+- Prove the UK new-motorcycle buyers guide, manufacturer data feeds, authorised-dealer directory, cross-brand comparisons and paid/affiliate advertising model first.
+- Keep one universal template and Supabase data architecture with a **market/country identifier** on model prices, equipment, homologation, available variants, dealers, permitted manufacturer feeds, language, currency and advertising targeting. Never assume that UK model ranges, prices or dealer franchise permissions apply internationally.
+- For each future country, seek local manufacturer/importer data permissions and verified official dealer feeds, then launch localised model guides, impartial comparisons and a local dealer locator only after data quality is sufficient.
+- Use the existing Advertising Mega System for country-specific paid advertising, local affiliate programmes, sponsorship, client creative variants and commercial reporting; do not create separate advertising backends.
+- Each country should have its own useful localised content and search experience, not a duplicated UK page with the currency converted.
+- **Do not implement new international buyer guides, comparison pages or dealer locators now.** First finish the UK platform, feed reliability, advertising workflow and real-world validation.
