@@ -17,7 +17,7 @@ async function load(){
   db.from('advertising_client_artwork_slots').select('slot_code,partner_id,creative_format,active_artwork_id'),
   db.from('advertising_partner_artwork_library').select('partner_id,creative_format,active_artwork_id'),
   db.from('advertising_square_house_placements').select('slot_code,artwork_url'),
-  db.from('advertising_client_artwork').select('id,partner_id,creative_format,file_name,public_url,status,source_label,created_at').order('created_at',{ascending:false}).limit(1000)
+  db.from('advertising_client_artwork').select('id,partner_id,creative_format,file_name,public_url,status,source_label,storage_path,created_at').order('created_at',{ascending:false}).limit(1000)
  ]);
  for(const r of results)if(r.error)throw r.error;
  [clients,campaigns,slots,libraryFormats,placements,versions]=results.map(r=>r.data||[]);
@@ -52,8 +52,14 @@ async function uploadFile(format,file){
  let bitmap;
  try{
   bitmap=await createImageBitmap(file);
-  if(Math.abs(bitmap.width/bitmap.height/ratios[format]-1)>.025)throw Error('Wrong size: '+bitmap.width+' × '+bitmap.height+'. Use the correct '+format+' format.');
+  if(Math.abs(bitmap.width/bitmap.height/ratios[format]-1)>.006)throw Error('Wrong dimensions: '+bitmap.width+' × '+bitmap.height+'. Save the finished '+format.replace('_',' ')+' artwork at the required aspect ratio.');
   if(bitmap.width<600||bitmap.height<200)throw Error('Resolution too small.');
+  const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;
+  const context=canvas.getContext('2d',{willReadFrequently:true});
+  if(!context)throw Error('Artwork could not be checked.');
+  context.drawImage(bitmap,0,0);
+  const corners=[[0,0],[bitmap.width-1,0],[0,bitmap.height-1],[bitmap.width-1,bitmap.height-1]];
+  if(corners.some(([x,y])=>context.getImageData(x,y,1,1).data[3]>20))throw Error('Artwork must have rounded, transparent corners saved into the file. No page cropping or corner masks.');
   const name=file.name.toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(-100);
   const path='clients/'+selected+'/'+format+'/'+crypto.randomUUID()+'-'+name;
   status('Uploading '+file.name+'…');
@@ -67,7 +73,8 @@ async function uploadFile(format,file){
  finally{bitmap?.close?.()}
 }
 async function approve(v){
- if(!confirm('Approve this artwork for '+clients.find(c=>c.id===selected)?.name+'? Confirm branding, rights, wording and corners.'))return;
+ if(v.storage_path?.startsWith('linked-existing/')||v.source_label?.startsWith('Existing '))return status('This is a source advert, not a finished master. Upload the properly sized WebP with rounded corners first.');
+ if(!confirm('Approve this finished artwork for '+clients.find(c=>c.id===selected)?.name+'? Confirm rights, wording and visible rounded corners.'))return;
  try{
   const r=await db.from('advertising_client_artwork').update({status:'approved',approved_at:new Date().toISOString()}).eq('id',v.id).eq('status','draft').select('id').single();
   if(r.error)throw r.error;
@@ -149,8 +156,10 @@ function renderFolder(){
   const history=make('details');const summary=make('summary','Artwork versions ('+rows.length+')');summary.style.cursor='pointer';history.append(summary);
   for(const v of rows){
    const line=make('div');line.style.cssText='border-top:1px solid #444;padding:8px 0;font-size:12px';
-   line.append(make('div',v.file_name+' · '+v.status));
-   if(v.status==='draft')line.append(button('Approve',()=>approve(v)));
+   const legacy=Boolean(v.storage_path?.startsWith('linked-existing/')||v.source_label?.startsWith('Existing '));
+   line.append(make('div',v.file_name+' · '+(legacy?'Source artwork · not placement-ready':v.status)));
+   if(legacy)line.append(make('small','Saved in this advertiser file. Prepare the correct finished size with transparent rounded corners before approval.'));
+   if(v.status==='draft'&&!legacy)line.append(button('Approve',()=>approve(v)));
    if(v.status==='approved')line.append(button('Use this artwork',()=>activate(v,format,field),true));
    history.append(line);
   }
