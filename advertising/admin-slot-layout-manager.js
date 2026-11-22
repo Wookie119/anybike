@@ -147,7 +147,7 @@ async function publicationEligibility(){
     a.manufacturers?.length||a.models?.length||a.customer_types?.length||
     !/^https:\/\//.test(a.destination_url||''))bad.push(c?.name||id);
  }
- if(bad.length)return {ready:false,message:'Not approved for this page: '+bad.join(' · ')+'. Review campaign dates, compliance and page targeting before publication.'};
+ if(bad.length)return {ready:false,message:'These campaigns need their page permissions approved before they can go live: '+bad.map(n=>n.split(' — ')[0]).join(', ')+'. Your saved advert layout is safe.'};
  // The page must already have the matching named slot. Never invent a placement.
  const response=await fetch(current.pagePath,{credentials:'same-origin',cache:'no-store'});
  if(!response.ok)throw Error('Cannot verify actual page location');
@@ -175,7 +175,7 @@ publish.onclick=async()=>{
  try{
   // Automatically check all safety rules as part of publishing.
   const result=await publicationEligibility();
-  if(!result.ready){status.textContent="Nothing has changed on the website. These adverts are not yet cleared for this page. "+result.message;return;}
+  if(!result.ready){status.textContent="Nothing has changed on the website. "+result.message;return;}
   if(!confirm('PUBLISH this layout publicly on '+current.pagePath+'? This will replace the current live advert(s) for visitors.'))return;
   const ids=selections(),formats=currentFormats(),payload={slot_code:current.slotCode,page_path:current.pagePath,
    campaign_ids:ids,artwork_formats:formats,advert_count:ids.length,published_at:new Date().toISOString()};
