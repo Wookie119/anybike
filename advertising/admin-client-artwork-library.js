@@ -272,6 +272,7 @@ function renderFolder(){
   if(imageUrl){const image=make('img');image.src=imageUrl;image.alt=client.name+' '+label+' advert';image.loading='lazy';image.style.cssText='display:block;width:100%;height:100%;object-fit:contain';imageBox.append(image)}
   else {const missing=make('span','No approved master selected for this format');missing.style.cssText='color:#bbb;text-align:center;padding:12px;font-size:12px';imageBox.append(missing)}
   card.append(imageBox);
+  if(activeVersion){const repair=button('Save this master with baked rounded corners',()=>saveRoundedVersion(activeVersion,format));repair.style.cssText='padding:9px 12px;border-radius:8px;border:1px solid #777;background:#292929;color:#fff;font-weight:700;cursor:pointer';card.append(repair)}
   const upload=make('input');upload.type='file';upload.accept='image/webp';upload.setAttribute('aria-label','Choose '+label+' advert for '+client.name);upload.style.cssText='max-width:100%;font-size:12px';
   const save=button('Upload replacement',()=>uploadFile(format,upload.files?.[0]),true);card.append(upload,save);
   const rows=versions.filter(v=>v.partner_id===selected&&v.creative_format===format);
