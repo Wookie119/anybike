@@ -22,7 +22,7 @@ function cardPicker(index){
  const shell=text('div');shell.className='compare-picker';
  const h=text('h3','Motorcycle '+(index+1));shell.append(h);
  const selected=chosen[index];
- const makes=[...new Set(all.map(x=>x.make))].sort((a,b)=>a.localeCompare(b,'en'));
+ const makes=[...new Set(all.filter(x=>!activeCategory||categories.get(x.model_id)===activeCategory).map(x=>x.make))].sort((a,b)=>a.localeCompare(b,'en'));
  const fields=text('div');fields.className='compare-picker-fields';
  const makeLabel=text('label','Manufacturer');const make=text('select');
  const any=text('option','Choose manufacturer');any.value='';make.append(any);
@@ -62,6 +62,8 @@ function renderResults(){
  writeShareUrl(valid?items:[]);
  $('share-comparison').disabled=!valid;
  $('print-comparison').disabled=!valid;
+ const linkField=$('share-link');
+ if(linkField){linkField.value=valid?location.href:'';linkField.hidden=!valid}
  if(items.length<MIN){show('Choose at least two motorcycles to build a comparison.');return}
  if(!valid){show('Please choose different motorcycles in each position.');return}
  show('Comparison ready — '+items.length+' motorcycles from AnyBike’s published catalogue.');
@@ -117,6 +119,7 @@ async function loadCategories(){
   const groups=[...new Set(categories.values())].sort((a,b)=>a.localeCompare(b,'en'));
   for(const group of groups){const option=text('option',group);option.value=group;select.append(option)}
   select.onchange=()=>{activeCategory=select.value;chosen=[null,null,null];renderSelectors();show(activeCategory?'Showing catalogue models in '+activeCategory+'. Select two or more motorcycles.':'Showing motorcycles from all catalogue categories.');};
+  if(chosen.some(Boolean))renderResults();
  }catch(e){console.warn('Optional catalogue category filter unavailable',e)}
 }
 async function start(){
