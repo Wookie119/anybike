@@ -127,18 +127,26 @@ section.innerHTML='<h2>Place adverts for a customer</h2><p style="color:#bbb">Ch
 const style=document.createElement('style');style.textContent='.ab-cp-top{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0}.ab-cp-top label{display:grid;gap:6px}.ab-cp-top select,.ab-cp-top input{width:100%}.ab-cp-pages{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;max-height:420px;overflow:auto}.ab-cp-page{display:flex!important;flex-direction:row!important;align-items:start!important;gap:9px!important;padding:11px;background:#141414;border:1px solid #444;border-radius:8px;overflow-wrap:anywhere}.ab-cp-page small{display:block;color:#aaa;margin-top:4px}.ab-cp-page input{flex-shrink:0;margin:3px 0}#abCpPreview{padding:10px;border:1px solid #444;border-radius:9px;margin:10px 0}#abCpPreview[hidden]{display:none}#abCpPreview img{display:block;max-width:330px;width:100%;height:auto;border-radius:8px;margin-top:8px}@media(max-width:800px){.ab-cp-top{grid-template-columns:1fr}}';document.head.append(style);
 const anchor=document.getElementById('namedAdvertisingSpaces');anchor?root.insertBefore(section,anchor):root.append(section);
 const $=id=>document.getElementById(id),owner=$('abCpOwner'),campaign=$('abCpCampaign'),search=$('abCpSearch'),pagesEl=$('abCpPages'),status=$('abCpStatus'),preview=$('abCpPreview'),save=$('abCpSave'),count=$('abCpCount');
-let db,partners=[],ads=[],pages=[],plans=[],selected=new Set(),current=null;
+let db,partners=[],ads=[],pages=[],plans=[],selected=new Set(),current=null,recentlySeen=new Set();
 const eligible=p=>Boolean(p.slot_code&&!p.excluded&&p.page_category!=='model'&&!/^\/(?:admin-|customer-|my-|dealer-|shipper-|seller-)/.test(p.page_path));
 function draw(){
-pagesEl.replaceChildren();count.textContent=selected.size+' selected';save.disabled=!current||selected.size===0;
+pagesEl.replaceChildren();
+const plannedCount=[...selected].filter(path=>!recentlySeen.has((current?.id||'')+'|'+path)).length;
+count.textContent=plannedCount+' new/draft location'+(plannedCount===1?'':'s')+' selected';save.disabled=!current||plannedCount===0;
 if(!current)return;
 const match=search.value.trim().toLowerCase(),filtered=pages.filter(p=>eligible(p)&&(!match||(p.page_path+' '+p.slot_code).toLowerCase().includes(match)));
 for(const p of filtered.slice(0,120)){
 const label=document.createElement('label');label.className='ab-cp-page';
-const cb=document.createElement('input');cb.type='checkbox';cb.checked=selected.has(p.page_path);cb.onchange=()=>{cb.checked?selected.add(p.page_path):selected.delete(p.page_path);count.textContent=selected.size+' selected';save.disabled=selected.size===0};
-const span=document.createElement('span');const strong=document.createElement('strong');strong.textContent=p.page_path;const small=document.createElement('small');small.textContent=p.slot_code+' · '+(p.placement_enabled?'Enabled position':'Not enabled');span.append(strong,small);label.append(cb,span);pagesEl.append(label);
+const live=recentlySeen.has(current.id+'|'+p.page_path);
+const draft=plans.some(plan=>plan.campaign_id===current.id&&plan.page_path===p.page_path);
+const cb=document.createElement('input');cb.type='checkbox';cb.checked=live||selected.has(p.page_path);cb.disabled=live;
+cb.title=live?'Already shown recently on this page — cannot create a duplicate draft':'Select this page for draft planning';
+cb.onchange=()=>{cb.checked?selected.add(p.page_path):selected.delete(p.page_path);
+const n=[...selected].filter(path=>!recentlySeen.has(current.id+'|'+path)).length;
+count.textContent=n+' new/draft location'+(n===1?'':'s')+' selected';save.disabled=n===0};
+const span=document.createElement('span');const strong=document.createElement('strong');strong.textContent=p.page_path;const small=document.createElement('small');small.textContent=p.slot_code+' · '+(live?'LIVE — impression recorded in last 7 days':draft?'SAVED DRAFT — not published':p.placement_enabled?'Available — enabled position':'Available — position currently disabled');span.append(strong,small);label.append(cb,span);pagesEl.append(label);
 }
-status.textContent=filtered.length+' suitable inventoried positions'+(filtered.length>120?' · displaying first 120, narrow your search':'')+'. Saved draft locations are ticked.';
+status.textContent=filtered.length+' suitable inventoried positions'+(filtered.length>120?' · displaying first 120, narrow your search':'')+'. Live positions are locked against duplicate drafting; draft selections remain editable.';
 }
 function showCampaign(){
 current=ads.find(a=>a.id===campaign.value)||null;
@@ -154,7 +162,7 @@ owner.onchange=()=>{campaign.replaceChildren(new Option('Choose advert',''));for
 campaign.onchange=showCampaign;search.oninput=draw;
 save.onclick=async()=>{
 if(!current||!selected.size)return;
-const entries=pages.filter(p=>selected.has(p.page_path)&&eligible(p)).map(p=>({campaign_id:current.id,page_path:p.page_path,slot_code:p.slot_code,plan_status:'draft',updated_at:new Date().toISOString()}));
+const entries=pages.filter(p=>selected.has(p.page_path)&&eligible(p)&&!recentlySeen.has(current.id+'|'+p.page_path)).map(p=>({campaign_id:current.id,page_path:p.page_path,slot_code:p.slot_code,plan_status:'draft',updated_at:new Date().toISOString()}));
 if(!entries.length||!confirm('Save '+entries.length+' draft locations for '+current.name+'? Nothing will go live.'))return;
 save.disabled=true;
 try{
@@ -169,9 +177,10 @@ try{
 status.textContent='Loading advertiser records from Supabase…';
 if(typeof getAdminSupabaseClient!=='function')throw Error('Admin database connection unavailable');
 db=getAdminSupabaseClient();const permission=await db.rpc('anybike_is_admin');if(permission.error||permission.data!==true)throw Error('Admin permission required');
-const requests=await Promise.all([db.from('commercial_partners').select('id,name').order('name'),db.from('advertising_campaigns').select('id,name,partner_id,status,slim_image_url,desktop_image_url,alt_text').order('name'),db.from('advertising_page_inventory').select('page_path,page_category,slot_code,placement_enabled,excluded').order('page_path'),db.from('advertising_customer_page_plans').select('campaign_id,page_path,slot_code,plan_status')]);
+const requests=await Promise.all([db.from('commercial_partners').select('id,name').order('name'),db.from('advertising_campaigns').select('id,name,partner_id,status,slim_image_url,desktop_image_url,alt_text').order('name'),db.from('advertising_page_inventory').select('page_path,page_category,slot_code,placement_enabled,excluded').order('page_path'),db.from('advertising_customer_page_plans').select('campaign_id,page_path,slot_code,plan_status'),db.from('advertising_events').select('campaign_id,page_path').eq('event_type','impression').gte('occurred_at',new Date(Date.now()-7*86400000).toISOString()).order('occurred_at',{ascending:false}).limit(5000)]);
 const failed=requests.find(x=>x.error);if(failed)throw failed.error;
-[partners,ads,pages,plans]=requests.map(x=>x.data||[]);
+[partners,ads,pages,plans]=requests.slice(0,4).map(x=>x.data||[]);
+recentlySeen=new Set((requests[4].data||[]).filter(e=>e.campaign_id&&e.page_path).map(e=>e.campaign_id+'|'+e.page_path));
 for(const p of partners)if(ads.some(a=>a.partner_id===p.id))owner.append(new Option(p.name,p.id));
 status.textContent='Choose an advertising customer. No new advert will be published.';
 }catch(e){status.textContent='Planner unavailable: '+(e.message||e)}
