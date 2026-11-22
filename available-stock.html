@@ -56,8 +56,30 @@ main{max-width:1680px} .intro{max-width:1300px;margin:4px auto 12px;text-align:c
 <a href="/anybike-global.html" class="stock-research-link">AnyBike Global stories</a>
 </div></nav><footer class="stock-footer"><div class="stock-footer-copy"><h2>Looking for something specific?</h2><p>Tell AnyBike what motorcycle you need, or explore our manufacturer guides to find the right model.</p></div><div class="stock-footer-actions"><a class="btn" href="/buy-motorcycles.html">Request a motorcycle →</a><a class="btn secondary" href="/motorcycle-manufacturers.html">Explore manufacturers →</a></div><div class="stock-footer-links"><a href="/my-vat-export-guide.html">VAT export guide</a><a href="/freight-forwarders.html">Freight forwarders</a><a href="/how-anybike-export-works.html">How AnyBike export works</a><a href="/customer-messages.html">Messages</a></div></footer></main><script>const client=supabase.createClient('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');const escapeText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));(async()=>{const notice=document.getElementById('notice');const stockGrid=document.getElementById('stockGrid');const clearLoading=()=>{stockGrid.replaceChildren();stockGrid.setAttribute('aria-busy','false');};try{// Public stock requires no login. Do not delay the catalogue behind a session lookup.
 const stockUrl='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/international-public-stock';
-const fetchStock=async()=>{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),10000);try{return await fetch(stockUrl,{cache:'no-store',signal:controller.signal});}finally{clearTimeout(timeout);}};
-const catalogResponse=await fetchStock();let catalog;try{catalog=await catalogResponse.json();}catch(_){throw new Error('Invalid stock response');}
+// Bound the entire request AND JSON body read; a stalled body must not leave skeletons indefinitely.
+const fetchStock=async()=>{
+ let lastError;
+ for(let attempt=0;attempt<2;attempt++){
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),12000);
+  try{
+   const response=await fetch(stockUrl,{cache:'no-store',signal:controller.signal,headers:{'Accept':'application/json'}});
+   if(!response.ok){
+    // Do not retry denied access; preserve the backend's UK/international rules.
+    if(response.status===401||response.status===403)return {response,catalog:{error:'Stock access is unavailable for this visitor.'}};
+    if(response.status>=500&&attempt===0){lastError=new Error('Stock service response '+response.status);continue;}
+   }
+   const catalog=await response.json();
+   if(!catalog||typeof catalog!=='object'||Array.isArray(catalog))throw new Error('Invalid stock response');
+   return {response,catalog};
+  }catch(error){
+   lastError=error;
+   if(attempt===1)break;
+  }finally{clearTimeout(timeout);}
+ }
+ throw lastError||new Error('Stock request failed');
+};
+const {response:catalogResponse,catalog}=await fetchStock();
 if(!catalogResponse.ok){clearLoading();notice.hidden=false;notice.textContent=catalog.error||'International stock is temporarily unavailable.';return;}const rows=Array.isArray(catalog.items)?catalog.items:[];const priceMap=new Map(rows.map(x=>[Number(x.item_id),Number(x.price)]));const addedMap=new Map(rows.map(x=>[Number(x.item_id),Date.parse(x.published_at||'')||0]));if(!rows.length){clearLoading();notice.hidden=false;notice.textContent='No published motorcycles are currently available.';return;}notice.hidden=true;const vatFilter=document.getElementById('vatFilter');const stockFilters=document.getElementById('stockFilters');const displayGrid=document.getElementById('stockGrid');const requestedParams=new URLSearchParams(location.search);const shortlistMakes=(requestedParams.get('makes')||'').split('|').map(x=>x.trim()).filter(Boolean);
 const shortlistModels=(requestedParams.get('models')||'').split('|').map(x=>x.trim()).filter(Boolean);
 const shortlistActive=shortlistMakes.length>0&&shortlistMakes.length===shortlistModels.length&&shortlistMakes.length<=2&&shortlistMakes.every(x=>x.length<=80)&&shortlistModels.every(x=>x.length<=120);
