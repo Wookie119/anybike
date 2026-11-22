@@ -134,32 +134,23 @@ function renderResults(){
  if(items.length<MIN){show('Choose at least two motorcycles to build a comparison.');return}
  if(!valid){show('Please choose different motorcycles in each position.');return}
  show('Comparing '+items.length+' motorcycles.');
- const intro=text('p','Explore your chosen motorcycles side by side. Select a motorcycle’s model page for additional information.');
+ const intro=text('p','Compare key specifications and open each motorcycle’s model page for more details.');
  host.append(intro);
  const wrap=text('div');wrap.className='comparison-table-scroll';
  const table=text('table');table.className='comparison-table';
  const head=text('thead'),tr=text('tr');tr.append(text('th','Comparison'));
  for(const x of items){tr.append(text('th',x.make+' '+x.model))}head.append(tr);table.append(head);
  const body=text('tbody');
- const data=[
-  ['Manufacturer',x=>x.make],
-  ['Model',x=>x.model],
-  ['Motorcycle type',x=>categories.get(x.model_id)||'Not listed'],
-  ['UK new-bike availability',()=> 'Ask a dealer'],
-  ['UK new price',()=> 'Ask a dealer'],
-  ['Model years and versions',()=> 'See model details'],
-  ['Engine and performance',()=> 'See model details'],
-  ['Dimensions and weight',()=> 'See model details'],
-  ['Find a UK dealer',()=> 'Browse UK dealers']
- ];
- for(const [label,get] of data){const row=text('tr');row.append(text('th',label));for(const x of items)row.append(text('td',get(x)));body.append(row)}
- // Append independent sourced measurements without blocking the basic comparison table.
+ const typeRow=text('tr');typeRow.append(text('th','Motorcycle type'));
+ for(const bike of items)typeRow.append(text('td',categories.get(bike.model_id)||'—'));
+ body.append(typeRow);table.append(body);
+ // Technical measurements are populated only from AnyBike's independently sourced research.
  const factBody=text('tbody');factBody.className='comparison-facts';table.append(factBody);
+ const linksBody=text('tbody'),links=text('tr');links.append(text('th','Explore this motorcycle'));
+ for(const bike of items){const td=text('td'),a=text('a','View model details');a.href=absolute(bike.url)||'/motorcycle-manufacturers.html';td.append(a);links.append(td)}
+ linksBody.append(links);table.append(linksBody);wrap.append(table);host.append(wrap);
  void fillVerifiedComparisons(items,factBody);
- const links=text('tr');links.append(text('th','Research this model'));
- for(const x of items){const td=text('td'),a=text('a','View AnyBike model page');a.href=absolute(x.url)||'/motorcycle-manufacturers.html';td.append(a);links.append(td)}
- body.append(links);table.append(body);wrap.append(table);host.append(wrap);
- const notice=text('p','Specifications can vary by model year, version and market. Follow the source links for published figures and check current prices with a UK dealer.');
+ const notice=text('p','Figures shown are from linked sources and may refer to particular model years or versions. Confirm current specifications, availability and prices with a dealer.');
  notice.className='comparison-notice';host.append(notice);
  // Comparison URL is synchronised by writeShareUrl, including when a selection is cleared.
 }
