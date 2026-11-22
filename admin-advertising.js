@@ -62,7 +62,7 @@ function showCreativeSizes(){
   const heading=el('strong',title);card.append(heading);
   const url=String(form.elements[field]?.value||'').trim();
   if(url.startsWith('https://')){
-   const image=el('img');image.src=url;image.alt=title+' Move Motorcycles advertising preview';image.loading='lazy';image.style.cssText='width:100%;height:auto;max-width:100%;object-fit:contain;display:block;margin:8px auto;border-radius:10px;overflow:hidden;aspect-ratio:auto';card.append(image);
+   const image=el('img');image.src=url;image.alt=title+' advertising preview';image.loading='lazy';image.style.cssText='width:100%;height:auto;max-width:100%;object-fit:contain;display:block;margin:8px auto;border-radius:10px;overflow:hidden;aspect-ratio:auto';card.append(image);
    card.append(el('p','Ready in campaign · '+filename));
   }else card.append(el('p','Not uploaded · '+filename));
   host.append(card);
@@ -74,38 +74,50 @@ async function uploadCreativeSizes(){
  const current=campaigns.find(c=>c.id===editId);
  if(!current||current.status!=='draft')throw Error('Upload to a draft campaign only. Active artwork must be reviewed separately.');
  const files=[...($('creativeFiles').files||[])];
- if(!files.length)throw Error('Select the five extracted Move Motorcycles WebP files first.');
+ if(!files.length)throw Error('Select one to five WebP adverts, each made for one of the five supported sizes.');
  if(files.length>5)throw Error('Select at most five artwork files.');
- const byName=new Map(creativeSlots.map(slot=>[slot[0],slot]));
+ const selected=[];const usedFields=new Set();
  for(const file of files){
-  if(!byName.has(file.name.toLowerCase()))throw Error('Unexpected filename: '+file.name+'. Use the provided five-size advert pack.');
   if(file.type!=='image/webp'||file.size>10*1024*1024||!file.size)throw Error('Only non-empty WebP files up to 10 MB are accepted: '+file.name);
-  await validateUploadedCreative(file,byName.get(file.name.toLowerCase())[1]);
+  let bitmap;
+  try{
+   bitmap=await createImageBitmap(file);
+   const ratio=bitmap.width/bitmap.height;
+   const matching=Object.entries(creativeSlotRatio).filter(([,expected])=>Math.abs(ratio/expected-1)<=0.035);
+   if(matching.length!==1)throw Error(file.name+': unsupported ratio '+bitmap.width+' × '+bitmap.height+'. Use 16:9, 4:5, 3:1, 1:1 or 4:3 artwork.');
+   const field=matching[0][0];
+   validateCreativeDimensions(bitmap.width,bitmap.height,field,file.name);
+   if(usedFields.has(field))throw Error('Two files fit the same advertising size: '+file.name+'. Select only one per format.');
+   usedFields.add(field);selected.push({file,field});
+  }catch(error){
+   if(error?.message?.includes(file.name)||error?.message?.includes('Two files'))throw error;
+   throw Error(file.name+': unable to validate artwork: '+(error?.message||error));
+  }finally{bitmap?.close?.()}
  }
  const uploadButton=$('uploadCreativeFiles');uploadButton.disabled=true;
  let done=0;const errors=[];
  try{
-  for(const file of files){
-   const [filename,field]=byName.get(file.name.toLowerCase());
-   $('creativeUploadStatus').textContent='Uploading '+(done+1)+' of '+files.length+': '+filename;
-   const path='campaigns/'+editId+'/'+crypto.randomUUID()+'-'+filename;
+  for(const {file,field} of selected){
+   $('creativeUploadStatus').textContent='Uploading '+(done+1)+' of '+selected.length+': '+file.name;
+   const safeName=file.name.toLowerCase().replace(/[^a-z0-9._-]+/g,'-').slice(-120);
+   const path='campaigns/'+editId+'/'+crypto.randomUUID()+'-'+safeName;
    const {error:uploadError}=await db.storage.from('advertising-creatives').upload(path,file,{cacheControl:'31536000',contentType:'image/webp',upsert:false});
-   if(uploadError){errors.push(filename+': '+uploadError.message);break;}
+   if(uploadError){errors.push(file.name+': '+uploadError.message);break;}
    const {data:publicData}=db.storage.from('advertising-creatives').getPublicUrl(path);
    const url=publicData?.publicUrl;
-   if(!url||!url.startsWith('https://')){errors.push(filename+': public URL missing');break;}
+   if(!url||!url.startsWith('https://')){errors.push(file.name+': public URL missing');break;}
    const {data:savedRow,error:saveError}=await db.from('advertising_campaigns').update({[field]:url}).eq('id',editId).eq('status','draft').select('id').maybeSingle();
-   if(saveError||!savedRow){errors.push(filename+': uploaded asset, but campaign link was not confirmed: '+(saveError?.message||'Draft changed. Refresh.'));break;}
+   if(saveError||!savedRow){errors.push(file.name+': uploaded file, but draft campaign URL was not saved: '+(saveError?.message||'Draft changed. Refresh.'));break;}
    $('campaignform').elements[field].value=url;
    done++;
   }
   await load();
   showCreativeSizes();
-  $('creativeUploadStatus').textContent=done+' of '+files.length+' uploaded and assigned to draft. '+(errors.length?errors.join(' | '):'No adverts have been activated. All five image slots now available for preview.');
-  if(done===files.length)$('creativeFiles').value='';
+  $('creativeUploadStatus').textContent=done+' of '+selected.length+' saved to this draft. '+(errors.length?errors.join(' | '):'No campaign activated. Preview the uploaded formats before publishing.');
+  if(done===selected.length)$('creativeFiles').value='';
  }finally{uploadButton.disabled=false;}
 }
-function openCampaign(c={}){editId=c.id||null;fields('campaignfields',cf,{status:'draft',campaign_category:'external',placement:'below_hero',priority:0,revenue_model:'commission',...c});$('editor').hidden=false;$('campaignpreview').hidden=true;$('creativeUploadPanel').hidden=!editId;$('creativeSizePreviews').replaceChildren();$('creativeUploadStatus').textContent=editId?'Upload the five WebP files from the advert pack, then preview them here.':'Save as a draft first to enable artwork uploads.';$('editor').scrollIntoView({block:'nearest',behavior:'smooth'})}function openPartner(p={}){partnerId=p.id||null;fields('partnerfields',pf,{kind:'affiliate',status:'prospect',...p},'partner');$('partnerform').hidden=false;$('partnerform').scrollIntoView({block:'nearest',behavior:'smooth'})}let latestCountryAdvertisingReport=null;
+function openCampaign(c={}){editId=c.id||null;fields('campaignfields',cf,{status:'draft',campaign_category:'external',placement:'below_hero',priority:0,revenue_model:'commission',...c});$('editor').hidden=false;$('campaignpreview').hidden=true;$('creativeUploadPanel').hidden=!editId;$('creativeSizePreviews').replaceChildren();$('creativeUploadStatus').textContent=editId?'Upload any correctly sized WebP artwork to this draft (up to five formats), then preview it here.':'Save as a draft first to enable artwork uploads.';$('editor').scrollIntoView({block:'nearest',behavior:'smooth'})}function openPartner(p={}){partnerId=p.id||null;fields('partnerfields',pf,{kind:'affiliate',status:'prospect',...p},'partner');$('partnerform').hidden=false;$('partnerform').scrollIntoView({block:'nearest',behavior:'smooth'})}let latestCountryAdvertisingReport=null;
 function csvCell(value){
  const raw=String(value??'');
  const safe=/^\s*[=+@-]/.test(raw)?"'"+raw:raw;
