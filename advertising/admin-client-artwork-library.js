@@ -257,31 +257,38 @@ async function loadDealerBrandSettings(partner,host){
 
 function addZipImporter(){
  const bar=make('div');bar.style.cssText='padding:12px;margin:0 0 14px;background:#222;border:1px solid #555;border-radius:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap';
- const info=make('p','Import all advertisers from one ZIP or import one advertiser’s five finished WebP files. Images are checked for exact size and transparent rounded corners, saved in each advertiser file as drafts, and are not published automatically.');info.style.cssText='width:100%;color:#ccc;margin:0';
+ const info=make('p','Import approved original artwork for multiple advertisers in one ZIP. Preserves each WebP exactly as supplied, checks its actual dimensions and rounded transparent corners, and saves to its own client file. Does not change live adverts.');info.style.cssText='width:100%;color:#ccc;margin:0';
  const file=make('input');file.type='file';file.accept='.zip,application/zip';file.setAttribute('aria-label','Choose advertiser artwork ZIP');
  const go=button('Import artwork ZIP',async()=>{
   if(!file.files?.[0])return status('Choose the ZIP file first.');
   if(!window.JSZip)return status('ZIP reader unavailable. Refresh and try again.');
   if(file.files[0].size>40000000)return status('ZIP must be smaller than 40 MB.');
   go.disabled=true;
-  let saved=0,failed=0;const errors=[];
+  let saved=0,failed=0,skipped=0;const errors=[];
+  const ownerApproved=confirm('Have you personally approved the artwork in this ZIP? OK saves valid files as approved client artwork. Cancel saves them as drafts. Neither option changes live advertising placements.');
+  const seen=new Set();
   try{
    const archive=await JSZip.loadAsync(file.files[0],{checkCRC32:true});
    const entries=Object.values(archive.files).filter(e=>!e.dir&&e.name.toLowerCase().endsWith('.webp'));
    if(!entries.length||entries.length>100)throw Error('Expected 1–100 WebP artworks.');
-   const dims={square:[1000,1000],stock_card:[1200,900],slim:[1500,500],landscape:[1600,900],portrait:[800,1000]};
+   // Accept original approved dimensions without recomposing or resizing the artwork.
    for(const item of entries){
     let image;
     try{
      const name=item.name.split('/').pop();
-     const match=name.match(/^([a-z0-9-]+)-(square|stock_card|slim|landscape|portrait)-([0-9]+)x([0-9]+)\.webp$/i);
+     const match=name.match(/^([a-z0-9-]+)-(square|stock_card|slim|landscape|portrait)-([0-9]+)x([0-9]+)(?:-[a-z0-9-]+)?\.webp$/i);
      if(!match)throw Error('Invalid artwork filename');
-     const slug=match[1],format=match[2],wh=dims[format];
+     const slug=match[1],format=match[2],wh=[Number(match[3]),Number(match[4])];
      const client=clients.find(c=>c.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')===slug.toLowerCase());
      if(!client)throw Error('Advertiser not found: '+slug);
-     if(Number(match[3])!==wh[0]||Number(match[4])!==wh[1])throw Error('Invalid image size');
+     if(wh[0]<600||wh[1]<200)throw Error('Insufficient resolution');
+     if(Math.abs(wh[0]/wh[1]/ratios[format]-1)>.006)throw Error('Artwork does not match '+format.replace('_',' ')+' proportions');
      const bytes=await item.async('uint8array');
      if(!bytes.length||bytes.length>10000000)throw Error('Image too large or empty');
+     const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+     const hashKey=client.id+':'+format+':'+Array.from(hash,b=>b.toString(16).padStart(2,'0')).join('');
+     if(seen.has(hashKey)){skipped++;continue}
+     seen.add(hashKey);
      const webp=new File([bytes],name,{type:'image/webp'});
      image=await createImageBitmap(webp);
      if(image.width!==wh[0]||image.height!==wh[1])throw Error('Image pixel size mismatch');
@@ -294,14 +301,18 @@ function addZipImporter(){
      const upload=await db.storage.from('advertising-creatives').upload(path,webp,{upsert:false,contentType:'image/webp',cacheControl:'31536000'});
      if(upload.error)throw upload.error;
      const url=db.storage.from('advertising-creatives').getPublicUrl(path).data.publicUrl;
-     const save=await db.from('advertising_client_artwork').insert({partner_id:client.id,creative_format:format,storage_path:path,public_url:url,file_name:name,alt_text:client.name+' advertisement',source_label:'Prepared ZIP artwork · pending review',status:'draft'});
+     const save=await db.from('advertising_client_artwork').insert({partner_id:client.id,creative_format:format,storage_path:path,public_url:url,file_name:name,alt_text:client.name+' advertisement',source_label:ownerApproved?'Owner-approved original artwork — imported without resizing or cropping':'Artwork pending owner approval — imported without resizing or cropping',status:ownerApproved?'approved':'draft',...(ownerApproved?{approved_at:new Date().toISOString()}:{})}).select('id').single();
      if(save.error)throw save.error;
+     if(ownerApproved&&!libraryFormats.some(a=>a.partner_id===client.id&&a.creative_format===format&&a.active_artwork_id)){
+      const master=await db.from('advertising_partner_artwork_library').update({active_artwork_id:save.data.id}).eq('partner_id',client.id).eq('creative_format',format).is('active_artwork_id',null);
+      if(master.error)throw master.error;
+     }
      saved++;
     }catch(e){failed++;errors.push(item.name+': '+e.message)}
-    finally{image?.close?.();status('Importing '+(saved+failed)+' of '+entries.length+' · '+saved+' saved · '+failed+' failed')}
+    finally{image?.close?.();status('Importing '+(saved+failed+skipped)+' of '+entries.length+' · '+saved+' saved · '+skipped+' duplicate · '+failed+' failed')}
    }
    await load();
-   status('Artwork ZIP imported: '+saved+' files in advertiser libraries.'+(failed?' '+failed+' could not be saved: '+errors.slice(0,3).join('; '):'')+' Review and approve each finished creative before it can be placed.');
+   status('Artwork ZIP imported: '+saved+' files saved in the correct client libraries'+(skipped?' · '+skipped+' identical duplicates skipped':'')+(failed?' · '+failed+' failed: '+errors.slice(0,3).join('; '):'')+'. Live advertising placements have not changed.');
   }catch(e){status('Artwork ZIP import failed: '+e.message)}
   finally{go.disabled=false}
  },true);
