@@ -145,13 +145,13 @@ async function publicationEligibility(){
  const matches=publicAds.data||[],bad=[];
  for(const id of ids){
   const c=campaigns.find(x=>x.id===id),a=matches.find(x=>x.id===id);
+  // A directly assigned page is the admin's explicit targeting decision.
+  // Keep real checks (active/approved campaign, country, expiry, approved artwork).
+  // Ignore only older automatic page/category targeting rules.
   if(!a||a.placement!=='below_hero'||!a.countries?.includes('GB')||
-    (a.page_categories?.length&&!a.page_categories.some(v=>v.toLowerCase()===p.page_category.toLowerCase()))||
-    (a.page_paths?.length&&!a.page_paths.includes(current.pagePath))||
-    a.manufacturers?.length||a.models?.length||a.customer_types?.length||
     !/^https:\/\//.test(a.destination_url||''))bad.push(c?.name||id);
  }
- if(bad.length)return {ready:false,message:'These campaigns need their page permissions approved before they can go live: '+bad.map(n=>n.split(' — ')[0]).join(', ')+'. Your saved advert layout is safe.'};
+ if(bad.length)return {ready:false,message:'These adverts cannot be published yet because their campaigns are inactive, expired, outside the UK audience or missing required approval: '+bad.map(n=>n.split(' — ')[0]).join(', ')+'. The existing live adverts are unchanged.'};
  // The page must already have the matching named slot. Never invent a placement.
  const response=await fetch(current.pagePath,{credentials:'same-origin',cache:'no-store'});
  if(!response.ok)throw Error('Cannot verify actual page location');
