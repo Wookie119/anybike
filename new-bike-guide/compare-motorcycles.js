@@ -226,7 +226,7 @@ function renderStockShortlist(items){
   url.searchParams.set('models',bikes.map(b=>b.model).join('|'));
   location.assign(url.href);
  };
- const help=text('small',stockShortlist.size+' of 2 shortlisted');
+ const help=text('small',stockShortlist.size===0?'Tick one or two motorcycles above to enable Find Bikes for Sale.':stockShortlist.size+' of 2 motorcycles selected · Ready to search Available Stock.');
  host.replaceChildren(title,description,choices,action,help);
 }
 function renderResults(){
