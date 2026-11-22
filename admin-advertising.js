@@ -404,6 +404,62 @@ function run(fn){return async e=>{e?.preventDefault();try{await fn()}catch(err){
 async function initQuotes(){
  const root=el('section');root.id='quotearea';$('adcontent').prepend(root);
  root.innerHTML='<div class="bar"><h2>Advertising quotations</h2><button id="newquote" class="primary">New quotation</button><button id="refreshquotes">Refresh</button></div><div id="quotelist" class="scroll"></div><div id="quoteeditor" hidden><h3 id="quotetitle">Quotation</h3><form id="quoteform"><div class="fields"><label>Advertiser<input name="advertiser_name" list="quoteAdvertisers" placeholder="Choose or enter company" required><datalist id="quoteAdvertisers"></datalist></label><label>Contact name<input name="contact_name" list="quoteContacts" placeholder="Choose or enter contact"><datalist id="quoteContacts"></datalist></label><label>Contact email<input name="contact_email" type="email"></label><label>Package title<input name="title" list="quotePackageTitles" placeholder="Choose or enter a title" required><datalist id="quotePackageTitles"><option value="Website Advertising"><option value="Manufacturer Sponsorship"><option value="Motorcycle Model Advertising"><option value="Available Stock Advertising"><option value="International Market Advertising"><option value="Exclusive Advertising Package"><option value="Bespoke Advertising Package"></datalist></label><label>Audience<select name="audience"><option>UK</option><option>International</option><option>Worldwide</option></select></label><label>Duration (days)<input name="duration_days" type="number" min="1" required value="30"></label><label>Valid until<input name="valid_until" type="date"></label><label>Discount (£)<input name="discount_gbp" type="number" min="0" step=".01" value="0"></label><label>VAT (%)<input name="vat_rate" type="number" min="0" max="100" step=".01" value="20"></label><label>Notes<input name="notes"></label></div><div class="bar"><button class="primary">Save quotation</button><button type="button" id="quoteclose">Close</button></div></form><div id="quotelinearea" hidden><h3>Advertising placements</h3><p>Build a package with a separate line for each advert, format or group of pages. Include the agreed price; quotations cannot be issued at £0.</p><div class="bar" style="margin:8px 0"><label style="display:flex;align-items:center;gap:8px">Quick placement template <select id="quoteplacementpreset"><option value="">Choose a starting point</option><option value="manufacturer">Manufacturer sponsorship</option><option value="model">Individual motorcycle model</option><option value="country">Country market page</option><option value="stock">Available stock card</option><option value="service">Motorcycle service specialist</option><option value="homepage">Homepage feature</option></select></label><span style="color:#bbb;font-size:12px">Fills title and format only; targeting and prices require your choice.</span></div><div class="bar" style="margin:10px 0"><label style="display:flex;align-items:center;gap:8px">Planner location <input id="quoteplannersearch" type="search" placeholder="Search page, manufacturer or AB-UK code" aria-label="Search advertising locations" autocomplete="off" style="min-width:260px"><select id="quoteplannerslot" aria-label="Select a central advertising slot"><option value="">Choose inventoried location</option></select></label><button type="button" id="quoteuseplannerslot">Use this location</button><button type="button" id="quoteaddplannerslot">Add to selection</button><button type="button" id="quoteclearplannerslots">Clear selection</button><span id="quoteplannerslotstatus" style="font-size:12px;color:#bbb">Search or select an inventoried location. Nothing is published.</span></div><form id="quotelineform"><div class="fields"><label>Advert title / description<input name="description" placeholder="e.g. Harley servicing" required></label><label>Format<select name="artwork_format"><option value="large_landscape">Large landscape</option><option value="large_portrait">Large portrait</option><option value="slim_landscape">Slim landscape</option><option value="compact_mobile">Compact mobile</option><option value="stock_card">Stock card</option></select></label><label>Manufacturer<select name="manufacturer"><option value="">Select manufacturer (optional)</option></select></label><label>Model<select name="model"><option value="">All models of selected manufacturer</option></select></label><label>Countries (ISO codes)<input name="countries" placeholder="GB or DE, FR, IT" title="Use two-letter ISO country codes. UK = GB."></label><label>Quantity<input name="quantity" type="number" min="1" value="1" required></label><label>Price per placement (£, ex VAT)<input name="unit_price_gbp" type="number" min="0" step=".01" value="0" required></label></div><div class="bar"><button type="button" id="quoteselected">Use selected pages / models below</button><span id="quoteselectedcount"></span><button class="primary">Add placement</button></div></form><div id="quotelines" class="scroll"></div><div id="quotetotals"></div><div class="bar" style="margin-top:12px"><button type="button" id="quoteprint">Preview / print A4 quotation</button><button type="button" id="quoteemail">Prepare quotation email</button></div></div></div>';
+
+ // Commercial package presets reuse the existing quotation, line items and price approvals.
+ // Choosing a preset does not create campaigns, invoices, or public advertising.
+ const packagePanel=el('div');packagePanel.id='anybikeBrandPackageStarter';
+ packagePanel.style.cssText='border:1px solid #484848;background:#151515;border-radius:8px;padding:13px;margin:12px 0';
+ const packageTitle=el('h3','Brand advertising package starter');packageTitle.style.margin='0 0 8px';
+ const packageExplanation=el('p','Choose brand coverage, dealer departments and positioning. Apply to fill the current quotation. Set actual prices in the existing placement lines; no prices are assumed.');
+ packageExplanation.style.cssText='font-size:13px;color:#bbb;margin:0 0 10px';
+ const packageFields=el('div');packageFields.className='fields';
+ const labelled=(text,control)=>{const wrap=el('label',text);wrap.append(control);packageFields.append(wrap);return control};
+ const tier=el('select');
+ for(const [v,t] of [['one','Single Brand'],['two','Two Brands'],['three','Three Brands'],['all','All Brands']]){const op=el('option',t);op.value=v;tier.append(op)}
+ labelled('Manufacturer package',tier);
+ const brandsInput=el('input');brandsInput.type='text';brandsInput.placeholder='e.g. BMW, Triumph, Ducati';
+ brandsInput.autocomplete='off';labelled('Manufacturers (comma-separated)',brandsInput);
+ const departments=el('div');departments.style.cssText='display:flex;gap:8px 14px;flex-wrap:wrap;margin:10px 0';
+ const departmentInputs=[];
+ for(const name of ['Sales','Parts','Clothing','Workshop','Events','Bikes bought for cash']){
+  const label=el('label');label.style.cssText='display:flex;gap:6px;align-items:center;font-size:13px';
+  const check=el('input');check.type='checkbox';check.value=name;
+  departmentInputs.push(check);label.append(check,document.createTextNode(name));departments.append(label);
+ }
+ const extras=el('div');extras.style.cssText='display:flex;gap:10px 20px;flex-wrap:wrap;align-items:center;margin:12px 0';
+ const premiumLabel=el('label');premiumLabel.style.cssText='display:flex;align-items:center;gap:7px';
+ const premium=el('input');premium.type='checkbox';premiumLabel.append(premium,document.createTextNode('Include premium placement options'));
+ extras.append(premiumLabel);
+ const apply=button('Apply to quotation',()=>{
+  const selected=brandsInput.value.split(',').map(x=>x.trim()).filter(Boolean);
+  const unique=[...new Set(selected.map(x=>x.toLowerCase()))];
+  const target={one:1,two:2,three:3,all:null}[tier.value];
+  if(target!==null&&selected.length!==target)throw Error('Choose exactly '+target+' manufacturer'+(target===1?'':'s')+' for this package.');
+  if(unique.length!==selected.length)throw Error('Each manufacturer must be different.');
+  if(tier.value==='all'&&selected.length)throw Error('All Brands applies to all eligible manufacturers. Leave the manufacturer field empty.');
+  const names={one:'Single Brand',two:'Two Brands',three:'Three Brands',all:'All Brands'};
+  const chosenDepartments=departmentInputs.filter(x=>x.checked).map(x=>x.value);
+  const quoteForm=$('quoteform');
+  quoteForm.elements.title.value='AnyBike '+names[tier.value]+' Advertising';
+  const scopeLabel=tier.value==='all'?'All eligible manufacturers':selected.join(', ');
+  const summary=[
+   'Brand package: '+names[tier.value],
+   'Manufacturers: '+scopeLabel,
+   'Departments: '+(chosenDepartments.join(', ')||'General motorcycle advertising'),
+   'Placement tier: '+(premium.checked?'Standard plus optional premium positions':'Standard positions'),
+   'Target market: '+quoteForm.elements.audience.value,
+   'Proposed prices and actual spaces must be agreed separately before issue.'
+  ].join(' | ');
+  quoteForm.elements.notes.value=summary;
+  status('Brand package prepared. Save the quotation, then add its individual placement lines and approved prices. No advertising activated.');
+ });
+ apply.type='button';apply.className='primary';
+ const result=el('p');result.style.cssText='font-size:12px;color:#bbb;margin:8px 0 0';
+ result.textContent='The package defines coverage only. No automatic prices or promises of impressions.';
+ tier.addEventListener('change',()=>{brandsInput.disabled=tier.value==='all';if(brandsInput.disabled)brandsInput.value=''});
+ packagePanel.append(packageTitle,packageExplanation,packageFields,departments,extras,apply,result);
+ const existingQuoteForm=$('quoteform');existingQuoteForm.parentNode.insertBefore(packagePanel,existingQuoteForm);
+
  // Central inventory feeds quotation locations; no duplicate page lists.
  const queuedPlannerSlots=new Set();
  const plannerFormat=p=>p.creative_format==='stock_card'?'stock_card':p.creative_format==='large_landscape'?'large_landscape':'slim_landscape';
