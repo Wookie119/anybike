@@ -38,3 +38,11 @@ Build a UK-facing guide for buyers of **new motorcycles**, grounded in manufactu
 5. Connect to UK-only verified dealer locator and Advertising Mega System, then expand brands.
 
 **Commercial goal:** repeated organic buyer research traffic, customer sharing and dealer/advertising leads. One database, one comparison system, no manually duplicated pages.
+
+## Paid and affiliate advertising on buyer-guide and comparison pages — confirmed requirement
+- Both the UK New Motorcycle Buyers Guide and all shareable bike-comparison templates must expose **named, responsive Mega System ad slots** from day one; no hardcoded individual-page adverts.
+- Support **paid brand/dealership campaigns** and **affiliate adverts** for relevant clothing, helmets, luggage, accessories, protection, insurance and approved motorcycle finance partners. Country, page type, manufacturer, exact model, comparison category and customer targeting are controlled centrally.
+- Each advertisement resolves from the existing advertiser client file and approved format artwork (five standard sizes), with independent destination, impression/click tracking, campaign dates, commercial reporting and replacement artwork. Quotation, invoice and package upsell use the existing workflow.
+- Advertising should sit **between major comparison sections and beneath useful content**, not over specifications, pricing evidence, the comparison table or share controls. Keep a readable mobile experience and cap density.
+- Paid and affiliate links must carry `rel="sponsored"` and clear **Advertisement** disclosure; affiliate commissions must be accounted for. No paid influence on specification facts, objective rankings, model suggestions or alleged manufacturer endorsements.
+- Prefer relevant advertising: touring luggage on adventure comparisons, equipment on sports-bike guides, and verified UK dealer promotions for UK new-bike searches. Do not assume rights to manufacturer logos/creative without permission.
