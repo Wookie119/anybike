@@ -469,6 +469,31 @@ function installMoveHouse(ad){
   const anchor=main.querySelector('.managed-ad-space[data-ad-slot="'+slot+'"]');
   if(!anchor)return false;
   anchor.append(card);
+  // The comparison template owns the position. Fill its existing responsive
+  // advertising slot, not the narrower default dimensions of a generic aside.
+  // Never stretch the artwork: its intrinsic aspect ratio remains unchanged.
+  anchor.style.setProperty('width','100%','important');
+  anchor.style.setProperty('min-width','0','important');
+  anchor.style.setProperty('box-sizing','border-box','important');
+  card.style.setProperty('display','block','important');
+  card.style.setProperty('width','100%','important');
+  card.style.setProperty('max-width','none','important');
+  const banner=card.querySelector('a.anybike-managed-ad-link');
+  if(banner){
+   banner.style.setProperty('width','100%','important');
+   banner.style.setProperty('max-width','none','important');
+   banner.style.setProperty('height','auto','important');
+   const picture=banner.querySelector('picture');
+   if(picture){picture.style.setProperty('width','100%','important');picture.style.setProperty('max-width','none','important');}
+   const artwork=picture?.querySelector('img');
+   if(artwork){
+    artwork.style.setProperty('display','block','important');
+    artwork.style.setProperty('width','100%','important');
+    artwork.style.setProperty('max-width','none','important');
+    artwork.style.setProperty('height','auto','important');
+    artwork.style.setProperty('object-fit','contain','important');
+   }
+  }
  }else switch(ad.placement_key){
   case 'before_sources':positionModelMoveAdvert(main,card);break;
   case 'about_wrap':positionEditorialMoveAdvert(main,card);break;
