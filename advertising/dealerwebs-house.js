@@ -7,7 +7,7 @@ const secure=v=>{try{const u=new URL(v);return u.protocol==='https:'?u.href:null
 function css(){
  if(document.getElementById('abMegaDealerStyles'))return;
  const style=document.createElement('style');style.id='abMegaDealerStyles';
- style.textContent='.ab-mega-dealer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:1020px;width:100%;margin:20px auto 26px}.ab-mega-dealer-card{text-align:center;min-width:0}.ab-mega-dealer-card a{display:block;aspect-ratio:1/1;width:100%;overflow:hidden;border:0!important;outline:0!important;box-shadow:none!important;border-radius:14px!important;background:#101010;isolation:isolate;clip-path:inset(0 round 14px)}.ab-mega-dealer-card img{width:100%;height:100%;object-fit:cover;display:block;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important}.ab-mega-dealer-card small{display:block;color:#aaa;font:11px/1.5 Arial,sans-serif;padding-top:5px}@media(max-width:750px){.ab-mega-dealer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.ab-mega-dealer-grid{grid-template-columns:1fr;max-width:340px}}';
+ style.textContent='.ab-mega-dealer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:1020px;width:100%;margin:20px auto 26px}.ab-mega-dealer-card{text-align:center;min-width:0}.ab-mega-dealer-card a{position:relative;display:block;aspect-ratio:1/1;width:100%;overflow:hidden;border:0!important;outline:0!important;box-shadow:none!important;border-radius:14px!important;background:#101010;isolation:isolate;clip-path:inset(0 round 14px)}.ab-mega-ad-backdrop{position:absolute;inset:-12px;background-position:center;background-size:cover;filter:blur(17px) brightness(.3);pointer-events:none}.ab-mega-dealer-card img{position:relative;width:100%;height:100%;object-fit:contain;display:block;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important}.ab-mega-dealer-card small{display:block;color:#aaa;font:11px/1.5 Arial,sans-serif;padding-top:5px}@media(max-width:750px){.ab-mega-dealer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.ab-mega-dealer-grid{grid-template-columns:1fr;max-width:340px}}';
  document.head.append(style);
 }
 async function start(){
@@ -39,6 +39,19 @@ async function start(){
     anchor.setAttribute('aria-label','Visit '+ad.company_name);
     const image=document.createElement('img');image.src=secure(ad.artwork_url);image.alt=ad.image_alt||ad.company_name;
     image.loading='lazy';image.decoding='async';
+    // Each advert remains its own clickable card. For non-square legacy artwork,
+    // fill the corner area with a softly blurred copy instead of stretching or cropping text.
+    if(ad.slot_code!=='AB-DEALER-FEED-S01'){
+     const backdrop=document.createElement('span');
+     backdrop.className='ab-mega-ad-backdrop';
+     backdrop.style.backgroundImage='url("'+secure(ad.artwork_url)+'")';
+     anchor.append(backdrop);
+    }else{
+     // Original DealerWebs photographic creative; trim only the bottom baked-in disclosure.
+     image.style.objectFit='cover';
+     image.style.transformOrigin='center top';
+     image.style.transform='scale(1.055)';
+    }
     // Artwork is supplied at the correct 1:1 aspect ratio; no per-ad CSS scaling.
     image.addEventListener('error',()=>{card.remove();if(!grid.children.length)grid.remove()},{once:true});
     anchor.append(image);
