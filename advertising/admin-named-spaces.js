@@ -96,7 +96,7 @@ function installTemplateReachExplorer(){
   const slot=spaces.find(x=>x.slot_code===family.value);
   if(!slot){result.textContent='Choose one inherited template position.';sample.textContent='';return}
   const isCountry=slot.page_template==='country';
-  manufacturer.disabled=model.disabled=isCountry;country.disabled=!isCountry;
+  manufacturer.disabled=isCountry;model.disabled=isCountry||slot.page_template==='manufacturer';country.disabled=!isCountry;
   let matching=[];
   if(isCountry){
    matching=markets.filter(x=>!country.value||x.page_path===country.value);
