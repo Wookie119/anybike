@@ -224,7 +224,7 @@ function renderFolder(){
   labelStatus.style.cssText='color:'+(activeVersion?'#7ed6a5':'#ddd')+';font-size:12px';
   card.append(labelStatus);
   const imageUrl=currentArt(format,field),imageBox=make('div');
-  imageBox.style.cssText='width:100%;aspect-ratio:'+ratios[format]+';display:grid;place-items:center;background:#111;border-radius:11px;overflow:hidden';
+  imageBox.style.cssText='width:100%;aspect-ratio:'+ratios[format]+';display:grid;place-items:center;background:transparent;border:0;border-radius:0;overflow:visible';
   if(imageUrl){const image=make('img');image.src=imageUrl;image.alt=client.name+' '+label+' advert';image.loading='lazy';image.style.cssText='display:block;width:100%;height:100%;object-fit:contain';imageBox.append(image)}
   else imageBox.append(make('span','No artwork yet'));
   card.append(imageBox);
@@ -241,7 +241,7 @@ function renderFolder(){
    const dependencies=artworkDependencies(v);
    const title=make('div',v.file_name);title.style.cssText='font-weight:700;overflow-wrap:anywhere';line.append(title);
    const preview=make('img');preview.src=v.public_url;preview.alt='Preview of '+v.file_name;preview.loading='lazy';
-   preview.style.cssText='display:block;width:100%;aspect-ratio:'+ratios[format]+';height:auto;object-fit:contain;background:#111;border:1px solid #555;border-radius:8px';
+   preview.style.cssText='display:block;width:100%;aspect-ratio:'+ratios[format]+';height:auto;object-fit:contain;background:transparent;border:0;border-radius:0';
    line.append(preview);
    const state=make('small',(v.status==='approved'?'Approved':'Draft')+(master?.active_artwork_id===v.id?' · SELECTED MASTER':'')+(dependencies.campaign?' · USED BY CAMPAIGN':'')+(dependencies.slot||dependencies.placement?' · USED ON WEBSITE':''));
    state.style.cssText='color:'+(dependencies.used?'#eac07c':'#ccc')+';font-weight:700';line.append(state);
