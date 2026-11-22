@@ -29,7 +29,17 @@
  const toggle=document.createElement('input');toggle.type='checkbox';toggle.disabled=true;
  toggleLabel.append(toggle,document.createTextNode('Show DealerWebs advert'));
  const link=document.createElement('a');link.href='/dealer-connect-stock.html';link.target='_blank';link.rel='noopener';link.textContent='View actual placement';
- actions.append(toggleLabel,link);
+ const positionLabel=document.createElement('label');positionLabel.textContent='Position on page';
+ positionLabel.style.cssText='display:grid;gap:5px;font-size:13px;min-width:235px';
+ const position=document.createElement('select');position.disabled=true;
+ for(const [value,labelText] of [
+  ['before_feed_request','Above provider feed request'],
+  ['after_feed_request','Below provider feed request'],
+  ['after_stock_upload','Below stock upload panel']
+ ]){const o=document.createElement('option');o.value=value;o.textContent=labelText;position.append(o)}
+ positionLabel.append(position);
+ const savePosition=document.createElement('button');savePosition.type='button';savePosition.textContent='Save advert position';savePosition.disabled=true;
+ actions.append(toggleLabel,positionLabel,savePosition,link);
  const note=document.createElement('p');note.style.cssText='font-size:12px;color:#bbb;margin:7px 0 0';
  note.textContent='Changes take effect when the page is loaded again. The database switch does not prove a browser has displayed the advert.';
  liveBox.append(liveHeader,actions,preview,note);
@@ -45,7 +55,7 @@
    if(auth.error||auth.data!==true)throw Error('Admin permission required');
    const results=await Promise.all([
     db.from('advertising_house_visibility').select('page_path,enabled').order('page_path'),
-    db.from('advertising_square_house_placements').select('slot_code,campaign_id,company_name,artwork_url,enabled').eq('slot_code','AB-DEALER-FEED-S01').single(),
+    db.from('advertising_square_house_placements').select('slot_code,campaign_id,company_name,artwork_url,position_key,enabled').eq('slot_code','AB-DEALER-FEED-S01').single(),
     db.from('advertising_named_spaces').select('slot_code,status')
    ]);
    const error=results.find(r=>r.error)?.error;if(error)throw error;
@@ -56,6 +66,7 @@
    softwareCount.textContent=software.enabled?'1':'0';
    plannedCount.textContent=String(spaces.filter(x=>x.status==='planned').length);
    toggle.checked=!!software.enabled;toggle.disabled=false;
+   position.value=software.position_key||'after_feed_request';position.disabled=false;savePosition.disabled=false;
    const imageUrl=software.artwork_url;
    if(typeof imageUrl==='string'&&/^https:\/\//.test(imageUrl)){preview.src=imageUrl;preview.style.display='block'}
    else{preview.removeAttribute('src');preview.style.display='none'}
@@ -77,6 +88,24 @@
    status.textContent='DealerWebs '+(data.enabled?'enabled':'disabled')+' in the database. Reload the public page to confirm display.';
   }catch(e){toggle.checked=!requested;status.textContent='Change not saved: '+(e?.message||e)}
   finally{toggle.disabled=false}
+ };
+ savePosition.onclick=async()=>{
+  if(!record)return;
+  savePosition.disabled=true;position.disabled=true;
+  try{
+   const wanted=position.value;
+   const {data,error}=await db.from('advertising_square_house_placements')
+    .update({position_key:wanted,updated_at:new Date().toISOString()})
+    .eq('slot_code','AB-DEALER-FEED-S01').eq('company_name','DealerWebs')
+    .eq('campaign_id',record.campaign_id).select('position_key').single();
+   if(error||!data)throw(error||Error('Placement change was not saved'));
+   record.position_key=data.position_key;
+   position.value=data.position_key;
+   status.textContent='DealerWebs advert position saved. Reload the stock connection page to see the change; no other advert was affected.';
+  }catch(e){
+   position.value=record.position_key||'after_feed_request';
+   status.textContent='Position unchanged: '+(e?.message||e);
+  }finally{savePosition.disabled=false;position.disabled=false}
  };
  refresh.addEventListener('click',load);
  load();
