@@ -22,6 +22,7 @@
  intro.append(heading,description,quick);
  const buttons=new Map();
  let active='overview';
+ let advancedView='reach';
  const known={
   advertisingReadiness:'overview',advertisingMegaHealthSection:'overview',
   pairedHousePreviewSection:'overview',
@@ -42,10 +43,22 @@
   if(/inventory health|launch readiness|layout preview/.test(name))return 'overview';
   return 'advanced';
  }
+ function advancedSection(section){
+  const name=(section.querySelector(':scope > h2')?.textContent||'').toLowerCase();
+  if(name.includes('model page advertising coverage'))return 'models';
+  if(name.includes('wider website advertising coverage'))return 'pages';
+  return 'reach';
+ }
  function classify(){
+  // Admin quotation tool prepends its section after this navigation is built.
+  // Keep permanent navigation first, followed by the contextual introduction.
+  if(content.firstElementChild!==tabs)content.insertBefore(tabs,content.firstChild);
+  if(tabs.nextElementSibling!==intro)tabs.after(intro);
   for(const section of content.querySelectorAll(':scope > section')){
    if(!section.dataset.abWorkspaceArea)section.dataset.abWorkspaceArea=category(section);
-   section.classList.toggle('ab-workspace-hidden',section.dataset.abWorkspaceArea!==active);
+   const visible=section.dataset.abWorkspaceArea===active &&
+    (active!=='advanced'||advancedSection(section)===advancedView);
+   section.classList.toggle('ab-workspace-hidden',!visible);
   }
  }
  function show(id,updateHash=true){
@@ -56,6 +69,16 @@
    for(const [target,label] of [['advertisers','Open advertiser files'],['campaigns','Manage campaigns'],['placements','Choose advert positions'],['results','See results']]){
     const button=document.createElement('button');button.type='button';button.textContent=label;
     button.addEventListener('click',()=>show(target));quick.append(button);
+   }
+  }
+  if(active==='advanced'){
+   const choices=[['reach','Template reach'],['models','Model pages · 979'],['pages','Website pages · 333']];
+   for(const [target,label] of choices){
+    const button=document.createElement('button');button.type='button';button.textContent=label;
+    button.setAttribute('aria-pressed',advancedView===target?'true':'false');
+    button.style.borderColor=advancedView===target?'#ed1c24':'#696969';
+    button.addEventListener('click',()=>{advancedView=target;show('advanced',false)});
+    quick.append(button);
    }
   }
   classify();
@@ -73,7 +96,7 @@
  show(areas.some(a=>a.id===initial)?initial:'overview',false);
  // Quote and artwork sections are inserted later by their existing modules.
  const observer=new MutationObserver(records=>{
-  if(records.some(r=>[...r.addedNodes].some(n=>n.nodeType===1&&n.tagName==='SECTION')))classify();
+  if(records.some(r=>[...r.addedNodes].some(n=>n.nodeType===1&&n.tagName==='SECTION'&&n.parentElement===content)))classify();
  });
  observer.observe(content,{childList:true});
  window.addEventListener('hashchange',()=>{
