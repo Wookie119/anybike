@@ -597,7 +597,7 @@ async function initQuotes(){
   const placementForm=$('quotelineform');const placementFields=placementForm.querySelector('.fields');placementFields.style.setProperty('gap','14px 18px','important');placementFields.style.setProperty('grid-template-columns','repeat(auto-fit,minmax(min(100%,220px),1fr))','important');for(const label of placementFields.querySelectorAll('label')){label.style.setProperty('grid-template-columns','minmax(0,1fr)','important');label.style.minWidth='0';for(const control of label.querySelectorAll('input,select')){control.style.setProperty('width','100%','important');control.style.setProperty('min-width','0','important');control.style.setProperty('margin','0','important')}}const placementBar=placementForm.querySelector('.bar');placementBar.style.setProperty('margin-top','16px','important');placementBar.style.setProperty('gap','12px','important');$('quotelines').style.marginTop='14px';$('quotetotals').style.marginTop='12px';
  let qid=null, scope={page_paths:[],catalogue_model_ids:[],manufacturers:[],countries:[],planner_slot_codes:[]};const f=$('quoteform'),lf=$('quotelineform'),money=n=>Number(n||0).toLocaleString('en-GB',{style:'currency',currency:'GBP'});
  const checked=async(q)=>{const {data,error}=await q;if(error)throw error;return data};
- await reloadNamedInventory();
+ try{await reloadNamedInventory()}catch(e){namedNote.textContent='Named-space rates unavailable: '+(e?.message||e)+'. Existing quotation editor remains usable.';namedUse.disabled=true;}
 
  let quoteContacts=[],contactRequest=0;
  function advertiserOptions(){const dl=$('quoteAdvertisers');dl.replaceChildren();for(const p of [...partners].sort((a,b)=>a.name.localeCompare(b.name))){const o=el('option');o.value=p.name;dl.append(o)}}
