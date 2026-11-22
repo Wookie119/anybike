@@ -86,7 +86,9 @@ return anybikeAdminSupabase;
 async function requireAdminSession(){
   const client=getAdminSupabaseClient();
 
-  document.documentElement.classList.add("admin-auth-pending");
+  // Keep an already-authorised admin page visible during routine focus checks.
+  // Fresh page loads and back/forward restores still start hidden until verified.
+  if(!anybikeAdminInitialised)document.documentElement.classList.add("admin-auth-pending");
 
   if(!client){
     console.error("Supabase client is unavailable on this admin page.");
@@ -965,21 +967,17 @@ window.addEventListener("pagehide",function(){
   document.documentElement.classList.add("admin-auth-pending");
 });
 
-window.addEventListener("pageshow",async function(){
+window.addEventListener("pageshow",async function(event){
+  // Do not restart authorisation on the original page load while
+  // initialiseAdmin() is already checking the session.
+  if(!event.persisted)return;
   document.documentElement.classList.add("admin-auth-pending");
-
   const allowed=await recheckAdminSession();
-
-  if(allowed && !anybikeAdminInitialised){
-    initialiseAdmin();
-  }
+  if(allowed&&!anybikeAdminInitialised)await initialiseAdmin();
 });
 
 window.addEventListener("focus",async function(){
-  if(document.visibilityState !== "visible"){
-    return;
-  }
-
+  if(document.visibilityState!=="visible"||!anybikeAdminInitialised)return;
   await recheckAdminSession();
   await anybikeRefreshAdminBellV2();
 });
