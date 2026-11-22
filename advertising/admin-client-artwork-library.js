@@ -1,106 +1,132 @@
-// AnyBike Mega System — central advertiser creative library and instant client artwork replacement.
-// One client record, many approved versions, one active assignment per placement.
-(()=>{
-'use strict';
-const root=document.createElement('section');
-root.id='client-artwork-library';root.style.cssText='background:#171717;border:1px solid #454545;border-radius:12px;margin:20px 0;padding:19px;color:#fff';
-root.innerHTML='<h2 style="margin:0 0 8px">Client artwork library</h2><p style="color:#bbb;margin:0 0 12px">Store artwork by advertiser. New uploads remain drafts. Approve a version, then activate it to replace the image at its named advertising slot without editing a page or changing its link.</p><div id="cal-loading" role="status">Checking administrator access…</div><div id="cal-content" hidden><div style="display:flex;flex-wrap:wrap;gap:14px;align-items:end"><label style="flex:1;min-width:210px">Advertiser<br><select id="cal-client" style="width:100%;padding:9px;background:#242424;color:#fff;border:1px solid #777;border-radius:7px"></select></label><label style="flex:1;min-width:180px">Artwork format<br><select id="cal-format" style="width:100%;padding:9px;background:#242424;color:#fff;border:1px solid #777;border-radius:7px"><option value="square">Square 1:1</option><option value="stock_card">Available Stock 4:3</option><option value="slim">Slim 3:1</option><option value="landscape">Landscape 16:9</option><option value="portrait">Portrait 4:5</option></select></label><label style="flex:2;min-width:210px">Upload new WebP artwork<br><input id="cal-file" type="file" accept="image/webp" style="width:100%"></label></div><div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0"><label style="flex:2;min-width:200px">Source / client reference<br><input id="cal-source" value="AnyBike-created draft" maxlength="120" style="width:100%;padding:8px;background:#242424;color:#fff;border:1px solid #777;border-radius:7px"></label><button type="button" id="cal-upload" style="padding:11px 18px;background:#ed1c24;color:white;border:0;border-radius:7px;font-weight:700">Upload draft artwork</button><button type="button" id="cal-refresh" style="padding:11px;border:1px solid #666;border-radius:7px;background:#292929;color:white">Refresh library</button></div><p id="cal-status" role="status" aria-live="polite" style="color:#ccc"></p><div id="cal-slots"></div><h3>Stored creative versions</h3><div id="cal-versions"></div></div>';
-const main=document.querySelector('main')||document.body;main.append(root);
-const $=id=>root.querySelector('#'+id),say=text=>{$('cal-status').textContent=text};
-let db,clients=[],slots=[],versions=[];
-const formats={square:1,stock_card:4/3,slim:3,landscape:16/9,portrait:4/5};
-const make=(tag,content)=>{let n=document.createElement(tag);if(content!==undefined)n.textContent=content;return n};
-const styleBtn=b=>{b.type='button';b.style.cssText='padding:8px 12px;border:1px solid #777;color:white;background:#282828;border-radius:7px;cursor:pointer;margin:4px 6px 4px 0';return b};
-function selector(el,options){el.replaceChildren();for(const [id,name] of options){const o=make('option',name);o.value=id;el.append(o)}}
-function render(){
- const partner=$('cal-client').value,format=$('cal-format').value;
- const pslots=slots.filter(s=>s.partner_id===partner);
- const panel=$('cal-slots');panel.replaceChildren();
- const title=make('strong','Named placements for this client');panel.append(title);
- if(!pslots.length)panel.append(make('p','No named spaces are assigned to this client yet. New artwork remains safely in its client library.'));
- for(const slot of pslots){
-  const wrap=make('div');wrap.style.cssText='padding:9px;margin:8px 0;border:1px solid #444;border-radius:8px';
-  const info=make('div',slot.slot_code+' · '+slot.creative_format+' · '+(slot.active_artwork_id?'Active client-library artwork':'Legacy creative still active'));wrap.append(info);
-  const options=versions.filter(v=>v.partner_id===partner&&v.creative_format===slot.creative_format&&v.status==='approved');
-  const select=make('select');select.style.cssText='max-width:420px;background:#262626;color:#fff;padding:8px;border:1px solid #666;border-radius:7px;margin:7px 5px 0 0';
-  selector(select,[['','Select approved artwork to replace this slot'],...options.map(v=>[v.id,v.file_name+' · '+new Date(v.created_at).toLocaleDateString('en-GB')])]);
-  if(slot.active_artwork_id)select.value=slot.active_artwork_id;
-  const activate=styleBtn(make('button','Activate selected creative'));
-  activate.disabled=!options.length;
-  activate.onclick=async()=>{
-   if(!select.value)return say('Choose approved artwork first.');
-   if(!confirm('Replace the live artwork at '+slot.slot_code+'? The advert destination link will not change.'))return;
-   activate.disabled=true;
-   try{const x=await db.rpc('advertising_activate_client_artwork',{p_slot_code:slot.slot_code,p_artwork_id:select.value});if(x.error)throw x.error;await load();say('Artwork activated for '+slot.slot_code+'. Public ads will use the replacement on their next load.')}
-   catch(e){say('Activation failed: '+e.message)}
-   finally{activate.disabled=false}
-  };
-  wrap.append(select,activate);panel.append(wrap);
- }
- const holder=$('cal-versions');holder.replaceChildren();
- const relevant=versions.filter(v=>v.partner_id===partner&&v.creative_format===format);
- if(!relevant.length)holder.append(make('p','No artwork files for this advertiser and format.'));
- for(const v of relevant){
-  const box=make('div');box.style.cssText='display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid #333;padding:12px 0';
-  const img=make('img');img.src=v.public_url;img.alt=v.alt_text||v.file_name;img.loading='lazy';img.style.cssText='width:104px;height:104px;object-fit:contain;border-radius:12px;background:#101010';
-  const text=make('div');text.style.cssText='flex:1;min-width:180px';
-  text.append(make('strong',v.file_name),make('div','Status: '+v.status+' · '+v.source_label),make('small',new Date(v.created_at).toLocaleString('en-GB')));
-  box.append(img,text);
-  if(v.status==='draft'){
-   const approve=styleBtn(make('button','Approve artwork'));approve.onclick=async()=>{
-    if(!confirm('Approve this creative as suitable for publication? Check branding, wording, artwork rights and size first.'))return;
-    approve.disabled=true;try{const x=await db.from('advertising_client_artwork').update({status:'approved',approved_at:new Date().toISOString()}).eq('id',v.id).eq('status','draft').select('id').single();if(x.error)throw x.error;await load();say('Artwork approved. Select it under the assigned placement to publish.')}catch(e){say('Approval failed: '+e.message)}finally{approve.disabled=false}
-   };box.append(approve);
-  }
-  if(v.status==='approved'&&!slots.some(s=>s.active_artwork_id===v.id)){
-   const archive=styleBtn(make('button','Archive'));archive.onclick=async()=>{if(!confirm('Archive this unused artwork?'))return;try{const x=await db.from('advertising_client_artwork').update({status:'archived'}).eq('id',v.id);if(x.error)throw x.error;await load()}catch(e){say(e.message)}};box.append(archive)
-  }
-  holder.append(box)
- }
-}
+// AnyBike Mega System client files: click advertiser, see five formats, manage versions.
+(()=>{'use strict';
+const root=document.createElement('section');root.id='client-artwork-library';
+root.style.cssText='background:#171717;border:1px solid #414141;border-radius:12px;margin:18px 0;padding:18px;color:#fff';
+root.innerHTML='<h2 style="margin:0 0 6px">Advertiser files</h2><p style="color:#bbb;margin:0 0 12px">Click an advertiser to see its five advert sizes. Artwork is held in that client’s file, not on individual pages.</p><p id="cal-status" role="status" aria-live="polite" style="color:#bbb">Checking admin access…</p><div id="cal-contents" hidden><input id="cal-search" type="search" aria-label="Find advertiser" placeholder="Find an advertiser" style="width:100%;max-width:340px;padding:10px;background:#232323;border:1px solid #555;border-radius:8px;color:white;margin:0 0 12px"><div id="cal-clients" style="display:flex;flex-wrap:wrap;gap:9px"></div><div id="cal-folder" hidden style="margin-top:20px;border-top:1px solid #444;padding-top:15px"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:14px"><button type="button" id="cal-back" style="background:#333;color:white;border:1px solid #666;border-radius:7px;padding:9px 14px">← All advertisers</button><h3 id="cal-title" style="margin:0"></h3></div><div id="cal-five" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px"></div></div></div>';
+(document.querySelector('main')||document.body).append(root);
+const $=s=>root.querySelector('#'+s),status=t=>{$('cal-status').textContent=t};
+const make=(tag,t)=>{const e=document.createElement(tag);if(t!==undefined)e.textContent=String(t);return e};
+const button=(label,fn,primary=false)=>{const b=make('button',label);b.type='button';b.style.cssText='padding:9px 12px;border-radius:8px;border:1px solid '+(primary?'#ed1c24':'#555')+';background:'+(primary?'#ed1c24':'#282828')+';color:#fff;font-weight:700;cursor:pointer';b.onclick=fn;return b};
+const formats=[['square','Square','1:1','square'],['stock_card','Available Stock','4:3','stock_card_image_url'],['slim','Slim banner','3:1','slim_image_url'],['landscape','Landscape','16:9','desktop_image_url'],['portrait','Portrait','4:5','mobile_image_url']];
+const ratios={square:1,stock_card:4/3,slim:3,landscape:16/9,portrait:4/5};
+let db,clients=[],campaigns=[],slots=[],placements=[],versions=[],selected=null;
 async function load(){
- const [p,s,v]=await Promise.all([
- db.from('commercial_partners').select('id,name').order('name'),
- db.from('advertising_client_artwork_slots').select('slot_code,partner_id,creative_format,active_artwork_id').order('slot_code'),
- db.from('advertising_client_artwork').select('id,partner_id,creative_format,file_name,public_url,alt_text,source_label,status,created_at').order('created_at',{ascending:false}).limit(1000)]);
- for(const x of [p,s,v])if(x.error)throw x.error;
- clients=p.data||[];slots=s.data||[];versions=v.data||[];
- const chosen=$('cal-client').value;
- selector($('cal-client'),clients.map(c=>[c.id,c.name]));
- if(clients.some(c=>c.id===chosen))$('cal-client').value=chosen;
- render();
+ const results=await Promise.all([
+  db.from('commercial_partners').select('id,name').order('name'),
+  db.from('advertising_campaigns').select('id,partner_id,stock_card_image_url,slim_image_url,desktop_image_url,mobile_image_url'),
+  db.from('advertising_client_artwork_slots').select('slot_code,partner_id,creative_format,active_artwork_id'),
+  db.from('advertising_square_house_placements').select('slot_code,artwork_url'),
+  db.from('advertising_client_artwork').select('id,partner_id,creative_format,file_name,public_url,status,source_label,created_at').order('created_at',{ascending:false}).limit(1000)
+ ]);
+ for(const r of results)if(r.error)throw r.error;
+ [clients,campaigns,slots,placements,versions]=results.map(r=>r.data||[]);
+ renderClients();if(selected)renderFolder();
 }
-$('cal-client').onchange=render;$('cal-format').onchange=render;
-$('cal-refresh').onclick=async()=>{try{await load();say('Client artwork library refreshed.')}catch(e){say('Refresh failed: '+e.message)}};
-$('cal-upload').onclick=async()=>{
- const partner=$('cal-client').value,format=$('cal-format').value,file=$('cal-file').files?.[0];
- if(!partner||!file)return say('Choose an advertiser, a format and a WebP file.');
- if(file.type!=='image/webp'||file.size>10*1024*1024||!file.size)return say('Use a WebP image no larger than 10 MB.');
- const btn=$('cal-upload');btn.disabled=true;
+function visibleClients(){
+ const relevant=new Set([...campaigns.map(c=>c.partner_id),...slots.map(s=>s.partner_id)]);
+ const search=$('cal-search').value.trim().toLowerCase();
+ return clients.filter(c=>relevant.has(c.id)&&c.name.toLowerCase().includes(search));
+}
+function renderClients(){
+ $('cal-clients').replaceChildren();
+ for(const c of visibleClients()){
+  const n=versions.filter(v=>v.partner_id===c.id&&v.status==='approved').length;
+  const b=button(c.name+(n?' · '+n+' saved':''),()=>{selected=c.id;$('cal-folder').hidden=false;renderFolder();$('cal-folder').scrollIntoView({block:'nearest',behavior:'smooth'})},selected===c.id);
+  $('cal-clients').append(b);
+ }
+ if(!$('cal-clients').children.length)$('cal-clients').append(make('p','No advertisers match your search.'));
+}
+function currentArt(format,field){
+ const stored=versions.find(v=>v.partner_id===selected&&v.creative_format===format&&slots.some(s=>s.partner_id===selected&&s.active_artwork_id===v.id));
+ if(stored)return stored.public_url;
+ if(format==='square'){
+  const slot=slots.find(s=>s.partner_id===selected&&s.creative_format==='square');
+  return placements.find(p=>p.slot_code===slot?.slot_code)?.artwork_url||null;
+ }
+ return campaigns.find(c=>c.partner_id===selected&&c[field])?.[field]||null;
+}
+async function uploadFile(format,file){
+ if(!file)return status('Choose a WebP image first.');
+ if(file.type!=='image/webp'||!file.size||file.size>10*1024*1024)return status('Use WebP artwork under 10 MB.');
  let bitmap;
  try{
-  bitmap=await createImageBitmap(file);const ratio=bitmap.width/bitmap.height;
-  if(Math.abs(ratio/formats[format]-1)>.025)throw Error('Wrong aspect ratio: '+bitmap.width+' × '+bitmap.height+'. Upload correct '+format+' artwork; it must not be cropped or stretched.');
-  if(bitmap.width<600||bitmap.height<200)throw Error('Artwork resolution is too low.');
+  bitmap=await createImageBitmap(file);
+  if(Math.abs(bitmap.width/bitmap.height/ratios[format]-1)>.025)throw Error('Wrong size: '+bitmap.width+' × '+bitmap.height+'. Use the correct '+format+' format.');
+  if(bitmap.width<600||bitmap.height<200)throw Error('Resolution too small.');
   const name=file.name.toLowerCase().replace(/[^a-z0-9._-]/g,'-').slice(-100);
-  const path='clients/'+partner+'/'+format+'/'+crypto.randomUUID()+'-'+name;
-  const upload=await db.storage.from('advertising-creatives').upload(path,file,{cacheControl:'31536000',upsert:false,contentType:'image/webp'});
-  if(upload.error)throw upload.error;
-  const {data:url}=db.storage.from('advertising-creatives').getPublicUrl(path);
-  const x=await db.from('advertising_client_artwork').insert({partner_id:partner,creative_format:format,storage_path:path,public_url:url.publicUrl,file_name:file.name,alt_text:clients.find(c=>c.id===partner)?.name+' advertisement',source_label:$('cal-source').value.trim()||'AnyBike-created draft',status:'draft'});
-  if(x.error)throw x.error;
-  $('cal-file').value='';await load();say('Uploaded to advertiser file as a draft. Review, approve, then activate to replace the current advert.');
- }catch(e){say('Upload failed: '+e.message)}
- finally{bitmap?.close?.();btn.disabled=false}
-};
-async function init(){
+  const path='clients/'+selected+'/'+format+'/'+crypto.randomUUID()+'-'+name;
+  status('Uploading '+file.name+'…');
+  const u=await db.storage.from('advertising-creatives').upload(path,file,{upsert:false,cacheControl:'31536000',contentType:'image/webp'});
+  if(u.error)throw u.error;
+  const {data:pub}=db.storage.from('advertising-creatives').getPublicUrl(path);
+  const row=await db.from('advertising_client_artwork').insert({partner_id:selected,creative_format:format,storage_path:path,public_url:pub.publicUrl,file_name:file.name,source_label:'Client artwork',alt_text:clients.find(c=>c.id===selected)?.name+' advertisement',status:'draft'});
+  if(row.error)throw row.error;
+  await load();status('Saved in this client file as a draft. Review and approve it below.');
+ }catch(e){status('Upload failed: '+e.message)}
+ finally{bitmap?.close?.()}
+}
+async function approve(v){
+ if(!confirm('Approve this artwork for '+clients.find(c=>c.id===selected)?.name+'? Confirm branding, rights, wording and corners.'))return;
+ try{
+  const r=await db.from('advertising_client_artwork').update({status:'approved',approved_at:new Date().toISOString()}).eq('id',v.id).eq('status','draft').select('id').single();
+  if(r.error)throw r.error;
+  await load();status('Approved '+v.file_name+'. You can now make it live.');
+ }catch(e){status('Approval failed: '+e.message)}
+}
+async function activate(v,format,field){
+ const matched=slots.filter(s=>s.partner_id===selected&&s.creative_format===format);
+ const n=campaigns.filter(c=>c.partner_id===selected).length;
+ if(!matched.length&&!n){return status('No campaign or placement is linked to this client yet.')}
+ if(!confirm('Make this '+format.replace('_',' ')+' artwork live for '+clients.find(c=>c.id===selected)?.name+'? Existing destination links will stay unchanged.'))return;
+ try{
+  if(format==='square'){
+   if(!matched.length)throw Error('There is no square named placement for this client.');
+   for(const slot of matched){const x=await db.rpc('advertising_activate_client_artwork',{p_slot_code:slot.slot_code,p_artwork_id:v.id});if(x.error)throw x.error}
+  }else{
+   // Campaign targeting, destination and metrics stay untouched; only artwork changes.
+   for(const c of campaigns.filter(c=>c.partner_id===selected)){
+    const x=await db.from('advertising_campaigns').update({[field]:v.public_url}).eq('id',c.id).select('id').single();
+    if(x.error)throw x.error;
+   }
+  }
+  await load();status('New artwork is now assigned centrally. No individual pages were edited.');
+ }catch(e){status('Could not activate: '+e.message)}
+}
+function renderFolder(){
+ const client=clients.find(c=>c.id===selected);
+ if(!client){$('cal-folder').hidden=true;return}
+ $('cal-folder').hidden=false;$('cal-title').textContent=client.name+' · 5 advert sizes';
+ const host=$('cal-five');host.replaceChildren();
+ for(const [format,label,ratio,field] of formats){
+  const card=make('div');card.style.cssText='min-width:0;border:1px solid #444;background:#202020;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px';
+  card.append(make('strong',label+' · '+ratio));
+  const imageUrl=currentArt(format,field),imageBox=make('div');
+  imageBox.style.cssText='height:160px;display:grid;place-items:center;background:#111;border-radius:11px;overflow:hidden';
+  if(imageUrl){const image=make('img');image.src=imageUrl;image.alt=client.name+' '+label+' advert';image.loading='lazy';image.style.cssText='display:block;width:100%;height:100%;object-fit:contain';imageBox.append(image)}
+  else imageBox.append(make('span','No artwork yet'));
+  card.append(imageBox);
+  const upload=make('input');upload.type='file';upload.accept='image/webp';upload.setAttribute('aria-label','Choose '+label+' advert for '+client.name);upload.style.cssText='max-width:100%;font-size:12px';
+  const save=button('Upload replacement',()=>uploadFile(format,upload.files?.[0]),true);card.append(upload,save);
+  const rows=versions.filter(v=>v.partner_id===selected&&v.creative_format===format);
+  const history=make('details');const summary=make('summary','Artwork versions ('+rows.length+')');summary.style.cursor='pointer';history.append(summary);
+  for(const v of rows){
+   const line=make('div');line.style.cssText='border-top:1px solid #444;padding:8px 0;font-size:12px';
+   line.append(make('div',v.file_name+' · '+v.status));
+   if(v.status==='draft')line.append(button('Approve',()=>approve(v)));
+   if(v.status==='approved')line.append(button('Use this artwork',()=>activate(v,format,field),true));
+   history.append(line);
+  }
+  card.append(history);host.append(card);
+ }
+}
+$('cal-search').oninput=renderClients;
+$('cal-back').onclick=()=>{selected=null;$('cal-folder').hidden=true;renderClients()};
+(async()=>{
  try{
   db=getAdminSupabaseClient();
-  const a=await db.rpc('anybike_is_admin');
-  if(a.error||a.data!==true)throw Error('Administrator access required.');
-  $('cal-loading').hidden=true;$('cal-content').hidden=false;
-  await load();say('Ready: client artwork is versioned and independent of page HTML.');
- }catch(e){$('cal-loading').textContent='Artwork library unavailable: '+e.message}
-}
-init();
+  const auth=await db.rpc('anybike_is_admin');
+  if(auth.error||auth.data!==true)throw Error('Administrator permission required');
+  $('cal-contents').hidden=false;await load();status('Choose an advertiser to open its file.');
+ }catch(e){status('Client files unavailable: '+e.message)}
+})();
 })();
