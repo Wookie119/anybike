@@ -36,7 +36,7 @@ for(let i=0;i<num;i++){
  const sel=document.createElement('select');sel.dataset.campaign='1';sel.setAttribute('aria-label','Advert '+(i+1)+' campaign');
  function populate(id){sel.replaceChildren(new Option('Choose advertiser and advert',''));for(const c of options(shape.value)){const owner=customers.find(p=>p.id===c.partner_id);sel.append(new Option((owner?.name||'Unassigned')+' · '+c.name,c.id))}if([...sel.options].some(o=>o.value===id))sel.value=id;}
  populate(values[i]||'');
- shape.onchange=()=>{selectedFormats[i]=shape.value;populate(sel.value);showPreview()};
+ shape.onchange=()=>{const previous=sel.value;selectedFormats[i]=shape.value;populate(previous);showPreview()};
  sel.onchange=()=>{const selected=selections().filter(Boolean);if(new Set(selected).size!==selected.length){sel.value='';status.textContent='Choose a different campaign for each advert.';}showPreview()};
  campaignLabel.append(sel);group.append(shapeLabel,campaignLabel);choosers.append(group);
  }
