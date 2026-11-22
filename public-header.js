@@ -185,6 +185,12 @@ function anybikeMarkHiddenByStockToggle(element){
 }
 
 function anybikeUpdatePublicStockMenu(enabled){
+  // Public international gallery is always accessible; the legacy stock-feed
+  // visibility switch must never hide its main navigation entry.
+  document.querySelectorAll('.public-nav > a[data-anybike-primary-stock="true"],.mobile-nav > a[data-anybike-primary-stock="true"]').forEach(function(link){
+    link.style.setProperty("display",link.closest(".mobile-nav")?"block":"inline-flex","important");
+    link.style.setProperty("visibility","visible","important");
+  });
   document.querySelectorAll('[data-anybike-public-stock-link="true"]').forEach(function(link){
     if(enabled){
       link.style.removeProperty("display");
