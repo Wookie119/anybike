@@ -1,0 +1,58 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Find a UK Motorcycle Dealer | Authorised Main Dealers & Specialists | AnyBike</title>
+<meta name="description" content="Find UK motorcycle dealers by brand and location. Discover verified authorised main dealers and independent motorcycle specialists on AnyBike.">
+<link rel="canonical" href="https://www.anybike.co.uk/find-a-dealer.html">
+<link rel="stylesheet" href="/public-header.css">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b0b0b;color:#f7f7f7;font:15px/1.55 Arial,Helvetica,sans-serif}main{max-width:1220px;margin:25px auto 65px;padding:0 17px}.hero{background:#1b1b1b;padding:25px;border:1px solid #444;border-top:3px solid #ed1c24;border-radius:12px}h1{font-size:clamp(29px,4vw,44px);margin:0 0 8px}h2{font-size:22px;margin:0 0 13px}p{color:#c3c3c3;margin:7px 0 13px}.eyebrow{font-weight:800;color:#f35a5a;letter-spacing:.09em;text-transform:uppercase;font-size:12px}.filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:end;margin:18px 0}.filters label{display:grid;gap:6px;font-weight:700;font-size:13px}.filters select,.filters input,.filters button{border:1px solid #666;border-radius:7px;background:#242424;color:#fff;padding:12px;font:inherit;width:100%}.filters button{background:#ed1c24;font-weight:bold;border:0;cursor:pointer;min-height:48px}.results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.dealer{background:#1d1d1d;border:1px solid #424242;border-radius:12px;padding:18px}.dealer h3{font-size:19px;margin:6px 0}.dealer .type{font-size:12px;font-weight:bold;color:#fff}.dealer .region{color:#bbb}.dealer .brand{color:#ddd;font-size:13px}.dealer a{display:inline-block;margin-top:8px;background:#ed1c24;color:#fff;text-decoration:none;padding:9px 12px;border-radius:7px;font-weight:700}.status{color:#bbb;margin:15px 0}.help{border-top:1px solid #555;margin-top:24px;padding-top:16px}.help a{color:#fff}.empty{background:#1e1e1e;border-radius:10px;padding:25px}@media(max-width:850px){.filters{grid-template-columns:repeat(2,minmax(0,1fr))}.results{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:550px){.filters,.results{grid-template-columns:1fr}}
+</style></head><body><div id="publicHeader"></div><main>
+<section class="hero"><div class="eyebrow">UK customers only</div><h1>Find a Motorcycle Dealer</h1>
+<p>Search for authorised motorcycle main dealers and independent motorcycle specialists across the United Kingdom. Select one or more manufacturers through the dealer's listing, or search by brand and postcode area.</p>
+<p><strong>Authorised main dealer</strong> means the listed franchise has been reviewed by AnyBike. <strong>Motorcycle specialist</strong> indicates a business that works with the brand, not an official manufacturer franchise.</p></section>
+<form class="filters" id="filters">
+<label>Motorcycle manufacturer<select id="brand"><option value="">All brands</option></select></label>
+<label>Dealer type<select id="category"><option value="">All UK dealers</option><option value="authorised_main_dealer">Authorised main dealers</option><option value="motorcycle_specialist">Independent specialists</option></select></label>
+<label>Postcode area<input id="postcode" placeholder="e.g. RG, B, SW" maxlength="9" autocomplete="postal-code"></label>
+<button type="submit">Find dealers</button>
+</form><div class="status" id="status" role="status" aria-live="polite">Loading UK dealer directory…</div><div class="results" id="results"></div>
+<section class="help"><h2>For UK dealerships</h2><p>Run an authorised main dealership or independent motorcycle specialist? Your AnyBike advertising client file can record your franchises and the brands you work with. Only reviewed businesses appear in this directory.</p><a href="/advertise-with-anybike.html">Advertise your dealership with AnyBike</a><p style="font-size:12px">AnyBike is an independent directory. Please confirm franchise status, opening hours and services with the dealership before travelling. This locator is intended for UK visitors only.</p></section>
+</main><script src="/public-header.js"></script><script>
+(()=>{'use strict';
+const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/';
+const key='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
+const $=id=>document.getElementById(id),text=(tag,val)=>{const n=document.createElement(tag);n.textContent=String(val||'');return n};
+const safe=u=>{try{const url=new URL(u);return url.protocol==='https:'?url.href:null}catch{return null}};
+async function query(fn,payload){
+ const res=await fetch(endpoint+fn,{method:'POST',headers:{apikey:key,'Content-Type':'application/json'},body:JSON.stringify(payload||{}),signal:AbortSignal.timeout(10000)});
+ if(!res.ok)throw Error('Dealer directory temporarily unavailable');return res.json()
+}
+async function brands(){
+ try{const options=await query('public_anybike_uk_dealer_brands_v1');for(const m of options){const op=text('option',m.manufacturer);op.value=m.slug;$('brand').append(op)}}catch(e){$('status').textContent=e.message}
+}
+async function search(){
+ $('status').textContent='Searching verified UK dealers…';$('results').replaceChildren();
+ try{
+ const rows=await query('public_anybike_uk_dealer_locator_v1',{p_brand:$('brand').value||null,p_postcode:$('postcode').value.trim()||null,p_category:$('category').value||null});
+ const groups=new Map();
+ for(const r of rows){
+  const k=r.partner_id;
+  if(!groups.has(k))groups.set(k,{...r,brands:[]});
+  groups.get(k).brands.push(r.manufacturer)
+ }
+ $('status').textContent=groups.size+' UK dealership'+(groups.size===1?'':'s')+' matching your search.';
+ if(!groups.size){const p=text('div','No reviewed dealerships match this search yet. Try a different brand or postcode area as we expand the directory.');p.className='empty';$('results').append(p);return}
+ for(const d of groups.values()){
+  const card=text('article');card.className='dealer';
+  const label=text('div',d.directory_category==='authorised_main_dealer'?'Verified authorised main dealer':'Independent motorcycle specialist');label.className='type';card.append(label);
+  card.append(text('h3',d.dealer_name));
+  const loc=text('div',[d.city,d.postcode].filter(Boolean).join(' · '));loc.className='region';card.append(loc);
+  const list=text('p','Brands: '+[...new Set(d.brands)].sort().join(', '));list.className='brand';card.append(list);
+  const link=safe(d.website);if(link){const a=text('a','Dealer website');a.href=link;a.target='_blank';a.rel='noopener noreferrer sponsored';card.append(a)}
+  $('results').append(card)
+ }
+ }catch(e){$('status').textContent=e.message}
+}
+$('filters').onsubmit=e=>{e.preventDefault();search()};
+brands().then(search);
+})();
+</script></body></html>
