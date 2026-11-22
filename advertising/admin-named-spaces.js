@@ -63,6 +63,91 @@ async function load(){
 $('refreshNamedSpaces')?.addEventListener('click',load);
 load();
 
+// Template reach explorer: commercial planning only, never a renderer or publication action.
+function installTemplateReachExplorer(){
+ if($('templateReachExplorer'))return;
+ const section=document.createElement('section');section.id='templateReachExplorer';
+ const header=document.createElement('h2');header.textContent='Template advertising reach · live catalogue';
+ const desc=document.createElement('p');desc.style.cssText='font-size:13px;color:#bbb';
+ desc.textContent='One template position inherits possible coverage as pages are added. Filter by manufacturer, model or country to plan a quotation. These are potential page matches, not guaranteed impressions or live advert positions.';
+ const controls=document.createElement('div');controls.className='bar';
+ const makeSelect=(labelText)=>{
+  const label=document.createElement('label');label.textContent=labelText;
+  label.style.cssText='display:grid;gap:4px;font-size:13px;min-width:165px;flex:1';
+  const select=document.createElement('select');label.append(select);controls.append(label);return select;
+ };
+ const family=makeSelect('Template position'),manufacturer=makeSelect('Manufacturer'),model=makeSelect('Model'),country=makeSelect('Country page');
+ const update=document.createElement('button');update.type='button';update.textContent='Refresh reach';controls.append(update);
+ const result=document.createElement('p');result.id='templateReachResult';result.setAttribute('role','status');
+ result.style.cssText='font-size:13px;color:#ddd;margin:10px 0';
+ const sample=document.createElement('div');sample.id='templateReachExamples';sample.style.cssText='font-size:12px;color:#bbb';
+ section.append(header,desc,controls,result,sample);
+ const root=$('namedAdvertisingSpaces');root.insertAdjacentElement('afterend',section);
+ const option=(select,value,label)=>{const el=document.createElement('option');el.value=value;el.textContent=label;select.append(el)};
+ let spaces=[],models=[],markets=[],failed=false;
+ const populate=(select,values,prompt)=>{
+  const previous=select.value;select.replaceChildren();option(select,'',prompt);
+  values.forEach(item=>option(select,item,item));
+  if([...select.options].some(x=>x.value===previous))select.value=previous;
+ };
+ const unique=(values)=>[...new Set(values.filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+ const recalc=()=>{
+  if(failed)return;
+  const slot=spaces.find(x=>x.slot_code===family.value);
+  if(!slot){result.textContent='Choose one inherited template position.';sample.textContent='';return}
+  const isCountry=slot.page_template==='country';
+  manufacturer.disabled=model.disabled=isCountry;country.disabled=!isCountry;
+  let matching=[];
+  if(isCountry){
+   matching=markets.filter(x=>!country.value||x.page_path===country.value);
+  }else if(slot.page_template==='manufacturer'){
+   const allBrands=unique(models.map(x=>x.manufacturer));
+   matching=allBrands.filter(x=>!manufacturer.value||x===manufacturer.value).map(x=>({label:x}));
+  }else{
+   matching=models.filter(x=>(!manufacturer.value||x.manufacturer===manufacturer.value)&&(!model.value||x.model===model.value));
+  }
+  const count=matching.length;
+  result.textContent=slot.slot_code+' · '+count+' matching '+(isCountry?'country pages':slot.page_template==='manufacturer'?'manufacturers':'model records')+
+   ' · '+slot.status.toUpperCase()+' · potential template reach only; no adverts published or impressions implied.';
+  const names=matching.slice(0,8).map(x=>x.label||(isCountry?x.page_path:x.manufacturer+' '+x.model));
+  sample.textContent=count?'Examples: '+names.join(' · ')+(count>8?' · …':''):'No matches found.';
+ };
+ const modelsForBrand=()=>{
+  const available=unique(models.filter(x=>!manufacturer.value||x.manufacturer===manufacturer.value).map(x=>x.model));
+  populate(model,available,'All models');recalc();
+ };
+ family.onchange=()=>{manufacturer.value='';model.value='';country.value='';modelsForBrand()};
+ manufacturer.onchange=modelsForBrand;model.onchange=recalc;country.onchange=recalc;
+ const load=async()=>{
+  result.textContent='Loading catalogue and country pages…';
+  try{
+   const db=getAdminSupabaseClient();
+   const auth=await db.rpc('anybike_is_admin');
+   if(auth.error||auth.data!==true)throw Error('Administrator permission required');
+   const [slotData,marketData]=await Promise.all([
+    db.from('advertising_named_spaces').select('slot_code,display_name,page_template,status,inherits_template').eq('inherits_template',true).order('slot_code'),
+    db.from('advertising_page_inventory').select('page_path').eq('page_category','country').order('page_path')
+   ]);
+   if(slotData.error||marketData.error)throw(slotData.error||marketData.error);
+   const all=[];for(let offset=0;offset<2500;offset+=500){
+    const page=await db.from('motorcycle_catalog_models').select('manufacturer,model').order('id').range(offset,offset+499);
+    if(page.error)throw page.error;
+    all.push(...(page.data||[]));if((page.data||[]).length<500)break;
+   }
+   spaces=slotData.data||[];models=all;markets=marketData.data||[];
+   family.replaceChildren();option(family,'','Choose template position');
+   for(const space of spaces)option(family,space.slot_code,space.display_name+' · '+space.status);
+   populate(manufacturer,unique(models.map(x=>x.manufacturer)),'All manufacturers');
+   populate(model,unique(models.map(x=>x.model)),'All models');
+   populate(country,markets.map(x=>x.page_path),'All countries');
+   failed=false;recalc();
+  }catch(e){failed=true;result.textContent='Template reach unavailable: '+(e?.message||e)}
+ };
+ update.addEventListener('click',load);
+ load();
+}
+installTemplateReachExplorer();
+
 function addLegacyInventoryPanel(){
  if($('anybikeExistingHouseAdverts'))return;
  const section=document.createElement('section');
