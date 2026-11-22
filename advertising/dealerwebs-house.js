@@ -39,8 +39,7 @@ async function start(){
     anchor.setAttribute('aria-label','Visit '+ad.company_name);
     const image=document.createElement('img');image.src=secure(ad.artwork_url);image.alt=ad.image_alt||ad.company_name;
     image.loading='lazy';image.decoding='async';
-    // Legacy DealerWebs file has internal empty margins; maintain original art with fitted crop.
-    if(ad.slot_code==='AB-DEALER-FEED-S01')image.style.transform='scale(1.35)';
+    // Preserve the entire supplied artwork for every campaign; never crop or zoom a creative.
     image.addEventListener('error',()=>{card.remove();if(!grid.children.length)grid.remove()},{once:true});
     anchor.append(image);
     const disclosure=document.createElement('small');disclosure.textContent='Advertisement';
