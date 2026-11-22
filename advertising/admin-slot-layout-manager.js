@@ -2,11 +2,11 @@
 (()=>{'use strict';
 const root=document.getElementById('adcontent');if(!root)return;
 const section=document.createElement('section');section.id='abSlotAdvertManager';section.dataset.abWorkspaceArea='placements';section.hidden=true;
-section.innerHTML='<div class="bar" style="justify-content:space-between"><h2>Manage adverts for this page</h2><button type="button" id="abSlotClose">Close</button></div><p id="abSlotLocation"></p><p style="color:#bbb;font-size:13px">Choose up to four different approved campaigns for this position. Preview the proposed layout and save a draft. Publishing is not enabled here; existing live adverts remain unchanged.</p><label style="max-width:320px">Number of adverts<select id="abSlotCount"><option value="1">1 advert</option><option value="2">2 adverts</option><option value="3">3 adverts</option><option value="4">4 adverts</option></select></label><div id="abSlotChoosers" class="ab-slot-choosers"></div><h3>Layout preview</h3><div id="abSlotPreview" class="ab-slot-preview"></div><p id="abSlotStatus" role="status" style="color:#ccc"></p><div class="bar" style="gap:8px"><button type="button" id="abSlotDraftSave" class="primary" disabled>Save layout as draft</button><button type="button" id="abSlotPreviewPage" disabled>Preview on page</button><button type="button" id="abSlotCopyOpen" disabled>Copy layout to other pages</button></div><div id="abSlotCopyPanel" hidden style="margin-top:14px;padding:13px;border:1px solid #515151;border-radius:10px"><div class="bar" style="justify-content:space-between"><strong>Copy this layout to other pages</strong><button type="button" id="abSlotCopyClose">Close</button></div><p style="color:#bbb;font-size:12px">Choose existing website pages below. Copies are saved as drafts only, never published. Existing drafts will not be overwritten.</p><label>Find page<input type="search" id="abSlotCopySearch" placeholder="Search page address"></label><p id="abSlotCopySummary" role="status"></p><div id="abSlotCopyTargets" style="display:grid;gap:7px;max-height:260px;overflow:auto;margin:10px 0"></div><button type="button" id="abSlotCopySave" class="primary" disabled>Copy as drafts to selected pages</button></div><div id="abSlotPagePreview" hidden style="margin-top:16px;border:1px solid #555;border-radius:10px;padding:12px"><div class="bar" style="justify-content:space-between;margin-bottom:9px"><strong>Page preview · private draft, not published</strong><button type="button" id="abSlotHidePage">Close preview</button></div><p style="font-size:12px;color:#bbb">The existing public advert is replaced only inside this admin preview, not on the live website. Scroll within the preview to see the placement.</p><iframe id="abSlotPageFrame" title="Private preview of proposed adverts in the actual page" style="display:block;width:100%;height:690px;border:1px solid #444;border-radius:8px;background:#090909"></iframe></div>';
+section.innerHTML='<div class="bar" style="justify-content:space-between"><h2>Manage adverts for this page</h2><button type="button" id="abSlotClose">Close</button></div><p id="abSlotLocation"></p><p style="color:#bbb;font-size:13px">Choose up to four different approved campaigns for this position. Preview the proposed layout and save a draft. Publishing is not enabled here; existing live adverts remain unchanged.</p><label style="max-width:320px">Number of adverts<select id="abSlotCount"><option value="1">1 advert</option><option value="2">2 adverts</option><option value="3">3 adverts</option><option value="4">4 adverts</option></select></label><div id="abSlotChoosers" class="ab-slot-choosers"></div><h3>Layout preview</h3><div id="abSlotPreview" class="ab-slot-preview"></div><p id="abSlotStatus" role="status" style="color:#ccc"></p><div class="bar" style="gap:8px"><button type="button" id="abSlotDraftSave" class="primary" disabled>Save layout as draft</button><button type="button" id="abSlotPreviewPage" disabled>Preview on page</button><button type="button" id="abSlotCopyOpen" disabled>Copy layout to other pages</button><button type="button" id="abSlotPublishCheck" disabled>Check publication readiness</button><button type="button" id="abSlotPublish" class="primary" hidden disabled>Publish approved layout</button><button type="button" id="abSlotRestore" hidden>Restore previous live layout</button></div><div id="abSlotCopyPanel" hidden style="margin-top:14px;padding:13px;border:1px solid #515151;border-radius:10px"><div class="bar" style="justify-content:space-between"><strong>Copy this layout to other pages</strong><button type="button" id="abSlotCopyClose">Close</button></div><p style="color:#bbb;font-size:12px">Choose existing website pages below. Copies are saved as drafts only, never published. Existing drafts will not be overwritten.</p><label>Find page<input type="search" id="abSlotCopySearch" placeholder="Search page address"></label><p id="abSlotCopySummary" role="status"></p><div id="abSlotCopyTargets" style="display:grid;gap:7px;max-height:260px;overflow:auto;margin:10px 0"></div><button type="button" id="abSlotCopySave" class="primary" disabled>Copy as drafts to selected pages</button></div><div id="abSlotPagePreview" hidden style="margin-top:16px;border:1px solid #555;border-radius:10px;padding:12px"><div class="bar" style="justify-content:space-between;margin-bottom:9px"><strong>Page preview · private draft, not published</strong><button type="button" id="abSlotHidePage">Close preview</button></div><p style="font-size:12px;color:#bbb">The existing public advert is replaced only inside this admin preview, not on the live website. Scroll within the preview to see the placement.</p><iframe id="abSlotPageFrame" title="Private preview of proposed adverts in the actual page" style="display:block;width:100%;height:690px;border:1px solid #444;border-radius:8px;background:#090909"></iframe></div>';
 const style=document.createElement('style');style.textContent='#adcontent .ab-slot-choosers{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px;margin:12px 0}#adcontent .ab-slot-ad-choice{display:grid;gap:9px;padding:11px;border:1px solid #484848;border-radius:9px;background:#161616;min-width:0}#adcontent .ab-slot-choosers label{display:grid;gap:5px;min-width:0}#adcontent .ab-slot-choosers select{width:100%;min-width:0}#adcontent .ab-slot-preview{display:grid;grid-template-columns:repeat(var(--count,1),minmax(0,1fr));gap:12px;margin:10px 0 15px}#adcontent .ab-slot-preview article{min-width:0;border:1px solid #555;border-radius:10px;background:#111;padding:10px;overflow:hidden}#adcontent .ab-slot-image-frame{display:grid;place-items:center;width:100%;max-width:100%;overflow:hidden;border-radius:10px;background:transparent}#adcontent .ab-slot-preview img{display:block;width:100%;height:100%;object-fit:contain;border-radius:10px}#adcontent .ab-slot-preview strong{display:block;font-size:12px;margin-bottom:8px;overflow-wrap:anywhere}#adcontent .ab-slot-preview small{color:#aaa;font-size:11px}#adcontent #abSlotPagePreview[hidden]{display:none!important}#adcontent #abSlotPagePreview iframe{max-width:100%}@media(max-width:730px){#adcontent .ab-slot-preview{grid-template-columns:1fr!important}}';document.head.append(style);
 const before=document.getElementById('namedAdvertisingSpaces');before?root.insertBefore(section,before):root.append(section);
-const $=id=>document.getElementById(id),loc=$('abSlotLocation'),cnt=$('abSlotCount'),choosers=$('abSlotChoosers'),preview=$('abSlotPreview'),status=$('abSlotStatus'),save=$('abSlotDraftSave'),pageButton=$('abSlotPreviewPage'),pageWrap=$('abSlotPagePreview'),pageFrame=$('abSlotPageFrame'),copyOpen=$('abSlotCopyOpen'),copyPanel=$('abSlotCopyPanel'),copySearch=$('abSlotCopySearch'),copyTargets=$('abSlotCopyTargets'),copySummary=$('abSlotCopySummary'),copySave=$('abSlotCopySave');
-let db,campaigns=[],customers=[],current=null,draft=null,artworkMasters=new Map(),selectedFormats=[],copyInventory=[],copySelected=new Set(),copyExisting=new Set();
+const $=id=>document.getElementById(id),loc=$('abSlotLocation'),cnt=$('abSlotCount'),choosers=$('abSlotChoosers'),preview=$('abSlotPreview'),status=$('abSlotStatus'),save=$('abSlotDraftSave'),pageButton=$('abSlotPreviewPage'),pageWrap=$('abSlotPagePreview'),pageFrame=$('abSlotPageFrame'),copyOpen=$('abSlotCopyOpen'),copyPanel=$('abSlotCopyPanel'),copySearch=$('abSlotCopySearch'),copyTargets=$('abSlotCopyTargets'),copySummary=$('abSlotCopySummary'),copySave=$('abSlotCopySave'),checkPublish=$('abSlotPublishCheck'),publish=$('abSlotPublish'),restore=$('abSlotRestore');
+let db,campaigns=[],customers=[],current=null,draft=null,artworkMasters=new Map(),selectedFormats=[],copyInventory=[],copySelected=new Set(),copyExisting=new Set(),publishedRecord=null,publicationReady=false;
 const formatNames={slim:'Slim banner · 3:1',square:'Square advert · 1:1',stock_card:'Stock card · 4:3',landscape:'Landscape · 16:9',portrait:'Portrait · 4:5'};
 const formatRatios={slim:'3 / 1',square:'1 / 1',stock_card:'4 / 3',landscape:'16 / 9',portrait:'4 / 5'};
 function artwork(c,format){
@@ -54,15 +54,15 @@ function showPreview(){
   }
   const note=document.createElement('small');note.textContent='Advertisement';art.append(note);preview.append(art);
  }
- save.disabled=!current||!unique;pageButton.disabled=!current||!unique;copyOpen.disabled=!current||!unique;
+ save.disabled=!current||!unique;pageButton.disabled=!current||!unique;copyOpen.disabled=!current||!unique;checkPublish.disabled=!current||!unique;publish.hidden=true;publish.disabled=true;publicationReady=false;
 }
 cnt.onchange=render;
 $('abSlotClose').onclick=()=>{section.hidden=true;pageWrap.hidden=true;copyPanel.hidden=true;pageFrame.removeAttribute('src')};
 $('abSlotHidePage').onclick=()=>{pageWrap.hidden=true;pageFrame.removeAttribute('src')};
-async function open(detail){const {slotCode,pagePath}=detail||{};if(!slotCode||!pagePath)return;current={slotCode,pagePath};section.hidden=false;pageWrap.hidden=true;copyPanel.hidden=true;pageFrame.removeAttribute('src');loc.textContent=pagePath+' · '+slotCode;status.textContent='Loading approved campaigns and any saved draft…';
+async function open(detail){const {slotCode,pagePath}=detail||{};if(!slotCode||!pagePath)return;current={slotCode,pagePath};section.hidden=false;pageWrap.hidden=true;copyPanel.hidden=true;publishedRecord=null;publish.hidden=true;restore.hidden=true;pageFrame.removeAttribute('src');loc.textContent=pagePath+' · '+slotCode;status.textContent='Loading approved campaigns and any saved draft…';
 try{if(typeof getAdminSupabaseClient!=='function')throw Error('Admin connection missing');db=getAdminSupabaseClient();const admin=await db.rpc('anybike_is_admin');if(admin.error||admin.data!==true)throw Error('Administrator access required');
-const results=await Promise.all([db.from('advertising_campaigns').select('id,name,status,partner_id,desktop_image_url,slim_image_url,stock_card_image_url,mobile_image_url,compact_image_url,destination_url,alt_text').order('name'),db.from('commercial_partners').select('id,name').order('name'),db.from('advertising_slot_layout_drafts').select('slot_code,page_path,campaign_ids,advert_count,artwork_formats').eq('slot_code',slotCode).maybeSingle(),db.from('advertising_partner_artwork_library').select('partner_id,creative_format,active_artwork_id').not('active_artwork_id','is',null)]);const fail=results.find(r=>r.error);if(fail)throw fail.error;
-campaigns=results[0].data||[];customers=results[1].data||[];draft=results[2].data||null;
+const results=await Promise.all([db.from('advertising_campaigns').select('id,name,status,partner_id,desktop_image_url,slim_image_url,stock_card_image_url,mobile_image_url,compact_image_url,destination_url,alt_text').order('name'),db.from('commercial_partners').select('id,name').order('name'),db.from('advertising_slot_layout_drafts').select('slot_code,page_path,campaign_ids,advert_count,artwork_formats').eq('slot_code',slotCode).maybeSingle(),db.from('advertising_partner_artwork_library').select('partner_id,creative_format,active_artwork_id').not('active_artwork_id','is',null),db.from('advertising_slot_published_layouts').select('slot_code,page_path,campaign_ids,artwork_formats,advert_count').eq('slot_code',slotCode).maybeSingle()]);const fail=results.find(r=>r.error);if(fail)throw fail.error;
+campaigns=results[0].data||[];customers=results[1].data||[];draft=results[2].data||null;publishedRecord=results[4].data||null;restore.hidden=!publishedRecord;
  artworkMasters=new Map();
  const refs=results[3].data||[],ids=[...new Set(refs.map(r=>r.active_artwork_id).filter(Boolean))];
  if(ids.length){
@@ -72,7 +72,7 @@ campaigns=results[0].data||[];customers=results[1].data||[];draft=results[2].dat
   for(const entry of refs){const url=byId.get(entry.active_artwork_id);if(url&&/^https:\/\//.test(url))artworkMasters.set(entry.partner_id+'|'+entry.creative_format,url)}
  }
 selectedFormats=draft?.artwork_formats?.length?draft.artwork_formats.slice():[];cnt.value=String(draft?.advert_count||1);render();if(draft){const selects=[...choosers.querySelectorAll('select[data-campaign]')];draft.campaign_ids.forEach((id,i)=>{if(selects[i])selects[i].value=id});showPreview();}
-status.textContent=draft?'Existing draft loaded. Website advertising unchanged.':'Choose approved adverts to prepare a layout draft. Existing live advert is untouched.';
+status.textContent=publishedRecord?'A layout is currently published here. Preview changes before publishing a replacement.':draft?'Existing draft loaded. Website advertising unchanged.':'Choose approved adverts to prepare a layout draft. Existing live advert is untouched.';
 }catch(e){status.textContent='Unable to load adverts: '+(e.message||e);save.disabled=true;pageButton.disabled=true;copyOpen.disabled=true}
 section.scrollIntoView({behavior:'smooth',block:'start'});}
 save.onclick=async()=>{if(!current||!db)return;const ids=selections(),formats=currentFormats();if(ids.some((id,i)=>!options(formats[i]).some(c=>c.id===id))||new Set(ids).size!==ids.length){status.textContent='Choose distinct active campaigns for all positions.';return}
@@ -123,6 +123,91 @@ pageButton.onclick=()=>{
  pageFrame.src=pagePath;
 };
 
+
+
+// Publication is independent of saving drafts. Check every campaign against
+// the same public approved creative projection used by the Edge Function.
+async function publicationEligibility(){
+ const ids=selections(),formats=currentFormats();
+ if(!current||ids.length<1||ids.some((id,i)=>!options(formats[i]).some(c=>c.id===id))||new Set(ids).size!==ids.length)
+  return {ready:false,message:'Select distinct active campaigns with approved artwork first.'};
+ const [inventory,publicAds]=await Promise.all([
+  db.from('advertising_page_inventory').select('page_path,page_category,placement_enabled,excluded,slot_code,market_scope,placement_key').eq('page_path',current.pagePath).maybeSingle(),
+  db.from('public_advertising_creatives_v1').select('id,countries,page_categories,page_paths,manufacturers,models,customer_types,placement,destination_url').in('id',ids)
+ ]);
+ if(inventory.error||publicAds.error)throw inventory.error||publicAds.error;
+ const p=inventory.data;
+ if(!p||!p.placement_enabled||p.excluded||p.slot_code!==current.slotCode||p.placement_key==='stock_grid')return {ready:false,message:'This named advertising location is not currently eligible for a published multi-advert layout.'};
+ const matches=publicAds.data||[],bad=[];
+ for(const id of ids){
+  const c=campaigns.find(x=>x.id===id),a=matches.find(x=>x.id===id);
+  if(!a||a.placement!=='below_hero'||!a.countries?.includes('GB')||
+    (a.page_categories?.length&&!a.page_categories.some(v=>v.toLowerCase()===p.page_category.toLowerCase()))||
+    (a.page_paths?.length&&!a.page_paths.includes(current.pagePath))||
+    a.manufacturers?.length||a.models?.length||a.customer_types?.length||
+    !/^https:\/\//.test(a.destination_url||''))bad.push(c?.name||id);
+ }
+ if(bad.length)return {ready:false,message:'Not approved for this page: '+bad.join(' · ')+'. Review campaign dates, compliance and page targeting before publication.'};
+ // The page must already have the matching named slot. Never invent a placement.
+ const response=await fetch(current.pagePath,{credentials:'same-origin',cache:'no-store'});
+ if(!response.ok)throw Error('Cannot verify actual page location');
+ const html=await response.text();
+ const documentSnapshot=new DOMParser().parseFromString(html,'text/html');
+ const anchor=[...documentSnapshot.querySelectorAll('.managed-ad-space[data-ad-slot][data-market="GB"]')]
+  .find(n=>n.dataset.adSlot===current.slotCode);
+ if(!anchor)return {ready:false,message:'This page does not yet have the required named advertising slot.'};
+ if(!ids.every((id,i)=>artworkMasters.has(campaigns.find(x=>x.id===id)?.partner_id+'|'+formats[i])))
+  return {ready:false,message:'At least one advert needs an approved artwork master for its selected shape.'};
+ return {ready:true,message:'All campaigns are eligible for this page and approved artwork shapes are available. Publishing will replace the existing live layout.'};
+}
+checkPublish.onclick=async()=>{
+ if(!db||!current)return;
+ publicationReady=false;publish.hidden=true;publish.disabled=true;
+ checkPublish.disabled=true;status.textContent='Checking live eligibility, page targeting and approved artwork…';
+ try{
+  const result=await publicationEligibility();publicationReady=result.ready;publish.hidden=!result.ready;publish.disabled=!result.ready;status.textContent=result.message;
+ }catch(e){status.textContent='Publication check failed: '+(e.message||e)}
+ finally{checkPublish.disabled=false}
+};
+publish.onclick=async()=>{
+ if(!db||!current||!publicationReady)return;
+ publish.disabled=true;
+ try{
+  // Re-run the checks immediately before writing the public layout.
+  const result=await publicationEligibility();
+  if(!result.ready)throw Error(result.message);
+  if(!confirm('PUBLISH this layout publicly on '+current.pagePath+'? This will replace the current live advert(s) for visitors.'))return;
+  const ids=selections(),formats=currentFormats(),payload={slot_code:current.slotCode,page_path:current.pagePath,
+   campaign_ids:ids,artwork_formats:formats,advert_count:ids.length,published_at:new Date().toISOString()};
+  const written=await db.from('advertising_slot_published_layouts').upsert(payload,{onConflict:'slot_code'}).select('slot_code,campaign_ids,artwork_formats,advert_count').single();
+  if(written.error)throw written.error;
+  if(written.data.advert_count!==ids.length||written.data.campaign_ids.join(',')!==ids.join(','))throw Error('Published layout verification failed');
+  publishedRecord=written.data;restore.hidden=false;status.textContent='Published configuration saved. Check the live page to confirm delivery; existing single-advert fallback remains available.';
+ }catch(e){status.textContent='Not published: '+(e.message||e)}
+ finally{publish.hidden=true;publish.disabled=true;publicationReady=false}
+};
+restore.onclick=async()=>{
+ if(!db||!current||!publishedRecord)return;
+ if(!confirm('RESTORE the previous live advertising arrangement on '+current.pagePath+'?'))return;
+ restore.disabled=true;
+ try{
+  const histories=await db.from('advertising_slot_layout_history').select('id,slot_code,page_path,campaign_ids,artwork_formats,advert_count').eq('slot_code',current.slotCode).order('id',{ascending:false}).limit(1);
+  if(histories.error)throw histories.error;
+  const last=histories.data?.[0];
+  if(last&&last.page_path===current.pagePath){
+   const res=await db.from('advertising_slot_published_layouts').upsert({slot_code:current.slotCode,page_path:last.page_path,
+    campaign_ids:last.campaign_ids,artwork_formats:last.artwork_formats,advert_count:last.advert_count,published_at:new Date().toISOString()},{onConflict:'slot_code'}).select('slot_code').single();
+   if(res.error)throw res.error;
+   status.textContent='Previous multi-advert layout restored. Verify it on the public page.';
+  }else{
+   const res=await db.from('advertising_slot_published_layouts').delete().eq('slot_code',current.slotCode).select('slot_code');
+   if(res.error||res.data?.length!==1)throw res.error||Error('Restore could not be verified');
+   status.textContent='Previous original advertising arrangement restored. The existing single-advert system now applies.';
+   publishedRecord=null;restore.hidden=true;
+  }
+ }catch(e){status.textContent='Could not restore previous layout: '+(e.message||e)}
+ finally{restore.disabled=false}
+};
 
 // Copy a validated selection to OTHER registered page slots as drafts only.
 // No public inventory flags, live campaigns or existing drafts are modified.
