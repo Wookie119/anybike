@@ -54,13 +54,13 @@ function buildMoveHouseCard(ad,companion=false){
  // campaign; let the shared legacy-ad visibility guard display it.
  link.dataset.anybikeAdAuthorized='1';
  link.setAttribute('aria-label',String(ad.partner_name||'Advertiser')+' — view website');
- link.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px;background:#101010;text-decoration:none'+(stock?';position:relative;aspect-ratio:auto;height:auto;flex:1 1 auto;min-height:0;border:1px solid #555;box-sizing:border-box;background:#101010':'');
- const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:12px'+(stock?';position:absolute;inset:0;width:100%;height:100%;background:transparent!important;pointer-events:none':'');
+ link.style.cssText='display:block;width:100%;overflow:hidden;clip-path:inset(0 round 14px);border-radius:14px;background:#101010;text-decoration:none;isolation:isolate'+(stock?';position:relative;aspect-ratio:auto;height:auto;flex:1 1 auto;min-height:0;border:0;box-sizing:border-box;background:#101010':'');
+ const picture=node('picture');picture.style.cssText='display:block;width:100%;overflow:hidden;border-radius:inherit'+(stock?';position:absolute;inset:0;width:100%;height:100%;background:transparent!important;pointer-events:none':'');
  const source=node('source');source.media='(max-width:650px)';source.srcset=mobile;
  const img=node('img');img.src=desktop;img.alt=typeof ad.alt_text==='string'?ad.alt_text:'';
  img.loading='lazy';img.decoding='async';img.style.cssText=stock
-  ?'display:block;position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:fill;object-position:center;border-radius:12px'
-  :'display:block;width:100%;height:auto;max-width:100%;aspect-ratio:auto;object-fit:contain;border-radius:12px';
+  ?'display:block;position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:fill;object-position:center;border-radius:0'
+  :'display:block;width:100%;height:auto;max-width:100%;aspect-ratio:auto;object-fit:contain;border-radius:0';
  if(stock){
   // The entire approved stock creative must fill the measured image slot.
   // Some page styles force the <img> to retain its intrinsic 4:3 shape,
@@ -271,9 +271,9 @@ function adoptLegacyMove(ad){
   }
   link.dataset.adSlotCode=templateAdSlotCode(ad)+(anchors.length>1?'-'+String(index+1).padStart(2,'0'):'');
   link.dataset.adCampaignId=ad.id;
-  link.style.cssText='display:block;width:100%;max-width:1200px;height:auto;min-width:0;margin-left:auto;margin-right:auto;border-radius:12px;overflow:hidden;background:#101010;text-decoration:none';
+  link.style.cssText='display:block;width:100%;max-width:1200px;height:auto;min-width:0;margin-left:auto;margin-right:auto;border-radius:14px;clip-path:inset(0 round 14px);overflow:hidden;isolation:isolate;background:#101010;text-decoration:none';
   const picture=link.querySelector('picture');
-  if(picture){picture.style.cssText='display:block;width:100%;height:auto;min-width:0;overflow:hidden;border-radius:12px';
+  if(picture){picture.style.cssText='display:block;width:100%;height:auto;min-width:0;overflow:hidden;border-radius:inherit';
    // Older dashboard CSS forced fixed mobile picture ratios. The approved
    // artwork now owns the aspect ratio on every device, without cropping.
    picture.style.setProperty('aspect-ratio','auto','important');
@@ -282,7 +282,7 @@ function adoptLegacyMove(ad){
   }
   const image=link.querySelector('img');
   if(image){image.src=urls.desktop;image.alt=typeof ad.alt_text==='string'?ad.alt_text:'';
-   image.style.cssText='display:block;width:100%;height:auto;max-width:100%;object-fit:contain;border-radius:12px';
+   image.style.cssText='display:block;width:100%;height:auto;max-width:100%;object-fit:contain;border-radius:0';
    image.style.setProperty('aspect-ratio','auto','important');
    image.style.setProperty('height','auto','important');
    image.style.setProperty('object-fit','contain','important');}
