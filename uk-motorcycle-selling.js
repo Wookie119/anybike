@@ -79,8 +79,8 @@ function renderSellerAdvertDraft(){
  const selectedLabel=id=>{const field=el(id);return field?.tagName==="SELECT"&&field.value?String(field.selectedOptions[0]?.textContent||field.value).trim():get(id);};
  const make=selectedLabel("make"),model=selectedLabel("model"),variant=get("variant");
  title.textContent=[make,model,variant].filter(Boolean).join(" ")||"Your motorcycle";
- const facts=(id,rows,showMissing=false)=>{const host=el(id);host.replaceChildren();for(const [label,value] of rows){if(!value&&!showMissing)continue;const div=document.createElement("div"),dt=document.createElement("dt"),dd=document.createElement("dd");dt.textContent=label;dd.textContent=value||"Not supplied";if(!value)dd.className="missing";div.append(dt,dd);host.append(div);}};
- facts("sellerV2Facts",[["Manufacturer",make],["Model",model],["Variant",variant],["Year",get("year")],["Mileage",get("mileage")?get("mileage")+" miles":""],["Condition",selectedLabel("condition")]],true);
+ const facts=(id,rows,showMissing=false)=>window.AnyBikeListingMaster.renderFacts(el(id),rows,showMissing);
+ facts("sellerV2Facts",[["Manufacturer",make],["Model",model],["Variant",variant],["Year",get("year")],["Mileage",window.AnyBikeListingMaster.mileage(get("mileage"))],["Condition",selectedLabel("condition")]],true);
  el("sellerV2Description").textContent=get("bikeNotes")||"Add a description of your motorcycle.";
  facts("sellerV2Extras",[["Previous owners",get("ab-extra-previousOwners")],["Last service",get("ab-extra-lastService")],["Major maintenance",get("ab-extra-majorMaintenance")],["Cosmetic condition",get("ab-extra-cosmeticDetails")],["Modifications",get("ab-extra-modifications")],["Original parts",get("ab-extra-originalParts")],["Recalls",get("ab-extra-recalls")],["Inspection",get("ab-extra-inspection")],["Warranty",get("ab-extra-warranty")]]);
  el("sellerV2History").textContent="Seller-declared history: "+(selectedLabel("ab-extra-historyDeclaration")||"Not supplied")+". Independent verification pending.";
