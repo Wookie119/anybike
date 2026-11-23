@@ -53,7 +53,40 @@ async function setupCatalogue(){
 setupCatalogue();
 function updateDealer(){const q=new URLSearchParams();if(make.value)q.set("make",make.value);if(model.value)q.set("model",model.value);const dealer=el("dealerLink");if(dealer)dealer.href="/dealer-underwrite.html"+(q.size?"?"+q.toString():"")}model.addEventListener("change",updateDealer);updateDealer();
 // Mobile photo gallery picker. Only in-memory previews; no upload or server request.
-const photoInput=el("photoFiles"),photoRoot=el("photoPreviews"),photoStatus=el("photoStatus");let chosen=[];const maxPhotos=12,maxBytes=10*1024*1024;const supported=new Set(["image/jpeg","image/png","image/webp"]);function renderPhotos(){resetButton("savePhotos","Save Selected Photos ✓");el("photoSaveStatus").textContent="";el("photoSaveStatus").classList.remove("saved-ok","save-error");photoRoot.replaceChildren();for(const item of chosen){const tile=document.createElement("div");tile.className="photoTile";const img=document.createElement("img");img.src=item.url;img.alt="Selected motorcycle photograph";const btn=document.createElement("button");btn.type="button";btn.textContent="Remove photo";btn.addEventListener("click",()=>{URL.revokeObjectURL(item.url);chosen=chosen.filter(x=>x!==item);renderPhotos()});tile.append(img,btn);photoRoot.append(tile)}photoStatus.textContent=chosen.length+" of "+maxPhotos+" photos selected. Photos have not been uploaded."}photoInput.addEventListener("change",()=>{let rejected=0;for(const file of Array.from(photoInput.files||[])){if(chosen.length>=maxPhotos){rejected++;continue}if(!supported.has(file.type)||file.size>maxBytes||file.size===0){rejected++;continue}chosen.push({file,url:URL.createObjectURL(file)})}photoInput.value="";renderPhotos();if(rejected)photoStatus.textContent+=" "+rejected+" photo(s) not added (limit 12, maximum 10 MB each; JPEG, PNG or WebP)."});window.addEventListener("pagehide",()=>{for(const item of chosen)URL.revokeObjectURL(item.url)});
+const photoInput=el("photoFiles"),photoRoot=el("photoPreviews"),photoStatus=el("photoStatus");let chosen=[];const maxPhotos=12,maxBytes=10*1024*1024;const supported=new Set(["image/jpeg","image/png","image/webp"]);function moveSellerPhoto(from,to){if(from===to||from<0||to<0||from>=chosen.length||to>=chosen.length)return;const item=chosen.splice(from,1)[0];chosen.splice(to,0,item);renderPhotos();}
+function renderPhotos(){
+ resetButton("savePhotos","Save Selected Photos ✓");el("photoSaveStatus").textContent="";el("photoSaveStatus").classList.remove("saved-ok","save-error");photoRoot.replaceChildren();
+ chosen.forEach((item,index)=>{
+  const tile=document.createElement("div");tile.className="photoTile";tile.draggable=true;
+  tile.addEventListener("dragstart",e=>{e.dataTransfer.setData("text/plain",String(index));e.dataTransfer.effectAllowed="move";});
+  tile.addEventListener("dragover",e=>{e.preventDefault();e.dataTransfer.dropEffect="move";});
+  tile.addEventListener("drop",e=>{e.preventDefault();const raw=e.dataTransfer.getData("text/plain");if(/^\d+$/.test(raw))moveSellerPhoto(Number(raw),index);});
+  const img=document.createElement("img");img.src=item.url;img.alt="Selected motorcycle photograph "+(index+1);img.draggable=false;
+  const label=document.createElement("strong");label.textContent=index===0?"Main photograph":"Photo "+(index+1);
+  const controls=document.createElement("div");controls.className="photo-order-controls";
+  const button=(label,fn,disabled=false)=>{const b=document.createElement("button");b.type="button";b.textContent=label;b.disabled=disabled;b.addEventListener("click",fn);return b;};
+  controls.append(button("← Earlier",()=>moveSellerPhoto(index,index-1),index===0),button("Later →",()=>moveSellerPhoto(index,index+1),index===chosen.length-1),button("Remove",()=>{URL.revokeObjectURL(item.url);chosen=chosen.filter(x=>x!==item);renderPhotos();}));
+  tile.append(img,label,controls);photoRoot.append(tile);
+ });
+ photoStatus.textContent=chosen.length+" of "+maxPhotos+" photos selected. Photos have not been uploaded.";
+ refreshSellerAdvertReadiness();
+}
+function refreshSellerAdvertReadiness(){
+ const host=el("sellerAdvertReadiness");if(!host)return;
+ const get=id=>String(el(id)?.value||"").trim();
+ const missing=[];
+ for(const [id,label] of [["registration","Registration"],["make","Manufacturer"],["model","Model"],["variant","Variant"],["year","Year"],["mileage","Mileage"],["condition","Condition"],["finance","Finance declaration"],["priceWanted","Confidential minimum price"],["postcode","Collection postcode"],["sellerName","Name"],["sellerMobile","Mobile"],["sellerEmail","Email"]])if(!get(id))missing.push(label);
+ for(const [key,label] of [["service_history","Service history"],["mot","MOT"],["keys","Keys"],["v5c","V5C"],["accident","Accident history"],["tyres","Tyres"],["brakes","Brakes"],["drive","Final drive"],["mechanical","Mechanical condition"]])if(!get("ab-condition-"+key))missing.push(label);
+ if(get("ab-condition-mechanical")==="Faults declared in description"&&get("ab-condition-fault-description").length<3)missing.push("Mechanical fault description");
+ for(const [id,label] of [["ukConfirm","UK location confirmation"],["ownerConfirm","Ownership confirmation"],["contactConfirm","Contact consent"],["dealerAuctionConfirm","Trade auction authorisation"]])if(!el(id)?.checked)missing.push(label);
+ host.replaceChildren();
+ const summary=document.createElement("strong");summary.textContent=missing.length?missing.length+" required items to complete":"Required fields entered — final validation on submission";summary.style.color=missing.length?"#ff7278":"#83d7a0";host.append(summary);
+ if(missing.length){const list=document.createElement("ul");missing.forEach(label=>{const item=document.createElement("li");item.textContent=label;list.append(item);});host.append(list);}
+ const advice=document.createElement("p");advice.textContent=chosen.length<8?"Recommended: add "+(8-chosen.length)+" more photographs for a stronger advert.":"Photograph target met ("+chosen.length+" selected).";host.append(advice);
+}
+el("legacySellerLookupForm")?.addEventListener("input",refreshSellerAdvertReadiness);el("legacySellerLookupForm")?.addEventListener("change",refreshSellerAdvertReadiness);
+window.addEventListener("load",refreshSellerAdvertReadiness);
+photoInput.addEventListener("change",()=>{let rejected=0;for(const file of Array.from(photoInput.files||[])){if(chosen.length>=maxPhotos){rejected++;continue}if(!supported.has(file.type)||file.size>maxBytes||file.size===0){rejected++;continue}chosen.push({file,url:URL.createObjectURL(file)})}photoInput.value="";renderPhotos();if(rejected)photoStatus.textContent+=" "+rejected+" photo(s) not added (limit 12, maximum 10 MB each; JPEG, PNG or WebP)."});window.addEventListener("pagehide",()=>{for(const item of chosen)URL.revokeObjectURL(item.url)});
 
 function setFeedback(id,message,success){const target=el(id);if(!target)return;target.textContent=message;target.classList.remove("saved-ok","save-error");target.classList.add(success?"saved-ok":"save-error")}
 function savedButton(id,label){const button=el(id);if(button){button.classList.add("saved-btn");button.textContent="✓ "+label}}
