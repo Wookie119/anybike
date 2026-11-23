@@ -551,6 +551,32 @@ async function toggleInternationalConsideration(id){
  internationalSelections.set(Number(id),next);
  if(b){b.disabled=false;b.textContent=next?"✓ International consideration selected — Remove":"Consider internationally";}
 }
+async function restartSubmissionAuction(submissionId,button){
+ const opportunity=tradeOpportunityBySubmission.get(Number(submissionId));
+ if(!opportunity||opportunity.opportunity_status!=="closed"){alert("This auction is not closed. Refresh the listing to see its latest status.");return;}
+ const response=refreshStatuses.get(Number(submissionId));
+ if(response?.response_type==="sold"){alert("Seller reported this motorcycle sold. Do not restart it.");return;}
+ button.disabled=true;
+ const previous=button.textContent;
+ button.textContent="Checking auction…";
+ try{
+  const readiness=await sb.rpc("admin_trade_underwrite_readiness_v1",{p_submission_id:Number(submissionId)});
+  if(readiness.error)throw Error(readiness.error.message);
+  if(!readiness.data?.ready){
+   const missing=Array.isArray(readiness.data?.missing)?readiness.data.missing:[];
+   alert("Cannot restart yet. Please complete: "+(missing.join("; ")||"required auction information")+". The auction remains closed.");
+   await openSellerConditionReview(submissionId);
+   return;
+  }
+  if(!confirm("Restart this motorcycle auction for 14 days? Previous bids stay in the audit history and eligible dealers will be notified."))return;
+  button.textContent="Restarting auction…";
+  const result=await sb.rpc("admin_restart_trade_underwrite_v1",{p_opportunity_id:Number(opportunity.opportunity_id),p_duration_hours:336});
+  if(result.error||!result.data?.success)throw Error(result.error?.message||"Auction restart was not confirmed");
+  alert("Auction restarted successfully. Dealers will see the new bidding period.");
+  await loadQueue();
+ }catch(error){alert("Auction not restarted: "+(error.message||error));}
+ finally{button.disabled=false;button.textContent=previous;}
+}
 async function loadQueue(){
   const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v5",{p_limit:150});
   if(error){document.getElementById("queue").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
@@ -783,6 +809,9 @@ function render(){
 
         '<div class="actions review-auction-actions">'+
           '<button type="button" class="btn" data-action="condition-review" data-id="'+Number(r.submission_id)+'">Review condition &amp; reserve →</button>'+ 
+          (tradeOpportunityBySubmission.get(Number(r.submission_id))?.opportunity_status==="closed" && refreshStatuses.get(Number(r.submission_id))?.response_type!=="sold"
+            ?'<button type="button" class="red" data-action="restart-auction" data-id="'+Number(r.submission_id)+'">Restart Auction →</button>':'')+
+
 
           (r.underwrite_status!=="live"
             ?(r.make&&r.model
@@ -1266,6 +1295,7 @@ document.getElementById("queue").addEventListener("click",async function(e){
     }catch(error){alert("Test bike could not be removed: "+error.message);actionEl.disabled=false;actionEl.textContent="Delete Test Bike";}
     return;
   }
+  if(action==="restart-auction"){restartSubmissionAuction(id,actionEl);return;}
   if(action==="condition-review"){openSellerConditionReview(id);return;}
   if(action==="comparables"){captureComps(id);return;}
   if(action==="start-underwrite"){startUnderwrite(id);return;}
