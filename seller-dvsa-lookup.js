@@ -14,7 +14,7 @@
  function mount(config){
   const form=document.getElementById(config.formId),reg=document.getElementById(config.registrationId),button=document.getElementById("dvsaMotLookupBtn"),status=document.getElementById("dvsaMotLookupStatus"),details=document.getElementById("dvsaMotLookupDetails");
   if(!form||!reg||!button||!status||!details)return null;
-  const make=document.getElementById("make"),model=document.getElementById("model"),year=document.getElementById("bike_year");
+  const make=document.getElementById("make"),model=document.getElementById("model"),year=document.getElementById("bike_year")||document.getElementById("year");
   let record=null,lookupToken="",requestIndex=0;
   const mileageInput=document.getElementById("mileage");
   const mileageWarning=document.createElement("div");
