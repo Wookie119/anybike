@@ -535,8 +535,14 @@ function closeSellerConditionReview(){const node=document.getElementById("abCond
 async function saveSellerConditionReview(restartAfterSave=false){
  const id=activeConditionReviewId;if(!id)return;
  const root=document.getElementById("abConditionReviewOverlay"),status=document.getElementById("abConditionReviewStatus");
- const reason=document.getElementById("abConditionReviewReason").value.trim();
- if(reason.length<5){status.textContent="Please enter at least five characters explaining how the information was confirmed (for example, seller telephone confirmation or document inspected). A full stop alone is not enough.";status.style.color="#ffaaaa";document.getElementById("abConditionReviewReason").focus();return;}
+ // Starting an older auction is a single action: unasked declarations must be
+ // recorded explicitly as unconfirmed, never invented as "Good" or "No faults".
+ if(restartAfterSave)setUnconfirmedConditionAnswers();
+ let reason=document.getElementById("abConditionReviewReason").value.trim();
+ if(!reason&&restartAfterSave){
+   reason="Legacy seller submission: unanswered condition questions recorded Unknown / Not confirmed; original seller statements retained.";
+ }
+ if(reason.length<5){status.textContent="Enter a short source or reason for any manual corrections.";status.style.color="#ffaaaa";document.getElementById("abConditionReviewReason").focus();return;}
  const answers={};root.querySelectorAll("[data-condition-admin-key]").forEach(el=>answers[el.dataset.conditionAdminKey]=el.value||null);
  const reserve=root.querySelector("#abConditionReviewReserve").value.trim();
  const postcode=root.querySelector("#abConditionReviewPostcode").value.trim().toUpperCase();
@@ -552,7 +558,7 @@ async function saveSellerConditionReview(restartAfterSave=false){
   const ready=await sb.rpc("admin_trade_underwrite_readiness_v1",{p_submission_id:id});
   if(ready.error)throw Error(ready.error.message);
   if(!ready.data?.ready){
-   status.textContent+=" Still missing: "+(ready.data?.missing||[]).join(", ")+". The auction has not restarted.";
+   status.textContent+=" Still missing: "+(ready.data?.missing||[]).join(", ")+". Auction not started; please complete these fields.";
    return;
   }
   if(!restartAfterSave){status.textContent+=" Auction information ready.";return;}
