@@ -7,7 +7,7 @@ const definitions=[
  ["service_history","Service history",["Full","Partial","None","Unknown"]],
  ["mot","MOT",["Valid — expiry known","Valid — date unknown","Expired","No MOT","Unknown"]],
  ["keys","Number of keys",["1","2","3 or more","None","Unknown"]],
- ["v5c","V5C logbook",["Present","Not confirmed"]],
+ ["v5c","V5C logbook",["In my name","Present — another name","Present","Missing","Not confirmed"]],
  ["accident","Accident / damage history",["None known","Previous damage or accident","Unknown"]],
  ["tyres","Front and rear tyres",["Good","Fair","Replacement needed","Unknown"]],
  ["brakes","Brakes",["Good","Fair","Attention needed","Unknown"]],
