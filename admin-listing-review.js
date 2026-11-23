@@ -127,10 +127,28 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
      if(note.value.trim()&&note.value.trim().length<5){msg.textContent="Enter at least five characters or leave the note blank.";note.focus();return;}
      if(outcome!=="apply_core"&&outcome!=="withdrawn"&&!confirm(outcome==="dismissed"?"Dismiss this response without applying changes?":"Record this response as reviewed without applying changes?"))return;
      saving=true;panel.querySelectorAll("button").forEach(b=>b.disabled=true);msg.textContent="Saving review…";
-     try{const data=outcome==="withdrawn"?await rpc("admin_withdraw_sale_reported_listing_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||null}):await rpc("admin_review_listing_refresh_v1",{p_request_id:Number(t.id),p_outcome:outcome,p_note:note.value.trim()||"Reviewed by Admin: "+outcome});if(!data?.success)throw Error("Review not confirmed");msg.textContent="Review saved.";saving=false;await load();if(onReviewed)try{await onReviewed();}catch(e){body.append(el("p","Review saved; refresh the desk to see updated listing details."));}const saved=el("p",(row?.submission_reference||row?.reference||"Submission "+s.submission_id)+" · "+(outcome==="apply_core"?"Listing details approved and saved.":outcome==="withdrawn"?"Motorcycle withdrawn. Trade bidding stopped.":"Review saved."));saved.setAttribute("role","status");saved.style.cssText="color:#91e9ac;font-weight:bold;border:1px solid #386446;border-radius:8px;padding:10px;margin:8px 0";body.prepend(saved);panel.open=true;}
+     try{const data=outcome==="condition_only_live"?await rpc("admin_approve_listing_refresh_condition_only_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||"Seller condition declarations approved during active bidding"}):outcome==="withdrawn"?await rpc("admin_withdraw_sale_reported_listing_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||null}):await rpc("admin_review_listing_refresh_v1",{p_request_id:Number(t.id),p_outcome:outcome,p_note:note.value.trim()||"Reviewed by Admin: "+outcome});if(!data?.success)throw Error("Review not confirmed");msg.textContent="Review saved.";saving=false;await load();if(onReviewed)try{await onReviewed();}catch(e){body.append(el("p","Review saved; refresh the desk to see updated listing details."));}const saved=el("p",(row?.submission_reference||row?.reference||"Submission "+s.submission_id)+" · "+(outcome==="condition_only_live"?"Nine seller declarations updated on live advert; prices, mileage and bids unchanged.":outcome==="apply_core"?"Listing details approved and saved.":outcome==="withdrawn"?"Motorcycle withdrawn. Trade bidding stopped.":"Review saved."));saved.setAttribute("role","status");saved.style.cssText="color:#91e9ac;font-weight:bold;border:1px solid #386446;border-radius:8px;padding:10px;margin:8px 0";body.prepend(saved);panel.open=true;}
      catch(e){msg.textContent=e.message||"Review not saved";saving=false;panel.querySelectorAll("button").forEach(b=>b.disabled=false);}
     };
-    if(t.response_type==="update"){const approve=button("Approve listing details →",()=>submit("apply_core"));approve.style.cssText="background:#ed1c24;color:white;font-weight:bold";actions.append(approve);}
+    if(t.response_type==="update"){
+      const structured=t.proposed?.condition_answers;
+      const complete=structured&&["service_history","mot","keys","v5c","accident","tyres","brakes","drive","mechanical"].every(k=>typeof structured[k]==="string"&&structured[k].length>0);
+      const auctionLive=(row?.underwrite_status==="live");
+      if(auctionLive){
+        if(complete){
+          const approve=button("Approve nine seller answers for live advert →",()=>submit("condition_only_live"));
+          approve.style.cssText="background:#ed1c24;color:white;font-weight:bold";
+          actions.append(approve);
+          card.append(el("p","Live auction: this updates condition declarations only. Existing bids, reserve, mileage and closing time are protected. Review any requested core changes separately after bidding closes."));
+        }else card.append(el("p","Older seller reply: please ask for the new nine-question update before approving condition declarations. Existing auction remains live."));
+      }else{
+        const approve=button("Approve listing details →",()=>submit("apply_core"));
+        approve.style.cssText="background:#ed1c24;color:white;font-weight:bold";
+        if(!complete)approve.disabled=true;
+        actions.append(approve);
+        if(!complete)card.append(el("p","Nine structured answers are missing. Send the updated seller questionnaire before approving."));
+      }
+    }
     if(t.response_type!=="sold")actions.append(button("Acknowledge without applying",()=>submit("acknowledged")));
     if(t.response_type==="sold"){const withdraw=button("Confirm withdrawal →",()=>submit("withdrawn"));withdraw.style.cssText="background:#ed1c24;color:#fff;font-weight:bold";actions.append(withdraw);}else actions.append(button("Dismiss response",()=>submit("dismissed")));
     card.append(actions,msg);body.append(card);
