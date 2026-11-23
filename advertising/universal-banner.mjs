@@ -717,3 +717,43 @@ export async function renderAdvertising(context){
 
 // The shared header calls this only on known public non-model routes. No layout is changed when no campaign is eligible.
 export async function renderPublicPageAdvertising(){try{const path=location.pathname;if(!/^\/markets\/[a-z0-9-]+\.html$/i.test(path)&&!['/bmw-motorcycles.html','/harley-davidson-motorcycles.html'].includes(path))return;if(!document.querySelector('main .hero,main .hero-section,main section:first-of-type'))return;const r=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/visitor-market-country',{cache:'no-store'});if(!r.ok)return;const g=await r.json();if(g.country_code==='GB')await renderAdvertising({pagePath:path,country:'GB'})}catch{/* never impede public content */}}
+
+/* Listing master adapter. Only server-selected, signed campaigns are accepted.
+ * Until select_listing is supported by the central service, all spaces remain collapsed.
+ * Never transmit private listing IDs, bid data, registration or seller information.
+ */
+export async function renderListingAdvertising(root,context){
+ if(!root?.isConnected||!context||context.country!=="GB")return;
+ const placements=["listing_after_gallery","listing_after_description","listing_bottom"];
+ const path=String(context.pagePath||"");
+ if(!["/trade-opportunities.html","/bike-details.html"].includes(path))return;
+ const slots=placements.map(key=>root.querySelector('[data-listing-placement="'+key+'"]'));
+ if(slots.some(slot=>!slot))return;
+ const request=Symbol();root.__listingAdRequest=request;
+ slots.forEach(slot=>{slot.hidden=true;slot.replaceChildren()});
+ try{
+  const payload=await send({action:"select_listing",page_path:path,country:context.country,manufacturer:String(context.manufacturer||"").slice(0,80),model:String(context.model||"").slice(0,120)});
+  if(!root.isConnected||root.__listingAdRequest!==request)return;
+  const entries=Array.isArray(payload?.placements)?payload.placements:[];
+  const used=new Set();
+  for(const [i,key] of placements.entries()){
+   const ad=entries.find(a=>a?.placement_key===key);
+   if(!ad||typeof ad.id!=="string"||used.has(ad.id)||typeof ad.token!=="string"||!ad.token)continue;
+   const desktop=https(ad.desktop_image_url),mobile=https(ad.mobile_image_url),destination=https(ad.destination_url);
+   if(!desktop||!mobile||!destination)continue;
+   const slot=slots[i],card=node("article"),link=node("a"),picture=node("picture"),source=node("source"),img=node("img"),caption=node("small");
+   used.add(ad.id);card.dataset.anybikeAdAuthorized="1";link.dataset.anybikeAdAuthorized="1";
+   link.href=destination;link.rel="noopener sponsored";link.target="_blank";link.className="anybike-managed-ad-link";
+   source.media="(max-width:650px)";source.srcset=mobile;
+   img.alt=String(ad.alt_text||"");img.src=desktop;img.loading="lazy";img.decoding="async";
+   caption.textContent=advertDisclosure(ad);picture.append(source,img);link.append(picture);card.append(link,caption);
+   let seen=false,clicked=false,ready=false,io=null;
+   const impression=()=>{if(!ready||seen||!card.isConnected)return;seen=true;send({action:"event",event_type:"impression",token:ad.token},true).catch(()=>{})};
+   const click=()=>{if(!ready||clicked)return;clicked=true;impression();send({action:"event",event_type:"click",token:ad.token},true).catch(()=>{})};
+   link.addEventListener("click",click);link.addEventListener("auxclick",e=>{if(e.button===1)click()});
+   img.addEventListener("error",()=>{io?.disconnect();slot.hidden=true;slot.replaceChildren()},{once:true});
+   img.addEventListener("load",()=>{if(!slot.isConnected||root.__listingAdRequest!==request)return;ready=true;slot.hidden=false;if("IntersectionObserver" in window){io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();io.disconnect()}},{threshold:.5});io.observe(card)}else impression()},{once:true});
+   slot.append(card);
+  }
+ }catch{/* unsupported endpoint or unavailable service: leave slots collapsed */}
+}
