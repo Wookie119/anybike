@@ -331,6 +331,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
             Select all visible
           </label>
           <button class="btn" onclick="clearSelected()">Clear</button>
+          <button type="button" class="btn red" id="listNowBmwBtn" onclick="listNowBmwStock()">LIST NOW →</button><span class="small" id="listNowBmwStatus" role="status" aria-live="polite"></span>
           <button type="button" class="btn" id="reviewStockBtn" onclick="reviewSelectedStock()">Review for Available Stock</button>
           <button class="btn red" id="prepareSelectedBtn" onclick="createBatch()">Prepare selected bikes</button>
         </div>
@@ -1768,6 +1769,23 @@ function applyDealerFilter(){
   loadItems(true);
 }
 
+async function listNowBmwStock(){
+ const status=document.getElementById("listNowBmwStatus"),button=document.getElementById("listNowBmwBtn");
+ if(!isBmwConnector()){status.textContent="LIST NOW currently supports the BMW Approved Used source.";return;}
+ const visible=new Set(items.filter(i=>i.source_status==="live").map(i=>Number(i.id)).filter(Number.isSafeInteger));
+ const chosen=selected.size?[...selected].map(Number).filter(id=>visible.has(id)):[...visible];
+ if(!chosen.length){status.textContent="No live BMW motorcycles selected or visible.";return;}
+ if(chosen.length>1000){status.textContent="Choose up to 1,000 motorcycles per batch.";return;}
+ if(!confirm("LIST NOW: Check "+chosen.length+" BMW motorcycles and publish only those with verified VAT Qualifying status and a previously saved AnyBike selling price? Already approved public images will be used; where none exists, AnyBike's image placeholder will display. No images will be copied or cleaned. Confirm that these source listings have been refreshed and availability should be checked before accepting a purchase."))return;
+ button.disabled=true;status.textContent="Checking eligibility and publishing the eligible BMW stock…";
+ try{
+  const {data,error}=await sb().rpc("admin_list_now_bmw_v1",{p_item_ids:chosen});
+  if(error)throw error;
+  status.textContent=Number(data.published||0)+" newly published · "+Number(data.already_published||0)+" already listed · "+Number(data.skipped||0)+" need VAT/price review. Existing approved images retained; otherwise AnyBike placeholder.";
+  await loadItems(true);
+ }catch(error){status.textContent="Nothing confirmed published: "+(error.message||error);}
+ finally{button.disabled=false;}
+}
 async function reviewSelectedStock(){
  const ids=[...selected].map(Number);
  const output=document.getElementById("stockReviewPanel");
