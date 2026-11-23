@@ -20,6 +20,21 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
    const pending=states.filter(s=>s.responded_at&&!s.reviewed_at);
    const results=await Promise.allSettled(pending.map(async s=>({state:s,responses:await rpc("admin_get_listing_refresh_responses_v1",{p_submission_id:Number(s.submission_id)})})));
    body.replaceChildren(button("Refresh responses",load));
+   const totals=[
+     ["Awaiting response",states.filter(s=>s.eligible&&s.delivery_state==="sent"&&!s.responded_at).length],
+     ["Requires review",pending.length],
+     ["Availability confirmed",states.filter(s=>s.response_type==="available"&&s.responded_at).length],
+     ["Reported sold",states.filter(s=>s.response_type==="sold"&&s.responded_at).length],
+     ["Updates reviewed",states.filter(s=>s.response_type==="update"&&s.reviewed_at).length]
+   ];
+   const overview=el("div");overview.style.cssText="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0";
+   for(const [label,count] of totals){
+     const item=el("div");item.style.cssText="flex:1 1 125px;background:#101010;border:1px solid #454545;border-radius:6px;padding:8px";
+     const number=el("strong",count);number.style.cssText="display:block;font-size:20px";
+     if(label==="Requires review"&&count)number.style.color="#ffb85c";
+     item.append(number,el("span",label));overview.append(item);
+   }
+   body.append(overview);
    const reminders=el("details");reminders.style.cssText="margin:12px 0;padding:10px;border:1px solid #555;border-radius:7px";
    let candidates=[],reminderError=false;
    try{candidates=await rpc("admin_listing_refresh_reminders_due_v1");if(!Array.isArray(candidates))throw Error("Unexpected reminder response");}
