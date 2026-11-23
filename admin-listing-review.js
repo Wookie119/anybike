@@ -58,6 +58,8 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
       grid.append(el("span",label),el("span",oldValue));const value=el("strong",newValue);value.style.color=newValue===oldValue?"#ddd":"#91e9ac";grid.append(value);
      }
      card.append(grid);
+     const duration=t.proposed?.listing_duration;
+     if(duration)card.append(el("p","Seller's preferred advertising period: "+({30:"at least 30 days",60:"at least 60 days",90:"at least 90 days",ongoing:"keep advertised while available; check periodically"}[duration]||"Review required")));
      if(details[0].status!=="fulfilled")card.append(el("p","Current price and postcode could not be retrieved. Refresh before comparing."));
      for(const [k,label] of Object.entries({notes:"Description changes",condition:"Condition and paperwork"})){
       const p=el("p");p.style.whiteSpace="pre-wrap";p.style.margin="8px 0";p.append(el("strong",label+": "),document.createTextNode(String(t.proposed?.[k]||"No changes requested")));card.append(p);
@@ -103,8 +105,7 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
        }
        photoTools.replaceChildren(thumbs);
        if(pending.length){
-         photoTools.append(el("p","Click a photo to enlarge. Approve only if every pending original is suitable for the advert."));
-         photoTools.append(approve);
+         photoTools.append(el("p","Inspect each pending original above. When all are suitable, use the single Approve & Update / Relist button below. Use photo editing tools only for photographs needing changes."));
        }
        return pending.length;
      };
