@@ -618,6 +618,7 @@ async function restartSubmissionAuction(submissionId,button){
  finally{button.disabled=false;button.textContent=previous;}
 }
 async function loadQueue(){
+  const previouslyOpenId=Number(document.querySelector(".submission-detail.open")?.id?.replace("submission-detail-",""))||0;
   const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v5",{p_limit:150});
   if(error){document.getElementById("queue").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
   rows=data||[];
@@ -630,8 +631,10 @@ async function loadQueue(){
     const opportunities=await sb.rpc("admin_get_trade_underwrite_queue_v2");
     if(!opportunities.error)(opportunities.data||[]).forEach(function(o){tradeOpportunityBySubmission.set(Number(o.submission_id),o);});
   }catch(err){console.warn("Trade offers summary unavailable",err);}
+  savedBuyerDescriptions.clear();
   render();
   updateNextAction();
+  if(previouslyOpenId&&rows.some(x=>Number(x.submission_id)===previouslyOpenId))toggleSubmission(previouslyOpenId);
   const requestedSubmission=Number(new URLSearchParams(location.search).get("submission"));
   if(requestedSubmission&&rows.some(x=>Number(x.submission_id)===requestedSubmission)){
     const el=document.getElementById("submission-detail-"+requestedSubmission);
