@@ -55,6 +55,7 @@ function updateDealer(){const q=new URLSearchParams();if(make.value)q.set("make"
 // Mobile photo gallery picker. Only in-memory previews; no upload or server request.
 const photoInput=el("photoFiles"),photoRoot=el("photoPreviews"),photoStatus=el("photoStatus");let chosen=[];const maxPhotos=12,maxBytes=10*1024*1024;const supported=new Set(["image/jpeg","image/png","image/webp"]);function moveSellerPhoto(from,to){if(from===to||from<0||to<0||from>=chosen.length||to>=chosen.length)return;const item=chosen.splice(from,1)[0];chosen.splice(to,0,item);renderPhotos();}
 function renderPhotos(){
+ sellerV2PhotoIndex=0;
  resetButton("savePhotos","Save Selected Photos ✓");el("photoSaveStatus").textContent="";el("photoSaveStatus").classList.remove("saved-ok","save-error");photoRoot.replaceChildren();
  chosen.forEach((item,index)=>{
   const tile=document.createElement("div");tile.className="photoTile";tile.draggable=true;
@@ -71,7 +72,27 @@ function renderPhotos(){
  photoStatus.textContent=chosen.length+" of "+maxPhotos+" photos selected. Photos have not been uploaded.";
  refreshSellerAdvertReadiness();
 }
+let sellerV2PhotoIndex=0;
+function renderSellerAdvertDraft(){
+ const title=el("sellerV2BikeTitle");if(!title)return;
+ const get=id=>String(el(id)?.value||"").trim();
+ const selectedLabel=id=>{const field=el(id);return field?.tagName==="SELECT"&&field.value?String(field.selectedOptions[0]?.textContent||field.value).trim():get(id);};
+ const make=selectedLabel("make"),model=selectedLabel("model"),variant=get("variant");
+ title.textContent=[make,model,variant].filter(Boolean).join(" ")||"Your motorcycle";
+ const facts=(id,rows,showMissing=false)=>{const host=el(id);host.replaceChildren();for(const [label,value] of rows){if(!value&&!showMissing)continue;const div=document.createElement("div"),dt=document.createElement("dt"),dd=document.createElement("dd");dt.textContent=label;dd.textContent=value||"Not supplied";if(!value)dd.className="missing";div.append(dt,dd);host.append(div);}};
+ facts("sellerV2Facts",[["Manufacturer",make],["Model",model],["Variant",variant],["Year",get("year")],["Mileage",get("mileage")?get("mileage")+" miles":""],["Condition",selectedLabel("condition")]],true);
+ el("sellerV2Description").textContent=get("bikeNotes")||"Add a description of your motorcycle.";
+ facts("sellerV2Extras",[["Previous owners",get("ab-extra-previousOwners")],["Last service",get("ab-extra-lastService")],["Major maintenance",get("ab-extra-majorMaintenance")],["Cosmetic condition",get("ab-extra-cosmeticDetails")],["Modifications",get("ab-extra-modifications")],["Original parts",get("ab-extra-originalParts")],["Recalls",get("ab-extra-recalls")],["Inspection",get("ab-extra-inspection")],["Warranty",get("ab-extra-warranty")]]);
+ el("sellerV2History").textContent="Seller-declared history: "+(selectedLabel("ab-extra-historyDeclaration")||"Not supplied")+". Independent verification pending.";
+ facts("sellerV2Condition",[["Service history","service_history"],["MOT","mot"],["Keys","keys"],["V5C","v5c"],["Accident history","accident"],["Tyres","tyres"],["Brakes","brakes"],["Final drive","drive"],["Mechanical condition","mechanical"]].map(([label,key])=>[label,selectedLabel("ab-condition-"+key)]),true);
+ const main=el("sellerV2MainPhoto"),thumbs=el("sellerV2Thumbs");main.replaceChildren();thumbs.replaceChildren();
+ if(!chosen.length){main.textContent="Add motorcycle photographs";return;}
+ sellerV2PhotoIndex=Math.max(0,Math.min(sellerV2PhotoIndex,chosen.length-1));
+ const photo=document.createElement("img");photo.src=chosen[sellerV2PhotoIndex].url;photo.alt="Motorcycle photograph "+(sellerV2PhotoIndex+1);main.append(photo);
+ chosen.forEach((item,i)=>{const b=document.createElement("button"),img=document.createElement("img");b.type="button";b.className=i===sellerV2PhotoIndex?"active":"";b.setAttribute("aria-label","View photograph "+(i+1));img.src=item.url;img.alt="";b.append(img);b.addEventListener("click",()=>{sellerV2PhotoIndex=i;renderSellerAdvertDraft();});thumbs.append(b);});
+}
 function refreshSellerAdvertReadiness(){
+ renderSellerAdvertDraft();
  const host=el("sellerAdvertReadiness");if(!host)return;
  const get=id=>String(el(id)?.value||"").trim();
  const missing=[];
