@@ -727,18 +727,23 @@ export async function renderListingAdvertising(root,context){
  const placements=["listing_after_gallery","listing_after_description","listing_bottom"];
  const path=String(context.pagePath||"");
  if(!["/trade-opportunities.html","/bike-details.html"].includes(path))return;
+ const audience=path==="/trade-opportunities.html"?"trade_dealer":context.audience==="retail_private"?"retail_private":null;
+ if(!audience)return;
  const slots=placements.map(key=>root.querySelector('[data-listing-placement="'+key+'"]'));
  if(slots.some(slot=>!slot))return;
  const request=Symbol();root.__listingAdRequest=request;
  slots.forEach(slot=>{slot.hidden=true;slot.replaceChildren()});
  try{
-  const payload=await send({action:"select_listing",page_path:path,country:context.country,manufacturer:String(context.manufacturer||"").slice(0,80),model:String(context.model||"").slice(0,120)});
+  const payload=await send({action:"select_listing",page_path:path,country:context.country,audience,manufacturer:String(context.manufacturer||"").slice(0,80),model:String(context.model||"").slice(0,120)});
   if(!root.isConnected||root.__listingAdRequest!==request)return;
   const entries=Array.isArray(payload?.placements)?payload.placements:[];
   const used=new Set();
   for(const [i,key] of placements.entries()){
    const ad=entries.find(a=>a?.placement_key===key);
    if(!ad||typeof ad.id!=="string"||used.has(ad.id)||typeof ad.token!=="string"||!ad.token)continue;
+   // Require explicit server-confirmed audience eligibility; never infer retail finance eligibility from page type alone.
+   if(!Array.isArray(ad.eligible_audiences)||!ad.eligible_audiences.includes(audience))continue;
+   if(audience==="trade_dealer"&&ad.commercial_category!=="trade_services"&&ad.commercial_category!=="transport"&&ad.commercial_category!=="parts_accessories"&&ad.commercial_category!=="trade_insurance"&&ad.commercial_category!=="trade_equipment")continue;
    const desktop=https(ad.desktop_image_url),mobile=https(ad.mobile_image_url),destination=https(ad.destination_url);
    if(!desktop||!mobile||!destination)continue;
    const slot=slots[i],card=node("article"),link=node("a"),picture=node("picture"),source=node("source"),img=node("img"),caption=node("small");
