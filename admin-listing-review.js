@@ -44,6 +44,7 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
     card.append(el("strong",[row?.submission_reference||row?.reference||"Submission "+s.submission_id,row?.make,row?.model].filter(Boolean).join(" · ")));
     card.append(el("p",({update:"Changes requested",available:"Availability confirmed",sold:"Reported sold / withdrawn"})[t.response_type]||"Customer response"));
     const date=new Date(t.responded_at);if(!isNaN(date))card.append(el("p",date.toLocaleString("en-GB",{timeZone:"Europe/London"})));
+    let pendingPhotoCount=0,inspectedPhotoCount=0;
     if(t.response_type==="update"){
      const details=await Promise.allSettled([rpc("admin_get_submission_delivery_v1",{p_submission_id:Number(s.submission_id)}),rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(s.submission_id)})]);
      const current=details[0].status==="fulfilled"?details[0].value:{};
@@ -61,7 +62,6 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
      for(const [k,label] of Object.entries({notes:"Description changes",condition:"Condition and paperwork"})){
       const p=el("p");p.style.whiteSpace="pre-wrap";p.style.margin="8px 0";p.append(el("strong",label+": "),document.createTextNode(String(t.proposed?.[k]||"No changes requested")));card.append(p);
      }
-     let pendingPhotoCount=0,inspectedPhotoCount=0;
      const photoSection=el("div");photoSection.style.cssText="border:1px solid #444;border-radius:8px;padding:10px;margin:10px 0";
      const title=el("strong","Photographs");photoSection.append(title);
      const photoStatus=el("p");photoStatus.style.margin="6px 0";
@@ -117,7 +117,7 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
      photoSection.append(photoStatus,photoTools,advanced);card.append(photoSection);
      try{await updatePhotoSummary();}catch(e){photoStatus.textContent="Photo previews unavailable. "+(e.message||"Use photo editing tools.");photoTools.replaceChildren();}
     }
-    const guidance=t.response_type==="sold"?"The seller reports this motorcycle is no longer available. Trade bidding is paused. Confirm withdrawal below to remove the listing without recording an AnyBike sale.":t.response_type==="update"?"Approve the three listing details when checked. Review photographs using the tools above. Description and condition changes are shown for review but are not automatically published. Active bidding remains protected.":"Record that availability was confirmed.";
+    const guidance=t.response_type==="sold"?"The seller reports this motorcycle is no longer available. Trade bidding is paused. Confirm withdrawal below to remove the listing without recording an AnyBike sale.":t.response_type==="update"?"Review the nine answers, seller price and photo thumbnails together. The one-action approval also approves inspected pending photos. Live auctions keep their bids and pricing protected; closed eligible auctions can be relisted.":"Record that availability was confirmed.";
     card.append(el("p",guidance));
     
     const label=el("label","Review note (optional)");const note=el("textarea");note.rows=2;note.maxLength=1000;note.style.cssText="display:block;width:100%;box-sizing:border-box;margin:5px 0;background:#101010;color:white;border:1px solid #555;border-radius:6px;padding:8px";label.append(note);card.append(label);
