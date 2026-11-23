@@ -494,6 +494,7 @@ async function openSellerConditionReview(id){
  const {data,error}=await sb.rpc("admin_get_seller_condition_review_v1",{p_submission_id:Number(id)});
  if(error){alert("Cannot load admin corrections: "+error.message);return;}
  const original=conditionSellerAnswers(row.notes);
+ if(!original.service_history && /service history\s*:\s*(?:part|partial)\s*service history/i.test(String(row.notes||""))) original.service_history="Partial";
  const edits=data&&typeof data==="object"?data:{};
  let overlay=document.getElementById("abConditionReviewOverlay");
  if(!overlay){overlay=document.createElement("div");overlay.id="abConditionReviewOverlay";document.body.appendChild(overlay);}
@@ -556,7 +557,12 @@ async function saveSellerConditionReview(restartAfterSave=false){
   }
   if(!restartAfterSave){status.textContent+=" Auction information ready.";return;}
   const opportunity=tradeOpportunityBySubmission.get(Number(id));
-  if(!opportunity||opportunity.opportunity_status!=="closed"){status.textContent+=" This auction is not currently closed. Refresh before restarting.";return;}
+  if(!opportunity){
+    closeSellerConditionReview();
+    await startUnderwrite(id);
+    return;
+  }
+  if(opportunity.opportunity_status!=="closed"){status.textContent+=" An auction already exists. Check its current status before starting another.";return;}
   if(refreshStatuses.get(Number(id))?.response_type==="sold"){status.textContent+=" Seller reported sold. Restart blocked.";return;}
   if(!confirm("Restart "+(rows.find(r=>Number(r.submission_id)===Number(id))?.model||"this motorcycle")+" for 14 days? Previous bids stay in the audit history and dealers will be notified.")){
    status.textContent+=" Saved. Auction not restarted.";
