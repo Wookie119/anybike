@@ -517,7 +517,7 @@ async function openSellerConditionReview(id){
  '<label style="display:flex;flex-direction:column;gap:7px"><strong>Motorcycle collection postcode *</strong><input id="abConditionReviewPostcode" maxlength="10" placeholder="e.g. OX44 7RW" value="'+esc(edits.collection_postcode||edits._seller_postcode||"")+'" style="background:#080808;color:#fff;border:1px solid #777;border-radius:8px;padding:11px"><small style="color:#bbb">Seller collection postcode: '+esc(edits._seller_postcode||"Not supplied")+'. Full postcode stays internal.</small></label></div>'+
  '<label style="display:block;margin-bottom:12px">Reason / supporting source (required)<textarea id="abConditionReviewReason" rows="2" placeholder="e.g. Confirmed with seller by phone; photographs inspected; documentation supplied" style="display:block;margin-top:7px;width:100%;min-height:62px;background:#080808;color:#fff;border:1px solid #666;border-radius:8px;padding:10px"></textarea></label>'+
  '<p id="abConditionReviewStatus" role="status" style="color:#bbb"></p>'+
- '<div style="display:flex;gap:12px;flex-wrap:wrap"><button type="button" class="red" onclick="saveSellerConditionReview()">Save reviewed information</button><button type="button" onclick="closeSellerConditionReview()">Close</button></div></div>';
+ '<div style="display:flex;gap:12px;flex-wrap:wrap"><button type="button" class="red" onclick="saveSellerConditionReview(false)">Save reviewed information</button><button type="button" class="red" style="background:#ed1c24" onclick="saveSellerConditionReview(true)">Save &amp; Restart Auction →</button><button type="button" onclick="closeSellerConditionReview()">Close</button></div></div>';
 }
 function setUnconfirmedConditionAnswers(){
  const root=document.getElementById("abConditionReviewOverlay");if(!root)return;
@@ -531,7 +531,7 @@ function setUnconfirmedConditionAnswers(){
  if(status){status.style.color="#ddd";status.textContent=n+" unanswered declaration(s) marked as unconfirmed. Review the entries before saving. The confidential reserve and collection postcode are unchanged.";}
 }
 function closeSellerConditionReview(){const node=document.getElementById("abConditionReviewOverlay");if(node)node.style.display="none";activeConditionReviewId=null;}
-async function saveSellerConditionReview(){
+async function saveSellerConditionReview(restartAfterSave=false){
  const id=activeConditionReviewId;if(!id)return;
  const root=document.getElementById("abConditionReviewOverlay"),status=document.getElementById("abConditionReviewStatus");
  const reason=document.getElementById("abConditionReviewReason").value.trim();
@@ -542,17 +542,33 @@ async function saveSellerConditionReview(){
  answers.reserve_gbp=reserve?Number(reserve):null;
  answers.collection_postcode=postcode||null;
  if(reserve && (!Number.isFinite(Number(reserve))||Number(reserve)<=0)){status.textContent="Enter a valid positive reserve.";return;}
- const button=root.querySelector("button.red");button.disabled=true;status.textContent="Saving reviewed answers…";
+ const buttons=[...root.querySelectorAll("button")];buttons.forEach(b=>b.disabled=true);status.textContent="Saving reviewed answers…";
  try{
   const {data,error}=await sb.rpc("admin_save_seller_condition_review_v1",{p_submission_id:id,p_answers:answers,p_reason:reason});
   if(error||!data?.success)throw Error(error?.message||"Could not save correction");
   status.textContent=data.unchanged?"No corrections were changed.":"Saved with a full admin audit record. Future eligible dealer auction views will show the completed answers.";
   status.style.color="#9cdda9";document.getElementById("abConditionReviewReason").value="";
   const ready=await sb.rpc("admin_trade_underwrite_readiness_v1",{p_submission_id:id});
-  if(!ready.error&&ready.data){
-   status.textContent+=" "+(ready.data.ready?"Ready for Admin to review auction publication.":"Still missing: "+(ready.data.missing||[]).join(", "));
+  if(ready.error)throw Error(ready.error.message);
+  if(!ready.data?.ready){
+   status.textContent+=" Still missing: "+(ready.data?.missing||[]).join(", ")+". The auction has not restarted.";
+   return;
   }
- }catch(e){status.textContent=e.message;status.style.color="#ffaaaa";}finally{button.disabled=false;}
+  if(!restartAfterSave){status.textContent+=" Auction information ready.";return;}
+  const opportunity=tradeOpportunityBySubmission.get(Number(id));
+  if(!opportunity||opportunity.opportunity_status!=="closed"){status.textContent+=" This auction is not currently closed. Refresh before restarting.";return;}
+  if(refreshStatuses.get(Number(id))?.response_type==="sold"){status.textContent+=" Seller reported sold. Restart blocked.";return;}
+  if(!confirm("Restart "+(rows.find(r=>Number(r.submission_id)===Number(id))?.model||"this motorcycle")+" for 14 days? Previous bids stay in the audit history and dealers will be notified.")){
+   status.textContent+=" Saved. Auction not restarted.";
+   return;
+  }
+  status.textContent="Saving complete. Restarting auction…";
+  const restarted=await sb.rpc("admin_restart_trade_underwrite_v1",{p_opportunity_id:Number(opportunity.opportunity_id),p_duration_hours:336});
+  if(restarted.error||!restarted.data?.success)throw Error(restarted.error?.message||"Restart not confirmed");
+  closeSellerConditionReview();
+  alert("Auction restarted successfully. Eligible dealers will be notified.");
+  await loadQueue();
+ }catch(e){status.textContent="Auction not restarted: "+(e.message||e);status.style.color="#ffaaaa";}finally{buttons.forEach(b=>b.disabled=false);}
 }
 async function toggleInternationalConsideration(id){
  const next=!internationalSelections.get(Number(id));
