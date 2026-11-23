@@ -33,13 +33,8 @@ function setup(){
  for(const [key,title,choices] of definitions){
   const label=document.createElement("label");label.className="ab-condition-field";
   const titleNode=document.createElement("span");titleNode.textContent=title+" *";
-  if(key==="v5c"){
-   const row=document.createElement("span");row.style.cssText="display:flex;align-items:center;gap:9px;min-height:43px;font-weight:600";
-   const check=document.createElement("input");check.type="checkbox";check.id="ab-condition-v5c";check.dataset.abField=key;check.style.cssText="width:19px;height:19px;min-height:0;padding:0;accent-color:#ed1c24;flex:none";
-   const caption=document.createElement("span");caption.textContent="V5C logbook present";
-   titleNode.textContent="V5C logbook";row.append(check,caption);label.append(titleNode,row);host.appendChild(label);continue;
-  }
-  const select=document.createElement("select");select.id="ab-condition-"+key;select.required=true;select.dataset.abField=key;
+
+  const select=document.createElement("select");select.id="ab-condition-"+key;select.required=true;select.name="condition_"+key;select.dataset.abField=key;
   const empty=document.createElement("option");empty.value="";empty.textContent="Please select";select.appendChild(empty);
   for(const option of choices){const node=document.createElement("option");node.value=option;node.textContent=option;select.appendChild(node);}
   label.append(titleNode,select);host.appendChild(label);
@@ -83,7 +78,7 @@ window.AnyBikeSellerDetails={
   const declarations=[];
   for(const [key,title] of definitions){
    const select=document.getElementById("ab-condition-"+key);
-   if(select)declarations.push(title+": "+(key==="v5c"?(select.checked?"Present":"Not confirmed"):normalise(select.value||"Not answered")));
+   if(select)declarations.push(title+": "+normalise(select.value||"Not answered"));
   }
   const faultText=normalise(document.getElementById("ab-condition-fault-description")?.value||"",2000);
   if(faultText)declarations.push("Known fault details: "+faultText);
