@@ -15,5 +15,19 @@
  }
  function title(values){return values.filter(valid).map(v=>String(v).trim()).join(" ");}
  function mileage(value){if(!valid(value))return "";const n=Number(value);return Number.isFinite(n)&&n>=0?n.toLocaleString("en-GB")+" miles":"";}
- global.AnyBikeListingMaster=Object.freeze({factsHTML,renderFacts,title,mileage});
+ // Generate a factual draft only from explicit seller answers. No inferred condition or history.
+ function prepareDescription(input){
+  const clean=v=>String(v??"").replace(/[\r\n]+/g," ").trim();
+  const lines=[];
+  const heading=title([input.year,input.make,input.model,input.variant].map(clean));
+  if(heading)lines.push(heading+".");
+  const miles=mileage(input.mileage);
+  if(miles)lines.push("Seller-reported mileage: "+miles+".");
+  for(const [label,value] of rows(input.declarations||[])){
+   const v=clean(value);
+   if(v&&!/^(unknown|not sure|not supplied|not provided)$/i.test(v))lines.push(label+" (seller-declared): "+v+".");
+  }
+  return lines.join("\n");
+ }
+ global.AnyBikeListingMaster=Object.freeze({factsHTML,renderFacts,title,mileage,prepareDescription});
 })(window);
