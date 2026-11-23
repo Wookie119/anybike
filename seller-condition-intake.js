@@ -43,7 +43,7 @@ function setup(){
  const faults=document.createElement("label");faults.className="ab-condition-field ab-condition-faults";
  faults.style.gridColumn="1/-1";faults.hidden=true;
  const faultsTitle=document.createElement("span");faultsTitle.textContent="Describe the known mechanical faults *";
- const faultsInput=document.createElement("textarea");faultsInput.id="ab-condition-fault-description";faultsInput.rows=3;faultsInput.maxLength=2000;
+ const faultsInput=document.createElement("textarea");faultsInput.id="ab-condition-fault-description";faultsInput.name="condition_fault_description";faultsInput.rows=3;faultsInput.maxLength=2000;
  faultsInput.placeholder="Describe symptoms, warning lights, repairs needed or any known mechanical issue. Do not include contact details.";
  faultsInput.style.cssText="width:100%;min-height:90px;background:#090909;border:1px solid #666;border-radius:8px;color:#fff;padding:10px";
  faults.append(faultsTitle,faultsInput);host.appendChild(faults);
