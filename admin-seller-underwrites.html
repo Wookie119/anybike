@@ -1584,6 +1584,34 @@ async function saveVehicle(){
   }
 }
 
+function auctionPreviewDescriptionAndFacts(description,conditionRows,recordedAnswers,sellerNotes){
+ const text=String(description||"").replace(/\\r\\n|\\n/g,"\n").replace(/\r/g,"\n").trim();
+ const declared=conditionSellerAnswers(sellerNotes||"");
+ const labelPattern="Service history|MOT|Number of keys|V5C logbook|Accident \\/ damage history|Front and rear tyres|Brakes|Chain \\/ belt \\/ final drive|Known mechanical faults";
+ const chunks=text.replace(new RegExp("(^|\\s+)("+labelPattern+")\\s*:","gi"),(_,space,label)=>"\n"+label+":").split(/\n+/).map(x=>x.trim()).filter(Boolean);
+ const asFact={};
+ const other=[];
+ const labelKeys=Object.fromEntries(conditionRows.map(([k,l])=>[l.toLowerCase(),k]));
+ for(const piece of chunks){
+   const matched=piece.match(/^([^:]{2,45}):\s*(.+)$/);
+   const key=matched&&labelKeys[matched[1].trim().toLowerCase()];
+   if(key){
+     const options=(conditionFields.find(([k])=>k===key)||[])[2]||[];
+     const val=matched[2].trim();
+     if(options.includes(val)){asFact[key]=val;continue;}
+     // Mixed free text ("Service history: Partial Outstanding finance ...")
+     // is not a clean answer. Preserve it without silently declaring it verified.
+   }
+   other.push(piece);
+ }
+ const notes=other.filter(x=>!/^\d{4}\s+.+?\.\s*[\d,]+\s+miles\s+recorded\.?$/i.test(x));
+ const details=notes.map(x=>x.replace(/^Seller update \(not independently verified\):\s*/i,"Seller's update (not independently verified): ")).map(x=>x.trim()).filter(Boolean);
+ const facts=conditionRows.map(([key,label])=>({key,label,value:String(recordedAnswers?.[key]||declared[key]||asFact[key]||(key==="v5c"?"Not confirmed":"Unknown"))}));
+ const detailsHtml=details.length?'<div style="display:grid;gap:9px;margin:0 0 16px">'+details.map(x=>'<p style="margin:0;line-height:1.5">'+esc(x)+'</p>').join("")+'</div>':"";
+ const factsHtml='<ul style="margin:8px 0 0;padding-left:20px;line-height:1.55;display:grid;gap:4px">'+facts.map(x=>'<li><strong>'+esc(x.label)+':</strong> '+esc(x.value)+'</li>').join("")+"</ul>";
+ return '<div class="advert-preview-seller-description">'+detailsHtml+factsHtml+'</div>';
+}
+
 async function openSubmissionAdvertPreview(id){
  const r=rows.find(x=>Number(x.submission_id)===Number(id));
  if(!r)return;
@@ -1598,10 +1626,7 @@ async function openSubmissionAdvertPreview(id){
  const conditionAnswers=reviewError?{}:(reviewAnswers||{});
  const sellerFacts=conditionSellerAnswers(r.notes||"");
  const conditionRows=[["service_history","Service history"],["mot","MOT"],["keys","Number of keys"],["v5c","V5C logbook"],["accident","Accident / damage history"],["tyres","Front and rear tyres"],["brakes","Brakes"],["drive","Chain / belt / final drive"],["mechanical","Known mechanical faults"]];
- const originalHasNine=conditionRows.filter(([,label])=>description.includes(label+":")).length>=7;
- const conditionMarkup='<ul style="margin:8px 0;padding-left:20px;line-height:1.55;display:grid;gap:4px">'+conditionRows.map(([key,label])=>"<li><strong>"+esc(label)+":</strong> "+esc(conditionAnswers[key]||sellerFacts[key]||(key==="v5c"?"Not confirmed":"Unknown"))+"</li>").join("")+"</ul>";
- const boilerplateOnly=description.includes("miles recorded.")&&description.trim().split(".").filter(Boolean).length<=2;
- const descriptionMarkup=originalHasNine?advertDescriptionMarkup(description):(boilerplateOnly?"":advertDescriptionMarkup(description))+conditionMarkup;
+ const descriptionMarkup=auctionPreviewDescriptionAndFacts(description,conditionRows,conditionAnswers,r.notes);
  const pendingReply=refreshStatuses.get(Number(id));
  const adminNotice=pendingReply?.response_type==="update"&&!pendingReply.reviewed_at?'<div style="margin-top:10px;padding:10px 12px;border:1px solid #786332;border-radius:8px;background:#2a2618;color:#f8d58c;font-size:13px">Seller update awaiting your approval. Currently recorded facts are shown here; the new reply is not yet published. Use Review listing update to apply it.</div>':"";
 
