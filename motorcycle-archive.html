@@ -12,13 +12,27 @@
 import {liveStockLink} from '/model-template/live-stock-navigation.mjs';
 const el=id=>document.getElementById(id),make=el('make'),model=el('model'),year=el('year'),status=el('status'),groups=el('groups');
 const api='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/stock-archive-public';
-const records=[];let shown=60,ready=false,loading=false;
+const records=[];let shown=60,ready=false,loading=false;const modelRoutes=new Map();const brandRoutes=new Map();
 const norm=v=>String(v??'').trim().toLowerCase();
 const unique=values=>[...new Set(values.filter(v=>v!==null&&v!==undefined&&String(v).trim()).map(String))].sort((a,b)=>a.localeCompare(b,'en-GB',{numeric:true}));
 function options(select,values,first,initial=select.value){select.replaceChildren(new Option(first,''),...values.map(v=>new Option(v,v)));if(values.includes(initial))select.value=initial;}
 function link(text,href,cls=''){const a=document.createElement('a');a.textContent=text;a.href=href;a.className=cls;return a;}
 function updateFilters(initial=false){const q=new URLSearchParams(location.search);options(make,unique(records.map(r=>r.make)),'All manufacturers',initial?q.get('make')||'':make.value);const scoped=records.filter(r=>!make.value||r.make===make.value);options(model,unique(scoped.map(r=>r.model)),'All models',initial?q.get('model')||'':model.value);options(year,unique(scoped.filter(r=>!model.value||r.model===model.value).map(r=>r.year)).reverse(),'All years');}
-function render(){const rows=records.filter(r=>(!make.value||r.make===make.value)&&(!model.value||r.model===model.value)&&(!year.value||String(r.year)===year.value)).sort((a,b)=>String(a.make).localeCompare(String(b.make))||String(a.model).localeCompare(String(b.model),'en-GB',{numeric:true})||Number(b.year)-Number(a.year));groups.replaceChildren();status.textContent=ready?(rows.length?rows.length.toLocaleString('en-GB')+' archived motorcycles':'No published archive motorcycles match these filters.'):'Loading motorcycle archive…';const grouped=new Map();for(const r of rows.slice(0,shown)){const k=r.make+' — '+r.model;if(!grouped.has(k))grouped.set(k,[]);grouped.get(k).push(r);}for(const [name,bikes] of grouped){const section=document.createElement('section');section.className='panel';const h=document.createElement('h2');h.textContent=name;section.append(h,link('View Similar Motorcycles',liveStockLink(bikes[0].make,bikes[0].model),'btn'));const cards=document.createElement('div');cards.className='cards';for(const bike of bikes){const card=document.createElement('article');card.className='bike';const h=document.createElement('h3');h.textContent=[bike.year,bike.make,bike.model].filter(Boolean).join(' ');const details=document.createElement('p');details.textContent=bike.mileage!=null?Number(bike.mileage).toLocaleString('en-GB')+' miles · No longer available':'No longer available';card.append(h,details,link('View archived motorcycle','/international-vq-motorcycle.html?id='+encodeURIComponent(bike.item_id)),document.createElement('br'),link('View Similar Motorcycles',liveStockLink(bike.make,bike.model)));cards.append(card);}section.append(cards);groups.append(section);}el('more').hidden=rows.length<=shown;}
+const routeKey=(make,model)=>norm(make)+'|'+norm(model);
+function contextLinks(m,mo){
+ const nav=document.createElement('nav');nav.className='archive-pills';nav.setAttribute('aria-label','Explore '+[m,mo].filter(Boolean).join(' ')+' motorcycles');
+ if(m&&mo){
+  nav.append(link('View Similar Motorcycles',liveStockLink(m,mo),'archive-pill'));
+  const route=modelRoutes.get(routeKey(m,mo));if(route)nav.append(link(mo+' model guide',route,'archive-pill'));
+ }
+ if(m){
+  const brand=brandRoutes.get(norm(m));if(brand)nav.append(link(m+' manufacturer page',brand,'archive-pill'));
+  nav.append(link('All '+m+' available stock',liveStockLink(m),'archive-pill'),link('All '+m+' archived motorcycles','/motorcycle-archive.html?'+new URLSearchParams({make:m}),'archive-pill'));
+ }
+ nav.append(link('Register interest','/anybike-connect.html','archive-pill'),link('International markets','/international-markets.html','archive-pill'));
+ return nav;
+}
+function render(){const rows=records.filter(r=>(!make.value||r.make===make.value)&&(!model.value||r.model===model.value)&&(!year.value||String(r.year)===year.value)).sort((a,b)=>String(a.make).localeCompare(String(b.make))||String(a.model).localeCompare(String(b.model),'en-GB',{numeric:true})||Number(b.year)-Number(a.year));groups.replaceChildren();if(make.value){const nav=contextLinks(make.value,model.value);groups.append(nav);}status.textContent=ready?(rows.length?rows.length.toLocaleString('en-GB')+' archived motorcycles':'No published archive motorcycles match these filters.'):'Loading motorcycle archive…';const grouped=new Map();for(const r of rows.slice(0,shown)){const k=r.make+' — '+r.model;if(!grouped.has(k))grouped.set(k,[]);grouped.get(k).push(r);}for(const [name,bikes] of grouped){const section=document.createElement('section');section.className='panel';const h=document.createElement('h2');h.textContent=name;section.append(h);if(!model.value)section.append(contextLinks(bikes[0].make,bikes[0].model));const cards=document.createElement('div');cards.className='cards';for(const bike of bikes){const card=document.createElement('article');card.className='bike';const h=document.createElement('h3');h.textContent=[bike.year,bike.make,bike.model].filter(Boolean).join(' ');const details=document.createElement('p');details.textContent=bike.mileage!=null?Number(bike.mileage).toLocaleString('en-GB')+' miles · No longer available':'No longer available';card.append(h,details,link('View archived motorcycle','/international-vq-motorcycle.html?id='+encodeURIComponent(bike.item_id)),document.createElement('br'),link('View Similar Motorcycles',liveStockLink(bike.make,bike.model)));cards.append(card);}section.append(cards);groups.append(section);}el('more').hidden=rows.length<=shown;}
 for(const s of [make,model,year])s.addEventListener('change',()=>{if(s!==year)updateFilters();shown=60;render();});el('more').addEventListener('click',()=>{shown+=60;render();});
 async function load(){if(loading)return;loading=true;try{let after=0;const ids=new Set();for(let page=0;page<1000;page++){const response=await fetch(api+'?after='+after,{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error('Archive request failed');const data=await response.json();if(!Array.isArray(data.items))throw Error('Invalid response');for(const r of data.items){const id=Number(r.item_id);if(Number.isSafeInteger(id)&&id>0&&!ids.has(id)&&r.make&&r.model){ids.add(id);records.push(r);}}if(data.next===null){ready=true;break;}const next=Number(data.next);if(!Number.isSafeInteger(next)||next<=after)throw Error('Invalid cursor');after=next;}if(!ready)throw Error('Archive limit reached');updateFilters(true);render();}catch(e){records.length=0;groups.replaceChildren();status.textContent='The archive is temporarily unavailable. Please browse Available Stock.';console.warn(e);}finally{loading=false;}}
 async function discovery(){
@@ -39,6 +53,12 @@ async function discovery(){
    const group=groups.get(slug);
    if(modelMatch)group.models.push({label:format(modelMatch[2]),path:p});else group.brand=p;
   }
+  for(const g of groups.values()){if(g.brand)brandRoutes.set(norm(g.name),g.brand);}
+  try{
+   const res=await fetch('/data/universal-v2-model-routes.json',{cache:'no-cache'});
+   if(res.ok){const manifest=await res.json();for(const row of manifest.models||[]){if(row.make&&row.model&&urls.has(row.url)&&/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(row.url))modelRoutes.set(routeKey(row.make,row.model),row.url);}}
+  }catch(e){console.warn('Exact model routes unavailable',e);}
+  if(ready)render();
   const root=el('guideLinks');root.replaceChildren();
   const section=(title,count)=>{const d=document.createElement('details');d.className='archive-guide-section';const sum=document.createElement('summary');sum.textContent=title+' ('+count+')';d.append(sum);root.append(d);return d;};
   const pills=()=>{const d=document.createElement('nav');d.className='archive-pills';return d;};
