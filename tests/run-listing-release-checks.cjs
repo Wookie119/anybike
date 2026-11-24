@@ -2,7 +2,7 @@
 const {spawnSync}=require("node:child_process");
 const path=require("node:path");
 const root=path.resolve(__dirname,"..");
-const suites=["listing-master-regression.cjs","listing-advertising-behaviour.cjs","admin-listing-review-behaviour.cjs","photo-approval-server-behaviour.cjs"];
+const suites=["listing-master-regression.cjs","listing-advertising-behaviour.cjs","admin-listing-review-behaviour.cjs","photo-approval-server-behaviour.cjs","listing-publication-eligibility.cjs"];
 for(const suite of suites){
  console.log("\n=== "+suite+" ===");
  const result=spawnSync(process.execPath,[path.join(__dirname,suite)],{cwd:root,stdio:"inherit"});
