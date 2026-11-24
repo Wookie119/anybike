@@ -836,43 +836,32 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   // Explicitly registered manufacturer marks only; no fuzzy lookup or
   // inferred logo from an arbitrary brand's name. The same registry serves
   // every model of that manufacturer. Logos are NOT motorcycle photographs.
-  const registeredManufacturerLogos=Object.freeze({
-   vespa:'https://commons.wikimedia.org/wiki/Special:FilePath/Vespa-logo.svg',
-   piaggio:'https://commons.wikimedia.org/wiki/Special:FilePath/Piaggio_Group_logo.svg',
-   'indian motorcycle':'https://commons.wikimedia.org/wiki/Special:FilePath/Indian_Motorcycle_logo.svg',
-   husqvarna:'https://commons.wikimedia.org/wiki/Special:FilePath/Husqvarna_Logo.png',
-   triumph:'https://commons.wikimedia.org/wiki/Special:FilePath/Logo_Triumph.svg',
-   aprilia:'https://commons.wikimedia.org/wiki/Special:FilePath/Aprilia-logo.svg',
-   'royal enfield':'https://commons.wikimedia.org/wiki/Special:FilePath/Royal_Enfield_logo.svg',
-   kawasaki:'https://commons.wikimedia.org/wiki/Special:FilePath/Kawasaki_Motors_logo.svg',
-   suzuki:'https://commons.wikimedia.org/wiki/Special:FilePath/Suzuki_Motor_Corporation_logo.svg',
-   ktm:'https://commons.wikimedia.org/wiki/Special:FilePath/KTM-Logo.svg',
-   honda:'https://global.honda/content/dam/site/global-en/newsroom-new/cq_img/news/2025/11/c251104beng/c251104beng_01.jpg',
-   bmw:'https://commons.wikimedia.org/wiki/Special:FilePath/BMW.svg',
-   ducati:'https://commons.wikimedia.org/wiki/Special:FilePath/Logo%20ducati.png',
-   'harley davidson':'https://commons.wikimedia.org/wiki/Special:FilePath/Harley%20Davidson%20orange%20logo.svg',
-   'yamaha':'https://commons.wikimedia.org/wiki/Special:FilePath/Yamaha%20Motor%202025.svg'
-  });
-  const showRegisteredLogo=()=>{
+  // Manufacturer artwork is controlled by the central catalogue. Never guess image URLs.
+  const showRegisteredLogo=async()=>{
    if(!fig)return;
-   const registeredLogo=registeredManufacturerLogos[normalize(make)];
-   if(!registeredLogo){fig.hidden=true;fig.dataset.anybikeHeroType='unavailable';return;}
-   if(registeredLogo){
-    const img=fig.querySelector('img');
-    img.alt=make+' manufacturer logo';
-    img.style.objectFit='contain';
-    // Manufacturer marks with black/transparent artwork must remain legible
-    // on the shared charcoal V2 hero without altering real motorcycle photos.
-    img.style.backgroundColor='#fff';
-    img.style.padding='12px';
-    img.style.boxSizing='border-box';
-    const caption=fig.querySelector('figcaption');
+   const img=fig.querySelector('img'),caption=fig.querySelector('figcaption');
+   if(!img||!caption)return;
+   const wordmark=()=>{
+    img.hidden=true;img.style.display='none';img.onerror=null;
+    caption.textContent=make;
+    caption.style.cssText='font-weight:900;font-size:clamp(24px,4vw,48px);padding:24px;text-align:center;color:#fff';
+    fig.dataset.anybikeHeroType='manufacturer-name';fig.hidden=false;
+   };
+   try{
+    const response=await fetch(ENDPOINT+'/rest/v1/rpc/public_anybike_manufacturer_logo_v1',{
+     method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},
+     body:JSON.stringify({p_make:make}),signal:AbortSignal.timeout(3500)
+    });
+    if(!response.ok)throw Error('Manufacturer artwork unavailable');
+    const logo=await response.json();
+    if(!logo||normalize(logo.make)!==normalize(make)||!validURL(logo.logo_url)){wordmark();return;}
+    img.hidden=false;img.style.display='';caption.style.cssText='';
+    img.alt=make+' manufacturer logo';img.style.objectFit='contain';
+    img.style.backgroundColor='#fff';img.style.padding='12px';img.style.boxSizing='border-box';
     caption.textContent=make+' manufacturer logo';
     fig.dataset.anybikeHeroType='manufacturer-logo';
-    img.onerror=()=>{fig.hidden=true;fig.dataset.anybikeHeroType='unavailable'};
-    fig.hidden=false;
-    img.src=registeredLogo;
-   }
+    img.onerror=wordmark;fig.hidden=false;img.src=logo.logo_url;
+   }catch{wordmark();}
   };
   if(fig&&safePhoto(approvedHero)){
    // Share/preview images are added only when the same exact-model photo
