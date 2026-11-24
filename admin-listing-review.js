@@ -174,7 +174,8 @@ window.AnyBikeListingReview = {assessUpdate,mount(client, host, getRows, onRevie
      if(saving||loading)return;
      if(note.value.trim()&&note.value.trim().length<5){msg.textContent="Enter at least five characters or leave the note blank.";note.focus();return;}
      if(!["apply_core","withdrawn","approve_all_live","approve_all_relist","apply_legacy_reply"].includes(outcome)&&!confirm(outcome==="dismissed"?"Dismiss this response without applying changes?":"Record this response as reviewed without applying changes?"))return;
-     saving=true;panel.querySelectorAll("button").forEach(b=>b.disabled=true);msg.textContent="Saving review…";
+     const buttonStates=Array.from(panel.querySelectorAll("button"),b=>[b,b.disabled]);
+     saving=true;buttonStates.forEach(([b])=>b.disabled=true);msg.textContent="Saving review…";
      try{if(["approve_all_live","approve_all_relist","apply_core","apply_legacy_reply"].includes(outcome)){
        if(!photoCheckReady)throw Error("Photograph status could not be verified. Refresh responses before approving.");
        const latest=await rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(s.submission_id)});
@@ -192,7 +193,7 @@ window.AnyBikeListingReview = {assessUpdate,mount(client, host, getRows, onRevie
        }
      }
      const data=outcome==="apply_legacy_reply"?await rpc("admin_apply_legacy_seller_update_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||"Original seller response reviewed; no repeat invitation needed"}):outcome==="approve_all_live"?await rpc("admin_approve_listing_refresh_condition_only_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||"Seller nine declarations and approved photographs reviewed together"}):outcome==="approve_all_relist"?await rpc("admin_approve_and_relist_seller_refresh_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||"Seller refresh and inspected photographs approved for relisting"}):outcome==="condition_only_live"?await rpc("admin_approve_listing_refresh_condition_only_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||"Seller condition declarations approved during active bidding"}):outcome==="withdrawn"?await rpc("admin_withdraw_sale_reported_listing_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||null}):await rpc("admin_review_listing_refresh_v1",{p_request_id:Number(t.id),p_outcome:outcome,p_note:note.value.trim()||"Reviewed by Admin: "+outcome});if(!data?.success)throw Error("Review not confirmed");msg.textContent="Review saved.";saving=false;await load();if(onReviewed)try{await onReviewed();}catch(e){body.append(el("p","Review saved; refresh the desk to see updated listing details."));}const saved=el("p",(row?.submission_reference||row?.reference||"Submission "+s.submission_id)+" · "+(outcome==="apply_legacy_reply"?"Existing seller reply applied to the advert; no further invitation needed.":outcome==="approve_all_live"?"Seller answers and photographs approved; live bidding preserved.":outcome==="approve_all_relist"?"Seller answers and photographs approved; closed auction relisted.":outcome==="condition_only_live"?"Nine seller declarations updated on live advert; prices, mileage and bids unchanged.":outcome==="apply_core"?"Listing details approved and saved.":outcome==="withdrawn"?"Motorcycle withdrawn. Trade bidding stopped.":"Review saved."));saved.setAttribute("role","status");saved.style.cssText="color:#91e9ac;font-weight:bold;border:1px solid #386446;border-radius:8px;padding:10px;margin:8px 0";body.prepend(saved);panel.open=true;}
-     catch(e){msg.textContent=(approvedPhotoStep?"Photographs were approved separately; listing review not confirmed. ":"")+(e.message||"Review not saved");saving=false;panel.querySelectorAll("button").forEach(b=>b.disabled=false);}
+     catch(e){msg.textContent=(approvedPhotoStep?"Photographs were approved separately; listing review not confirmed. ":"")+(e.message||"Review not saved");saving=false;buttonStates.forEach(([b,wasDisabled])=>b.disabled=wasDisabled);}
     };
     if(t.response_type==="update"){
       const structured=t.proposed?.condition_answers;
@@ -207,7 +208,7 @@ window.AnyBikeListingReview = {assessUpdate,mount(client, host, getRows, onRevie
           card.append(el("p","Live auction: this updates condition declarations only. Existing bids, reserve, mileage and closing time are protected. Review any requested core changes separately after bidding closes."));
         }else if(!hasStructured){
           card.append(el("p","This seller already replied to our previous form. Use their existing description and condition update; unconfirmed questions will be labelled Not supplied, not guessed. No repeat invitation."));
-          const apply=button("✓ Use Seller's Existing Reply — Update Advert →",()=>{if(confirm("Approve the existing seller reply for this live auction? The text will be shown as seller-declared, unknown information stays unconfirmed, and the existing bids, reserve and closing time remain unchanged."))submit("apply_legacy_reply");});
+          const apply=button("✓ Use Seller's Existing Reply — Update Advert →",()=>{if(confirm("Confirm you inspected all pending photographs. Approve the existing seller reply for this live auction? The text will be shown as seller-declared, unknown information stays unconfirmed, and the existing bids, reserve and closing time remain unchanged."))submit("apply_legacy_reply");});
           apply.style.cssText="background:#ed1c24;color:white;font-weight:bold";
           actions.append(apply);
         }else{
@@ -215,7 +216,7 @@ window.AnyBikeListingReview = {assessUpdate,mount(client, host, getRows, onRevie
         }
       }else{
         const closedAuction=row?.underwrite_status==="closed";
-        const approve=button(closedAuction?"✓ Photos inspected — Approve & Relist Auction →":"Approve listing details →",()=>closedAuction?(confirm("Confirm you checked the new photographs, nine seller answers and confidential minimum, and want to relist this unsold motorcycle for 14 days? Previous bids are preserved in audit history.")&&submit("approve_all_relist")):submit("apply_core"));
+        const approve=button(closedAuction?"✓ Photos inspected — Approve & Relist Auction →":"Approve listing details →",()=>closedAuction?(confirm("Confirm you checked the new photographs, nine seller answers and confidential minimum, and want to relist this unsold motorcycle for 14 days? Previous bids are preserved in audit history.")&&submit("approve_all_relist")):(confirm("Confirm you inspected all pending photographs and reviewed the seller details?")&&submit("apply_core")));
         approve.style.cssText="background:#ed1c24;color:white;font-weight:bold";
         if(!complete)approve.disabled=true;
         actions.append(approve);
