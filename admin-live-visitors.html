@@ -571,7 +571,7 @@ body{
   .visitor-meta{grid-template-columns:1fr}
 }
 </style>
-</head>
+<style>#unusualActivityList{min-height:0}#visitorJourneys .journey-summary{display:grid!important;grid-template-columns:minmax(180px,1.3fr) 90px 110px 90px minmax(160px,1fr);align-items:center;gap:10px;padding:12px}#visitorJourneys .journey-person{min-width:0}#visitorJourneys .journey-person .start-chat-btn{width:auto!important;display:inline-flex!important}#visitorJourneys .journey-badge{display:inline-flex!important;width:auto!important}#visitorJourneys .journey-person span{overflow-wrap:anywhere}@media(max-width:900px){#visitorJourneys .journey-summary{grid-template-columns:1fr 1fr!important}#visitorJourneys .journey-person,#visitorJourneys .journey-meta{grid-column:1/-1}}</style></head>
 
 <body>
 
@@ -718,9 +718,9 @@ body{
         </div>
       </div>
       <div id="unusualActivityCount" class="history-count" style="margin-bottom:10px">Loading…</div>
-      <div id="unusualActivityList">
+      <details id="unusualActivityDetails"><summary style="cursor:pointer;padding:10px 0;color:#ddd">Review individual flagged sessions</summary><div id="unusualActivityList">
         <div class="empty-state">Loading unusual activity…</div>
-      </div>
+      </div></details>
     </section>
 
     <section class="live-layout">
@@ -785,7 +785,8 @@ body{
         </div>
         <div class="journey-controls">
           <select id="journeyType" onchange="renderVisitorJourneys()">
-            <option value="">All visitors</option>
+            <option value="">Visitor activity (filtered)</option>
+            <option value="automation">Suspected automated activity</option>
             <option value="loggedin">Logged-in customers</option>
             <option value="guest">Guests</option>
             <option value="returning">Returning visitors</option>
@@ -794,6 +795,7 @@ body{
       </div>
 
       <div id="journeyCount" class="history-count" style="margin-bottom:10px;">Loading…</div>
+      <button type="button" class="start-chat-btn" onclick="journeyDisplayLimit+=25;renderVisitorJourneys()">Show 25 more journeys</button>
       <div id="visitorJourneys">
         <div class="empty-state">Loading visitor journeys…</div>
       </div>
@@ -1582,12 +1584,12 @@ function renderVisitorDetail(data){
       : '';
 
     return '<div class="journey-session '+(isNewest?'open':'')+'">'+
-      '<button type="button" class="journey-summary" onclick="this.parentElement.classList.toggle(\'open\')">'+
+      '<div role="button" tabindex="0" class="journey-summary" onclick="this.parentElement.classList.toggle(\'open\')" onkeydown="if(event.target===this&&(event.key===\'Enter\'||event.key===\' \')){event.preventDefault();this.click()}">'+
         '<div class="journey-person"><strong>'+escapeHtml(new Date(s.started_at).toLocaleDateString("en-GB",{weekday:"short",day:"2-digit",month:"short",year:"numeric"}))+'</strong><span>'+escapeHtml(new Date(s.started_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}))+' · '+escapeHtml(loc)+'</span></div>'+
         '<div class="journey-stat"><strong>'+Number(s.page_count||0)+'</strong><span>Pages</span></div>'+
         '<div class="journey-stat"><strong>'+escapeHtml(formatSeconds(s.active_seconds||0))+'</strong><span>Active time</span></div>'+
         '<div class="journey-meta"><strong>'+(isNewest?'Most recent visit':'Earlier visit')+'</strong><span>'+escapeHtml(displayDeviceType(s.device_type)+" · "+(s.browser||"—"))+'</span><span>Landing: '+escapeHtml(s.landing_path||"/")+'</span></div>'+
-      '</button>'+
+      '</div>'+
       '<div class="journey-pages">'+pageRows+zeroExplanation+'</div>'+
     '</div>';
   }).join(""):'<div class="empty-state">No detailed visits are recorded in this period.</div>';
@@ -1694,7 +1696,7 @@ async function loadTopVisitors(){
   try{
     const {data,error}=await sb.rpc("admin_get_top_visitors_v1",{p_days:days,p_limit:20});
     if(error)throw error;
-    topVisitors=data||[];
+    topVisitors=(data||[]).filter(r=>!suspectedAutomation(r));
     renderTopVisitors();
 
     if(status){
@@ -1709,6 +1711,13 @@ async function loadTopVisitors(){
   }
 }
 
+let journeyDisplayLimit=25;
+function suspectedAutomation(r){
+ if(r.user_id||r.customer_email||r.customer_name||r.message_thread_id||isTrustedVisitor(r.visitor_id))return false;
+ const city=String(r.city||"").toLowerCase(), country=String(r.country||"").toLowerCase();
+ const seconds=Number(r.active_seconds??r.total_active_seconds??NaN), pages=Number(r.page_count??r.total_pages??r.accurate_pageviews??NaN);
+ return (pages>=15&&seconds<=5)||(country==="united states"&&city==="quincy"&&String(r.browser||r.browsers||"").toLowerCase()==="chrome"&&/desktop/i.test(String(r.device_type||r.device_types||""))&&seconds<=20);
+}
 function renderVisitorJourneys(){
   const flaggedSessions=new Set(unusualActivityAlerts.map(a=>String(a.session_id)));
 
@@ -1717,6 +1726,8 @@ function renderVisitorJourneys(){
   const filter=document.getElementById("journeyType")?.value || "";
 
   let rows=[...visitorJourneys];
+  if(filter!=="automation"&&!showFlaggedJourneysOnly)rows=rows.filter(r=>!suspectedAutomation(r));
+  if(filter==="automation")rows=rows.filter(suspectedAutomation);
 
   if(showFlaggedJourneysOnly){
     rows=rows.filter(r=>flaggedSessions.has(String(r.session_id)));
@@ -1726,7 +1737,8 @@ function renderVisitorJourneys(){
   if(filter==="guest")rows=rows.filter(r=>!r.user_id);
   if(filter==="returning")rows=rows.filter(r=>r.is_returning===true);
 
-  count.textContent=rows.length===1 ? "1 visit" : rows.length+" visits";
+  count.textContent=rows.length+" loaded visits · showing "+Math.min(rows.length,journeyDisplayLimit);
+  rows=rows.slice(0,journeyDisplayLimit);
 
   if(!rows.length){
     box.innerHTML='<div class="empty-state">No visitor journeys match this filter.</div>';
@@ -1776,6 +1788,7 @@ function renderVisitorJourneys(){
 }
 
 function openVisitorJourney(sessionId,visitorId){
+  journeyDisplayLimit=300;renderVisitorJourneys();
   const journeys=document.getElementById("visitorJourneys");
   const card=journeys?.querySelector(
     sessionId
@@ -1836,7 +1849,10 @@ function renderUnusualActivity(){
     return;
   }
 
-  box.innerHTML=unusualActivityAlerts.map(function(a){
+  const grouped=unusualActivityAlerts.filter(a=>Number(a.page_count)>=15&&Number(a.active_seconds)<=5);
+  const ordinary=unusualActivityAlerts.filter(a=>!grouped.includes(a));
+  count.textContent=ordinary.length+" other flagged sessions · "+grouped.length+" suspected automated sessions (latest "+unusualActivityAlerts.length+" alerts)";
+  box.innerHTML=(grouped.length?'<div class="history-row">Suspected automated activity: '+grouped.length+' rapid sessions. <button type="button" class="start-chat-btn" onclick="document.getElementById(\'journeyType\').value=\'automation\';showFlaggedJourneysOnly=false;renderVisitorJourneys()">Review loaded automated journeys</button></div>':"")+ordinary.slice(0,25).map(function(a){
     const mins=Math.max(0,Math.round(Number(a.active_seconds||0)/60));
     return '<div class="history-row" style="grid-template-columns:1.2fr 1.2fr .8fr .8fr 1fr auto;align-items:center">'+
       '<div><strong>'+escapeHtml(unusualActivityLabel(a.alert_type))+'</strong><div class="muted">'+escapeHtml(new Date(a.created_at).toLocaleString("en-GB"))+'</div></div>'+
@@ -1876,9 +1892,10 @@ function toggleUnusualOnly(){
 }
 
 function openFlaggedJourney(sessionId,visitorId){
-  showFlaggedJourneysOnly=false;
+  showFlaggedJourneysOnly=true;
+  document.getElementById("journeyType").value="";
   const btn=document.getElementById("unusualOnlyBtn");
-  if(btn)btn.textContent="Show flagged journeys only";
+  if(btn)btn.textContent="Show all journeys";
   const days=document.getElementById("visitorAnalyticsDays");
   if(days&&Number(days.value)<7)days.value="7";
   loadVisitorJourneys().then(function(){
@@ -1924,7 +1941,7 @@ async function loadVisitorHistory(){
       throw error;
     }
 
-    const historyVisitors = data || [];
+    const historyVisitors = (data || []).filter(r=>!suspectedAutomation(r));
     renderVisitorHistory(historyVisitors);
 
     const mapVisitors = days===1
