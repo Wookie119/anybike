@@ -1,0 +1,3 @@
+# Listing advertising preview
+
+Staged copy of public-advertising-v1; do not deploy automatically. Existing actions remain unchanged. New select_listing action reads the existing advertising_slot_published_layouts table. Slot codes AB-UK-TRADE-LISTING-GALLERY, -DESCRIPTION, -BOTTOM and corresponding AB-UK-STOCK-LISTING codes. Each requires an explicit published one-ad slim assignment and enabled page inventory. No automatic assignment, no finance, no test promotions. Existing signed event endpoint is reused. Admin placement controls and stock inventory entry still need implementation before integration testing. Verify geolocation, disabled inventory, expired campaigns, targeting, duplicate exclusion and signature tracking before production deployment.
