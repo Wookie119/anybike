@@ -45,6 +45,16 @@ export async function mountManufacturerStock(){
  if(!make||document.querySelector('meta[name="robots"]')?.content.includes('noindex'))return;
  const root=document.querySelector('main #models')||document.querySelector('main #modelFamilies')?.closest('section');
  if(!root)return;
+ // Archive navigation is independent of current stock availability.
+ if(!document.querySelector('[data-manufacturer-archive-link]')){
+  const nav=node('nav');nav.dataset.manufacturerArchiveLink='1';
+  nav.setAttribute('aria-label',make+' motorcycle archive');
+  nav.style.cssText='margin:12px 0;display:flex;flex-wrap:wrap;gap:8px';
+  const archive=node('a','View '+make+' motorcycle archive →');
+  archive.href='/motorcycle-archive.html?'+new URLSearchParams({make});
+  archive.style.cssText='display:inline-flex;align-items:center;padding:8px 13px;border:1px solid #555;border-radius:999px;background:#242424;color:#fff;text-decoration:none;font-weight:600';
+  nav.append(archive);root.before(nav);
+ }
  try{
   const response=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/international-public-stock',{cache:'no-store',signal:AbortSignal.timeout(15000)});
   if(!response.ok)return;
