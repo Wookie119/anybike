@@ -20,7 +20,7 @@ async function run(source,check){
    case "admin_get_seller_original_paths_v1":data=initial.map(p=>({image_id:p.image_id,original_storage_path:"photo"}));break;
    case "admin_get_seller_submission_images_v2":data=++reads<=2?initial:reads===3?latest:after;break;
    default:if(failReview)return {error:{message:"Review failed"}};reviewed=true;data={success:true};
-  }return {data}},storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:"https://example.invalid/photo"}})})},functions:{invoke:async()=>{calls.push("photo-approve");return {data:failPhotos?{success:false,errors:["Photo failed"]}:{success:true}}}}};
+  }return {data}},storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:"https://example.invalid/photo"}})})},functions:{invoke:async(name,opts)=>{calls.push("photo-approve");calls.push("snapshot:"+JSON.stringify(opts.body.reviewed_photo_ids));return {data:failPhotos?{success:false,errors:["Photo failed"]}:{success:true}}}}};
   new Function("window","document","confirm",source)(window,document,()=>true);window.AnyBikeListingReview.mount(client,host,()=>[{submission_id:1,underwrite_status:status}]);await flush();
   if(loadImages)host.querySelectorAll("img").forEach(n=>n.onload?.());
   const buttons=host.querySelectorAll("button"),button=buttons.find(n=>/Approve & Update|Approve & Relist|Use Seller|Approve listing details/.test(n.textContent));
@@ -40,6 +40,7 @@ async function run(source,check){
  ["pending photo after approval blocks update",{initial:[photo(1)],after:[photo(1)]},s=>!s.calls.includes("admin_approve_listing_refresh_condition_only_v1")&&s.host.allText.includes("incomplete")],
  ["verified photo approval precedes review",{initial:[photo(1)],after:[photo(1,"approved")]},s=>s.calls.indexOf("photo-approve")>=0&&s.calls.indexOf("admin_approve_listing_refresh_condition_only_v1")>s.calls.indexOf("photo-approve")],
  ["partial success communicated",{initial:[photo(1)],after:[photo(1,"approved")],failReview:true},s=>s.host.allText.includes("Photographs were approved separately")],
+ ["reviewed photo IDs passed to server",{initial:[photo(2),photo(1)],after:[photo(1,"approved"),photo(2,"approved")]},s=>s.calls.includes("snapshot:[1,2]")],
  ["legacy route also blocks changed photos",{proposed:{notes:"Existing"},latest:[photo(1)]},s=>!s.calls.includes("admin_apply_legacy_seller_update_v1")&&s.host.allText.includes("Photographs changed")]
  ];
  for(const [label,options,verify] of cases){const s=await scenario(options);await s.click();check(label,!!verify(s));}
