@@ -47,7 +47,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;bord
       </div>
 
       <div class="panel">
-        <div id="auditStatus" class="muted">Ready to audit.</div>
+        <div id="auditStatus" class="muted">Select Run full audit to check all 217 rendered market pages.</div>
         <div class="progress"><span id="progressBar"></span></div>
         <div class="filters">
           <button class="filter active" data-filter="all">All</button>
@@ -65,7 +65,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;bord
     </main>
   </div>
 </div>
-<iframe id="auditFrame" title="Market page audit"></iframe>
+
 <script>
 const MARKET_SLUGS=["afghanistan","albania","algeria","andorra","angola","anguilla","antigua-and-barbuda","argentina","aruba","australia","austria","bahamas","bahrain","bangladesh","barbados","belarus","belgium","belize","benin","bermuda","bhutan","bolivia","bosnia-and-herzegovina","botswana","brazil","british-virgin-islands","brunei","bulgaria","burkina-faso","burundi","cabo-verde","cambodia","cameroon","canada","cayman-islands","central-african-republic","chad","chile","china","colombia","comoros","costa-rica","croatia","cuba","curacao","cyprus","czech-republic","democratic-republic-of-the-congo","denmark","djibouti","dominica","dominican-republic","ecuador","egypt","el-salvador","equatorial-guinea","eritrea","estonia","eswatini","ethiopia","falkland-islands","fiji","finland","france","french-guiana","french-polynesia","gabon","gambia","germany","ghana","greece","greenland","grenada","guadeloupe","guam","guatemala","guinea","guinea-bissau","guyana","haiti","honduras","hong-kong","hungary","iceland","india","indonesia","iran","iraq","ireland","israel","italy","ivory-coast","jamaica","japan","jordan","kazakhstan","kenya","kiribati","kosovo","kuwait","kyrgyzstan","laos","latvia","lebanon","lesotho","liberia","libya","liechtenstein","lithuania","luxembourg","macau","madagascar","malawi","malaysia","maldives","mali","malta","marshall-islands","martinique","mauritania","mauritius","mexico","micronesia","moldova","monaco","mongolia","montenegro","montserrat","morocco","mozambique","myanmar","namibia","nauru","nepal","netherlands","new-caledonia","new-zealand","nicaragua","niger","nigeria","north-korea","north-macedonia","northern-mariana-islands","norway","oman","pakistan","palau","palestine","panama","papua-new-guinea","paraguay","peru","philippines","poland","portugal","puerto-rico","qatar","republic-of-the-congo","reunion","romania","rwanda","saint-barthelemy","saint-kitts-and-nevis","saint-lucia","saint-martin","saint-vincent-and-the-grenadines","samoa","san-marino","sao-tome-and-principe","saudi-arabia","senegal","serbia","seychelles","sierra-leone","singapore","sint-maarten","slovakia","slovenia","solomon-islands","somalia","south-africa","south-korea","south-sudan","spain","sri-lanka","sudan","suriname","sweden","switzerland","syria","taiwan","tajikistan","tanzania","thailand","timor-leste","togo","tonga","trinidad-and-tobago","tunisia","turkiye","turkmenistan","turks-and-caicos-islands","tuvalu","uae","uganda","ukraine","united-kingdom","uruguay","us-virgin-islands","usa","uzbekistan","vanuatu","venezuela","vietnam","yemen","zambia","zimbabwe"];
 let running=false,stopRequested=false,results=[],activeFilter="all";
@@ -80,7 +80,7 @@ function auditDocument(doc,slug){
   const issues=[];
   const country=(doc.querySelector(".country-line strong")?.textContent||titleCase(slug)).trim();
   const flag=doc.querySelector(".country-flag img");
-  const flagOk=!!flag && /flagcdn\.com\/w\d+\/[a-z]{2}\.png/i.test(flag.getAttribute("src")||"") && getComputedStyle(flag.closest(".country-flag")).visibility!=="hidden";
+  const flagOk=!!flag && /flagcdn\.com\/w\d+\/[a-z]{2}\.png/i.test(flag.getAttribute("src")||"") && doc.defaultView.getComputedStyle(flag.closest(".country-flag")).visibility!=="hidden";
   if(!flagOk)issues.push("Flag missing or not finalised");
 
   const local=doc.querySelector(".anybike-market-local-standard");
@@ -123,16 +123,29 @@ function render(){
 }
 function loadOne(slug){
   return new Promise(resolve=>{
-    const frame=$("auditFrame");
-    const timeout=setTimeout(()=>resolve({slug,country:titleCase(slug),status:"fail",flagOk:false,localCount:0,gatewayOk:false,linkCount:0,issues:["Timed out while rendering"]}),7000);
+    const frame=document.createElement("iframe");
+    frame.title="Market audit "+slug;
+    frame.style.cssText="position:fixed;left:-10000px;top:0;width:1440px;height:1000px;border:0;pointer-events:none";
+    let finished=false,poll,timeout;
+    const finish=result=>{if(finished)return;finished=true;clearTimeout(timeout);clearTimeout(poll);frame.onload=null;frame.remove();resolve(result);};
+    const failure=message=>({slug,country:titleCase(slug),status:"fail",flagOk:false,localCount:0,gatewayOk:false,linkCount:0,issues:[message]});
+    timeout=setTimeout(()=>finish(failure("Timed out while rendering")),15000);
     frame.onload=()=>{
-      setTimeout(()=>{
-        clearTimeout(timeout);
-        try{resolve(auditDocument(frame.contentDocument,slug))}
-        catch(err){resolve({slug,country:titleCase(slug),status:"fail",flagOk:false,localCount:0,gatewayOk:false,linkCount:0,issues:["Audit error: "+err.message]})}
-      },1300);
+      clearTimeout(poll);
+      const deadline=Date.now()+6000;
+      const inspect=()=>{
+        if(finished)return;
+        try{
+          const doc=frame.contentDocument;
+          if(!doc||!doc.location.pathname.endsWith("/"+slug+".html")){if(Date.now()<deadline){poll=setTimeout(inspect,250);return;}finish(failure("Unexpected page or inaccessible frame"));return;}
+          if(!doc.querySelector(".anybike-market-local-standard")&&Date.now()<deadline){poll=setTimeout(inspect,250);return;}
+          finish(auditDocument(doc,slug));
+        }catch(err){finish(failure("Audit error: "+err.message));}
+      };
+      poll=setTimeout(inspect,800);
     };
-    frame.src="/markets/"+slug+".html?healthAudit="+Date.now();
+    frame.src="/markets/"+encodeURIComponent(slug)+".html?healthAudit="+Date.now();
+    document.body.append(frame);
   });
 }
 async function runAudit(){
@@ -140,15 +153,16 @@ async function runAudit(){
   running=true;stopRequested=false;results=[];
   $("runAudit").disabled=true;$("stopAudit").disabled=false;
   render();updateKpis();
-  for(let i=0;i<MARKET_SLUGS.length;i++){
-    if(stopRequested)break;
-    const slug=MARKET_SLUGS[i];
-    $("auditStatus").textContent="Checking "+(i+1)+" of "+MARKET_SLUGS.length+": "+titleCase(slug)+"…";
-    results.push(await loadOne(slug));
-    updateKpis();render();
-  }
-  running=false;$("runAudit").disabled=false;$("stopAudit").disabled=true;
-  $("auditStatus").textContent=stopRequested?"Audit stopped after "+results.length+" pages.":"Audit complete: "+$("passed").textContent+" pass, "+$("warned").textContent+" warnings, "+$("failed").textContent+" failures.";
+  try{
+    for(let i=0;i<MARKET_SLUGS.length;i+=3){
+      if(stopRequested)break;
+      const batch=MARKET_SLUGS.slice(i,i+3);
+      $("auditStatus").textContent="Checking "+(i+1)+"–"+(i+batch.length)+" of "+MARKET_SLUGS.length+"…";
+      await Promise.all(batch.map(async slug=>{results.push(await loadOne(slug));results.sort((a,b)=>MARKET_SLUGS.indexOf(a.slug)-MARKET_SLUGS.indexOf(b.slug));updateKpis();render();}));
+    }
+    $("auditStatus").textContent=stopRequested?"Audit stopped after "+results.length+" pages.":"Audit complete: "+$("passed").textContent+" pass, "+$("warned").textContent+" warnings, "+$("failed").textContent+" failures.";
+  }catch(err){$("auditStatus").textContent="Audit interrupted: "+err.message;}
+  finally{running=false;$("runAudit").disabled=false;$("stopAudit").disabled=true;}
 }
 $("runAudit").addEventListener("click",runAudit);
 $("stopAudit").addEventListener("click",()=>{stopRequested=true});
