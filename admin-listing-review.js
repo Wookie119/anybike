@@ -127,7 +127,7 @@ window.AnyBikeListingReview = {assessUpdate,mount(client, host, getRows, onRevie
          if(!confirm("Publish the "+pending.length+" original photographs? Confirm you have inspected them and they contain no private details, unwanted branding or number plates requiring removal."))return;
          busy=true;approve.disabled=true;photoStatus.textContent="Approving photographs…";
          try{
-           const {data,error}=await client.functions.invoke("admin-approve-seller-originals",{body:{submission_id:Number(s.submission_id),confirmed_inspected:true}});
+           const {data,error}=await client.functions.invoke("admin-approve-seller-originals",{body:{submission_id:Number(s.submission_id),confirmed_inspected:true,reviewed_photo_ids:[...pendingPhotoIds]}});
            if(error||!data)throw Error(error?.message||"Approval not confirmed");
            await updatePhotoSummary();
            if(data.errors?.length)photoStatus.textContent=data.approved+" approved. "+data.errors.join(" · ");
@@ -183,7 +183,7 @@ window.AnyBikeListingReview = {assessUpdate,mount(client, host, getRows, onRevie
        if(JSON.stringify(latestIds)!==JSON.stringify(pendingPhotoIds))throw Error("Photographs changed since review. Refresh and inspect the current photographs.");
        if(pendingPhotoCount>0){
          if(inspectedPhotoCount!==pendingPhotoCount)throw Error("Please view all pending photographs before approving.");
-         const result=await client.functions.invoke("admin-approve-seller-originals",{body:{submission_id:Number(s.submission_id),confirmed_inspected:true}});
+         const result=await client.functions.invoke("admin-approve-seller-originals",{body:{submission_id:Number(s.submission_id),confirmed_inspected:true,reviewed_photo_ids:[...pendingPhotoIds]}});
          if(result.error||!result.data?.success||result.data?.errors?.length)throw Error(result.error?.message||(result.data?.errors||[]).join(" · ")||"Photograph approval not confirmed");
          approvedPhotoStep=true;
          const after=await rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(s.submission_id)});
