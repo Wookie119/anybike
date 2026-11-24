@@ -13,7 +13,7 @@ let openGeneration=0;
 // Release gate: enable only after authenticated integration and service rollout.
 const TRADE_LISTING_PUBLICATION_ENABLED=true;
 let db,campaigns=[],customers=[],current=null,draft=null,artworkMasters=new Map(),selectedFormats=[],copyInventory=[],copySelected=new Set(),copyExisting=new Set(),publishedRecord=null,publicationReady=false;
-const listingLocations=["/trade-opportunities.html","/bike-details.html"].flatMap((page_path,i)=>[["GALLERY","Below photograph gallery"],["DESCRIPTION","Below description"],["BOTTOM","Bottom of advert"]].map(([suffix,label])=>({page_path,slot_code:"AB-UK-"+(i?"STOCK":"TRADE")+"-LISTING-"+suffix,label:(i?"Available Stock":"UK Trade Auction")+" · "+label,listingPreview:true,retailPending:!!i})));
+const listingLocations=["/trade-opportunities.html","/international-vq-motorcycle.html"].flatMap((page_path,i)=>[["GALLERY","Below photograph gallery"],["DESCRIPTION","Below description"],["BOTTOM","Bottom of advert"]].map(([suffix,label])=>({page_path,slot_code:"AB-UK-"+(i?"STOCK":"TRADE")+"-LISTING-"+suffix,label:(i?"Available Stock":"UK Trade Auction")+" · "+label,listingPreview:true,retailPending:false})));
 const isListing=()=>listingLocations.some(p=>p.slot_code===current?.slotCode&&p.page_path===current?.pagePath);
 const isRetailPending=()=>listingLocations.some(p=>p.retailPending&&p.slot_code===current?.slotCode&&p.page_path===current?.pagePath);
 const canPublishListing=()=>TRADE_LISTING_PUBLICATION_ENABLED&&isListing()&&!isRetailPending();
@@ -290,16 +290,16 @@ pageButton.onclick=()=>{
 // Publication is independent of saving drafts. Check every campaign against
 // the same public approved creative projection used by the Edge Function.
 async function listingPublicationEligibility(target,ids,formats){
- if(!canPublishListing()||target.pagePath!=='/trade-opportunities.html'||!listingLocations.some(p=>!p.retailPending&&p.page_path===target.pagePath&&p.slot_code===target.slotCode)||ids.length!==1||formats.length!==1||formats[0]!=='slim')return {ready:false,message:'Trade listing publication is not enabled or layout is invalid.'};
+ if(!canPublishListing()||!listingLocations.some(p=>!p.retailPending&&p.page_path===target.pagePath&&p.slot_code===target.slotCode)||ids.length!==1||formats.length!==1||formats[0]!=='slim')return {ready:false,message:'Listing publication is not enabled or layout is invalid.'};
  const [inventory,creative,other]=await Promise.all([
  db.from('advertising_page_inventory').select('page_category,placement_enabled,excluded').eq('page_path',target.pagePath).maybeSingle(),
  db.from('public_advertising_creatives_v1').select('id,countries,page_categories,page_paths,customer_types,manufacturers,models,placement,destination_url,campaign_category,partner_kind').eq('id',ids[0]).maybeSingle(),
- db.from('advertising_slot_published_layouts').select('slot_code,campaign_ids').eq('page_path',target.pagePath).in('slot_code',listingLocations.filter(p=>!p.retailPending&&p.slot_code!==target.slotCode).map(p=>p.slot_code))]);
+ db.from('advertising_slot_published_layouts').select('slot_code,campaign_ids').eq('page_path',target.pagePath).in('slot_code',listingLocations.filter(p=>!p.retailPending&&p.page_path===target.pagePath&&p.slot_code!==target.slotCode).map(p=>p.slot_code))]);
  if(inventory.error||creative.error||other.error)throw inventory.error||creative.error||other.error;
  const p=inventory.data,a=creative.data;
  if(!p?.placement_enabled||p.excluded||!a||a.placement!=='below_hero'||a.campaign_category!=='house'||a.partner_kind!=='transport'||!a.countries?.includes('GB')||a.customer_types?.length||a.page_paths?.length&&!a.page_paths.includes(target.pagePath)||a.page_categories?.length&&!a.page_categories.includes(p.page_category)||!/^https:\/\//.test(a.destination_url||'')||!options('slim').some(x=>x.id===ids[0]))return {ready:false,message:'Campaign or trade listing location is no longer eligible.'};
  if((other.data||[]).some(row=>row.campaign_ids?.includes(ids[0])))return {ready:false,message:'This campaign is already assigned to another listing position.'};
- return {ready:true,message:'Trade listing advert eligible. Other page adverts are unaffected.'};
+ return {ready:true,message:'Listing advert eligible. Other page adverts are unaffected.'};
 }
 async function publicationEligibility(){
  const ids=selections(),formats=currentFormats();
