@@ -290,7 +290,7 @@ pageButton.onclick=()=>{
 // Publication is independent of saving drafts. Check every campaign against
 // the same public approved creative projection used by the Edge Function.
 async function listingPublicationEligibility(target,ids,formats){
- if(!canPublishListing()||target.pagePath!=='/trade-opportunities.html'||ids.length!==1||formats.length!==1||formats[0]!=='slim')return {ready:false,message:'Trade listing publication is not enabled or layout is invalid.'};
+ if(!canPublishListing()||target.pagePath!=='/trade-opportunities.html'||!listingLocations.some(p=>!p.retailPending&&p.page_path===target.pagePath&&p.slot_code===target.slotCode)||ids.length!==1||formats.length!==1||formats[0]!=='slim')return {ready:false,message:'Trade listing publication is not enabled or layout is invalid.'};
  const [inventory,creative,other]=await Promise.all([
  db.from('advertising_page_inventory').select('page_category,placement_enabled,excluded').eq('page_path',target.pagePath).maybeSingle(),
  db.from('public_advertising_creatives_v1').select('id,countries,page_categories,page_paths,customer_types,manufacturers,models,placement,destination_url,campaign_category,partner_kind').eq('id',ids[0]).maybeSingle(),
@@ -342,12 +342,13 @@ async function publicationEligibility(){
 }
 checkPublish.onclick=async()=>{
  if(!db||!current||(isListing()&&!canPublishListing()))return;
+ const generation=openGeneration,ids=selections(),formats=currentFormats();
  publicationReady=false;publish.hidden=true;publish.disabled=true;
  checkPublish.disabled=true;status.textContent='Checking live eligibility, page targeting and approved artwork…';
  try{
-  const result=await publicationEligibility();publicationReady=result.ready;publish.hidden=!result.ready;publish.disabled=!result.ready;status.textContent=result.message;
- }catch(e){status.textContent='Publication check failed: '+(e.message||e)}
- finally{checkPublish.disabled=false}
+  const result=await publicationEligibility();if(generation!==openGeneration||JSON.stringify(ids)!==JSON.stringify(selections())||JSON.stringify(formats)!==JSON.stringify(currentFormats()))return;publicationReady=result.ready;publish.hidden=!result.ready;publish.disabled=!result.ready;status.textContent=result.message;
+ }catch(e){if(generation===openGeneration)status.textContent='Publication check failed: '+(e.message||e)}
+ finally{if(generation===openGeneration)checkPublish.disabled=(isListing()&&!canPublishListing())||!selections().every(Boolean)}
 };
 publish.onclick=async()=>{
  if(!db||!current||publish.disabled||(isListing()&&!canPublishListing()))return;
