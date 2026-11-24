@@ -426,6 +426,13 @@ async function globalNavigation(){
  }catch(error){renderStories([]);console.warn('V2 published Global index unavailable',error);}
 }
 // A failed or incomplete catalogue identity must not create model-specific links.
-if(make&&current?.model)await Promise.allSettled([modelNavigation(),manufacturerNavigation(),countryNavigation(),globalNavigation()]);
+function archiveNavigation(){
+ const placement=document.getElementById('body')||document.getElementById('internationalModelStock');
+ if(!placement||document.getElementById('approvedV2ModelArchive'))return;
+ const panel=makePanel('approvedV2ModelArchive','Previously advertised '+make+' '+current.model+' motorcycles','Explore historical records for this exact model and find currently available alternatives.',placement);
+ const query=new URLSearchParams({make,model:current.model});
+ safeNav(panel.querySelector('nav'),[{label:'View '+make+' '+current.model+' archive →',url:'/motorcycle-archive.html?'+query.toString()}]);
+}
+if(make&&current?.model){archiveNavigation();await Promise.allSettled([modelNavigation(),manufacturerNavigation(),countryNavigation(),globalNavigation()]);}
 window.__anybikeV2NavigationReady=true;
 window.dispatchEvent(new Event('anybike:v2-navigation-ready'));
