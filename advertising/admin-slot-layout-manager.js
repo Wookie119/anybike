@@ -11,8 +11,10 @@ const before=document.getElementById('namedAdvertisingSpaces');if(before){root.i
 const $=id=>document.getElementById(id),loc=$('abSlotLocation'),cnt=$('abSlotCount'),choosers=$('abSlotChoosers'),preview=$('abSlotPreview'),status=$('abSlotStatus'),save=$('abSlotDraftSave'),pageButton=$('abSlotPreviewPage'),pageWrap=$('abSlotPagePreview'),pageFrame=$('abSlotPageFrame'),copyOpen=$('abSlotCopyOpen'),copyPanel=$('abSlotCopyPanel'),copySearch=$('abSlotCopySearch'),copyTargets=$('abSlotCopyTargets'),copySummary=$('abSlotCopySummary'),copySave=$('abSlotCopySave'),copy50=$('abSlotCopy50'),copyClear=$('abSlotCopyClear'),checkPublish=$('abSlotPublishCheck'),publish=$('abSlotPublish'),restore=$('abSlotRestore');
 let openGeneration=0;
 let db,campaigns=[],customers=[],current=null,draft=null,artworkMasters=new Map(),selectedFormats=[],copyInventory=[],copySelected=new Set(),copyExisting=new Set(),publishedRecord=null,publicationReady=false;
-const listingLocations=["/trade-opportunities.html","/bike-details.html"].flatMap((page_path,i)=>[["GALLERY","Below photograph gallery"],["DESCRIPTION","Below description"],["BOTTOM","Bottom of advert"]].map(([suffix,label])=>({page_path,slot_code:"AB-UK-"+(i?"STOCK":"TRADE")+"-LISTING-"+suffix,label:(i?"Available Stock":"UK Trade Auction")+" · "+label,listingPreview:true})));
+const listingLocations=["/trade-opportunities.html","/bike-details.html"].flatMap((page_path,i)=>[["GALLERY","Below photograph gallery"],["DESCRIPTION","Below description"],["BOTTOM","Bottom of advert"]].map(([suffix,label])=>({page_path,slot_code:"AB-UK-"+(i?"STOCK":"TRADE")+"-LISTING-"+suffix,label:(i?"Available Stock":"UK Trade Auction")+" · "+label,listingPreview:true,retailPending:!!i})));
 const isListing=()=>listingLocations.some(p=>p.slot_code===current?.slotCode&&p.page_path===current?.pagePath);
+const isRetailPending=()=>listingLocations.some(p=>p.retailPending&&p.slot_code===current?.slotCode&&p.page_path===current?.pagePath);
+let listingPublicIds=new Set();
 const formatNames={slim:'Slim banner · 3:1',square:'Square advert · 1:1',stock_card:'Stock card · 4:3',landscape:'Landscape · 16:9',portrait:'Portrait · 4:5'};
 const formatRatios={slim:'3 / 1',square:'1 / 1',stock_card:'4 / 3',landscape:'16 / 9',portrait:'4 / 5'};
 function artwork(c,format){
@@ -26,7 +28,7 @@ function artwork(c,format){
 function hasArtwork(c,format){return /^https:\/\//.test(artwork(c,format))}
 function currentFormats(){return [...choosers.querySelectorAll('select[data-shape]')].map(s=>s.value)}
 function currentCampaigns(){return [...choosers.querySelectorAll('select[data-campaign]')].map(s=>s.value)}
-function options(format){return campaigns.filter(c=>c.status==='active'&&hasArtwork(c,format)&&/^https:\/\//.test(c.destination_url||'')&&(!isListing()||(format==='slim'&&c.campaign_category==='house'&&customers.some(p=>p.id===c.partner_id&&p.kind==='transport')&&/^https:\/\//.test(c.compact_image_url||''))))}
+function options(format){return campaigns.filter(c=>c.status==='active'&&hasArtwork(c,format)&&/^https:\/\//.test(c.destination_url||'')&&(!isListing()||(!isRetailPending()&&listingPublicIds.has(c.id)&&format==='slim'&&c.campaign_category==='house'&&customers.some(p=>p.id===c.partner_id&&p.kind==='transport')&&/^https:\/\//.test(c.compact_image_url||''))))}
 function selections(){return currentCampaigns()}
 function render(){
  const values=selections(),formats=currentFormats(),num=Number(cnt.value);
@@ -70,7 +72,7 @@ function showPreview(){
 cnt.onchange=render;
 $('abSlotClose').onclick=()=>{++openGeneration;current=null;section.hidden=true;pageWrap.hidden=true;copyPanel.hidden=true;pageFrame.removeAttribute('src')};
 $('abSlotHidePage').onclick=()=>{pageWrap.hidden=true;pageFrame.removeAttribute('src')};
-async function open(detail){const {slotCode,pagePath}=detail||{};if(!slotCode||!pagePath)return;const generation=++openGeneration;current={slotCode,pagePath};draft=null;selectedFormats=[];save.disabled=true;pageButton.disabled=true;copyOpen.disabled=true;checkPublish.disabled=true;choosers.replaceChildren();preview.replaceChildren();cnt.disabled=true;section.hidden=false;pageWrap.hidden=true;copyPanel.hidden=true;publishedRecord=null;publish.disabled=true;restore.hidden=true;pageFrame.removeAttribute('src');loc.textContent=listingLocations.find(p=>p.slot_code===slotCode&&p.page_path===pagePath)?.label||pagePath+' · '+slotCode;status.textContent='Loading approved campaigns and any saved draft…';
+async function open(detail){const {slotCode,pagePath}=detail||{};if(!slotCode||!pagePath)return;const generation=++openGeneration;current={slotCode,pagePath};draft=null;selectedFormats=[];listingPublicIds=new Set();save.disabled=true;pageButton.disabled=true;copyOpen.disabled=true;checkPublish.disabled=true;choosers.replaceChildren();preview.replaceChildren();cnt.disabled=true;section.hidden=false;pageWrap.hidden=true;copyPanel.hidden=true;publishedRecord=null;publish.disabled=true;restore.hidden=true;pageFrame.removeAttribute('src');loc.textContent=listingLocations.find(p=>p.slot_code===slotCode&&p.page_path===pagePath)?.label||pagePath+' · '+slotCode;status.textContent='Loading approved campaigns and any saved draft…';
 try{if(typeof getAdminSupabaseClient!=='function')throw Error('Admin connection missing');db=getAdminSupabaseClient();const admin=await db.rpc('anybike_is_admin');if(admin.error||admin.data!==true)throw Error('Administrator access required');
 const results=await Promise.all([db.from('advertising_campaigns').select('id,name,status,partner_id,desktop_image_url,slim_image_url,stock_card_image_url,mobile_image_url,compact_image_url,destination_url,alt_text,campaign_category').order('name'),db.from('commercial_partners').select('id,name,kind').order('name'),db.from('advertising_slot_layout_drafts').select('slot_code,page_path,campaign_ids,advert_count,artwork_formats').eq('slot_code',slotCode).maybeSingle(),db.from('advertising_partner_artwork_library').select('partner_id,creative_format,active_artwork_id').not('active_artwork_id','is',null),db.from('advertising_slot_published_layouts').select('slot_code,page_path,campaign_ids,artwork_formats,advert_count').eq('slot_code',slotCode).maybeSingle()]);if(generation!==openGeneration)return;const fail=results.find(r=>r.error);if(fail)throw fail.error;
 campaigns=results[0].data||[];customers=results[1].data||[];draft=results[2].data||null;publishedRecord=results[4].data||null;restore.hidden=isListing()||!publishedRecord;
@@ -82,8 +84,13 @@ campaigns=results[0].data||[];customers=results[1].data||[];draft=results[2].dat
   const byId=new Map((versions.data||[]).filter(v=>v.status==='approved').map(v=>[v.id,v.public_url]));
   for(const entry of refs){const url=byId.get(entry.active_artwork_id);if(url&&/^https:\/\//.test(url))artworkMasters.set(entry.partner_id+'|'+entry.creative_format,url)}
  }
-cnt.disabled=isListing();const savedLayout=draft||publishedRecord;selectedFormats=Array.isArray(savedLayout?.artwork_formats)?savedLayout.artwork_formats.slice():[];cnt.value=String(isListing()?1:Math.min(4,Math.max(1,Number(savedLayout?.advert_count)||1)));if(isListing())selectedFormats=['slim'];render();if(Array.isArray(savedLayout?.campaign_ids)){const selects=[...choosers.querySelectorAll('select[data-campaign]')];savedLayout.campaign_ids.forEach((id,i)=>{if(selects[i]&&[...selects[i].options].some(o=>o.value===id))selects[i].value=id});showPreview();}
-status.textContent=isListing()?'Listing placement preview: save a draft only. Publication and live page preview are disabled until the staged service is released.':publishedRecord?'A layout is live here. Preview any changes before publishing.':draft?'Your layout is saved. The live website is unchanged.':'Choose your adverts to get started.';
+if(isListing()&&!isRetailPending()){
+ const eligible=await db.from('public_advertising_creatives_v1').select('id,countries,page_paths,page_categories,customer_types,placement,campaign_category,partner_kind').eq('placement','below_hero').eq('campaign_category','house').eq('partner_kind','transport');
+ if(generation!==openGeneration)return;if(eligible.error)throw eligible.error;
+ listingPublicIds=new Set((eligible.data||[]).filter(a=>a.countries?.includes('GB')&&!a.customer_types?.length&&(!a.page_paths?.length||a.page_paths.includes(pagePath))&&(!a.page_categories?.length||a.page_categories.includes('public'))).map(a=>a.id));
+ }
+ cnt.disabled=isListing();const savedLayout=draft||publishedRecord;selectedFormats=Array.isArray(savedLayout?.artwork_formats)?savedLayout.artwork_formats.slice():[];cnt.value=String(isListing()?1:Math.min(4,Math.max(1,Number(savedLayout?.advert_count)||1)));if(isListing())selectedFormats=['slim'];render();if(Array.isArray(savedLayout?.campaign_ids)){const selects=[...choosers.querySelectorAll('select[data-campaign]')];savedLayout.campaign_ids.forEach((id,i)=>{if(selects[i]&&[...selects[i].options].some(o=>o.value===id))selects[i].value=id});showPreview();}
+status.textContent=isRetailPending()?'Available Stock listing advertising is not enabled yet.':isListing()?'Choose an eligible transport advert and save a private draft. Publication remains disabled.':publishedRecord?'A layout is live here. Preview any changes before publishing.':draft?'Your layout is saved. The live website is unchanged.':'Choose your adverts to get started.';
 }catch(e){if(generation!==openGeneration)return;status.textContent='Unable to load adverts: '+(e.message||e);save.disabled=true;pageButton.disabled=true;copyOpen.disabled=true}
 section.scrollIntoView({behavior:'smooth',block:'start'});}
 save.onclick=async()=>{if(!current||!db||save.disabled)return;const generation=openGeneration,target={...current};const ids=selections(),formats=currentFormats();if(!ids.length||ids.some((id,i)=>!options(formats[i]).some(c=>c.id===id))||new Set(ids).size!==ids.length){status.textContent='Choose distinct active campaigns for all positions.';return}
@@ -437,8 +444,8 @@ function renderFinder(){
  finderList.replaceChildren();
  for(const p of matching.slice(0,48)){
   const card=document.createElement('div');card.style.cssText='display:flex;gap:9px;align-items:center;justify-content:space-between;border:1px solid #484848;border-radius:9px;padding:10px;background:#171717;min-width:0';
-  const name=document.createElement('span');name.textContent=p.label||p.page_path;name.style.cssText='min-width:0;overflow-wrap:anywhere;font-size:13px';
-  const button=document.createElement('button');button.type='button';button.textContent='Manage adverts';
+  const name=document.createElement('span');name.textContent=(p.label||p.page_path)+(p.retailPending?' · Coming later':'');name.style.cssText='min-width:0;overflow-wrap:anywhere;font-size:13px';
+  const button=document.createElement('button');button.type='button';button.textContent=p.retailPending?'Not yet enabled':'Manage adverts';button.disabled=!!p.retailPending;
   button.onclick=()=>open({pagePath:p.page_path,slotCode:p.slot_code});
   card.append(name,button);finderList.append(card);
  }
