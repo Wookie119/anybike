@@ -35,6 +35,8 @@ function ensureAdvertHoverStyles(){
  const style=node('style');style.id='anybike-ad-hover-outline';
  style.textContent=[
   'a.anybike-managed-ad-link{position:relative!important;}',
+  '.anybike-move-house-banner>a,.anybike-move-house-banner picture,.anybike-move-house-banner img,.anybike-published-multi-layout a,.anybike-published-multi-layout img{width:100%!important;max-width:100%!important;height:auto!important;min-width:0!important;box-sizing:border-box!important}',
+  '.anybike-move-house-banner img,.anybike-published-multi-layout img{display:block!important;object-fit:contain!important;aspect-ratio:auto!important}',
   'a.anybike-managed-ad-link::after{content:"";position:absolute;inset:0;border:2px solid #ed1c24;border-radius:inherit;box-sizing:border-box;pointer-events:none;opacity:0;transition:opacity .16s ease;z-index:5}',
   '@media(hover:hover){a.anybike-managed-ad-link:hover::after{opacity:1}}',
   'a.anybike-managed-ad-link:focus-visible::after{opacity:1}'
@@ -138,8 +140,8 @@ function positionModelMoveAdvert(main,card){
  // after research/enquiry and before source references, never inside the hero.
  const sources=main.querySelector(':scope > #modelSources');
  if(sources)main.insertBefore(card,sources);else main.append(card);
- card.style.maxWidth='1200px';
- card.style.width='min(100%, 1200px)';
+ card.style.maxWidth='100%';
+ card.style.width='100%';
  card.style.margin='16px auto 20px';
 }
 function isManufacturerPage(main){
@@ -150,8 +152,8 @@ function positionManufacturerMoveAdvert(main,card){
  // Manufacturer adverts follow the complete model directory and supporting
  // sections. Never interrupt the manufacturer introduction or brand cards.
  main.append(card);
- card.style.width='min(100%, 1200px)';
- card.style.maxWidth='1200px';
+ card.style.width='100%';
+ card.style.maxWidth='100%';
  card.style.margin='18px auto 20px';
 }
 function isEditorialInfoPage(){
@@ -523,7 +525,7 @@ function installMoveHouse(ad){
  // Preserve intrinsic image ratio; never crop, stretch or enlarge the artwork.
  // About Us uses a wider .wrap than the standard 1200px advert cap.
  // Match that existing content width without making the banner full-bleed.
- card.style.setProperty('max-width',anchor||ad.placement_key==='about_wrap'?'none':'1200px','important');
+ card.style.setProperty('max-width',anchor||ad.placement_key==='about_wrap'||isManufacturerPage(main)||isUniversalModelPage(main)?'100%':'1200px','important');
  card.style.setProperty('width','100%','important');
  card.style.setProperty('min-width','0','important');
  card.style.setProperty('margin-left','auto','important');
@@ -665,7 +667,7 @@ function installPublishedLayout(layout,pagePath){
  const cssId='anybike-published-multi-layout-css';
  if(!document.getElementById(cssId)){
   const style=node('style');style.id=cssId;
-  style.textContent='.managed-ad-space.anybike-adaptive-slot{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;clear:both;padding:0!important;height:auto!important;overflow:visible!important}.anybike-published-multi-layout{display:grid!important;grid-template-columns:repeat(var(--ad-count),minmax(0,1fr));gap:clamp(8px,1.3vw,16px);width:100%;max-width:none;min-width:0;box-sizing:border-box;margin:16px 0 22px;align-items:start}.anybike-published-multi-layout article{min-width:0;margin:0;overflow:visible;box-sizing:border-box}.anybike-published-multi-layout a{display:block;width:100%;overflow:hidden;border-radius:12px;clip-path:inset(0 round 12px);background:transparent}.anybike-published-multi-layout img{width:100%;max-width:100%;height:auto;display:block;object-fit:contain;border-radius:12px}.anybike-published-multi-layout small{display:block;width:100%;text-align:center;margin-top:4px;color:#aaa;font:11px/1.3 Arial,sans-serif}@media(max-width:680px){.anybike-published-multi-layout{grid-template-columns:repeat(2,minmax(0,1fr))!important}}@media(max-width:420px){.anybike-published-multi-layout{grid-template-columns:1fr!important}}';
+  style.textContent='.managed-ad-space.anybike-adaptive-slot{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;clear:both;padding:0!important;height:auto!important;overflow:visible!important}.anybike-published-multi-layout{display:grid!important;grid-template-columns:repeat(var(--ad-count),minmax(0,1fr));gap:clamp(8px,1.3vw,16px);width:100%;max-width:none;min-width:0;box-sizing:border-box;margin:16px 0 22px;align-items:start}.anybike-published-multi-layout article{min-width:0;margin:0;overflow:visible;box-sizing:border-box}.anybike-published-multi-layout a{display:block;width:100%;overflow:hidden;border-radius:12px;clip-path:inset(0 round 12px);background:transparent}.anybike-published-multi-layout img{width:100%;max-width:100%;height:auto;display:block;object-fit:contain;border-radius:12px}.anybike-published-multi-layout small{display:block;width:100%;text-align:center;margin-top:4px;color:#aaa;font:11px/1.3 Arial,sans-serif}@media(max-width:680px){.anybike-published-multi-layout{grid-template-columns:repeat(min(var(--ad-count),2),minmax(0,1fr))!important}}@media(max-width:420px){.anybike-published-multi-layout{grid-template-columns:1fr!important}}';
   document.head.append(style);
  }
  const host=node('div');host.className='anybike-published-multi-layout';host.id=moveHouseMarker;
