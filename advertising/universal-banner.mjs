@@ -750,15 +750,15 @@ export async function renderListingAdvertising(root,context){
    used.add(ad.id);card.dataset.anybikeAdAuthorized="1";link.dataset.anybikeAdAuthorized="1";
    link.href=destination;link.rel="noopener sponsored";link.target="_blank";link.className="anybike-managed-ad-link";
    source.media="(max-width:650px)";source.srcset=mobile;
-   img.alt=String(ad.alt_text||"");img.src=desktop;img.loading="lazy";img.decoding="async";
+   img.alt=String(ad.alt_text||"");img.loading="eager";img.decoding="async";
    caption.textContent=advertDisclosure(ad);picture.append(source,img);link.append(picture);card.append(link,caption);
    let seen=false,clicked=false,ready=false,io=null;
    const impression=()=>{if(!ready||seen||!card.isConnected)return;seen=true;send({action:"event",event_type:"impression",token:ad.token},true).catch(()=>{})};
    const click=()=>{if(!ready||clicked)return;clicked=true;impression();send({action:"event",event_type:"click",token:ad.token},true).catch(()=>{})};
    link.addEventListener("click",click);link.addEventListener("auxclick",e=>{if(e.button===1)click()});
-   img.addEventListener("error",()=>{io?.disconnect();slot.hidden=true;slot.replaceChildren()},{once:true});
-   img.addEventListener("load",()=>{if(!slot.isConnected||root.__listingAdRequest!==request)return;ready=true;slot.hidden=false;if("IntersectionObserver" in window){io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();io.disconnect()}},{threshold:.5});io.observe(card)}else impression()},{once:true});
-   slot.append(card);
+   img.addEventListener("error",()=>{io?.disconnect();if(root.__listingAdRequest!==request||!slot.contains(card))return;slot.hidden=true;slot.replaceChildren()},{once:true});
+   img.addEventListener("load",()=>{if(!slot.isConnected||!slot.contains(card)||root.__listingAdRequest!==request)return;ready=true;slot.hidden=false;if("IntersectionObserver" in window){io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();io.disconnect()}},{threshold:.5});io.observe(card)}else impression()},{once:true});
+   slot.append(card);img.src=desktop;
   }
  }catch{/* unsupported endpoint or unavailable service: leave slots collapsed */}
 }
