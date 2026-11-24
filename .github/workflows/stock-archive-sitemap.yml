@@ -1,0 +1,37 @@
+name: Automatic motorcycle archive sitemap
+on:
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/build-stock-archive-sitemap.mjs'
+      - '.github/workflows/stock-archive-sitemap.yml'
+      - 'motorcycle-archive.html'
+      - 'international-vq-motorcycle.html'
+permissions:
+  contents: write
+concurrency:
+  group: stock-archive-sitemap
+  cancel-in-progress: false
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reconcile sitemap against public archive and live indexability
+        run: node scripts/build-stock-archive-sitemap.mjs
+      - name: Publish changed sitemap
+        run: |
+          git add sitemap-motorcycle-archive.xml
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "AnyBike sitemap automation"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Reconcile motorcycle archive sitemap"
+          git pull --rebase origin main
+          git push origin HEAD:main
