@@ -723,16 +723,18 @@ export async function renderPublicPageAdvertising(){try{const path=location.path
  * Never transmit private listing IDs, bid data, registration or seller information.
  */
 export async function renderListingAdvertising(root,context){
- if(!root?.isConnected||!context||context.country!=="GB")return;
+ if(!root)return;
+ const request=Symbol();root.__listingAdRequest=request;
  const placements=["listing_after_gallery","listing_after_description","listing_bottom"];
+ // Invalidate previous requests and remove previous creatives even if the new audience is ineligible.
+ const slots=placements.map(key=>root.querySelector('[data-listing-placement="'+key+'"]'));
+ slots.forEach(slot=>{if(slot){slot.__listingAdObserver?.disconnect();slot.__listingAdObserver=null;slot.hidden=true;slot.replaceChildren()}});
+ if(!root.isConnected||!context||context.country!=="GB")return;
  const path=String(context.pagePath||"");
  if(!["/trade-opportunities.html","/bike-details.html"].includes(path))return;
  const audience=path==="/trade-opportunities.html"?"trade_dealer":context.audience==="retail_private"?"retail_private":null;
  if(!audience)return;
- const slots=placements.map(key=>root.querySelector('[data-listing-placement="'+key+'"]'));
  if(slots.some(slot=>!slot))return;
- const request=Symbol();root.__listingAdRequest=request;
- slots.forEach(slot=>{slot.hidden=true;slot.replaceChildren()});
  try{
   const payload=await send({action:"select_listing",page_path:path,country:context.country,audience,manufacturer:String(context.manufacturer||"").slice(0,80),model:String(context.model||"").slice(0,120)});
   if(!root.isConnected||root.__listingAdRequest!==request)return;
@@ -753,11 +755,11 @@ export async function renderListingAdvertising(root,context){
    img.alt=String(ad.alt_text||"");img.loading="eager";img.decoding="async";
    caption.textContent=advertDisclosure(ad);picture.append(source,img);link.append(picture);card.append(link,caption);
    let seen=false,clicked=false,ready=false,io=null;
-   const impression=()=>{if(!ready||seen||!card.isConnected)return;seen=true;send({action:"event",event_type:"impression",token:ad.token},true).catch(()=>{})};
-   const click=()=>{if(!ready||clicked)return;clicked=true;impression();send({action:"event",event_type:"click",token:ad.token},true).catch(()=>{})};
+   const impression=()=>{if(!ready||seen||!card.isConnected||root.__listingAdRequest!==request)return;seen=true;send({action:"event",event_type:"impression",token:ad.token},true).catch(()=>{})};
+   const click=()=>{if(!ready||clicked||!card.isConnected||root.__listingAdRequest!==request)return;clicked=true;impression();send({action:"event",event_type:"click",token:ad.token},true).catch(()=>{})};
    link.addEventListener("click",click);link.addEventListener("auxclick",e=>{if(e.button===1)click()});
    img.addEventListener("error",()=>{io?.disconnect();if(root.__listingAdRequest!==request||!slot.contains(card))return;slot.hidden=true;slot.replaceChildren()},{once:true});
-   img.addEventListener("load",()=>{if(!slot.isConnected||!slot.contains(card)||root.__listingAdRequest!==request)return;ready=true;slot.hidden=false;if("IntersectionObserver" in window){io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();io.disconnect()}},{threshold:.5});io.observe(card)}else impression()},{once:true});
+   img.addEventListener("load",()=>{if(!slot.isConnected||!slot.contains(card)||root.__listingAdRequest!==request)return;ready=true;slot.hidden=false;if("IntersectionObserver" in window){io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();io.disconnect()}},{threshold:.5});slot.__listingAdObserver=io;io.observe(card)}else impression()},{once:true});
    slot.append(card);img.src=desktop;
   }
  }catch{/* unsupported endpoint or unavailable service: leave slots collapsed */}
