@@ -842,11 +842,18 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    const img=fig.querySelector('img'),caption=fig.querySelector('figcaption');
    if(!img||!caption)return;
    const wordmark=()=>{
-    img.hidden=true;img.style.display='none';img.onerror=null;
-    caption.textContent=make;
+    img.hidden=false;img.style.display='';img.onerror=()=>{
+     img.hidden=true;img.style.display='none';img.onerror=null;
+    };
+    img.alt='AnyBike motorcycle image coming soon';
+    img.style.objectFit='contain';img.style.backgroundColor='#050404';
+    img.style.padding='0';img.style.boxSizing='border-box';
+    img.src='/anybike-image-coming-soon.png';
+    caption.textContent=make+' '+model+' · Motorcycle photograph coming soon';
     caption.style.cssText='font-weight:900;font-size:clamp(24px,4vw,48px);padding:24px;text-align:center;color:#fff';
-    fig.dataset.anybikeHeroType='manufacturer-name';fig.hidden=false;
+    fig.dataset.anybikeHeroType='anybike-placeholder';fig.hidden=false;
    };
+   wordmark();
    try{
     const response=await fetch(ENDPOINT+'/rest/v1/rpc/public_anybike_manufacturer_logo_v1',{
      method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},
