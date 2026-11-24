@@ -571,7 +571,7 @@ body{
   .visitor-meta{grid-template-columns:1fr}
 }
 </style>
-<style>#unusualActivityList{min-height:0}#visitorJourneys .journey-summary{display:grid!important;grid-template-columns:minmax(180px,1.3fr) 90px 110px 90px minmax(160px,1fr);align-items:center;gap:10px;padding:12px}#visitorJourneys .journey-person{min-width:0}#visitorJourneys .journey-person .start-chat-btn{width:auto!important;display:inline-flex!important}#visitorJourneys .journey-badge{display:inline-flex!important;width:auto!important}#visitorJourneys .journey-person span{overflow-wrap:anywhere}@media(max-width:900px){#visitorJourneys .journey-summary{grid-template-columns:1fr 1fr!important}#visitorJourneys .journey-person,#visitorJourneys .journey-meta{grid-column:1/-1}}</style></head>
+<style>#unusualActivityList{min-height:0}#visitorJourneys .journey-summary{display:grid!important;grid-template-columns:minmax(180px,1.3fr) 90px 110px 90px minmax(160px,1fr);align-items:center;gap:10px;padding:12px}#visitorJourneys .journey-person{min-width:0}#visitorJourneys .journey-person .start-chat-btn{width:auto!important;display:inline-flex!important}#visitorJourneys .journey-badge{display:inline-flex!important;width:auto!important}#visitorJourneys .journey-person span{overflow-wrap:anywhere}@media(max-width:900px){#visitorJourneys .journey-summary{grid-template-columns:1fr 1fr!important}#visitorJourneys .journey-person,#visitorJourneys .journey-meta{grid-column:1/-1}}</style><style>#visitorJourneys .journey-summary{grid-template-columns:minmax(180px,1.5fr) 80px 110px minmax(160px,1fr) auto!important;background:#151515;cursor:default}#visitorJourneys .journey-tools{display:none;padding:0 12px 10px;align-items:center;gap:10px}#visitorJourneys .journey-session.open .journey-tools{display:flex;flex-wrap:wrap}#visitorJourneys .journey-open,#visitorJourneys .journey-trust{width:auto!important;min-width:0!important;display:inline-block!important;padding:7px 12px!important;background:#222;color:#fff;border:1px solid #555;border-radius:7px;cursor:pointer;font-size:12px}#topVisitorsList .top-visitor-meta span{display:block!important;overflow-wrap:anywhere}#visitorJourneys .journey-meta span{display:block!important}@media(max-width:900px){#visitorJourneys .journey-summary{grid-template-columns:1fr 1fr!important}#visitorJourneys .journey-person,#visitorJourneys .journey-meta{grid-column:1/-1}}</style></head>
 
 <body>
 
@@ -1694,9 +1694,9 @@ async function loadTopVisitors(){
   if(box)box.innerHTML='<div class="empty-state">Refreshing top visitors…</div>';
 
   try{
-    const {data,error}=await sb.rpc("admin_get_top_visitors_v1",{p_days:days,p_limit:20});
+    const {data,error}=await sb.rpc("admin_get_top_visitors_v1",{p_days:days,p_limit:60});
     if(error)throw error;
-    topVisitors=(data||[]).filter(r=>!suspectedAutomation(r));
+    topVisitors=(data||[]).filter(r=>!knownInternal(r)&&!suspectedAutomation(r)).slice(0,20);
     renderTopVisitors();
 
     if(status){
@@ -1712,6 +1712,7 @@ async function loadTopVisitors(){
 }
 
 let journeyDisplayLimit=25;
+function knownInternal(r){return isTrustedVisitor(r.visitor_id)||['dbe90033-721e-4b11-9b5a-c1a30ffb1d99','1afccb7d-05c1-47c8-b258-2e8f0c575b10','944c81d1-6e27-4763-8b54-649740bbfdd9'].includes(String(r.user_id||''));}
 function suspectedAutomation(r){
  if(r.user_id||r.customer_email||r.customer_name||r.message_thread_id||isTrustedVisitor(r.visitor_id))return false;
  const city=String(r.city||"").toLowerCase(), country=String(r.country||"").toLowerCase();
@@ -1726,7 +1727,7 @@ function renderVisitorJourneys(){
   const filter=document.getElementById("journeyType")?.value || "";
 
   let rows=[...visitorJourneys];
-  if(filter!=="automation"&&!showFlaggedJourneysOnly)rows=rows.filter(r=>!suspectedAutomation(r));
+  if(filter!=="automation"&&!showFlaggedJourneysOnly)rows=rows.filter(r=>!knownInternal(r)&&!suspectedAutomation(r));
   if(filter==="automation")rows=rows.filter(suspectedAutomation);
 
   if(showFlaggedJourneysOnly){
@@ -1769,19 +1770,14 @@ function renderVisitorJourneys(){
       : '<div class="empty-state">No page-level entries were recorded for this visit.</div>';
 
     return '<div class="journey-session" data-journey="'+index+'" data-session-id="'+escapeHtml(row.session_id||"")+'" data-visitor-id="'+escapeHtml(row.visitor_id||"")+'">'+
-      '<button type="button" class="journey-summary" onclick="this.parentElement.classList.toggle(\'open\')">'+
-        '<div class="journey-person"><strong>'+customer360Link(row,person.title)+'</strong><span>'+escapeHtml(person.sub)+'</span>'+badge+
-          '<div style="margin-top:8px">'+
-            '<button type="button" class="start-chat-btn" style="padding:7px 10px;min-height:0;background:'+(isTrustedVisitor(row.visitor_id)?'#222':'#174d2c')+'" onclick="event.stopPropagation();setTrustedVisitor(\''+escapeHtml(row.visitor_id||'')+'\','+(!isTrustedVisitor(row.visitor_id))+')">'+
-              (isTrustedVisitor(row.visitor_id)?'✓ This is me / Trusted':'This is me')+
-            '</button>'+
-          '</div>'+
-        '</div>'+
+      '<div class="journey-summary">'+
+        '<div class="journey-person"><strong>'+customer360Link(row,person.title)+'</strong><span>'+escapeHtml(location)+'</span></div>'+
         '<div class="journey-stat"><strong>'+Number(row.page_count||0)+'</strong><span>Pages</span></div>'+
         '<div class="journey-stat"><strong>'+escapeHtml(formatSeconds(row.active_seconds))+'</strong><span>Active time</span></div>'+
-        '<div class="journey-stat"><strong>'+Number(row.total_visits||1)+'</strong><span>Total visits</span></div>'+
-        '<div class="journey-meta"><strong>'+escapeHtml(new Date(row.started_at).toLocaleString("en-GB"))+'</strong><span>'+escapeHtml(location)+'</span><span>'+escapeHtml(displayDeviceType(row.device_type)+" · "+(row.browser||"—"))+'</span></div>'+
-      '</button>'+
+        '<div class="journey-meta"><strong>'+escapeHtml(new Date(row.started_at).toLocaleString("en-GB"))+'</strong><span>'+escapeHtml(displayDeviceType(row.device_type)+" · "+(row.browser||"—"))+'</span></div>'+
+        '<button type="button" class="journey-open" onclick="this.closest(\'.journey-session\').classList.toggle(\'open\')">View journey</button>'+
+      '</div>'+
+      '<div class="journey-tools">'+badge+' <button type="button" class="journey-trust" onclick="setTrustedVisitor(\''+escapeHtml(row.visitor_id||'')+'\','+(!isTrustedVisitor(row.visitor_id))+')">'+(isTrustedVisitor(row.visitor_id)?'Trusted · undo':'This is me')+'</button></div>'+
       '<div class="journey-pages">'+pageHtml+'</div>'+
     '</div>';
   }).join("");
