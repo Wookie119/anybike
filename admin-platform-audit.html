@@ -893,7 +893,16 @@ async function audit(p){
  if(!p.expected)return r;
  try{
   const u=new URL(p.fileUrl,location.origin+'/');
-  const response=await fetch(u.href,{cache:'no-store',signal:AbortSignal.timeout(15000)});
+  let response;
+  for(let attempt=0;attempt<3;attempt++){
+   try{
+    response=await fetch(u.href,{cache:'no-store',signal:AbortSignal.timeout(15000)});
+    if(![408,429,500,502,503,504].includes(response.status)||attempt===2)break;
+    await response.body?.cancel().catch(()=>{});
+   }catch(error){if(attempt===2)throw error;}
+   r.retries=(r.retries||0)+1;
+   await new Promise(resolve=>setTimeout(resolve,600*(attempt+1)));
+  }
   if(!response.ok){r.status='broken';r.issues.push('HTTP '+response.status);return r;}
   const doc=new DOMParser().parseFromString(await response.text(),'text/html');
   r.status='live';
@@ -961,7 +970,7 @@ async function checkPages(){
   for(const group of groups.values())if(group.length>1)for(const r of group)r.issues.push('Duplicate '+field);
  }
  const live=results.filter(r=>r.status==='live').length,broken=results.filter(r=>r.status==='broken').length;
- const health=live+broken?Math.round(live/(live+broken)*100):0;
+ const health=live+broken?(live/(live+broken)*100).toFixed(2):'0.00';
  setText('publicCount',inventory.filter(p=>['public','country'].includes(p.type)).length);
  setText('countryCount',inventory.filter(p=>p.type==='country').length);
  setText('countryAuditCount',inventory.filter(p=>p.type==='country').length+' pages');
@@ -970,7 +979,7 @@ async function checkPages(){
  setText('renderedPending',pub.filter(r=>r.pending).length+' public URLs require rendered metadata or alias verification; not counted as SEO passes.');
  setText('seoPass',pub.filter(r=>r.status==='live'&&!r.issues.length&&!r.pending).length);setText('seoIssues',pub.filter(r=>r.issues.length).length);
  setText('overallHealth',health+'% Checked URL Availability');document.getElementById('healthBar').style.width=health+'%';
- setText('scanStatus','Scan complete — '+inventory.length+' URLs checked');setText('scanFinishedAt','Finished '+new Date().toLocaleString('en-GB'));renderRows();
+ setText('scanStatus','Scan complete — '+inventory.length+' URLs checked · '+results.filter(r=>r.retries).length+' retried');setText('scanFinishedAt','Finished '+new Date().toLocaleString('en-GB'));renderRows();
  }catch(e){setText('overallHealth','Incomplete scan');setText('scanStatus',e.message);}
  finally{running=false;btn.disabled=false;btn.textContent='Recheck Pages';}
 }
