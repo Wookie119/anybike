@@ -730,7 +730,7 @@ body{
           <div>
             <h2>🌍 Live Visitor Map</h2>
             <div class="subtitle">
-              Green markers are visitors currently live. Red markers are visitors seen today who have left.
+              Green pins: online now. Red pins: visited today and left. Suspected automated traffic is filtered where identified; visitors without coordinates cannot be mapped.
             </div>
           </div>
         </div>
@@ -1160,7 +1160,7 @@ function renderMap(visitors,liveVisitors){
     const lat = Number(visitor.latitude);
     const lng = Number(visitor.longitude);
 
-    if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+    if(visitor.latitude==null || visitor.longitude==null || visitor.latitude==="" || visitor.longitude==="" || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat)>90 || Math.abs(lng)>180){
       return;
     }
 
@@ -1940,13 +1940,12 @@ async function loadVisitorHistory(){
     const historyVisitors = (data || []).filter(r=>!suspectedAutomation(r));
     renderVisitorHistory(historyVisitors);
 
-    const mapVisitors = days===1
-      ? historyVisitors
-      : historyVisitors.filter(function(visitor){
-          return visitorWasRecentlyOnline(visitor);
-        });
-
-    renderMap(mapVisitors,latestVisitors);
+    // Today's map is independent of the selected history range.
+    const dayStart=Date.parse(new Date().toISOString().slice(0,10)+"T00:00:00Z");
+    const mapVisitors=historyVisitors.filter(v=>Date.parse(v.last_seen_at)>=dayStart);
+    const byId=new Map(mapVisitors.map(v=>[String(v.visitor_id),v]));
+    for(const v of latestVisitors)if(!suspectedAutomation(v))byId.set(String(v.visitor_id),{...byId.get(String(v.visitor_id)),...v});
+    renderMap([...byId.values()],latestVisitors);
 
   }catch(error){
     console.error("Visitor history could not be loaded",error);
