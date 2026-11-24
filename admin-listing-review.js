@@ -72,7 +72,7 @@ window.AnyBikeListingReview = {assessUpdate,mount(client, host, getRows, onRevie
     card.append(el("strong",[row?.submission_reference||row?.reference||"Submission "+s.submission_id,row?.make,row?.model].filter(Boolean).join(" · ")));
     card.append(el("p",({update:"Changes requested",available:"Availability confirmed",sold:"Reported sold / withdrawn"})[t.response_type]||"Customer response"));
     const date=new Date(t.responded_at);if(!isNaN(date))card.append(el("p",date.toLocaleString("en-GB",{timeZone:"Europe/London"})));
-    let pendingPhotoCount=0,inspectedPhotoCount=0,photoCheckReady=false;
+    let pendingPhotoCount=0,inspectedPhotoCount=0,photoCheckReady=false,photoGeneration=0,pendingPhotoIds=[],approvedPhotoStep=false;
     if(t.response_type==="update"){
      const details=await Promise.allSettled([rpc("admin_get_submission_delivery_v1",{p_submission_id:Number(s.submission_id)}),rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(s.submission_id)})]);
      const current=details[0].status==="fulfilled"?details[0].value:{};
@@ -115,9 +115,9 @@ window.AnyBikeListingReview = {assessUpdate,mount(client, host, getRows, onRevie
      const photoStatus=el("p");photoStatus.style.margin="6px 0";
      const photoTools=el("div");
      const updatePhotoSummary=async()=>{
-       photoCheckReady=false;photoTools.replaceChildren(el("p","Loading photographs…"));
+       const generation=++photoGeneration;photoCheckReady=false;photoTools.replaceChildren(el("p","Loading photographs…"));
        const [list,paths]=await Promise.all([rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(s.submission_id)}),rpc("admin_get_seller_original_paths_v1",{p_submission_id:Number(s.submission_id)})]);
-       const pending=list.filter(p=>!["approved","rejected"].includes(p.final_status));pendingPhotoCount=pending.length;inspectedPhotoCount=0;
+       if(generation!==photoGeneration)return;if(!Array.isArray(list)||!Array.isArray(paths))throw Error("Photograph status unavailable");const pending=list.filter(p=>!["approved","rejected"].includes(p.final_status));pendingPhotoIds=pending.map(p=>Number(p.image_id)).sort((a,b)=>a-b);pendingPhotoCount=pending.length;inspectedPhotoCount=0;
        const originals=new Map((paths||[]).map(p=>[Number(p.image_id),p.original_storage_path]));
        photoStatus.textContent=list.length+" photographs · "+pending.length+" awaiting approval";
        const thumbs=el("div");thumbs.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,240px));gap:12px";
@@ -143,8 +143,8 @@ window.AnyBikeListingReview = {assessUpdate,mount(client, host, getRows, onRevie
          if(url){
            const a=el("a");a.href=url;a.target="_blank";a.rel="noopener noreferrer";a.style.display="block";
            const img=el("img");img.alt="Photograph "+p.image_position;img.style.cssText="width:100%;height:160px;object-fit:contain;margin:6px 0;background:#080808";
-           img.onload=()=>{if(waiting){loaded.add(Number(p.image_id));inspectedPhotoCount=loaded.size;approve.disabled=busy||loaded.size!==pending.length;}};
-           img.onerror=()=>{if(waiting){loaded.delete(Number(p.image_id));approve.disabled=true;}img.alt="Preview unavailable — use photo tools";};
+           img.onload=()=>{if(waiting&&generation===photoGeneration){loaded.add(Number(p.image_id));inspectedPhotoCount=loaded.size;approve.disabled=busy||loaded.size!==pending.length;}};
+           img.onerror=()=>{if(waiting&&generation===photoGeneration){loaded.delete(Number(p.image_id));inspectedPhotoCount=loaded.size;approve.disabled=true;}img.alt="Preview unavailable — use photo tools";};
            img.src=url;a.append(img);tile.append(a);
          }else tile.append(el("p","Preview unavailable — use photo tools."));
          thumbs.append(tile);
@@ -175,21 +175,29 @@ window.AnyBikeListingReview = {assessUpdate,mount(client, host, getRows, onRevie
      if(note.value.trim()&&note.value.trim().length<5){msg.textContent="Enter at least five characters or leave the note blank.";note.focus();return;}
      if(!["apply_core","withdrawn","approve_all_live","approve_all_relist","apply_legacy_reply"].includes(outcome)&&!confirm(outcome==="dismissed"?"Dismiss this response without applying changes?":"Record this response as reviewed without applying changes?"))return;
      saving=true;panel.querySelectorAll("button").forEach(b=>b.disabled=true);msg.textContent="Saving review…";
-     try{if(outcome==="approve_all_live"||outcome==="approve_all_relist"){
+     try{if(["approve_all_live","approve_all_relist","apply_core","apply_legacy_reply"].includes(outcome)){
        if(!photoCheckReady)throw Error("Photograph status could not be verified. Refresh responses before approving.");
+       const latest=await rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(s.submission_id)});
+       if(!Array.isArray(latest))throw Error("Photograph status could not be verified");
+       const latestIds=latest.filter(p=>!["approved","rejected"].includes(p.final_status)).map(p=>Number(p.image_id)).sort((a,b)=>a-b);
+       if(JSON.stringify(latestIds)!==JSON.stringify(pendingPhotoIds))throw Error("Photographs changed since review. Refresh and inspect the current photographs.");
        if(pendingPhotoCount>0){
          if(inspectedPhotoCount!==pendingPhotoCount)throw Error("Please view all pending photographs before approving.");
          const result=await client.functions.invoke("admin-approve-seller-originals",{body:{submission_id:Number(s.submission_id),confirmed_inspected:true}});
-         if(result.error||!result.data?.success)throw Error(result.error?.message||(result.data?.errors||[]).join(" · ")||"Photograph approval not confirmed");
-         pendingPhotoCount=0;
+         if(result.error||!result.data?.success||result.data?.errors?.length)throw Error(result.error?.message||(result.data?.errors||[]).join(" · ")||"Photograph approval not confirmed");
+         approvedPhotoStep=true;
+         const after=await rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(s.submission_id)});
+         if(!Array.isArray(after)||after.some(p=>!["approved","rejected"].includes(p.final_status))||pendingPhotoIds.some(id=>!after.some(p=>Number(p.image_id)===id&&p.final_status==="approved")))throw Error("Photograph approval is incomplete. Refresh before applying the listing update.");
+         pendingPhotoCount=0;pendingPhotoIds=[];
        }
      }
      const data=outcome==="apply_legacy_reply"?await rpc("admin_apply_legacy_seller_update_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||"Original seller response reviewed; no repeat invitation needed"}):outcome==="approve_all_live"?await rpc("admin_approve_listing_refresh_condition_only_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||"Seller nine declarations and approved photographs reviewed together"}):outcome==="approve_all_relist"?await rpc("admin_approve_and_relist_seller_refresh_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||"Seller refresh and inspected photographs approved for relisting"}):outcome==="condition_only_live"?await rpc("admin_approve_listing_refresh_condition_only_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||"Seller condition declarations approved during active bidding"}):outcome==="withdrawn"?await rpc("admin_withdraw_sale_reported_listing_v1",{p_request_id:Number(t.id),p_note:note.value.trim()||null}):await rpc("admin_review_listing_refresh_v1",{p_request_id:Number(t.id),p_outcome:outcome,p_note:note.value.trim()||"Reviewed by Admin: "+outcome});if(!data?.success)throw Error("Review not confirmed");msg.textContent="Review saved.";saving=false;await load();if(onReviewed)try{await onReviewed();}catch(e){body.append(el("p","Review saved; refresh the desk to see updated listing details."));}const saved=el("p",(row?.submission_reference||row?.reference||"Submission "+s.submission_id)+" · "+(outcome==="apply_legacy_reply"?"Existing seller reply applied to the advert; no further invitation needed.":outcome==="approve_all_live"?"Seller answers and photographs approved; live bidding preserved.":outcome==="approve_all_relist"?"Seller answers and photographs approved; closed auction relisted.":outcome==="condition_only_live"?"Nine seller declarations updated on live advert; prices, mileage and bids unchanged.":outcome==="apply_core"?"Listing details approved and saved.":outcome==="withdrawn"?"Motorcycle withdrawn. Trade bidding stopped.":"Review saved."));saved.setAttribute("role","status");saved.style.cssText="color:#91e9ac;font-weight:bold;border:1px solid #386446;border-radius:8px;padding:10px;margin:8px 0";body.prepend(saved);panel.open=true;}
-     catch(e){msg.textContent=e.message||"Review not saved";saving=false;panel.querySelectorAll("button").forEach(b=>b.disabled=false);}
+     catch(e){msg.textContent=(approvedPhotoStep?"Photographs were approved separately; listing review not confirmed. ":"")+(e.message||"Review not saved");saving=false;panel.querySelectorAll("button").forEach(b=>b.disabled=false);}
     };
     if(t.response_type==="update"){
       const structured=t.proposed?.condition_answers;
-      const complete=structured&&["service_history","mot","keys","v5c","accident","tyres","brakes","drive","mechanical"].every(k=>typeof structured[k]==="string"&&structured[k].length>0);
+      const hasStructured=Object.prototype.hasOwnProperty.call(t.proposed||{},"condition_answers");
+      const complete=structured&&["service_history","mot","keys","v5c","accident","tyres","brakes","drive","mechanical"].every(k=>typeof structured[k]==="string"&&structured[k].trim().length>0);
       const auctionLive=(row?.underwrite_status==="live");
       if(auctionLive){
         if(complete){
@@ -197,11 +205,13 @@ window.AnyBikeListingReview = {assessUpdate,mount(client, host, getRows, onRevie
           approve.style.cssText="background:#ed1c24;color:white;font-weight:bold";
           actions.append(approve);
           card.append(el("p","Live auction: this updates condition declarations only. Existing bids, reserve, mileage and closing time are protected. Review any requested core changes separately after bidding closes."));
-        }else{
+        }else if(!hasStructured){
           card.append(el("p","This seller already replied to our previous form. Use their existing description and condition update; unconfirmed questions will be labelled Not supplied, not guessed. No repeat invitation."));
           const apply=button("✓ Use Seller's Existing Reply — Update Advert →",()=>{if(confirm("Approve the existing seller reply for this live auction? The text will be shown as seller-declared, unknown information stays unconfirmed, and the existing bids, reserve and closing time remain unchanged."))submit("apply_legacy_reply");});
           apply.style.cssText="background:#ed1c24;color:white;font-weight:bold";
           actions.append(apply);
+        }else{
+          card.append(el("p","This response contains an incomplete new questionnaire. Review existing seller information before requesting only genuinely missing answers; do not apply it as an older reply."));
         }
       }else{
         const closedAuction=row?.underwrite_status==="closed";
