@@ -10,10 +10,13 @@ const style=document.createElement('style');style.textContent='#adcontent .ab-sl
 const before=document.getElementById('namedAdvertisingSpaces');if(before){root.insertBefore(picker,before);root.insertBefore(section,before)}else{root.append(picker,section)};
 const $=id=>document.getElementById(id),loc=$('abSlotLocation'),cnt=$('abSlotCount'),choosers=$('abSlotChoosers'),preview=$('abSlotPreview'),status=$('abSlotStatus'),save=$('abSlotDraftSave'),pageButton=$('abSlotPreviewPage'),pageWrap=$('abSlotPagePreview'),pageFrame=$('abSlotPageFrame'),copyOpen=$('abSlotCopyOpen'),copyPanel=$('abSlotCopyPanel'),copySearch=$('abSlotCopySearch'),copyTargets=$('abSlotCopyTargets'),copySummary=$('abSlotCopySummary'),copySave=$('abSlotCopySave'),copy50=$('abSlotCopy50'),copyClear=$('abSlotCopyClear'),checkPublish=$('abSlotPublishCheck'),publish=$('abSlotPublish'),restore=$('abSlotRestore');
 let db,campaigns=[],customers=[],current=null,draft=null,artworkMasters=new Map(),selectedFormats=[],copyInventory=[],copySelected=new Set(),copyExisting=new Set(),publishedRecord=null,publicationReady=false;
+const listingLocations=["/trade-opportunities.html","/bike-details.html"].flatMap((page_path,i)=>[["GALLERY","Below photograph gallery"],["DESCRIPTION","Below description"],["BOTTOM","Bottom of advert"]].map(([suffix,label])=>({page_path,slot_code:"AB-UK-"+(i?"STOCK":"TRADE")+"-LISTING-"+suffix,label:(i?"Available Stock":"UK Trade Auction")+" · "+label,listingPreview:true})));
+const isListing=()=>listingLocations.some(p=>p.slot_code===current?.slotCode&&p.page_path===current?.pagePath);
 const formatNames={slim:'Slim banner · 3:1',square:'Square advert · 1:1',stock_card:'Stock card · 4:3',landscape:'Landscape · 16:9',portrait:'Portrait · 4:5'};
 const formatRatios={slim:'3 / 1',square:'1 / 1',stock_card:'4 / 3',landscape:'16 / 9',portrait:'4 / 5'};
 function artwork(c,format){
  if(!c)return '';
+ if(isListing())return format==='slim'?c.slim_image_url||'':'';
  const master=artworkMasters.get(c.partner_id+'|'+format);
  if(master)return master;
  const field={slim:'slim_image_url',square:'compact_image_url',stock_card:'stock_card_image_url',landscape:'desktop_image_url',portrait:'mobile_image_url'}[format]||'slim_image_url';
@@ -22,7 +25,7 @@ function artwork(c,format){
 function hasArtwork(c,format){return /^https:\/\//.test(artwork(c,format))}
 function currentFormats(){return [...choosers.querySelectorAll('select[data-shape]')].map(s=>s.value)}
 function currentCampaigns(){return [...choosers.querySelectorAll('select[data-campaign]')].map(s=>s.value)}
-function options(format){return campaigns.filter(c=>c.status==='active'&&hasArtwork(c,format)&&/^https:\/\//.test(c.destination_url||''))}
+function options(format){return campaigns.filter(c=>c.status==='active'&&hasArtwork(c,format)&&/^https:\/\//.test(c.destination_url||'')&&(!isListing()||(format==='slim'&&c.campaign_category==='house'&&customers.some(p=>p.id===c.partner_id&&p.kind==='transport')&&/^https:\/\//.test(c.compact_image_url||''))))}
 function selections(){return currentCampaigns()}
 function render(){
  const values=selections(),formats=currentFormats(),num=Number(cnt.value);
@@ -33,7 +36,7 @@ for(let i=0;i<num;i++){
  const group=document.createElement('div');group.className='ab-slot-ad-choice';
  const shapeLabel=document.createElement('label');shapeLabel.textContent='Advert '+(i+1)+' · artwork shape';
  const shape=document.createElement('select');shape.dataset.shape='1';shape.setAttribute('aria-label','Artwork shape for advert '+(i+1));
- for(const [key,name] of Object.entries(formatNames))shape.append(new Option(name,key));
+ for(const [key,name] of Object.entries(formatNames))if(!isListing()||key==='slim')shape.append(new Option(name,key));
  shape.value=formats[i];shapeLabel.append(shape);
  const campaignLabel=document.createElement('label');campaignLabel.textContent='Advertising customer and advert';
  const sel=document.createElement('select');sel.dataset.campaign='1';sel.setAttribute('aria-label','Advert '+(i+1)+' campaign');
@@ -61,14 +64,14 @@ function showPreview(){
   }
   const note=document.createElement('small');note.textContent='Advertisement';art.append(note);preview.append(art);
  }
- save.disabled=!current||!unique;pageButton.disabled=!current||!unique;copyOpen.disabled=!current||!unique;checkPublish.disabled=!current||!unique;publish.disabled=!current||!unique;publicationReady=false;
+ save.disabled=!current||!unique;pageButton.disabled=!current||!unique||isListing();copyOpen.disabled=!current||!unique||isListing();checkPublish.disabled=!current||!unique||isListing();publish.disabled=!current||!unique||isListing();publicationReady=false;
 }
 cnt.onchange=render;
 $('abSlotClose').onclick=()=>{section.hidden=true;pageWrap.hidden=true;copyPanel.hidden=true;pageFrame.removeAttribute('src')};
 $('abSlotHidePage').onclick=()=>{pageWrap.hidden=true;pageFrame.removeAttribute('src')};
-async function open(detail){const {slotCode,pagePath}=detail||{};if(!slotCode||!pagePath)return;current={slotCode,pagePath};section.hidden=false;pageWrap.hidden=true;copyPanel.hidden=true;publishedRecord=null;publish.disabled=true;restore.hidden=true;pageFrame.removeAttribute('src');loc.textContent=pagePath+' · '+slotCode;status.textContent='Loading approved campaigns and any saved draft…';
+async function open(detail){const {slotCode,pagePath}=detail||{};if(!slotCode||!pagePath)return;current={slotCode,pagePath};cnt.disabled=isListing();section.hidden=false;pageWrap.hidden=true;copyPanel.hidden=true;publishedRecord=null;publish.disabled=true;restore.hidden=true;pageFrame.removeAttribute('src');loc.textContent=pagePath+' · '+slotCode;status.textContent='Loading approved campaigns and any saved draft…';
 try{if(typeof getAdminSupabaseClient!=='function')throw Error('Admin connection missing');db=getAdminSupabaseClient();const admin=await db.rpc('anybike_is_admin');if(admin.error||admin.data!==true)throw Error('Administrator access required');
-const results=await Promise.all([db.from('advertising_campaigns').select('id,name,status,partner_id,desktop_image_url,slim_image_url,stock_card_image_url,mobile_image_url,compact_image_url,destination_url,alt_text').order('name'),db.from('commercial_partners').select('id,name').order('name'),db.from('advertising_slot_layout_drafts').select('slot_code,page_path,campaign_ids,advert_count,artwork_formats').eq('slot_code',slotCode).maybeSingle(),db.from('advertising_partner_artwork_library').select('partner_id,creative_format,active_artwork_id').not('active_artwork_id','is',null),db.from('advertising_slot_published_layouts').select('slot_code,page_path,campaign_ids,artwork_formats,advert_count').eq('slot_code',slotCode).maybeSingle()]);const fail=results.find(r=>r.error);if(fail)throw fail.error;
+const results=await Promise.all([db.from('advertising_campaigns').select('id,name,status,partner_id,desktop_image_url,slim_image_url,stock_card_image_url,mobile_image_url,compact_image_url,destination_url,alt_text,campaign_category').order('name'),db.from('commercial_partners').select('id,name,kind').order('name'),db.from('advertising_slot_layout_drafts').select('slot_code,page_path,campaign_ids,advert_count,artwork_formats').eq('slot_code',slotCode).maybeSingle(),db.from('advertising_partner_artwork_library').select('partner_id,creative_format,active_artwork_id').not('active_artwork_id','is',null),db.from('advertising_slot_published_layouts').select('slot_code,page_path,campaign_ids,artwork_formats,advert_count').eq('slot_code',slotCode).maybeSingle()]);const fail=results.find(r=>r.error);if(fail)throw fail.error;
 campaigns=results[0].data||[];customers=results[1].data||[];draft=results[2].data||null;publishedRecord=results[4].data||null;restore.hidden=!publishedRecord;
  artworkMasters=new Map();
  const refs=results[3].data||[],ids=[...new Set(refs.map(r=>r.active_artwork_id).filter(Boolean))];
@@ -78,8 +81,8 @@ campaigns=results[0].data||[];customers=results[1].data||[];draft=results[2].dat
   const byId=new Map((versions.data||[]).filter(v=>v.status==='approved').map(v=>[v.id,v.public_url]));
   for(const entry of refs){const url=byId.get(entry.active_artwork_id);if(url&&/^https:\/\//.test(url))artworkMasters.set(entry.partner_id+'|'+entry.creative_format,url)}
  }
-selectedFormats=draft?.artwork_formats?.length?draft.artwork_formats.slice():[];cnt.value=String(draft?.advert_count||1);render();if(draft){const selects=[...choosers.querySelectorAll('select[data-campaign]')];draft.campaign_ids.forEach((id,i)=>{if(selects[i])selects[i].value=id});showPreview();}
-status.textContent=publishedRecord?'A layout is live here. Preview any changes before publishing.':draft?'Your layout is saved. The live website is unchanged.':'Choose your adverts to get started.';
+selectedFormats=draft?.artwork_formats?.length?draft.artwork_formats.slice():[];cnt.value=String(isListing()?1:draft?.advert_count||1);if(isListing())selectedFormats=['slim'];render();if(draft){const selects=[...choosers.querySelectorAll('select[data-campaign]')];draft.campaign_ids.forEach((id,i)=>{if(selects[i])selects[i].value=id});showPreview();}
+status.textContent=isListing()?'Listing placement preview: save a draft only. Publication and live page preview are disabled until the staged service is released.':publishedRecord?'A layout is live here. Preview any changes before publishing.':draft?'Your layout is saved. The live website is unchanged.':'Choose your adverts to get started.';
 }catch(e){status.textContent='Unable to load adverts: '+(e.message||e);save.disabled=true;pageButton.disabled=true;copyOpen.disabled=true}
 section.scrollIntoView({behavior:'smooth',block:'start'});}
 save.onclick=async()=>{if(!current||!db)return;const ids=selections(),formats=currentFormats();if(ids.some((id,i)=>!options(formats[i]).some(c=>c.id===id))||new Set(ids).size!==ids.length){status.textContent='Choose distinct active campaigns for all positions.';return}
@@ -306,7 +309,7 @@ async function publicationEligibility(){
  return {ready:true,message:'All campaigns are eligible for this page and approved artwork shapes are available. Publishing will replace the existing live layout.'};
 }
 checkPublish.onclick=async()=>{
- if(!db||!current)return;
+ if(!db||!current||isListing())return;
  publicationReady=false;publish.hidden=true;publish.disabled=true;
  checkPublish.disabled=true;status.textContent='Checking live eligibility, page targeting and approved artwork…';
  try{
@@ -315,7 +318,7 @@ checkPublish.onclick=async()=>{
  finally{checkPublish.disabled=false}
 };
 publish.onclick=async()=>{
- if(!db||!current||publish.disabled)return;
+ if(!db||!current||publish.disabled||isListing())return;
  publish.disabled=true;
  try{
   // Automatically check all safety rules as part of publishing.
@@ -332,7 +335,7 @@ publish.onclick=async()=>{
  finally{publicationReady=false;showPreview()}
 };
 restore.onclick=async()=>{
- if(!db||!current||!publishedRecord)return;
+ if(!db||!current||!publishedRecord||isListing())return;
  if(!confirm('RESTORE the previous live advertising arrangement on '+current.pagePath+'?'))return;
  restore.disabled=true;
  try{
@@ -429,11 +432,11 @@ let finderPages=[],finderReady=false;
 const supportedPageKeys=new Set(['main_end','about_wrap','before_sources','export_wrap','freight_wrap','sell_wrap','stock_grid']);
 function renderFinder(){
  const q=finderInput.value.trim().toLowerCase();
- const matching=finderPages.filter(p=>!q||(p.page_path+' '+p.slot_code).toLowerCase().includes(q));
+ const matching=finderPages.filter(p=>!q||(p.page_path+' '+p.slot_code+' '+(p.label||'')).toLowerCase().includes(q));
  finderList.replaceChildren();
  for(const p of matching.slice(0,48)){
   const card=document.createElement('div');card.style.cssText='display:flex;gap:9px;align-items:center;justify-content:space-between;border:1px solid #484848;border-radius:9px;padding:10px;background:#171717;min-width:0';
-  const name=document.createElement('span');name.textContent=p.page_path;name.style.cssText='min-width:0;overflow-wrap:anywhere;font-size:13px';
+  const name=document.createElement('span');name.textContent=p.label||p.page_path;name.style.cssText='min-width:0;overflow-wrap:anywhere;font-size:13px';
   const button=document.createElement('button');button.type='button';button.textContent='Manage adverts';
   button.onclick=()=>open({pagePath:p.page_path,slotCode:p.slot_code});
   card.append(name,button);finderList.append(card);
@@ -449,7 +452,7 @@ async function loadFinder(){
   const result=await client.from('advertising_page_inventory').select('page_path,slot_code,placement_key,excluded').order('page_path').limit(1000);
   if(result.error)throw result.error;
   finderPages=(result.data||[]).filter(p=>p.slot_code&&/^AB-[A-Z0-9-]+$/.test(p.slot_code)&&p.page_path&&/^\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.html$/i.test(p.page_path)&&!p.excluded&&supportedPageKeys.has(p.placement_key));
-  finderReady=true;renderFinder();
+  finderPages=[...listingLocations,...finderPages];finderReady=true;renderFinder();
  }catch(error){finderStatus.textContent='Unable to load pages: '+(error.message||error)}
 }
 finderInput.oninput=()=>{if(finderReady)renderFinder()};
