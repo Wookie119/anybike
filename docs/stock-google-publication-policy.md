@@ -84,3 +84,15 @@ Verified immediately after installation:
 3. Production publishing process to generate *sanitised*, server-rendered public bike pages with immediate removal/withdrawal.
 4. Search-ready stock sitemap with safe incremental reconciliation and production HTTP tests.
 5. Test one approved provider in a small pilot; never bulk-enable existing stock simply because it has a source ID.
+
+## 2026-11-24 owner-approved evergreen stock lifecycle
+
+This amendment supersedes earlier removal-only sitemap rules for legitimately retained, publicly indexable listings. It does not waive source consent, dealer channel restrictions, photo rights or privacy gates.
+
+- Use one database, one universal listing template and a permanent public listing URL per motorcycle. Provider-level approval enables automation for eligible stock; do not require routine per-bike approval.
+- Available motorcycles appear in Available Stock and relevant manufacturer/model pages. Reserved motorcycles are accurately marked reserved; never advertise them as immediately available.
+- When stock ends, remove it from available-stock results and active offers automatically. If ongoing archival publication rights are explicitly established and the page remains substantive, retain its canonical URL, useful verified description/specification and rights-cleared photos, and retain the URL in the stock sitemap. Otherwise withdraw it from public publication and the sitemap; do not retain restricted content. Do not infer archival rights from permission to advertise active stock.
+- Archive headline: “This motorcycle is no longer available.” Never claim AnyBike sold it unless that is established. Remove active offer/price markup and purchase actions. No blanket redirects or misleading availability claims.
+- Primary action: “View Similar Motorcycles” leading to available stock ranked by exact canonical model, verified variants, related models of the same manufacturer, then comparable models across manufacturers. Use existing catalogue identities and relationships, not ambiguous text matching. Offer the model guide and register-interest actions as secondary links. If no matches exist, offer broader browsing and interest registration.
+- Sitemap is reconciled automatically from the same publication eligibility decision as page rendering; include both eligible active and substantive eligible archived URLs, exclude revoked/expired rights, private stock, thin/duplicate pages, and withdrawn content. Rights revocation overrides retention immediately at the public serving boundary.
+- Implementation remains pending: no live indexing or stock permissions are enabled by this policy change. Prioritize the publication lifecycle before moving on to manufacturer SEO or feed work.
