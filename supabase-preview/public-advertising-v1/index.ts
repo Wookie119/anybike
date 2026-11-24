@@ -156,12 +156,13 @@ if(b.action==="select_listing"){
  for(const [placement_key,suffix] of positions){
   const slot=prefix+"-"+suffix;
   const {data:layout,error:le}=await db.from("advertising_slot_published_layouts").select("campaign_ids,artwork_formats,advert_count").eq("page_path",path).eq("slot_code",slot).maybeSingle();
-  if(le||!layout||layout.advert_count!==1||layout.campaign_ids?.length!==1||layout.artwork_formats?.length!==1)continue;
+  if(le||!layout||layout.advert_count!==1||!Array.isArray(layout.campaign_ids)||layout.campaign_ids.length!==1||!Array.isArray(layout.artwork_formats)||layout.artwork_formats.length!==1)continue;
   const id=layout.campaign_ids[0];
-  if(used.has(id)||layout.artwork_formats[0]!=="slim")continue;
+  if(typeof id!=="string"||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)||used.has(id)||layout.artwork_formats[0]!=="slim")continue;
   const {data:a,error:ae}=await db.from("public_advertising_creatives_v1").select("*").eq("id",id).maybeSingle();
   if(ae||!a||a.placement!=="below_hero"||a.partner_kind!=="transport"||a.campaign_category!=="house"||a.customer_types?.length||!matchCountry(a.countries,"GB")||!match(a.page_paths,path)||!match(a.page_categories,inventory.page_category)||!match(a.manufacturers,String(b.manufacturer||""))||!match(a.models,String(b.model||""))||!a.destination_url?.startsWith("https://"))continue;
-  const art=await campaignCreative(id);
+  let art;
+  try{art=await campaignCreative(id)}catch{continue}
   if(!art.slim_image_url?.startsWith("https://")||!art.compact_image_url?.startsWith("https://"))continue;
   used.add(id);
   out.push({id,placement_key,eligible_audiences:[audience],commercial_category:"transport",partner_name:a.partner_name,desktop_image_url:art.slim_image_url,mobile_image_url:art.compact_image_url,destination_url:a.destination_url,alt_text:a.alt_text,disclosure:a.disclosure,token:await sign({cid:id,mid:null,path,nonce:crypto.randomUUID(),country:"GB",slot,exp:Date.now()+3600000})});
