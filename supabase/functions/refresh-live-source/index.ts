@@ -97,6 +97,24 @@ function validBmwRefreshItem(item:any){
   return true;
 }
 
+function validMotorcycleImageUrls(value:any):string[]{
+  if(!Array.isArray(value))return [];
+  const urls=new Set<string>();
+  for(const raw of value){
+    if(typeof raw!=="string")continue;
+    try{
+      const u=new URL(raw);
+      if(u.protocol!=="https:"||!u.hostname.endsWith("bmw-motorrad.co.uk"))continue;
+      const path=u.pathname.toLowerCase();
+      if(/\/(img|images|assets|css|fonts|icons)\/(?:[^/]*\/)*(?:logo|icon|arrow|facebook|twitter|spinner|loader|search|button|tip|header|banner|favicon|share|print|app)/i.test(path))continue;
+      if(/(?:logo|icon|arrow|facebook|twitter|spinner|loader|search|button|tiparrow|header|favicon|share|print|pageloader|\.gif$|\.svg$)/i.test(path.split("/").pop()||""))continue;
+      if(!/\.(?:jpe?g|png|webp)(?:$)/i.test(path))continue;
+      urls.add(u.href);
+    }catch{}
+  }
+  return [...urls].slice(0,30);
+}
+
 async function upsertItem(admin:any,connectorId:number,item:any){
   const key=clean(item?.source_stock_id||item?.source_key||item?.source_url);
   if(!key) return {ok:false,isNew:false,changed:false};
@@ -131,7 +149,7 @@ async function upsertItem(admin:any,connectorId:number,item:any){
     source_listed_at_source:item?.extraction?.source_listed_at_source||item?.source_listed_at_source||null,
     description_original:item.description_original||null,
     specification:item.specification||{},
-    source_image_urls:Array.isArray(item.source_image_urls)&&item.source_image_urls.length>0?item.source_image_urls:(existing?.source_image_urls||[]),
+    source_image_urls:(()=>{const valid=validMotorcycleImageUrls(item.source_image_urls);return valid.length?valid:(Array.isArray(existing?.source_image_urls)?validMotorcycleImageUrls(existing.source_image_urls):[]);})(),
     raw_data:item
   };
 
