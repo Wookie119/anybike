@@ -10,10 +10,13 @@ const style=document.createElement('style');style.textContent='#adcontent .ab-sl
 const before=document.getElementById('namedAdvertisingSpaces');if(before){root.insertBefore(picker,before);root.insertBefore(section,before)}else{root.append(picker,section)};
 const $=id=>document.getElementById(id),loc=$('abSlotLocation'),cnt=$('abSlotCount'),choosers=$('abSlotChoosers'),preview=$('abSlotPreview'),status=$('abSlotStatus'),save=$('abSlotDraftSave'),pageButton=$('abSlotPreviewPage'),pageWrap=$('abSlotPagePreview'),pageFrame=$('abSlotPageFrame'),copyOpen=$('abSlotCopyOpen'),copyPanel=$('abSlotCopyPanel'),copySearch=$('abSlotCopySearch'),copyTargets=$('abSlotCopyTargets'),copySummary=$('abSlotCopySummary'),copySave=$('abSlotCopySave'),copy50=$('abSlotCopy50'),copyClear=$('abSlotCopyClear'),checkPublish=$('abSlotPublishCheck'),publish=$('abSlotPublish'),restore=$('abSlotRestore');
 let openGeneration=0;
+// Release gate: enable only after authenticated integration and service rollout.
+const TRADE_LISTING_PUBLICATION_ENABLED=false;
 let db,campaigns=[],customers=[],current=null,draft=null,artworkMasters=new Map(),selectedFormats=[],copyInventory=[],copySelected=new Set(),copyExisting=new Set(),publishedRecord=null,publicationReady=false;
 const listingLocations=["/trade-opportunities.html","/bike-details.html"].flatMap((page_path,i)=>[["GALLERY","Below photograph gallery"],["DESCRIPTION","Below description"],["BOTTOM","Bottom of advert"]].map(([suffix,label])=>({page_path,slot_code:"AB-UK-"+(i?"STOCK":"TRADE")+"-LISTING-"+suffix,label:(i?"Available Stock":"UK Trade Auction")+" · "+label,listingPreview:true,retailPending:!!i})));
 const isListing=()=>listingLocations.some(p=>p.slot_code===current?.slotCode&&p.page_path===current?.pagePath);
 const isRetailPending=()=>listingLocations.some(p=>p.retailPending&&p.slot_code===current?.slotCode&&p.page_path===current?.pagePath);
+const canPublishListing=()=>TRADE_LISTING_PUBLICATION_ENABLED&&isListing()&&!isRetailPending();
 let listingPublicIds=new Set();
 const formatNames={slim:'Slim banner · 3:1',square:'Square advert · 1:1',stock_card:'Stock card · 4:3',landscape:'Landscape · 16:9',portrait:'Portrait · 4:5'};
 const formatRatios={slim:'3 / 1',square:'1 / 1',stock_card:'4 / 3',landscape:'16 / 9',portrait:'4 / 5'};
@@ -67,7 +70,7 @@ function showPreview(){
   }
   const note=document.createElement('small');note.textContent='Advertisement';art.append(note);preview.append(art);
  }
- save.disabled=!current||!unique;pageButton.disabled=!current||!unique||isRetailPending();copyOpen.disabled=!current||!unique||isListing();checkPublish.disabled=!current||!unique||isListing();publish.disabled=!current||!unique||isListing();publicationReady=false;
+ save.disabled=!current||!unique;pageButton.disabled=!current||!unique||isRetailPending();copyOpen.disabled=!current||!unique||isListing();checkPublish.disabled=!current||!unique||(isListing()&&!canPublishListing());publish.disabled=!current||!unique||(isListing()&&!canPublishListing());publicationReady=false;
 }
 cnt.onchange=render;
 $('abSlotClose').onclick=()=>{++openGeneration;current=null;section.hidden=true;pageWrap.hidden=true;copyPanel.hidden=true;pageFrame.removeAttribute('src')};
@@ -75,7 +78,7 @@ $('abSlotHidePage').onclick=()=>{pageWrap.hidden=true;pageFrame.removeAttribute(
 async function open(detail){const {slotCode,pagePath}=detail||{};if(!slotCode||!pagePath)return;const generation=++openGeneration;current={slotCode,pagePath};draft=null;selectedFormats=[];listingPublicIds=new Set();save.disabled=true;pageButton.disabled=true;copyOpen.disabled=true;checkPublish.disabled=true;choosers.replaceChildren();preview.replaceChildren();cnt.disabled=true;section.hidden=false;pageWrap.hidden=true;copyPanel.hidden=true;publishedRecord=null;publish.disabled=true;restore.hidden=true;pageFrame.removeAttribute('src');loc.textContent=listingLocations.find(p=>p.slot_code===slotCode&&p.page_path===pagePath)?.label||pagePath+' · '+slotCode;status.textContent='Loading approved campaigns and any saved draft…';
 try{if(typeof getAdminSupabaseClient!=='function')throw Error('Admin connection missing');db=getAdminSupabaseClient();const admin=await db.rpc('anybike_is_admin');if(admin.error||admin.data!==true)throw Error('Administrator access required');
 const results=await Promise.all([db.from('advertising_campaigns').select('id,name,status,partner_id,desktop_image_url,slim_image_url,stock_card_image_url,mobile_image_url,compact_image_url,destination_url,alt_text,campaign_category').order('name'),db.from('commercial_partners').select('id,name,kind').order('name'),db.from('advertising_slot_layout_drafts').select('slot_code,page_path,campaign_ids,advert_count,artwork_formats').eq('slot_code',slotCode).maybeSingle(),db.from('advertising_partner_artwork_library').select('partner_id,creative_format,active_artwork_id').not('active_artwork_id','is',null),db.from('advertising_slot_published_layouts').select('slot_code,page_path,campaign_ids,artwork_formats,advert_count').eq('slot_code',slotCode).maybeSingle()]);if(generation!==openGeneration)return;const fail=results.find(r=>r.error);if(fail)throw fail.error;
-campaigns=results[0].data||[];customers=results[1].data||[];draft=results[2].data||null;publishedRecord=results[4].data||null;restore.hidden=isListing()||!publishedRecord;
+campaigns=results[0].data||[];customers=results[1].data||[];draft=results[2].data||null;publishedRecord=results[4].data||null;restore.hidden=(isListing()&&!canPublishListing())||!publishedRecord;restore.textContent=isListing()?'Remove advert from this position':'Undo last publication';
  artworkMasters=new Map();
  const refs=results[3].data||[],ids=[...new Set(refs.map(r=>r.active_artwork_id).filter(Boolean))];
  if(ids.length){
@@ -286,8 +289,21 @@ pageButton.onclick=()=>{
 
 // Publication is independent of saving drafts. Check every campaign against
 // the same public approved creative projection used by the Edge Function.
+async function listingPublicationEligibility(target,ids,formats){
+ if(!canPublishListing()||target.pagePath!=='/trade-opportunities.html'||ids.length!==1||formats.length!==1||formats[0]!=='slim')return {ready:false,message:'Trade listing publication is not enabled or layout is invalid.'};
+ const [inventory,creative,other]=await Promise.all([
+ db.from('advertising_page_inventory').select('page_category,placement_enabled,excluded').eq('page_path',target.pagePath).maybeSingle(),
+ db.from('public_advertising_creatives_v1').select('id,countries,page_categories,page_paths,customer_types,manufacturers,models,placement,destination_url,campaign_category,partner_kind').eq('id',ids[0]).maybeSingle(),
+ db.from('advertising_slot_published_layouts').select('slot_code,campaign_ids').eq('page_path',target.pagePath).in('slot_code',listingLocations.filter(p=>!p.retailPending&&p.slot_code!==target.slotCode).map(p=>p.slot_code))]);
+ if(inventory.error||creative.error||other.error)throw inventory.error||creative.error||other.error;
+ const p=inventory.data,a=creative.data;
+ if(!p?.placement_enabled||p.excluded||!a||a.placement!=='below_hero'||a.campaign_category!=='house'||a.partner_kind!=='transport'||!a.countries?.includes('GB')||a.customer_types?.length||a.page_paths?.length&&!a.page_paths.includes(target.pagePath)||a.page_categories?.length&&!a.page_categories.includes(p.page_category)||!/^https:\/\//.test(a.destination_url||'')||!options('slim').some(x=>x.id===ids[0]))return {ready:false,message:'Campaign or trade listing location is no longer eligible.'};
+ if((other.data||[]).some(row=>row.campaign_ids?.includes(ids[0])))return {ready:false,message:'This campaign is already assigned to another listing position.'};
+ return {ready:true,message:'Trade listing advert eligible. Other page adverts are unaffected.'};
+}
 async function publicationEligibility(){
  const ids=selections(),formats=currentFormats();
+ if(isListing())return listingPublicationEligibility({...current},ids,formats);
  if(!current||ids.length<1||ids.some((id,i)=>!options(formats[i]).some(c=>c.id===id))||new Set(ids).size!==ids.length)
   return {ready:false,message:'Select distinct active campaigns with approved artwork first.'};
  const [inventory,publicAds]=await Promise.all([
@@ -325,7 +341,7 @@ async function publicationEligibility(){
  return {ready:true,message:'All campaigns are eligible for this page and approved artwork shapes are available. Publishing will replace the existing live layout.'};
 }
 checkPublish.onclick=async()=>{
- if(!db||!current||isListing())return;
+ if(!db||!current||(isListing()&&!canPublishListing()))return;
  publicationReady=false;publish.hidden=true;publish.disabled=true;
  checkPublish.disabled=true;status.textContent='Checking live eligibility, page targeting and approved artwork…';
  try{
@@ -334,24 +350,32 @@ checkPublish.onclick=async()=>{
  finally{checkPublish.disabled=false}
 };
 publish.onclick=async()=>{
- if(!db||!current||publish.disabled||isListing())return;
+ if(!db||!current||publish.disabled||(isListing()&&!canPublishListing()))return;
+ const generation=openGeneration,target={...current},ids=selections(),formats=currentFormats();
  publish.disabled=true;
  try{
   // Automatically check all safety rules as part of publishing.
   const result=await publicationEligibility();
+  if(generation!==openGeneration||JSON.stringify(ids)!==JSON.stringify(selections())||JSON.stringify(formats)!==JSON.stringify(currentFormats()))return;
   if(!result.ready){status.textContent="Nothing has changed on the website. "+result.message;return;}
   if(!confirm('PUBLISH this layout publicly on '+current.pagePath+'? This will replace the current live advert(s) for visitors.'))return;
-  const ids=selections(),formats=currentFormats(),payload={slot_code:current.slotCode,page_path:current.pagePath,
+  const payload={slot_code:target.slotCode,page_path:target.pagePath,
    campaign_ids:ids,artwork_formats:formats,advert_count:ids.length,published_at:new Date().toISOString()};
   const written=await db.from('advertising_slot_published_layouts').upsert(payload,{onConflict:'slot_code'}).select('slot_code,campaign_ids,artwork_formats,advert_count').single();
   if(written.error)throw written.error;
-  if(written.data.advert_count!==ids.length||written.data.campaign_ids.join(',')!==ids.join(','))throw Error('Published layout verification failed');
-  publishedRecord=written.data;restore.hidden=false;status.textContent='Published configuration saved. Check the live page to confirm delivery; existing single-advert fallback remains available.';
- }catch(e){status.textContent='Nothing changed on the website. '+(e.message||e)}
- finally{publicationReady=false;showPreview()}
+  if(written.data.slot_code!==target.slotCode||written.data.advert_count!==ids.length||written.data.campaign_ids.join(',')!==ids.join(',')||JSON.stringify(written.data.artwork_formats)!==JSON.stringify(formats))throw Error('Published layout verification failed');
+  if(generation!==openGeneration)return;publishedRecord=written.data;restore.hidden=false;status.textContent='Published configuration saved. Check the live page to confirm delivery; existing single-advert fallback remains available.';
+ }catch(e){if(generation===openGeneration)status.textContent='Publication not confirmed. Refresh to verify configuration: '+(e.message||e)}
+ finally{if(generation===openGeneration){publicationReady=false;showPreview()}}
 };
 restore.onclick=async()=>{
- if(!db||!current||!publishedRecord||isListing())return;
+ if(!db||!current||!publishedRecord||(isListing()&&!canPublishListing()))return;
+ if(isListing()){
+  const generation=openGeneration,target={...current};
+  if(!confirm('Remove the advert from '+loc.textContent+'? Other positions are unchanged.'))return;
+  restore.disabled=true;
+  try{const res=await db.from('advertising_slot_published_layouts').delete().eq('slot_code',target.slotCode).eq('page_path',target.pagePath).select('slot_code');if(res.error||res.data?.length!==1)throw res.error||Error('Removal not confirmed');if(generation===openGeneration){publishedRecord=null;restore.hidden=true;status.textContent='Advert removed from this position.';}}catch(e){if(generation===openGeneration)status.textContent='Removal not confirmed: '+(e.message||e)}finally{if(generation===openGeneration)restore.disabled=false;}return;
+ }
  if(!confirm('RESTORE the previous live advertising arrangement on '+current.pagePath+'?'))return;
  restore.disabled=true;
  try{
