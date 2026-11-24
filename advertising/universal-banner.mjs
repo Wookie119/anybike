@@ -731,8 +731,8 @@ export async function renderListingAdvertising(root,context){
  slots.forEach(slot=>{if(slot){slot.__listingAdObserver?.disconnect();slot.__listingAdObserver=null;slot.hidden=true;slot.replaceChildren()}});
  if(!root.isConnected||!context||context.country!=="GB")return;
  const path=String(context.pagePath||"");
- if(!["/trade-opportunities.html","/bike-details.html"].includes(path))return;
- const audience=path==="/trade-opportunities.html"?"trade_dealer":context.audience==="retail_private"?"retail_private":null;
+ if(!["/trade-opportunities.html","/bike-details.html","/international-vq-motorcycle.html"].includes(path))return;
+ const audience=path==="/trade-opportunities.html"?"trade_dealer":path==="/international-vq-motorcycle.html"&&context.audience==="retail_public"?"retail_public":context.audience==="retail_private"?"retail_private":null;
  if(!audience)return;
  if(slots.some(slot=>!slot))return;
  try{
