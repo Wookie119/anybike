@@ -3313,3 +3313,9 @@ if(location.pathname==='/dealer-connect-stock.html'){
  script.defer=true;
  document.head.appendChild(script);
 }
+
+/* Shared published-stock gallery on manufacturer pages only. */
+(function(){
+ if(!['/motorcycle-brand.html','/bmw-motorcycles.html','/harley-davidson-motorcycles.html','/indian-motorcycles.html'].includes(location.pathname))return;
+ const script=document.createElement('script');script.type='module';script.src='/model-template/manufacturer-public-stock.mjs?v=20261124-1';document.head.append(script);
+})();
