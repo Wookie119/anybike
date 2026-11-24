@@ -661,18 +661,31 @@ export default {
           ? ids.length>=Math.max(100,Math.floor(previousMax*0.8))
           : ids.length>=500;
 
-        const {data:allRows}=await admin.from("live_source_items")
-          .select("id,source_key,source_status")
-          .eq("connector_id",connectorId);
-
-        const endedIds=fullCatalogueRun
-          ? (allRows||[]).filter((x:any)=>x.source_status==="live"&&!seen.has(String(x.source_key))).map((x:any)=>x.id)
-          : [];
-
-        if(endedIds.length){
-          await admin.from("live_source_items")
-            .update({source_status:"ended",ended_at:new Date().toISOString(),updated_at:new Date().toISOString()})
-            .in("id",endedIds);
+        // Read every live row, not just the default PostgREST first page.
+        // Never reconcile removals after a failed detail scan.
+        const endedIds:number[]=[];
+        const removalSafe=fullCatalogueRun&&failedCount===0;
+        if(removalSafe){
+          const pageSize=500;
+          for(let offset=0;;offset+=pageSize){
+            const {data:rows,error:readError}=await admin.from("live_source_items")
+              .select("id,source_key")
+              .eq("connector_id",connectorId).eq("source_status","live")
+              .order("id",{ascending:true}).range(offset,offset+pageSize-1);
+            if(readError)throw readError;
+            for(const row of rows||[]){
+              if(!seen.has(String(row.source_key)))endedIds.push(row.id);
+            }
+            if((rows||[]).length<pageSize)break;
+          }
+          // Chunk updates to avoid oversized request URLs.
+          for(let start=0;start<endedIds.length;start+=100){
+            const {error:writeError}=await admin.from("live_source_items")
+              .update({source_status:"ended",ended_at:new Date().toISOString(),updated_at:new Date().toISOString()})
+              .eq("connector_id",connectorId).eq("source_status","live")
+              .in("id",endedIds.slice(start,start+100));
+            if(writeError)throw writeError;
+          }
         }
 
         const {count:liveCount}=await admin.from("live_source_items")
@@ -683,12 +696,12 @@ export default {
         await admin.from("live_source_sync_runs").update({
           completed_at:new Date().toISOString(),status:"completed",
           new_count:newCount,changed_count:changedCount,ended_count:endedIds.length,live_count:liveCount||0,
-          details:{...(run.details||{}),ids,cursor,failed_count:failedCount,full_catalogue_run:fullCatalogueRun,previous_max_discovered:previousMax}
+          details:{...(run.details||{}),ids,cursor,failed_count:failedCount,full_catalogue_run:fullCatalogueRun,removal_reconciliation_safe:removalSafe,previous_max_discovered:previousMax}
         }).eq("id",run.id);
 
         await admin.from("live_source_connectors").update({
           last_refresh_completed_at:new Date().toISOString(),
-          last_refresh_status:fullCatalogueRun?"completed":"partial",
+          last_refresh_status:removalSafe?"completed":"partial",
           last_live_count:liveCount||0
         }).eq("id",connectorId);
 
@@ -697,7 +710,8 @@ export default {
           processed_count:chunk.length,cursor,total:ids.length,new_count:newCount,changed_count:changedCount,
           ended_count:endedIds.length,failed_count:failedCount,completed:true,
           full_catalogue_run:fullCatalogueRun,
-          message:fullCatalogueRun
+          removal_reconciliation_safe:removalSafe,
+          message:removalSafe
             ?"BMW source refresh completed."
             :"BMW partial refresh completed. Existing live motorcycles were preserved."
         });
