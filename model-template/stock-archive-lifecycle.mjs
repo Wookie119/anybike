@@ -17,7 +17,8 @@ export function similarStock(target, candidates, relationships = {}, limit = 24)
   if (!id(target?.catalog_model_id)) return [];
   const exact = target.catalog_model_id;
   const variants = new Set(relationships.variants || []);
-  const sameMake = new Set(relationships.sameManufacturer || []);
+  // Only explicitly related catalogue models, never every model of a manufacturer.
+  const related = new Set(relationships.relatedModels || []);
   const comparable = new Set(relationships.comparable || []);
   const seen = new Set();
   const ranked = [];
@@ -28,7 +29,7 @@ export function similarStock(target, candidates, relationships = {}, limit = 24)
         seen.has(bike.item_id)) continue;
     const model = bike.catalog_model_id;
     const rank = model === exact ? 0 : variants.has(model) ? 1 :
-      sameMake.has(model) ? 2 : comparable.has(model) ? 3 : -1;
+      related.has(model) ? 2 : comparable.has(model) ? 3 : -1;
     if (rank < 0) continue;
     seen.add(bike.item_id);
     ranked.push({bike, rank});
