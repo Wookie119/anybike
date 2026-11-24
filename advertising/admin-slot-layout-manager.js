@@ -67,7 +67,7 @@ function showPreview(){
   }
   const note=document.createElement('small');note.textContent='Advertisement';art.append(note);preview.append(art);
  }
- save.disabled=!current||!unique;pageButton.disabled=!current||!unique||isListing();copyOpen.disabled=!current||!unique||isListing();checkPublish.disabled=!current||!unique||isListing();publish.disabled=!current||!unique||isListing();publicationReady=false;
+ save.disabled=!current||!unique;pageButton.disabled=!current||!unique||isRetailPending();copyOpen.disabled=!current||!unique||isListing();checkPublish.disabled=!current||!unique||isListing();publish.disabled=!current||!unique||isListing();publicationReady=false;
 }
 cnt.onchange=render;
 $('abSlotClose').onclick=()=>{++openGeneration;current=null;section.hidden=true;pageWrap.hidden=true;copyPanel.hidden=true;pageFrame.removeAttribute('src')};
@@ -89,8 +89,8 @@ if(isListing()&&!isRetailPending()){
  if(generation!==openGeneration)return;if(eligible.error)throw eligible.error;
  listingPublicIds=new Set((eligible.data||[]).filter(a=>a.countries?.includes('GB')&&!a.customer_types?.length&&(!a.page_paths?.length||a.page_paths.includes(pagePath))&&(!a.page_categories?.length||a.page_categories.includes('public'))).map(a=>a.id));
  }
- cnt.disabled=isListing();const savedLayout=draft||publishedRecord;selectedFormats=Array.isArray(savedLayout?.artwork_formats)?savedLayout.artwork_formats.slice():[];cnt.value=String(isListing()?1:Math.min(4,Math.max(1,Number(savedLayout?.advert_count)||1)));if(isListing())selectedFormats=['slim'];render();if(Array.isArray(savedLayout?.campaign_ids)){const selects=[...choosers.querySelectorAll('select[data-campaign]')];savedLayout.campaign_ids.forEach((id,i)=>{if(selects[i]&&[...selects[i].options].some(o=>o.value===id))selects[i].value=id});showPreview();}
-status.textContent=isRetailPending()?'Available Stock listing advertising is not enabled yet.':isListing()?'Choose an eligible transport advert and save a private draft. Publication remains disabled.':publishedRecord?'A layout is live here. Preview any changes before publishing.':draft?'Your layout is saved. The live website is unchanged.':'Choose your adverts to get started.';
+ pageButton.textContent=isListing()?'Preview artwork':'Preview page';cnt.disabled=isListing();const savedLayout=draft||publishedRecord;selectedFormats=Array.isArray(savedLayout?.artwork_formats)?savedLayout.artwork_formats.slice():[];cnt.value=String(isListing()?1:Math.min(4,Math.max(1,Number(savedLayout?.advert_count)||1)));if(isListing())selectedFormats=['slim'];render();if(Array.isArray(savedLayout?.campaign_ids)){const selects=[...choosers.querySelectorAll('select[data-campaign]')];savedLayout.campaign_ids.forEach((id,i)=>{if(selects[i]&&[...selects[i].options].some(o=>o.value===id))selects[i].value=id});showPreview();}
+status.textContent=isRetailPending()?'Available Stock listing advertising is not enabled yet.':isListing()?'Choose an eligible transport advert, preview its desktop and mobile artwork and save a private draft. Publication remains disabled.':publishedRecord?'A layout is live here. Preview any changes before publishing.':draft?'Your layout is saved. The live website is unchanged.':'Choose your adverts to get started.';
 }catch(e){if(generation!==openGeneration)return;status.textContent='Unable to load adverts: '+(e.message||e);save.disabled=true;pageButton.disabled=true;copyOpen.disabled=true}
 section.scrollIntoView({behavior:'smooth',block:'start'});}
 save.onclick=async()=>{if(!current||!db||save.disabled)return;const generation=openGeneration,target={...current};const ids=selections(),formats=currentFormats();if(!ids.length||ids.some((id,i)=>!options(formats[i]).some(c=>c.id===id))||new Set(ids).size!==ids.length){status.textContent='Choose distinct active campaigns for all positions.';return}
@@ -107,6 +107,14 @@ pageButton.onclick=()=>{
   return {name:campaign.name,src:artwork(campaign,formats[i]),alt:campaign.alt_text||campaign.name,ratio:formatRatios[formats[i]]||'1 / 1'};
  });
  if(items.some(x=>!x)){status.textContent='Select approved artwork for every advert before previewing.';return}
+ if(isListing()){
+  const item=items[0],campaign=campaigns.find(c=>c.id===ids[0]);
+  const panel=document.createElement('article');panel.style.cssText='background:#050404;border:1px solid #383838;border-top:3px solid #ed1c24;border-radius:12px;padding:12px;max-width:100%;box-sizing:border-box';
+  const heading=document.createElement('strong');heading.textContent='Private artwork preview · '+loc.textContent;
+  const image=document.createElement('img');image.src=item.src;image.alt=item.alt;image.style.cssText='display:block;width:100%;height:auto;object-fit:contain;border-radius:12px;margin:12px 0 4px';
+  const label=document.createElement('small');label.textContent='Advertisement';
+  const mobile=document.createElement('details'),summary=document.createElement('summary'),compact=document.createElement('img');summary.textContent='Mobile artwork';compact.src=campaign.compact_image_url;compact.alt=item.alt;compact.style.cssText='display:block;width:100%;max-width:360px;height:auto;margin:12px auto;object-fit:contain';mobile.append(summary,compact);panel.append(heading,image,label,mobile);preview.replaceChildren(panel);status.textContent='Private artwork preview only. No live motorcycle page, campaign or tracking event changed.';return;
+ }
  if(!/^\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.html$/i.test(current.pagePath)){
   status.textContent='This page cannot be previewed safely here.';return
  }
