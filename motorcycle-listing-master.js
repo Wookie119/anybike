@@ -14,9 +14,10 @@
   host.innerHTML=factsHTML(values,showMissing);
  }
  function title(values){return values.filter(valid).map(v=>String(v).trim()).join(" ");}
- function mileage(value){if(!valid(value))return "";const n=Number(value);return Number.isFinite(n)&&n>=0?n.toLocaleString("en-GB")+" miles":"";}
+ function mileage(value){if(!valid(value)||!["string","number"].includes(typeof value)||!/^\d+(?:\.0+)?$/.test(String(value).trim()))return "";const n=Number(value);return Number.isSafeInteger(n)&&n>=0?n.toLocaleString("en-GB")+" miles":"";}
  // Generate a factual draft only from explicit seller answers. No inferred condition or history.
- function prepareDescription(input){
+ function prepareDescription(input={}){
+  input=input||{};
   const clean=v=>String(v??"").replace(/[\r\n]+/g," ").trim();
   const lines=[];
   const heading=title([input.year,input.make,input.model,input.variant].map(clean));
