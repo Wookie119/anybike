@@ -214,7 +214,7 @@ Object.assign(SLUG_TO_ISO,{
   "british-virgin-islands":"VG","kosovo":"XK","northern-mariana-islands":"MP",
   "saint-barthelemy":"BL","saint-martin":"MF","sint-maarten":"SX","us-virgin-islands":"VI"
 });
-const DEMONYM={"SE":"Swedish","DE":"German","FR":"French","ES":"Spanish","IT":"Italian","IE":"Irish","NL":"Dutch","BE":"Belgian","DK":"Danish","NO":"Norwegian","FI":"Finnish","PT":"Portuguese","AT":"Austrian","CH":"Swiss","PL":"Polish","CZ":"Czech","SK":"Slovak","HU":"Hungarian","RO":"Romanian","BG":"Bulgarian","HR":"Croatian","SI":"Slovenian","GR":"Greek","CY":"Cypriot","MT":"Maltese","US":"American","CA":"Canadian","AU":"Australian","NZ":"New Zealand","AE":"Emirati","SA":"Saudi","QA":"Qatari","KW":"Kuwaiti","OM":"Omani","BH":"Bahraini","ZA":"South African","KE":"Kenyan","NG":"Nigerian","MA":"Moroccan","EG":"Egyptian","IN":"Indian","PK":"Pakistani","BD":"Bangladeshi","JP":"Japanese","KR":"South Korean","SG":"Singaporean","MY":"Malaysian","ID":"Indonesian","TH":"Thai","PH":"Filipino","VN":"Vietnamese","CN":"Chinese","HK":"Hong Kong","TW":"Taiwanese","BR":"Brazilian","AR":"Argentinian","CL":"Chilean","CO":"Colombian","MX":"Mexican","PE":"Peruvian","UY":"Uruguayan","PR":"Puerto Rican","RE":"Réunion"};
+const DEMONYM={"SE":"Swedish","DE":"German","FR":"French","ES":"Spanish","IT":"Italian","IE":"Irish","NL":"Dutch","BE":"Belgian","DK":"Danish","NO":"Norwegian","FI":"Finnish","PT":"Portuguese","AT":"Austrian","CH":"Swiss","PL":"Polish","CZ":"Czech","SK":"Slovak","HU":"Hungarian","RO":"Romanian","BG":"Bulgarian","HR":"Croatian","SI":"Slovenian","GR":"Greek","CY":"Cypriot","MT":"Maltese","US":"American","CA":"Canadian","AU":"Australian","AE":"Emirati","SA":"Saudi","QA":"Qatari","KW":"Kuwaiti","OM":"Omani","BH":"Bahraini","ZA":"South African","KE":"Kenyan","NG":"Nigerian","MA":"Moroccan","EG":"Egyptian","IN":"Indian","PK":"Pakistani","BD":"Bangladeshi","JP":"Japanese","KR":"South Korean","SG":"Singaporean","MY":"Malaysian","ID":"Indonesian","TH":"Thai","PH":"Filipino","VN":"Vietnamese","CN":"Chinese","TW":"Taiwanese","BR":"Brazilian","AR":"Argentinian","CL":"Chilean","CO":"Colombian","MX":"Mexican","PE":"Peruvian","UY":"Uruguayan","PR":"Puerto Rican","RE":"Réunion"};
 const GENERIC_TOKENS=new Set(["freight forwarder","shipping company","uk port","warehouse / depot","destination port","customs clearance","import requirements","onward delivery","uk collection","secure transport","handover","available documents"]);
 
 function esc(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
@@ -230,7 +230,7 @@ function isoForPage(){
   const fm=flag?.getAttribute("src")?.match(/\/([a-z]{2})\.png/i);
   return fm?fm[1].toUpperCase():"";
 }
-function buyerPhrase(iso,name){const d=DEMONYM[iso];return d?d+" buyers":"buyers in "+name;}
+function buyerPhrase(iso,name){const d=DEMONYM[iso];return d&&d.toLowerCase()!==name.toLowerCase()?d+" buyers":"buyers in "+name;}
 function regexEscape(s){return String(s).replace(/[.*+?^$()|[\]\\{}]/g,"\\$&");}
 function replaceEnglishBuyerCopy(iso,name){
   const phrase=buyerPhrase(iso,name), escaped=regexEscape(name);
