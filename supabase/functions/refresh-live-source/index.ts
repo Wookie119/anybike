@@ -91,7 +91,7 @@ function validBmwRefreshItem(item:any){
   if(!/^\d{4,12}$/.test(stock)) return false;
   try{
     const u=new URL(sourceUrl);
-    if(!u.hostname.toLowerCase().includes("approvedused.bmw-motorrad.co.uk")) return false;
+    if(u.protocol!=="https:"||u.hostname.toLowerCase()!=="approvedused.bmw-motorrad.co.uk") return false;
     if(u.searchParams.get("on")!==stock) return false;
   }catch{return false;}
   return true;
@@ -631,15 +631,24 @@ export default {
       if(!scanRes.ok) throw new Error(scanData?.error||"Scanner call failed");
 
       let newCount=Number(run.new_count||0),changedCount=Number(run.changed_count||0),failedCount=Number(details.failed_count||0);
-      for(const item of (scanData.results||[])){
-        if(!validBmwRefreshItem(item)){
+      // Every requested source ID must have exactly one valid scan result.
+      // Missing results, extra IDs and duplicates invalidate removal reconciliation.
+      const expected=new Set(chunk);
+      const scanned=new Set<string>();
+      if(!Array.isArray(scanData.results))throw Error("Invalid scanner response");
+      for(const item of scanData.results){
+        const id=clean(item?.source_stock_id);
+        if(!expected.has(id)||scanned.has(id)||!validBmwRefreshItem(item)){
           failedCount++;
           continue;
         }
+        scanned.add(id);
         const result=await upsertItem(admin,connectorId,item);
+        if(!result.ok){failedCount++;continue;}
         if(result.isNew)newCount++;
         if(result.changed)changedCount++;
       }
+      for(const id of expected)if(!scanned.has(id))failedCount++;
 
       cursor+=chunk.length;
       const completed=cursor>=ids.length;
