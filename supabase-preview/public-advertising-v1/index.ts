@@ -146,7 +146,8 @@ const a=pickCampaign(candidates,!!p.rotation_enabled,p.rotation_interval_minutes
 // Retail finance stays disabled until authenticated audience targeting is implemented.
 if(b.action==="select_listing"){
  const path=String(b.page_path||"");
- const audience=path==="/trade-opportunities.html"?"trade_dealer":path==="/bike-details.html"?"retail_private":null;
+ // Retail listing advertising remains explicitly disabled until its own release.
+ const audience=path==="/trade-opportunities.html"?"trade_dealer":null;
  if(!audience||b.audience!==audience||b.country!=="GB"||await verifiedCountry(req)!=="GB")return response({placements:[]});
  const prefix=audience==="trade_dealer"?"AB-UK-TRADE-LISTING":"AB-UK-STOCK-LISTING";
  const positions=[["listing_after_gallery","GALLERY"],["listing_after_description","DESCRIPTION"],["listing_bottom","BOTTOM"]];
