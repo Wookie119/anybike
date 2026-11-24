@@ -12,11 +12,14 @@ Do not deploy this copy automatically or merge the preview branch until release 
 ## Verified
 - 26 offline listing master checks and 14 simulated advertising behaviour checks.
 - 21 read-only seller declaration database checks.
+- 48 isolated Chromium layout checks using synthetic markup.
+- 15 mocked administrator workflow checks and 16 mocked photo approval service checks.
+- Existing production advertising actions match staged source apart from the new listing selector (production version 21).
 - Existing UK Trade inventory enabled; no published listing assignments found during the 24 November 2026 read-only database check.
 
 ## Release sequence
 1. Compare the staged service against the actual deployed service to avoid regressing existing actions.
-2. Run both offline suites: `node tests/listing-master-regression.cjs` and `node tests/listing-advertising-behaviour.cjs`.
+2. Run `node tests/run-listing-release-checks.cjs --browser` (requires Python Playwright and Chromium), plus the read-only SQL suite separately. Stage the reviewed-photo service before the new admin interface; legacy callers remain compatible, so strict snapshots are not mandatory for all callers yet.
 3. Test in an isolated browser preview with mocked or isolated service, including desktop/mobile sizing, opening and closing listings, actual gallery/description/bidding order, seller and admin review, and signed impression/click behavior. No production tracking events from preview.
 4. Verify real admin permissions, draft persistence, duplicate exclusion across slots, disabled/expired campaigns, targeting and service failure. Confirm seller details and confidential bids never enter advertising requests.
 5. Test deployment compatibility and rollback procedure. Release seller and auction template changes with empty advertising slots first if appropriate; keep listing publication disabled until the advertising integration is verified.
