@@ -1,7 +1,20 @@
 /* Shared AnyBike listing refresh approval panel. Uses existing admin-only RPCs. */
 (function(){
 "use strict";
-window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
+const conditionLabels={service_history:"Service history",mot:"MOT",keys:"Keys",v5c:"V5C logbook",accident:"Accident / damage history",tyres:"Tyres",brakes:"Brakes",drive:"Final drive",mechanical:"Mechanical faults"};
+function assessUpdate(proposed,currentMileage,photos){
+ const p=proposed||{},answers=p.condition_answers||{};
+ const missing=Object.keys(conditionLabels).filter(k=>typeof answers[k]!=="string"||!answers[k].trim()).map(k=>conditionLabels[k]);
+ const uncertain=Object.keys(conditionLabels).filter(k=>typeof answers[k]==="string"&&/not sure|unknown|not supplied|not known|unsure/i.test(answers[k])).map(k=>conditionLabels[k]);
+ const flags=[];
+ const numeric=v=>v!==null&&v!==undefined&&String(v).trim()!==""&&Number.isFinite(Number(v));
+ if(numeric(p.mileage)&&numeric(currentMileage)&&Number(p.mileage)<Number(currentMileage))flags.push("Reported mileage is lower than current mileage — check before applying.");
+ if(String(answers.mechanical||"").trim()==="Faults declared in description"&&!String(p.condition_fault_description||p.fault_description||p.notes||"").trim())flags.push("Mechanical faults declared; supporting details not found in this response.");
+ if(!Array.isArray(photos))flags.push("Photograph status unavailable — refresh before approval.");
+ else if(!photos.length)flags.push("No photographs returned — check existing advert.");
+ return {missing,uncertain,flags};
+}
+window.AnyBikeListingReview = {assessUpdate,mount(client, host, getRows, onReviewed){
  if(!host || host.dataset.mounted) return;
  host.dataset.mounted="1";
  const el=(tag,txt)=>{const n=document.createElement(tag);if(txt!==undefined)n.textContent=String(txt);return n;};
@@ -79,6 +92,15 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
      for(const [k,label] of Object.entries({notes:"Description changes",condition:"Condition and paperwork"})){
       const p=el("p");p.style.whiteSpace="pre-wrap";p.style.margin="8px 0";p.append(el("strong",label+": "),document.createTextNode(String(t.proposed?.[k]||"No changes requested")));card.append(p);
      }
+     const assessment=assessUpdate(t.proposed,row?.mileage,details[1].status==="fulfilled"?photos:null);
+     const quality=el("section");quality.style.cssText="border:1px solid #555;border-radius:8px;padding:10px;margin:8px 0;background:#191919";
+     const issues=assessment.missing.length+assessment.uncertain.length+assessment.flags.length;
+     quality.append(el("strong",issues?"Advert quality check · "+issues+" item(s) to review":"Advert quality check · no automated exceptions found"));
+     for(const [label,values] of [["Missing from this reply",assessment.missing],["Seller explicitly uncertain",assessment.uncertain],["Review flags",assessment.flags]]){
+      if(values.length){const p=el("p");p.append(el("strong",label+": "),document.createTextNode(values.join(" · ")));quality.append(p);}
+     }
+     quality.append(el("p","Check the existing record first. Do not request answers already supplied. Automated checks do not verify condition or replace photograph inspection."));
+     card.append(quality);
      const answers=t.proposed?.condition_answers;
      if(answers&&typeof answers==="object"){
        const facts=el("div");facts.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px;border:1px solid #444;border-radius:8px;margin:8px 0";
@@ -187,7 +209,7 @@ window.AnyBikeListingReview = {mount(client, host, getRows, onReviewed){
         approve.style.cssText="background:#ed1c24;color:white;font-weight:bold";
         if(!complete)approve.disabled=true;
         actions.append(approve);
-        if(!complete)card.append(el("p","Nine structured answers are missing. Send the updated seller questionnaire before approving."));
+        if(!complete)card.append(el("p","Some structured answers are missing from this response. Check existing declarations first; only request genuinely missing answers before approving."));
       }
     }
     if(t.response_type==="available")actions.append(button("✓ Record Seller Confirmed Available — No More Questions →",()=>submit("acknowledged")));else if(t.response_type!=="sold")actions.append(button("Acknowledge without applying",()=>submit("acknowledged")));
