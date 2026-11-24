@@ -1129,6 +1129,19 @@ function markerIcon(isLive){
   });
 }
 
+function visitorTrafficSource(visitor){
+  const raw=String(visitor.referrer||"").trim();
+  if(!raw)return "Direct / not recorded";
+  try{
+    const u=new URL(raw,location.origin),h=u.hostname.toLowerCase().replace(/^www\./,"");
+    if(h==="anybike.co.uk")return "AnyBike internal link";
+    if(/(^|\.)google\.(com|co\.uk|[a-z]{2}|com\.[a-z]{2})$/.test(h))return "Google";
+    if(h==="bing.com"||h.endsWith(".bing.com"))return "Bing";
+    if(h==="duckduckgo.com"||h.endsWith(".duckduckgo.com"))return "DuckDuckGo";
+    if(h==="yahoo.com"||h.endsWith(".yahoo.com"))return "Yahoo";
+    return h||"Not recorded";
+  }catch{return "Not recorded";}
+}
 function markerPopup(visitor,isLive){
   const statusHtml = isLive
     ? '<div class="map-popup-row" style="color:#66e58c;font-weight:900;"><strong>● LIVE NOW</strong></div>'
@@ -1137,13 +1150,19 @@ function markerPopup(visitor,isLive){
       '</strong></div>';
 
   return `
-    <div class="map-popup-title">${escapeHtml(displayTitle(visitor))}</div>
+    <div class="map-popup-title">${escapeHtml(visitor.customer_name||visitor.customer_email||"Guest visitor")}</div>
+    <div class="map-popup-row"><strong>${escapeHtml(displayTitle(visitor))}</strong></div>
     ${statusHtml}
     <div class="map-popup-row"><strong>Page:</strong> ${escapeHtml(displayPath(visitor))}</div>
+    <div class="map-popup-row"><strong>Traffic source:</strong> ${escapeHtml(visitorTrafficSource(visitor))}</div>
     <div class="map-popup-row"><strong>Location:</strong> ${escapeHtml(locationText(visitor))}</div>
     <div class="map-popup-row"><strong>Device:</strong> ${escapeHtml(displayDeviceType(visitor.device_type))} · ${escapeHtml(visitor.browser || "—")}</div>
     <div class="map-popup-row"><strong>Pages:</strong> ${Number(visitor.accurate_pageviews ?? visitor.pageviews) || 0}</div>
     <div class="map-popup-row"><strong>Time on site:</strong> ${escapeHtml(isLive ? formatDuration(visitor.session_started_at || visitor.first_seen_at) : formatVisitDuration(visitor))}</div>
+    <div class="map-popup-row" style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap">
+      ${visitor.user_id?'<a style="color:#fff;text-decoration:underline" href="admin-customers.html?customer='+encodeURIComponent(visitor.user_id)+'">Customer record</a>':""}
+      <button type="button" style="width:auto;padding:5px 8px;background:#222;color:#fff;border:1px solid #555;border-radius:5px;cursor:pointer" onclick="openVisitorDetail('${escapeHtml(visitor.visitor_id)}')">View browsing history</button>
+    </div>
   `;
 }
 
@@ -1393,8 +1412,8 @@ function renderVisitorHistory(visitors){
 
   count.textContent =
     rows.length === 1
-      ? "1 visitor today"
-      : rows.length + " visitors today";
+      ? "1 visitor in selected period"
+      : rows.length + " visitors in selected period";
 
   if(!rows.length){
     box.innerHTML =
@@ -1943,8 +1962,8 @@ async function loadVisitorHistory(){
     // Today's map is independent of the selected history range.
     const dayStart=Date.parse(new Date().toISOString().slice(0,10)+"T00:00:00Z");
     const mapVisitors=historyVisitors.filter(v=>Date.parse(v.last_seen_at)>=dayStart);
-    const byId=new Map(mapVisitors.map(v=>[String(v.visitor_id),v]));
-    for(const v of latestVisitors)if(!suspectedAutomation(v))byId.set(String(v.visitor_id),{...byId.get(String(v.visitor_id)),...v});
+    const byId=new Map(mapVisitors.filter(v=>!knownInternal(v)).map(v=>[String(v.visitor_id),v]));
+    for(const v of latestVisitors)if(!knownInternal(v)&&!suspectedAutomation(v))byId.set(String(v.visitor_id),{...byId.get(String(v.visitor_id)),...v});
     renderMap([...byId.values()],latestVisitors);
 
   }catch(error){
