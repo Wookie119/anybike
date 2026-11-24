@@ -615,16 +615,16 @@ td:last-child{
 
   </section>
 
-  <section class="section">
-    <div class="section-head">
+  <section class="section" id="countryAuditSection">
+    <div class="section-head" style="margin-bottom:0">
       <div>
         <h2>Country Market Pages</h2>
-        <div class="small">Every live country page is checked individually.</div>
+        <div id="countryAuditSummary" class="small" style="margin-top:6px">Awaiting scan results…</div>
       </div>
       <span class="small" id="countryAuditCount">217 pages</span>
     </div>
 
-    <div class="table-wrap">
+    <details id="countryAuditDetails" style="margin-top:12px"><summary id="countryAuditToggle" style="cursor:pointer;font-weight:800;color:#ccc">View country results</summary><div class="table-wrap" style="margin-top:12px">
       <table>
         <thead>
           <tr>
@@ -639,7 +639,7 @@ td:last-child{
         </thead>
         <tbody id="countryRows"></tbody>
       </table>
-    </div>
+    </div></details>
   </section>
 
   <section class="section">
@@ -930,8 +930,17 @@ function pageRow(r){
  return '<tr><td>'+safe(p.name)+'</td><td><code>'+safe(p.fileUrl)+'</code></td><td>'+badge(r.status==='live'?'live':'broken',r.status)+'</td><td>'+badge(r.issues.length||r.pending||p.shell?'review':'live',r.issues.length?safe(r.issues.join(' · ')):p.shell||r.pending?'Not assessed':'Passed')+'</td><td>'+safe(p.sitemap?'Sitemap':p.menu?'Menu':'—')+'</td><td>'+safe(r.metadata)+'</td><td><a class="link-btn" target="_blank" rel="noopener" href="'+safe(p.fileUrl)+'">Open</a></td></tr>';
 }
 function renderRows(){
- const filtered=results.filter(r=>!document.getElementById('issuesOnly').checked||r.issues.length||r.pending);
- for(const [id,types] of [['publicRows',['public']],['countryRows',['country']],['adminRows',['private','admin']]])document.getElementById(id).innerHTML=filtered.filter(r=>types.includes(r.p.type)).map(pageRow).join('')||'<tr><td colspan="7">'+(document.getElementById('issuesOnly').checked?'No issues detected in this section':'No matching pages')+'</td></tr>';
+ const onlyIssues=document.getElementById('issuesOnly').checked;
+ const filtered=results.filter(r=>!onlyIssues||r.issues.length||r.pending);
+ for(const [id,types] of [['publicRows',['public']],['adminRows',['private','admin']]])document.getElementById(id).innerHTML=filtered.filter(r=>types.includes(r.p.type)).map(pageRow).join('')||'<tr><td colspan="7">'+(onlyIssues?'No issues detected in this section':'No matching pages')+'</td></tr>';
+ const countries=results.filter(r=>r.p.type==='country');
+ const flagged=countries.filter(r=>r.issues.length||r.pending||r.status!=='live');
+ const summary=document.getElementById('countryAuditSummary'),details=document.getElementById('countryAuditDetails');
+ document.getElementById('countryRows').innerHTML=(flagged.length&&onlyIssues?flagged:countries).map(pageRow).join('')||'<tr><td colspan="7">Awaiting scan results</td></tr>';
+ summary.textContent=countries.length?(countries.length+' checked · '+flagged.length+' requiring attention'):'Awaiting scan results…';
+ summary.style.color=countries.length?(flagged.length?'var(--amber)':'var(--green)'):'var(--muted)';
+ document.getElementById('countryAuditToggle').textContent=flagged.length&&onlyIssues?'View '+flagged.length+' country issues':'View all '+countries.length+' country results';
+ if(flagged.length)details.open=true;
 }
 document.getElementById('issuesOnly').addEventListener('change',renderRows);
 async function checkPages(){
