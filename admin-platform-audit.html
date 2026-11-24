@@ -540,7 +540,7 @@ td:last-child{
   <div class="summary-strip">
     <div>
       <strong id="overallHealth">Checking...</strong>
-      <div class="small">Overall platform health based on live pages and broken links.</div>
+      <div class="small">Availability of checked URLs only — not Google indexing or SEO health.</div>
       <div class="small" id="scanStatus" style="margin-top:8px;font-weight:900;color:#fff">Preparing scan…</div>
       <div class="small" id="scanFinishedAt" style="margin-top:4px;color:#aaa"></div>
     </div>
@@ -554,7 +554,7 @@ td:last-child{
     <div class="health-card">
       <div class="label">Public Pages</div>
       <div class="number" id="publicCount">0</div>
-      <div class="note">Known customer-facing pages including markets</div>
+      <div class="note">Discovered public content URLs</div>
     </div>
 
     <div class="health-card">
@@ -589,6 +589,7 @@ td:last-child{
 
   </section>
 
+  <section class="section"><h2>Public SEO Health</h2><div class="health-grid"><div class="health-card"><div class="label">Sitemap URLs</div><div class="number" id="sitemapCount">—</div></div><div class="health-card"><div class="label">SEO issues</div><div class="number" id="seoIssues">—</div></div><div class="health-card"><div class="label">SEO checks passed</div><div class="number" id="seoPass">—</div></div><div class="health-card"><div class="label">Public stock records</div><div class="number" id="stockAuditCount">—</div></div></div><p class="small" id="seoCoverage"></p><label><input type="checkbox" id="issuesOnly" checked> Show only issues</label></section>
   <section class="section">
     <div class="section-head">
       <h2>Public Website</h2>
@@ -604,7 +605,7 @@ td:last-child{
 <th>Status</th>
 <th>SEO</th>
 <th>Menu</th>
-<th>Google Rank</th>
+<th>Metadata</th>
 <th>Action</th>
       </tr>
     </thead>
@@ -632,7 +633,7 @@ td:last-child{
             <th>Status</th>
             <th>SEO</th>
             <th>Menu</th>
-            <th>Google Rank</th>
+            <th>Metadata</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -656,7 +657,7 @@ td:last-child{
 <th>Status</th>
 <th>Privacy</th>
 <th>Menu</th>
-<th>Google Rank</th>
+<th>Metadata</th>
 <th>Action</th>
 </tr>
     </thead>
@@ -847,165 +848,110 @@ function safe(v){
   }[m]));
 }
 
-function pageRow(p,status){
-  const statusBadge =
-    status==="live"
-      ? badge("live","🟢 Live")
-      : status==="planned"
-        ? badge("planned","🔵 Planned")
-        : badge("broken","🔴 Broken");
 
-  const seoPrivacy =
-    (p.type==="public" || p.type==="country")
-      ? (p.seo ? badge("live","SEO") : badge("review","Private / Noindex"))
-      : (p.noindex ? badge("live","Noindex") : badge("broken","Needs noindex"));
-
-  const menu = p.menu ? badge("live","Menu OK") : badge("review","Not in Menu");
-
-  const googleRank =
-  status==="planned"
-    ? rankBadge("Pending","warning")
-    : rankBadge("Pending","warning");
-
-  const action =
-    status==="planned"
-      ? `<span class="small">Future page</span>`
-      : `<a class="link-btn" href="${safe(p.fileUrl)}" target="_blank">Open</a>`;
-
-  return `
-    <tr>
-      <td>${safe(p.name)}${p.note ? `<div class="small">${safe(p.note)}</div>` : ""}</td>
-      <td><code>${safe(p.fileUrl)}</code></td>
-      <td>${statusBadge}</td>
-      <td>${seoPrivacy}</td>
-     <td>${menu}</td>
-     <td>${googleRank}</td>
-     <td>${action}</td>
-    </tr>
-  `;
-}
-
-async function pageExists(url){
+let results=[],running=false;
+const key=p=>{const u=new URL(p,location.origin+'/');return (u.pathname==='/index.html'?'/':u.pathname)+u.search;};
+const privateRoute=p=>/^(admin-|customer-|my-|shipper-|candidate-|dealer-underwrite|accounts-documents|proforma|final-invoice|share-anybike)/i.test(p.replace(/^\//,''));
+async function discover(){
+ const map=new Map(pages.map(p=>[key(p.fileUrl),{...p}]));
+ const urls=new Set(),visited=new Set(),warnings=[];
+ async function sitemap(path){
+  if(visited.has(path))return;visited.add(path);
   try{
-    const testUrl = url + (url.includes("?") ? "&" : "?") + "audit=" + Date.now();
-    const res = await fetch(testUrl, {method:"GET", cache:"no-store"});
-    return res.ok;
-  }catch(e){
-    return false;
-  }
+   const response=await fetch(path,{cache:'no-store',signal:AbortSignal.timeout(20000)});
+   if(!response.ok)throw Error('HTTP '+response.status);
+   const doc=new DOMParser().parseFromString(await response.text(),'application/xml');
+   if(doc.querySelector('parsererror'))throw Error('Invalid XML');
+   for(const loc of doc.getElementsByTagName('loc')){
+    const u=new URL(loc.textContent.trim());
+    if(!['anybike.co.uk','www.anybike.co.uk'].includes(u.hostname))continue;
+    if(doc.documentElement.localName==='sitemapindex'){await sitemap(u.pathname+u.search);continue;}
+    const k=key(u.href);urls.add(k);
+    if(privateRoute(k)){warnings.push('Private sitemap URL: '+k);continue;}
+    const old=map.get(k);
+    map.set(k,{...old,type:k.startsWith('/markets/')?'country':'public',name:old?.name||k.split('/').pop().replace(/\.html$/,'').replace(/-/g,' ')||'Home',fileUrl:k,expected:true,seo:true,sitemap:true});
+   }
+  }catch(e){warnings.push(path+': '+e.message);}
+ }
+ await Promise.all(['/sitemap.xml','/sitemap-motorcycle-models.xml'].map(sitemap));
+ for(const p of map.values()){
+  if(p.type==='public'&&(!p.seo||privateRoute(p.fileUrl)))p.type='private';
+  if(!p.sitemap&&['bike-details.html','vmoto-model.html','motorcycle-brand.html','motorcycle-model.html','motorcycle-variant.html'].includes(p.fileUrl.replace(/^\//,'')))p.shell=true;
+ }
+ setText('sitemapCount',urls.size);
+ try{
+  const r=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/international-public-stock',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+  if(!r.ok)throw Error('HTTP '+r.status);
+  const d=await r.json();if(!Array.isArray(d.items))throw Error('Invalid response');
+  setText('stockAuditCount',new Set(d.items.map(x=>x.item_id).filter(x=>x!=null)).size);
+ }catch(e){setText('stockAuditCount','Unavailable');warnings.push('Stock: '+e.message);}
+ setText('seoCoverage',(warnings.length?warnings.join(' · '):'Sitemaps discovered successfully.')+' Stock records counted separately; dynamic adverts and Google indexing not verified by this scan.');
+ return [...map.values()];
 }
-
+async function audit(p){
+ const r={p,status:'planned',issues:[],metadata:'—'};
+ if(!p.expected)return r;
+ try{
+  const u=new URL(p.fileUrl,location.origin+'/');
+  const response=await fetch(u.href,{cache:'no-store',signal:AbortSignal.timeout(15000)});
+  if(!response.ok){r.status='broken';r.issues.push('HTTP '+response.status);return r;}
+  const doc=new DOMParser().parseFromString(await response.text(),'text/html');
+  r.status='live';
+  if(response.redirected&&key(response.url)!==key(u.href))r.issues.push('Redirect');
+  const robots=[...doc.querySelectorAll('meta[name="robots" i],meta[name="googlebot" i]')].map(n=>n.content).concat(response.headers.get('x-robots-tag')||'').join(',').toLowerCase();
+  const noindex=/\b(noindex|none)\b/.test(robots),nofollow=/\b(nofollow|none)\b/.test(robots);
+  if(p.shell){r.metadata='Dynamic shell — not assessed';return r;}
+  if(['public','country'].includes(p.type)){
+   r.title=doc.title.trim();r.description=doc.querySelector('meta[name="description" i]')?.content.trim()||'';
+   const canonical=doc.querySelector('link[rel="canonical" i]')?.getAttribute('href');
+   if(noindex)r.issues.push('Noindex');if(nofollow)r.issues.push('Nofollow');
+   if(!r.title)r.issues.push('Missing title');if(!r.description)r.issues.push('Missing description');
+   if(!canonical)r.issues.push('Missing canonical');else{const c=new URL(canonical,u);if(!['anybike.co.uk','www.anybike.co.uk'].includes(c.hostname)||key(c.href)!==key(u.href))r.issues.push('Canonical differs');}
+   if(!p.sitemap)r.issues.push('Not in sitemap');
+   r.metadata=r.title||'Missing title';
+  }else{if(!noindex)r.issues.push('Private noindex missing');r.metadata=noindex?'Noindex present':'Review';}
+ }catch(e){r.status='broken';r.issues.push('Request failed or timed out');}
+ return r;
+}
+function pageRow(r){
+ const p=r.p;
+ return '<tr><td>'+safe(p.name)+'</td><td><code>'+safe(p.fileUrl)+'</code></td><td>'+badge(r.status==='live'?'live':'broken',r.status)+'</td><td>'+badge(r.issues.length?'review':'live',r.issues.length?safe(r.issues.join(' · ')):p.shell?'Not assessed':'Passed')+'</td><td>'+safe(p.sitemap?'Sitemap':p.menu?'Menu':'—')+'</td><td>'+safe(r.metadata)+'</td><td><a class="link-btn" target="_blank" rel="noopener" href="'+safe(p.fileUrl)+'">Open</a></td></tr>';
+}
+function renderRows(){
+ const filtered=results.filter(r=>!document.getElementById('issuesOnly').checked||r.issues.length);
+ for(const [id,types] of [['publicRows',['public']],['countryRows',['country']],['adminRows',['private','admin']]])document.getElementById(id).innerHTML=filtered.filter(r=>types.includes(r.p.type)).map(pageRow).join('')||'<tr><td colspan="7">No matching pages</td></tr>';
+}
+document.getElementById('issuesOnly').addEventListener('change',renderRows);
 async function checkPages(){
-  const btn = document.querySelector('button[onclick="checkPages()"]');
-  if(btn){
-    btn.disabled=true;
-    btn.textContent="Checking...";
-  }
-
-  const publicRows = [];
-  const countryRows = [];
-  const adminRows = [];
-
-  let live = 0;
-  let broken = 0;
-  let planned = 0;
-  let checked = 0;
-
-  const totalPages = pages.length;
-  const scanStatus = document.getElementById("scanStatus");
-  const scanFinishedAt = document.getElementById("scanFinishedAt");
-  const scanBar = document.getElementById("scanBar");
-
-  if(scanStatus) scanStatus.textContent = "Scanning pages… 0 / " + totalPages + " checked";
-  if(scanFinishedAt) scanFinishedAt.textContent = "";
-  if(scanBar) scanBar.style.width = "0%";
-
-  async function auditPage(p){
-    let status="planned";
-    if(p.expected){
-      status=(await pageExists(p.fileUrl)) ? "live" : "broken";
-    }
-
-    checked++;
-
-    if(scanStatus){
-      scanStatus.textContent = "Scanning pages… " + checked + " / " + totalPages + " checked";
-    }
-
-    if(scanBar){
-      scanBar.style.width = Math.round((checked / totalPages) * 100) + "%";
-    }
-
-    return {p:p,status:status,row:pageRow(p,status)};
-  }
-
-  const audited=[];
-  const batchSize=20;
-
-  for(let i=0;i<pages.length;i+=batchSize){
-    const batch=pages.slice(i,i+batchSize);
-    const results=await Promise.all(batch.map(auditPage));
-    audited.push(...results);
-  }
-
-  audited.forEach(function(item){
-    if(item.status==="live")live++;
-    else if(item.status==="broken")broken++;
-    else planned++;
-
-    if(item.p.type==="public")publicRows.push(item.row);
-    else if(item.p.type==="country")countryRows.push(item.row);
-    else adminRows.push(item.row);
-  });
-
-  document.getElementById("publicRows").innerHTML = publicRows.join("");
-  document.getElementById("countryRows").innerHTML = countryRows.join("");
-  document.getElementById("adminRows").innerHTML = adminRows.join("");
-
-  const countryCount = pages.filter(p=>p.type==="country").length;
-  const publicCount = pages.filter(p=>p.type==="public" || p.type==="country").length;
-  const adminCount = pages.filter(p=>p.type==="admin").length;
-  const expectedCount = pages.filter(p=>p.expected).length;
-  const health = expectedCount ? Math.round(((expectedCount - broken) / expectedCount) * 100) : 100;
-
-  setText("publicCount", publicCount);
-  setText("countryCount", countryCount);
-  setText("countryAuditCount", countryCount+" pages");
-  setText("adminCount", adminCount);
-  setText("liveCount", live);
-  setText("brokenCount", broken);
-  setText("plannedCount", planned);
-  setText("overallHealth", health + "% Platform Health");
-
-  const bar = document.getElementById("healthBar");
-  bar.style.width = health + "%";
-  bar.style.background = broken ? "var(--amber)" : "var(--green)";
-
-  const finished = new Date();
-
-  if(scanStatus){
-    scanStatus.textContent = "✓ Scan complete — " + totalPages + " pages checked";
-  }
-
-  if(scanFinishedAt){
-    scanFinishedAt.textContent =
-      "Finished " +
-      finished.toLocaleDateString("en-GB") +
-      " at " +
-      finished.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-  }
-
-  if(scanBar){
-    scanBar.style.width = "100%";
-    scanBar.style.background = broken ? "var(--amber)" : "var(--green)";
-  }
-
-  if(btn){
-    btn.disabled=false;
-    btn.textContent="Recheck Pages";
-  }
+ if(running)return;running=true;
+ const btn=document.querySelector('button[onclick="checkPages()"]');btn.disabled=true;
+ setText('overallHealth','Discovering pages…');setText('scanStatus','Reading sitemaps…');
+ document.getElementById('scanBar').style.width='0%';
+ try{
+ const inventory=await discover();results=[];
+ for(let i=0;i<inventory.length;i+=8){
+  results.push(...await Promise.all(inventory.slice(i,i+8).map(audit)));
+  setText('scanStatus','Scanning '+results.length+' / '+inventory.length);
+  document.getElementById('scanBar').style.width=Math.round(results.length/inventory.length*100)+'%';
+ }
+ const pub=results.filter(r=>['public','country'].includes(r.p.type)&&!r.p.shell);
+ for(const field of ['title','description']){
+  const groups=new Map();for(const r of pub){if(!r[field])continue;const k=r[field].toLowerCase();if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r);}
+  for(const group of groups.values())if(group.length>1)for(const r of group)r.issues.push('Duplicate '+field);
+ }
+ const live=results.filter(r=>r.status==='live').length,broken=results.filter(r=>r.status==='broken').length;
+ const health=live+broken?Math.round(live/(live+broken)*100):0;
+ setText('publicCount',inventory.filter(p=>['public','country'].includes(p.type)).length);
+ setText('countryCount',inventory.filter(p=>p.type==='country').length);
+ setText('countryAuditCount',inventory.filter(p=>p.type==='country').length+' pages');
+ setText('adminCount',inventory.filter(p=>p.type==='admin').length);
+ setText('liveCount',live);setText('brokenCount',broken);setText('plannedCount',inventory.length-live-broken);
+ setText('seoPass',pub.filter(r=>r.status==='live'&&!r.issues.length).length);setText('seoIssues',pub.filter(r=>r.issues.length).length);
+ setText('overallHealth',health+'% Checked URL Availability');document.getElementById('healthBar').style.width=health+'%';
+ setText('scanStatus','Scan complete — '+inventory.length+' URLs checked');setText('scanFinishedAt','Finished '+new Date().toLocaleString('en-GB'));renderRows();
+ }catch(e){setText('overallHealth','Incomplete scan');setText('scanStatus',e.message);}
+ finally{running=false;btn.disabled=false;btn.textContent='Recheck Pages';}
 }
-
 function setDate(){
   const now = new Date();
   document.getElementById("todayDate").textContent =
