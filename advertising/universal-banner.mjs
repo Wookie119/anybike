@@ -726,7 +726,7 @@ export async function renderPublicPageAdvertising(){try{const path=location.path
  */
 export async function renderListingAdvertising(root,context){
  if(!root)return;
- const request=Symbol();root.__listingAdRequest=request;
+ const preview=context?.preview===true;const request=Symbol();root.__listingAdRequest=request;
  const placements=["listing_after_gallery","listing_after_description","listing_bottom"];
  // Invalidate previous requests and remove previous creatives even if the new audience is ineligible.
  const slots=placements.map(key=>root.querySelector('[data-listing-placement="'+key+'"]'));
@@ -752,17 +752,17 @@ export async function renderListingAdvertising(root,context){
    if(!desktop||!mobile||!destination)continue;
    const slot=slots[i],card=node("article"),link=node("a"),picture=node("picture"),source=node("source"),img=node("img"),caption=node("small");
    used.add(ad.id);card.dataset.anybikeAdAuthorized="1";link.dataset.anybikeAdAuthorized="1";
-   link.href=destination;link.rel="noopener sponsored";link.target="_blank";link.className="anybike-managed-ad-link";
+   if(!preview){link.href=destination;link.rel="noopener sponsored";link.target="_blank";}link.className="anybike-managed-ad-link";
    source.media="(max-width:650px)";source.srcset=mobile;
    img.alt=String(ad.alt_text||"");img.loading="eager";img.decoding="async";
-   caption.textContent=advertDisclosure(ad);picture.append(source,img);link.append(picture);card.append(link,caption);
+   caption.textContent=advertDisclosure(ad)+(preview?" · Admin preview":"");picture.append(source,img);link.append(picture);card.append(link,caption);
    let seen=false,clicked=false,ready=false,io=null;
-   const impression=()=>{if(!ready||seen||!card.isConnected||root.__listingAdRequest!==request)return;seen=true;send({action:"event",event_type:"impression",token:ad.token},true).catch(()=>{})};
-   const click=()=>{if(!ready||clicked||!card.isConnected||root.__listingAdRequest!==request)return;clicked=true;impression();send({action:"event",event_type:"click",token:ad.token},true).catch(()=>{})};
+   const impression=()=>{if(preview||!ready||seen||!card.isConnected||root.__listingAdRequest!==request)return;seen=true;send({action:"event",event_type:"impression",token:ad.token},true).catch(()=>{})};
+   const click=()=>{if(preview||!ready||clicked||!card.isConnected||root.__listingAdRequest!==request)return;clicked=true;impression();send({action:"event",event_type:"click",token:ad.token},true).catch(()=>{})};
    link.addEventListener("click",click);link.addEventListener("auxclick",e=>{if(e.button===1)click()});
    img.addEventListener("error",()=>{io?.disconnect();if(root.__listingAdRequest!==request||!slot.contains(card))return;slot.hidden=true;slot.replaceChildren()},{once:true});
-   img.addEventListener("load",()=>{if(!slot.isConnected||!slot.contains(card)||root.__listingAdRequest!==request)return;ready=true;slot.hidden=false;if("IntersectionObserver" in window){io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();io.disconnect()}},{threshold:.5});slot.__listingAdObserver=io;io.observe(card)}else impression()},{once:true});
-   slot.append(card);img.src=desktop;
+   img.addEventListener("load",()=>{if(!slot.isConnected||!slot.contains(card)||root.__listingAdRequest!==request)return;ready=true;slot.hidden=false;if(preview)return;if("IntersectionObserver" in window){io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting&&e.intersectionRatio>=.5)){impression();io.disconnect()}},{threshold:.5});slot.__listingAdObserver=io;io.observe(card)}else impression()},{once:true});
+   styleAdvertDisclosure(caption);picture.style.cssText="display:block;width:100%";img.style.cssText="display:block;width:100%;height:auto;object-fit:contain";link.style.display="block";slot.append(card);img.src=desktop;
   }
  }catch{/* unsupported endpoint or unavailable service: leave slots collapsed */}
 }
