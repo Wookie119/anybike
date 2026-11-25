@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 FIELDS = ("dealer_id","stock_id","make","model","variant","year","mileage","engine_cc","colour","price_gbp","vat_qualifying","description","images")
 REQUIRED = ("dealer_id","stock_id","make","model","price_gbp")
 def normalize(row):
-    out = {k: str(row.get(k) or "").strip() for k in FIELDS}
+    out = {k: str(row.get(k) if row.get(k) is not None else "").strip() for k in FIELDS}
     for k in REQUIRED:
         if not out[k]: raise ValueError("missing "+k)
     try:
