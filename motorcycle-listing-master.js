@@ -30,5 +30,29 @@
   }
   return lines.join("\n");
  }
- global.AnyBikeListingMaster=Object.freeze({factsHTML,renderFacts,title,mileage,prepareDescription});
+
+ // Feed presentation: preserve mixed-case source text and genuine model codes.
+ function displayName(value,kind="model"){
+  const v=String(value??"").trim().replace(/\s+/g," ");
+  const brands={"HARLEY-DAVIDSON":"Harley-Davidson","BMW":"BMW","KTM":"KTM","CFMOTO":"CFMOTO","MV AGUSTA":"MV Agusta","BSA":"BSA","KYMCO":"Kymco","VMOTO":"VMoto","SYM":"SYM","BRP":"BRP"};
+  if(kind==="make"&&brands[v.toUpperCase()])return brands[v.toUpperCase()];
+  if(v!==v.toUpperCase())return v;
+  const codes=/^(?:BMW|KTM|ABS|DCT|SP|ST|GT|RS|RR|GS|GSA|R|S|X|XR|MX|SX|EXC|XC|FX|FL[A-Z]{2,}|FX[A-Z]{2,}|XL[A-Z0-9]+|[A-Z]*\d+[A-Z0-9-]*|[A-Z]{1,3}-\d+[A-Z]*)$/;
+  return v.split(" ").map(w=>kind!=="make"&&codes.test(w)?w:w.toLowerCase().replace(/(^|[-/])([a-z])/g,(_,p,c)=>p+c.toUpperCase())).join(" ");
+ }
+ function renderDealerDescription(host,value){
+  if(!host)return;
+  host.replaceChildren();
+  const raw=String(value??"").trim();
+  if(!raw)return;
+  // Only split explicit separators. Never rewrite or remove dealer statements.
+  const paragraphs=raw.replace(/\r\n?/g,"\n").replace(/\s+(?=Why buy from us\b)/gi,"\n\n").split(/\n\s*\n/);
+  const doc=host.ownerDocument;
+  for(const paragraph of paragraphs){
+   const chunks=paragraph.split(/\s+-\s+/);
+   if(chunks[0].trim()){const p=doc.createElement("p");p.textContent=chunks[0].trim();host.append(p);}
+   if(chunks.length>1){const list=doc.createElement("ul");for(const chunk of chunks.slice(1)){if(!chunk.trim())continue;const li=doc.createElement("li");li.textContent=chunk.trim();list.append(li);}host.append(list);}
+  }
+ }
+ global.AnyBikeListingMaster=Object.freeze({factsHTML,renderFacts,title,mileage,prepareDescription,displayName,renderDealerDescription});
 })(window);
