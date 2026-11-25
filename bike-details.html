@@ -2243,6 +2243,25 @@ async function loadMarketRelatedLinks(){
       'data-future-model-key="'+safe(make+"|"+model)+'"'
     ));
   }
+  // Catalogue routes are independent of the stock filters above.
+  // Only an unambiguous exact make/model match receives a research link.
+  const brandRoutes={"ajs":"/motorcycle-brand.html?make=AJS","aprilia":"/motorcycle-brand.html?make=Aprilia","benelli":"/motorcycle-brand.html?make=Benelli","beta":"/motorcycle-brand.html?make=Beta","bimota":"/motorcycle-brand.html?make=Bimota","bmw":"/bmw-motorcycles.html","bsa":"/motorcycle-brand.html?make=BSA","ccm":"/motorcycle-brand.html?make=CCM","cfmoto":"/motorcycle-brand.html?make=CFMOTO","ducati":"/motorcycle-brand.html?make=Ducati","fantic":"/motorcycle-brand.html?make=Fantic","gasgas":"/motorcycle-brand.html?make=GASGAS","harley-davidson":"/harley-davidson-motorcycles.html","herald":"/motorcycle-brand.html?make=Herald","honda":"/motorcycle-brand.html?make=Honda","husqvarna":"/motorcycle-brand.html?make=Husqvarna","indian motorcycle":"/indian-motorcycles.html","italjet":"/motorcycle-brand.html?make=Italjet","kawasaki":"/motorcycle-brand.html?make=Kawasaki","keeway":"/motorcycle-brand.html?make=Keeway","kove":"/motorcycle-brand.html?make=KOVE","ktm":"/motorcycle-brand.html?make=KTM","kymco":"/motorcycle-brand.html?make=Kymco","lambretta":"/motorcycle-brand.html?make=Lambretta","lexmoto":"/motorcycle-brand.html?make=Lexmoto","maeving":"/motorcycle-brand.html?make=Maeving","mgb":"/motorcycle-brand.html?make=MGB","moto guzzi":"/motorcycle-brand.html?make=Moto%20Guzzi","moto morini":"/motorcycle-brand.html?make=Moto%20Morini","mugen":"/motorcycle-brand.html?make=Mugen","mutt motorcycles":"/motorcycle-brand.html?make=Mutt%20Motorcycles","mv agusta":"/motorcycle-brand.html?make=MV%20Agusta","niu":"/motorcycle-brand.html?make=NIU","norton":"/motorcycle-brand.html?make=Norton","peugeot motocycles":"/motorcycle-brand.html?make=Peugeot%20Motocycles","piaggio":"/motorcycle-brand.html?make=Piaggio","qjmotor":"/motorcycle-brand.html?make=QJMotor","rieju":"/motorcycle-brand.html?make=Rieju","royal alloy":"/motorcycle-brand.html?make=Royal%20Alloy","royal enfield":"/motorcycle-brand.html?make=Royal%20Enfield","surron":"/motorcycle-brand.html?make=Surron","suzuki":"/motorcycle-brand.html?make=Suzuki","sym":"/motorcycle-brand.html?make=SYM","talaria":"/motorcycle-brand.html?make=Talaria","triumph":"/motorcycle-brand.html?make=Triumph","vespa":"/motorcycle-brand.html?make=Vespa","vmoto":"/motorcycle-brand.html?make=Vmoto","voge":"/motorcycle-brand.html?make=Voge","yamaha":"/motorcycle-brand.html?make=Yamaha","zero motorcycles":"/motorcycle-brand.html?make=Zero%20Motorcycles","zontes":"/motorcycle-brand.html?make=Zontes"};
+  const identityKey=value=>String(value||"").trim().toLowerCase().replace(/\s+/g," ");
+  const brandRoute=brandRoutes[identityKey(make)];
+  if(typeof brandRoute==="string"){
+    bikeLinks.push(marketLink(brandRoute,make+" manufacturer guide"));
+  }
+  if(make&&model){
+    try{
+      const {data,error}=await sb.rpc("public_anybike_manufacturer_model_routes_v1",{p_make:make});
+      if(error)throw error;
+      const routes=[...new Set((Array.isArray(data)?data:[])
+        .filter(row=>identityKey(row.make)===identityKey(make)&&identityKey(row.model)===identityKey(model))
+        .map(row=>row.url)
+        .filter(url=>typeof url==="string"&&/^\/(?:[a-z0-9-]+\/)*[a-z0-9-]+\.html$/i.test(url)))];
+      if(routes.length===1)bikeLinks.push(marketLink(routes[0],make+" "+model+" model guide"));
+    }catch(error){console.warn("Catalogue guide unavailable",error);}
+  }
   bikeLinks.push(marketLink("/available-stock.html","Browse all available motorcycles"));
   document.getElementById("marketBikeLinks").innerHTML=bikeLinks.join("");
 
