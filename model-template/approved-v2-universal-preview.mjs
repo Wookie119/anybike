@@ -735,7 +735,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const header=document.querySelector('main > .hero'),stock=$('internationalModelStock');
   if(header&&stock)header.after(stock);
   const stockTitle=stock.querySelector('h2'),stockIntro=stock.querySelector('p');
-  stockTitle.textContent=title+' motorcycles available internationally';
+  stockTitle.textContent=title+' motorcycles for sale';
   stockIntro.textContent='Only confirmed, published motorcycles matching this exact model are displayed. Ask AnyBike to source other years or specifications.';
   const cards=$('internationalModelCards');
   cards.replaceChildren(node('p','Checking permitted exact-model stock…'));
@@ -1412,15 +1412,30 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     const {stockForCanonicalModel}=await import('/model-template/canonical-public-stock-identity.mjs');
     const pageIdentity={catalog_model_id:canonicalId,manufacturer_name:make,model_name:model};
     const matched=stockForCanonicalModel(data.items,pageIdentity,6);
+    const fallbackPhoto='/anybike-image-coming-soon.png';
+    const retailPrice=new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'});
     for(const row of matched){
-     const key=String(row.item_id);
-     const a=node('a');a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(key);
-     if(validURL(row.image_url)){
-      const img=node('img');img.src=row.image_url;img.alt=title;img.loading='lazy';a.append(img);
-     }
-     a.append(node('strong',[title,row.year].filter(Boolean).join(' ')));
-     paragraph(a,Number(row.price)>0?'£'+Number(row.price).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}):'Price on request');
-     a.append(node('span','View motorcycle →'));cards.append(a);
+     const card=node('a');
+     card.href='/international-vq-motorcycle.html?id='+encodeURIComponent(row.item_id);
+     const photo=node('img');
+     const leadPhoto=[row.image_url,...(Array.isArray(row.images)?row.images:[])].find(validURL);
+     photo.src=leadPhoto||fallbackPhoto;
+     photo.alt=leadPhoto?title:'';
+     photo.loading='lazy';
+     if(leadPhoto)photo.addEventListener('error',()=>{
+      photo.src=fallbackPhoto;
+      photo.alt='';
+     },{once:true});
+     card.append(photo);
+     card.append(node('strong',title));
+     const mileage=typeof row.mileage==='number'&&Number.isFinite(row.mileage)&&row.mileage>=0
+      ? row.mileage.toLocaleString('en-GB')+' miles' : '';
+     const details=[row.year,mileage].filter(Boolean).join(' · ');
+     if(details)paragraph(card,details);
+     const price=Number(row.price);
+     paragraph(card,Number.isFinite(price)&&price>0?retailPrice.format(price):'Price on request');
+     card.append(node('span','View motorcycle →'));
+     cards.append(card);
      confirmedCount++;
     }
    }
