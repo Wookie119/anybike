@@ -616,7 +616,7 @@ function installStockPublishedLayout(layout){
   img.src=https(ad.image_url);img.alt=String(ad.alt_text||'');img.loading='lazy';img.decoding='async';
   caption.textContent='Advertisement';link.append(img);article.append(link,caption);
   let seen=false,clicked=false;
-  const emit=event_type=>send({action:'event',event_type,token:ad.token},true).catch(()=>{});
+  const emit=event_type=>{if(!preview)return send({action:'event',event_type,token:ad.token},true).catch(()=>{})};
   const impression=()=>{if(seen)return;seen=true;emit('impression')};
   const click=()=>{if(clicked)return;clicked=true;impression();emit('click')};
   link.addEventListener('click',click);link.addEventListener('auxclick',e=>{if(e.button===1)click()});
@@ -656,8 +656,9 @@ function installStockPublishedLayout(layout){
  schedule();return true;
 }
 
-function installPublishedLayout(layout,pagePath){
- if(!Array.isArray(layout)||!layout.length||layout.length>4||!isPublicUkCustomerPage())return false;
+function installPublishedLayout(layout,pagePath,preview=false){
+ const stockPreview=preview===true&&pagePath==='/international-vq-motorcycle.html'&&location.pathname===pagePath&&new URLSearchParams(location.search).get('preview')==='dealerwebs'&&layout?.every(ad=>ad.slot_code==='AB-UK-STOCK-FOOTER');
+ if(!Array.isArray(layout)||!layout.length||layout.length>4||(!stockPreview&&!isPublicUkCustomerPage()))return false;
  if(layout[0]?.placement_key==='stock_grid')return installStockPublishedLayout(layout);
  const candidate=ensureAdaptivePublishedSlot(layout);
  if(!candidate||candidate.childElementCount)return false;
@@ -674,7 +675,7 @@ function installPublishedLayout(layout,pagePath){
  host.style.setProperty('--ad-count',String(layout.length));
  for(const ad of layout){
   const card=node('article'),link=node('a'),img=node('img'),caption=node('small');
-  link.href=https(ad.destination_url);link.target='_blank';link.rel='noopener sponsored';link.className='anybike-managed-ad-link';
+  if(!preview){link.href=https(ad.destination_url);link.target='_blank';link.rel='noopener sponsored';}link.className='anybike-managed-ad-link';
   link.dataset.anybikeAdAuthorized='1';card.dataset.anybikeAdAuthorized='1';
   link.setAttribute('aria-label',String(ad.partner_name||'Advertiser')+' — visit website');
   img.src=https(ad.image_url);img.alt=typeof ad.alt_text==='string'?ad.alt_text:'';img.loading='lazy';img.decoding='async';
@@ -693,7 +694,7 @@ function installPublishedLayout(layout,pagePath){
    observer.observe(card);
   }else impression();
  }
- candidate.classList.add('anybike-adaptive-slot');candidate.append(host);return true;
+ candidate.classList.add('anybike-adaptive-slot');candidate.append(host);candidate.hidden=false;return true;
 }
 
 // All campaigns use the SAME placement engine. Do not add per-page fallback
@@ -765,4 +766,10 @@ export async function renderListingAdvertising(root,context){
    styleAdvertDisclosure(caption);picture.style.cssText="display:block;width:100%";img.style.cssText="display:block;width:100%;height:auto;object-fit:contain";link.style.display="block";slot.append(card);img.src=desktop;
   }
  }catch{/* unsupported endpoint or unavailable service: leave slots collapsed */}
+}
+
+export async function renderStockFooterPreview(root){
+ if(location.pathname!=='/international-vq-motorcycle.html'||new URLSearchParams(location.search).get('preview')!=='dealerwebs'||!root?.classList.contains('dealer-preview'))return false;
+ const slot=root.querySelector('[data-ad-slot="AB-UK-STOCK-FOOTER"]');if(!slot)return false;
+ try{const {layout}=await send({action:'select_page',page_path:location.pathname,country:'GB'});if(!Array.isArray(layout)||!layout.length||!layout.every(ad=>ad.slot_code==='AB-UK-STOCK-FOOTER'))return false;return installPublishedLayout(layout,location.pathname,true);}catch{return false;}
 }
