@@ -133,7 +133,6 @@ async function mount(){
    if(!groups.has(row.category))groups.set(row.category,[]);
    groups.get(row.category).push({name:row.model,url});
   }
-  if(!groups.size)return;
   const extension=document.createElement('div');
   extension.dataset.completeCategoryExtension='1';
   for(const [category,entries] of [...groups].sort((a,b)=>a[0].localeCompare(b[0]))){
@@ -148,7 +147,9 @@ async function mount(){
     const name=document.createElement('span');name.className='name';name.textContent=make+' '+entry.name;
     const hint=document.createElement('span');hint.className='hint';hint.textContent=category;
     const go=document.createElement('span');go.className='go';go.textContent='Explore model guide →';
-    a.append(name,hint,go);card.append(a);grid.append(card);
+    const photo=document.createElement('span');photo.className='bmw-photo';
+    const img=document.createElement('img');img.src='/anybike-image-coming-soon.png';img.alt='AnyBike';img.loading='lazy';img.decoding='async';img.width=560;img.height=315;img.style.cssText='width:100%;aspect-ratio:16/9;object-fit:cover;display:block';photo.append(img);
+    a.append(name,hint,go);card.classList.remove('model--text-only');card.append(photo,a);grid.append(card);
    }
    sec.append(head,grid);extension.append(sec);
   }
