@@ -735,10 +735,12 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const header=document.querySelector('main > .hero'),stock=$('internationalModelStock');
   if(header&&stock)header.after(stock);
   const stockTitle=stock.querySelector('h2'),stockIntro=stock.querySelector('p');
-  stockTitle.textContent=title+' motorcycles available internationally';
-  stockIntro.textContent='Only confirmed, published motorcycles matching this exact model are displayed. Ask AnyBike to source other years or specifications.';
+  stockTitle.textContent=title+' motorcycles for sale';
+  stockIntro.textContent='';
+  stockIntro.hidden=true;
   const cards=$('internationalModelCards');
-  cards.replaceChildren(node('p','Checking permitted exact-model stock…'));
+  cards.classList.add('exact-model-stock-grid');
+  cards.replaceChildren(node('p','Checking current stock…'));
   stock.dataset.stockFeedState='checking';
   // Keep hidden while audience and authorised stock resolve, avoiding
   // an international-only panel flashing briefly in the UK view.
@@ -1411,16 +1413,29 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     // generations or trimmed catalogue aliases.
     const {stockForCanonicalModel}=await import('/model-template/canonical-public-stock-identity.mjs');
     const pageIdentity={catalog_model_id:canonicalId,manufacturer_name:make,model_name:model};
-    const matched=stockForCanonicalModel(data.items,pageIdentity,6);
+    const hasPhoto=row=>validURL(row.image_url);
+    const photoFirst=[...data.items].sort((left,right)=>Number(hasPhoto(right))-Number(hasPhoto(left)));
+    const matched=stockForCanonicalModel(photoFirst,pageIdentity,6);
+    const fallback='/anybike-image-coming-soon.png';
+    const money=new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'});
     for(const row of matched){
-     const key=String(row.item_id);
-     const a=node('a');a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(key);
-     if(validURL(row.image_url)){
-      const img=node('img');img.src=row.image_url;img.alt=title;img.loading='lazy';a.append(img);
-     }
-     a.append(node('strong',[title,row.year].filter(Boolean).join(' ')));
-     paragraph(a,Number(row.price)>0?'£'+Number(row.price).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}):'Price on request');
-     a.append(node('span','View motorcycle →'));cards.append(a);
+     const card=node('a',undefined,'exact-model-stock-card');
+     card.href='/international-vq-motorcycle.html?id='+encodeURIComponent(row.item_id);
+     const photo=node('img',undefined,'exact-model-stock-photo');
+     photo.src=hasPhoto(row)?row.image_url:fallback;
+     photo.alt=hasPhoto(row)?title:'';
+     photo.loading='lazy';
+     photo.addEventListener('error',()=>{photo.alt='';photo.src=fallback;},{once:true});
+     const details=node('div',undefined,'exact-model-stock-details');
+     const mileage=row.mileage!=null&&row.mileage!==''&&Number.isFinite(Number(row.mileage))&&Number(row.mileage)>=0
+      ? Number(row.mileage).toLocaleString('en-GB')+' miles' : '';
+     const facts=[row.year,mileage].filter(Boolean).join(' · ');
+     details.append(node('strong',title));
+     if(facts)details.append(node('span',facts,'exact-model-stock-facts'));
+     details.append(node('strong',Number(row.price)>0?money.format(Number(row.price)):'Price on request','exact-model-stock-price'));
+     details.append(node('span','View motorcycle →','exact-model-stock-action'));
+     card.append(photo,details);
+     cards.append(card);
      confirmedCount++;
     }
    }
