@@ -671,6 +671,7 @@ function installPublishedLayout(layout,pagePath,preview=false){
  const stockPreview=preview===true&&pagePath==='/international-vq-motorcycle.html'&&location.pathname===pagePath&&new URLSearchParams(location.search).get('preview')==='dealerwebs'&&layout?.every(ad=>ad.slot_code==='AB-UK-STOCK-FOOTER');
  if(!Array.isArray(layout)||!layout.length||layout.length>4||(!stockPreview&&!isPublicUkCustomerPage()))return false;
  if(layout[0]?.placement_key==='stock_grid')return installStockPublishedLayout(layout);
+ const adaptiveModel=isUniversalModelPage(document.querySelector('main'));
  const candidate=ensureAdaptivePublishedSlot(layout);
  if(!candidate||candidate.childElementCount)return false;
  const permitted=new Set(["square","slim","stock_card","landscape","portrait"]);
@@ -680,10 +681,12 @@ function installPublishedLayout(layout,pagePath,preview=false){
  if(!document.getElementById(cssId)){
   const style=node('style');style.id=cssId;
   style.textContent='.managed-ad-space.anybike-adaptive-slot{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;clear:both;padding:0!important;height:auto!important;overflow:visible!important}.anybike-published-multi-layout{display:grid!important;grid-template-columns:repeat(var(--ad-count),minmax(0,1fr));gap:clamp(8px,1.3vw,16px);width:100%;max-width:none;min-width:0;box-sizing:border-box;margin:16px 0 22px;align-items:start}.anybike-published-multi-layout article{min-width:0;margin:0;overflow:visible;box-sizing:border-box}.anybike-published-multi-layout a{display:block;width:100%;overflow:hidden;border-radius:12px;clip-path:inset(0 round 12px);background:transparent}.anybike-published-multi-layout img{width:100%;max-width:100%;height:auto;display:block;object-fit:contain;border-radius:12px}.anybike-published-multi-layout small{display:block;width:100%;text-align:center;margin-top:4px;color:#aaa;font:11px/1.3 Arial,sans-serif}@media(max-width:680px){.anybike-published-multi-layout{grid-template-columns:repeat(min(var(--ad-count),2),minmax(0,1fr))!important}}@media(max-width:420px){.anybike-published-multi-layout{grid-template-columns:1fr!important}}';
+  style.textContent+=' .anybike-model-ad-layout img{margin-inline:auto;width:auto;max-width:100%;max-height:min(420px,70vh);height:auto}.anybike-model-ad-layout a{width:fit-content;max-width:100%;margin-inline:auto}';
   document.head.append(style);
  }
  const host=node('div');host.className='anybike-published-multi-layout';host.id=moveHouseMarker;
  host.style.setProperty('--ad-count',String(layout.length));
+ if(adaptiveModel)host.classList.add('anybike-model-ad-layout');
  for(const ad of layout){
   const card=node('article'),link=node('a'),img=node('img'),caption=node('small');
   link.href=https(ad.destination_url);link.target='_blank';link.rel='noopener noreferrer sponsored';link.className='anybike-managed-ad-link';
@@ -691,9 +694,18 @@ function installPublishedLayout(layout,pagePath,preview=false){
   link.setAttribute('aria-label',String(ad.partner_name||'Advertiser')+' — visit website');
   img.src=https(ad.image_url);img.alt=typeof ad.alt_text==='string'?ad.alt_text:'';img.loading='lazy';img.decoding='async';
   const ratios={square:'1 / 1',slim:'3 / 1',stock_card:'4 / 3',landscape:'16 / 9',portrait:'4 / 5'};
-  img.style.aspectRatio=ratios[ad.format]||'auto';
-  img.onerror=()=>{card.remove()};
-  link.append(img);caption.textContent='Advertisement';card.append(link,caption);host.append(card);
+  if(!adaptiveModel)img.style.aspectRatio=ratios[ad.format]||'auto';
+  img.onerror=()=>{
+   card.remove();
+   host.style.setProperty('--ad-count',String(host.childElementCount));
+   if(!host.childElementCount){
+    host.remove();
+    candidate.classList.remove('anybike-adaptive-slot');
+    candidate.hidden=true;
+   }
+  };
+  link.append(img);
+  caption.textContent=ad.partner_name?'Advertisement · '+ad.partner_name:'Advertisement';card.append(link,caption);host.append(card);
   let seen=false,clicked=false;
   const emit=event_type=>{if(!preview)return send({action:'event',event_type,token:ad.token},true).catch(()=>{});};
   const impression=()=>{if(seen)return;seen=true;emit('impression')};
