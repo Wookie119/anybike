@@ -1586,6 +1586,7 @@ export default {
         .eq("buyer_safe_status", "safe")
         .not("source_url", "is", null)
         .is("source_archive_url", null)
+        .or("source_provider.is.null,source_provider.neq.dealerwebs")
         .order("buyer_safe_processed_at", { ascending: false })
         .order("id", { ascending: false })
         .limit(1);
