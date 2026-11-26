@@ -2,13 +2,15 @@
 <section id="dealerwebsBatch" class="panel" hidden>
  <h2>Latest feed batch</h2>
  <p id="batchSummary" role="status">Loading stock review…</p>
+ <p id="batchFreshness"></p>
  <button id="refreshBatch" type="button">Refresh</button>
  <h3>Stock that needs review</h3>
  <ul id="batchExceptions"></ul>
  <h3>Live bikes using the AnyBike placeholder</h3>
  <ul id="batchPhotos"></ul>
 </section>
-<h2>Photo resolution check</h2><p>Read-only test for Suzuki AB-S-000034. Checks whether the existing photo fetcher can retrieve larger originals. No new underwrite, uploads, approvals or cleaning.</p><section class="panel"><button id="run">Check three Suzuki photos</button><button id="upgrade" style="margin-left:10px;background:#303030" disabled>Import verified high-resolution photos</button><p id="status">Ready.</p><div id="results"></div></section><p><a style="color:white" href="/admin-bria-suzuki-pilot.html">Back to Bria test</a></p></main></div></div><script>
+<details id="legacyPhotoCheck" class="panel" hidden>
+<summary>Suzuki photo resolution test</summary><p>Read-only test for Suzuki AB-S-000034. Checks whether the existing photo fetcher can retrieve larger originals. No new underwrite, uploads, approvals or cleaning.</p><section class="panel"><button id="run">Check three Suzuki photos</button><button id="upgrade" style="margin-left:10px;background:#303030" disabled>Import verified high-resolution photos</button><p id="status">Ready.</p><div id="results"></div></section><p><a style="color:white" href="/admin-bria-suzuki-pilot.html">Back to Bria test</a></p></details></main></div></div><script>
 const sb=getAdminSupabaseClient(),photos=["d6938954-61ce-4b7b-f250-3a95866d6500","6a21d3f7-13b2-493f-ce68-28d2471afa00","93442c88-4535-4923-1462-69c9f4ddaf00"],base="https://autocdn.co.uk/cdn-cgi/imagedelivery/JC4X6oe6GKVO4ZI4xd1Czg/",advert="https://www.5-ways.co.uk/used-bikes/suzuki/gsx-s1000/330200.htm";
 const report=document.getElementById("results"),status=document.getElementById("status");
 const dimensions=blob=>new Promise((resolve,reject)=>{const url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{resolve([img.naturalWidth,img.naturalHeight]);URL.revokeObjectURL(url)};img.onerror=()=>{URL.revokeObjectURL(url);reject(Error("Image cannot be decoded"))};img.src=url});
@@ -39,11 +41,16 @@ async function loadDealerWebsBatch(){
  const button=document.getElementById("refreshBatch"),summary=document.getElementById("batchSummary");
  button.disabled=true;
  summary.textContent="Loading stock review…";
+ document.getElementById("batchFreshness").textContent="";
  try{
   const {data,error}=await sb.rpc("admin_dealerwebs_batch_status_v1");
   if(error||!data)throw Error("Batch status unavailable");
   const timestamp=formatBatchDate(data.last_changed_snapshot);
-  summary.textContent=data.live_count+" live bikes · "+data.placeholder_count+" using a placeholder"+
+  const lastCheck=formatBatchDate(data.last_feed_check?.at);
+  summary.textContent=data.live_count+" live bikes · "+data.placeholder_count+" using a placeholder";
+  const feedCheck=lastCheck?"Last successful feed check "+lastCheck+" UK"+
+   (data.last_feed_check.unchanged===true?" (stock unchanged)":""):"No recent successful feed check recorded";
+  document.getElementById("batchFreshness").textContent=feedCheck+
    (timestamp?" · Last changed snapshot "+timestamp+" UK":"");
   renderBatchList("batchExceptions",data.review||[],row=>
    [row.dealer_name,[row.make,row.model].filter(Boolean).join(" "),batchReason[row.review_reason]||"Needs review"].filter(Boolean).join(" · "),
@@ -63,6 +70,7 @@ document.getElementById("refreshBatch").addEventListener("click",loadDealerWebsB
  const {data:allowed}=await sb.rpc("anybike_is_admin");
  if(allowed!==true)return;
  document.getElementById("dealerwebsBatch").hidden=false;
+ document.getElementById("legacyPhotoCheck").hidden=false;
  await loadDealerWebsBatch();
 })();
 </script></body></html>
