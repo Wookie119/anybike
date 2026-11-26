@@ -271,6 +271,15 @@ function adoptLegacyMove(ad){
  if(!urls.desktop||!urls.mobile||!destination)return false;
  ensureAdvertHoverStyles();
  anchors.forEach((link,index)=>{
+  // Auction grid has a dedicated portrait card; never replace it with the
+  // generic landscape house banner or append a companion inside that card.
+  if(location.pathname==='/trade-opportunities.html'&&link.closest('.move-trade-advert')){
+   link.href=destination;link.rel='noopener sponsored';link.target='_blank';
+   link.dataset.anybikeAdAuthorized='1';link.dataset.adCampaignId=ad.id;
+   link.dataset.adSlotCode=templateAdSlotCode(ad);
+   attachLegacyTracking(link,ad);
+   return;
+  }
   link.classList.add('anybike-managed-ad-link');
   link.href=destination;link.rel='noopener sponsored';link.target='_blank';
   link.dataset.anybikeAdAuthorized='1';
