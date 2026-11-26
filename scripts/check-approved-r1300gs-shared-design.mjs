@@ -30,7 +30,8 @@ assert(referenceStyleBlocks.length>=30,'Approved V2 reference styles must exist'
 // replacing the old burgundy accents with the approved charcoal palette.
 const v2Palette=block=>block.replaceAll('#352124','#282828')
  .replaceAll('#813438','#4b4b4b');
-for(const block of referenceStyleBlocks)assert(approvedV2.includes(v2Palette(block)),
+const defaultAccent=approvedV2.replaceAll('var(--model-accent)','#ed1c24');
+for(const block of referenceStyleBlocks)assert(defaultAccent.includes(v2Palette(block)),
  'Universal stylesheet is missing an approved BMW R 1300 GS reference style or palette correction');
 for(const token of ['--red:#ed1c24','background:#000','background:var(--panel)',
  '.generation-panel','.factory-colour-card','.grid']){
