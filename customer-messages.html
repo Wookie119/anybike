@@ -1278,6 +1278,13 @@ body{background:#090909!important}.page-shell{width:100%!important;max-width:non
     </div>
   </section>
 
+  <section class="panel messages-only-panel" id="dealershipEnquiries" hidden>
+    <div class="panel-head"><div><h2>Dealership stock enquiries</h2></div></div>
+    <p id="dealershipEnquiryStatus" role="status"></p>
+    <div id="dealershipEnquiryList"></div>
+    <div id="dealershipEnquiryConversation"></div>
+  </section>
+
   <section class="panel messages-only-panel" id="sellerBiddingUpdates" hidden style="margin-bottom:15px">
     <div class="panel-head"><div><h2>Your motorcycle selling updates</h2><p>Private progress notifications about motorcycles you have offered to AnyBike. Confidential dealer bids and internal notes are never shown here.</p></div></div>
     <div id="sellerBiddingUpdatesList" style="padding:14px">Loading…</div>
@@ -4577,6 +4584,85 @@ function anybikeMessageTiming(label){
   }
   el.textContent+="\\n"+label+": "+((performance.now()-anybikeMessageT0)/1000).toFixed(2)+"s";
 }
+async function loadDealershipEnquiries(){
+  const {data,error}=await sb.rpc("dealer_trade_feed_inbox_v1");
+  if(error || !data?.enabled)return;
+  const panel=document.getElementById("dealershipEnquiries");
+  const list=document.getElementById("dealershipEnquiryList");
+  const detail=document.getElementById("dealershipEnquiryConversation");
+  const status=document.getElementById("dealershipEnquiryStatus");
+  panel.hidden=false;
+  if(!data.threads.length){
+    status.textContent="No stock enquiries yet.";
+    return;
+  }
+  let selected=null;
+  async function openConversation(id){
+    selected=id;
+    status.textContent="Loading conversation…";
+    detail.replaceChildren();
+    const {data:conversation,error:readError}=await sb.rpc("dealer_trade_feed_inbox_v1",{p_thread_id:id});
+    if(selected!==id)return;
+    const thread=conversation?.threads?.[0];
+    if(readError || !thread){
+      status.textContent="This enquiry could not be opened.";
+      return;
+    }
+    status.textContent="";
+    const heading=document.createElement("h3");
+    heading.textContent=thread.subject || "Stock enquiry";
+    detail.append(heading);
+    for(const message of thread.messages){
+      const entry=document.createElement("p");
+      const sender=document.createElement("strong");
+      sender.textContent=["customer","buyer","user"].includes(message.sender_type)
+        ? "Customer" : message.sender_type==="dealer" ? "Dealership" : "AnyBike";
+      const body=document.createElement("span");
+      body.textContent=message.message;
+      body.style.whiteSpace="pre-wrap";
+      entry.append(sender,document.createElement("br"),body);
+      detail.append(entry);
+    }
+    const form=document.createElement("form");
+    const label=document.createElement("label");
+    label.textContent="Your reply";
+    const reply=document.createElement("textarea");
+    reply.required=true;
+    reply.rows=3;
+    reply.maxLength=4000;
+    label.append(document.createElement("br"),reply);
+    const send=document.createElement("button");
+    send.className="btn";
+    send.type="submit";
+    send.textContent="Send reply";
+    form.append(label,send);
+    detail.append(form);
+    form.addEventListener("submit",async event=>{
+      event.preventDefault();
+      const message=reply.value.trim();
+      if(!message)return;
+      send.disabled=true;
+      const {error:sendError}=await sb.rpc("dealer_reply_to_trade_feed_enquiry_v1",{p_thread_id:id,p_message:message});
+      if(selected!==id)return;
+      if(sendError){
+        status.textContent="Reply could not be sent. Please try again.";
+        send.disabled=false;
+        return;
+      }
+      await openConversation(id);
+      if(selected===id)status.textContent="Reply sent.";
+    });
+  }
+  for(const thread of data.threads){
+    const link=document.createElement("button");
+    link.className="btn secondary";
+    link.type="button";
+    link.textContent=thread.subject || "Stock enquiry";
+    link.addEventListener("click",()=>void openConversation(thread.id));
+    list.append(link);
+  }
+}
+
 (async function init(){
   try{
     anybikeMessageTiming('Startup');
@@ -4588,6 +4674,8 @@ function anybikeMessageTiming(label){
     if(!ok){
       return;
     }
+
+    void loadDealershipEnquiries().catch(error=>console.warn("Dealership enquiries unavailable",error));
 
     // My Messages is a personal inbox restricted by customer_id.
     // Only an authenticated account verified by the server as an AnyBike admin
