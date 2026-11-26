@@ -576,10 +576,17 @@ async function archiveOriginalSourceImage(
   contentType: string,
 ): Promise<{
   hash: string;
-  storagePath: string;
-  publicUrl: string;
+  storagePath: string | null;
+  publicUrl: string | null;
 }> {
   const hash = await sha256Hex(inputBytes);
+  const { data: stock, error: stockError } = await adminClient
+    .from("junction_stock").select("source_provider")
+    .eq("id", job.junction_stock_id).single();
+  if (stockError || !stock) throw new Error("Could not identify the image provider.");
+  if (stock.source_provider === "dealerwebs") {
+    return { hash, storagePath: null, publicUrl: null };
+  }
   const mimeType = contentType || "image/jpeg";
   const extension = extensionForMime(mimeType);
   const position = Number(job.position ?? 0);
@@ -1722,11 +1729,27 @@ export default {
           );
         }
 
-        const download = await fetch(job.source_url, {
-          redirect: "follow",
+        const { data: imageStock, error: imageStockError } = await adminClient
+          .from("junction_stock").select("source_provider")
+          .eq("id", job.junction_stock_id).single();
+        if (imageStockError || !imageStock) throw new Error("Could not identify the image provider.");
+        const dealerwebs = imageStock.source_provider === "dealerwebs";
+        let downloadUrl = job.source_url;
+        if (dealerwebs) {
+          const photo = new URL(downloadUrl);
+          if (photo.origin !== "https://autocdn.co.uk" || photo.username || photo.password ||
+              photo.search || photo.hash ||
+              !/^\/cdn-cgi\/imagedelivery\/[A-Za-z0-9_-]+\/[0-9a-f-]{36}\/[A-Za-z0-9_-]+$/i.test(photo.pathname)) {
+            throw new Error("Unsupported DealerWebs photo URL");
+          }
+          photo.pathname = photo.pathname.replace(/\/(raw|smallnew)$/i, "/largenew");
+          downloadUrl = photo.href;
+        }
+        const download = await fetch(downloadUrl, {
+          redirect: dealerwebs ? "error" : "follow",
           headers: {
             "User-Agent": "AnyBike Buyer Safe Image Processor/2.0",
-            Accept: "image/avif,image/webp,image/png,image/jpeg,image/*",
+            Accept: dealerwebs ? "image/jpeg,image/png,image/webp" : "image/avif,image/webp,image/png,image/jpeg,image/*",
           },
         });
 
