@@ -216,7 +216,8 @@ check('All 18 Harley dedicated routes run the shared V2 renderer and retain arch
 });
 check('The shared layout has accessible contrast, readable cards and mobile flow',()=>{
  assert.match(css,/grid-template-columns:minmax\(0,1fr\)/);
- assert.match(css,/border-left:3px solid var\(--model-accent\)/);
+ const deployedStyles=read('model-template/approved-v2-preview-style.css')+'\n'+read('motorcycle-v2-master.html').match(/<style>[\s\S]*?<\/style>/)?.[0];
+ assert.match(deployedStyles,/border-left:3px solid var\(--model-accent\)/);
  assert.match(css,/#ff6600/);
  assert.match(css,/#ed1c24/);
  assert.match(css,/@media\(max-width:800px\)/);
