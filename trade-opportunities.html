@@ -875,7 +875,9 @@ async function withdrawBid(id){
   const {error}=await sb.rpc("trade_withdraw_underwrite_bid_v2",{p_opportunity_id:id});
   if(error){alert(error.message);return;} await load();
 }
-load();
+const initialAuctionLoad=load();
+const initialAuctionTimer=setTimeout(()=>{const grid=document.getElementById('grid');if(grid&&!grid.querySelector('[data-opportunity-id]')&&grid.textContent.trim()==='Loading…'){grid.textContent='Auction listings are taking longer than expected. Please refresh the page.';}},15000);
+initialAuctionLoad.catch(error=>{console.error('Auction loading failed',error);const grid=document.getElementById('grid');if(grid&&!grid.querySelector('[data-opportunity-id]')){grid.textContent='Unable to load auction listings. Please refresh or contact AnyBike.';}}).finally(()=>clearTimeout(initialAuctionTimer));
 setInterval(()=>{
  document.querySelectorAll(".live-trade-countdown[data-closes]").forEach(el=>{
   const remaining=countdown(el.dataset.closes);
@@ -885,6 +887,6 @@ setInterval(()=>{
  if(detail&&mineDetailId!==null){const auction=currentOpportunities.find(x=>Number(x.opportunity_id)===Number(mineDetailId));if(auction){const remaining=countdown(auction.closes_at);detail.textContent=remaining==="Closed"?"Bidding closed":"Closes in "+remaining;}}
 },1000);
 </script>
-<script src="/public-header.js?v=12002"></script>
+<script src="/public-header.js?v=20261126-auction-recovery"></script>
 </body>
 </html>
