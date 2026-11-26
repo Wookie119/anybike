@@ -92,13 +92,15 @@ article.card .bike-title-row{flex-wrap:wrap}
 </div></nav><footer class="stock-footer"><div class="stock-footer-copy"><h2>Looking for something specific?</h2><p>Tell AnyBike what motorcycle you need, or explore our manufacturer guides to find the right model.</p></div><div class="stock-footer-actions"><a class="btn" href="/buy-motorcycles.html">Request a motorcycle →</a><a class="btn secondary" href="/motorcycle-manufacturers.html">Explore manufacturers →</a></div><div class="stock-footer-links"><a href="/my-vat-export-guide.html">VAT export guide</a><a href="/freight-forwarders.html">Freight forwarders</a><a href="/how-anybike-export-works.html">How AnyBike export works</a><a href="/customer-messages.html">Messages</a></div></footer></main><script>const escapeText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));(async()=>{const notice=document.getElementById('notice');const stockGrid=document.getElementById('stockGrid');const clearLoading=()=>{stockGrid.replaceChildren();stockGrid.setAttribute('aria-busy','false');};try{// Public stock requires no login. Do not delay the catalogue behind a session lookup.
 const stockUrl='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/international-public-stock';
 // Bound the entire request AND JSON body read; a stalled body must not leave skeletons indefinitely.
+let stockAccessToken=null;
+try{const sb=supabase.createClient('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');const session=await Promise.race([sb.auth.getSession(),new Promise(resolve=>setTimeout(()=>resolve(null),1800))]);stockAccessToken=session?.data?.session?.access_token||null;}catch{}
 const fetchStock=async()=>{
  let lastError;
  for(let attempt=0;attempt<2;attempt++){
   const controller=new AbortController();
   const timeout=setTimeout(()=>controller.abort(),12000);
   try{
-   const response=await fetch(stockUrl,{cache:'no-store',signal:controller.signal,headers:{'Accept':'application/json'}});
+   const response=await fetch(stockUrl+(stockAccessToken?'?scope=uk':''),{cache:'no-store',signal:controller.signal,headers:{'Accept':'application/json',...(stockAccessToken?{'Authorization':'Bearer '+stockAccessToken}:{})}});
    if(!response.ok){
     // Do not retry denied access; preserve the backend's UK/international rules.
     if(response.status===401||response.status===403)return {response,catalog:{error:'Stock access is unavailable for this visitor.'}};
