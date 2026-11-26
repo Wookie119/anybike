@@ -686,7 +686,7 @@ function installPublishedLayout(layout,pagePath,preview=false){
  host.style.setProperty('--ad-count',String(layout.length));
  for(const ad of layout){
   const card=node('article'),link=node('a'),img=node('img'),caption=node('small');
-  if(!preview){link.href=https(ad.destination_url);link.target='_blank';link.rel='noopener sponsored';}link.className='anybike-managed-ad-link';
+  link.href=https(ad.destination_url);link.target='_blank';link.rel='noopener noreferrer sponsored';link.className='anybike-managed-ad-link';
   link.dataset.anybikeAdAuthorized='1';card.dataset.anybikeAdAuthorized='1';
   link.setAttribute('aria-label',String(ad.partner_name||'Advertiser')+' — visit website');
   img.src=https(ad.image_url);img.alt=typeof ad.alt_text==='string'?ad.alt_text:'';img.loading='lazy';img.decoding='async';
@@ -695,7 +695,7 @@ function installPublishedLayout(layout,pagePath,preview=false){
   img.onerror=()=>{card.remove()};
   link.append(img);caption.textContent='Advertisement';card.append(link,caption);host.append(card);
   let seen=false,clicked=false;
-  const emit=event_type=>send({action:'event',event_type,token:ad.token},true).catch(()=>{});
+  const emit=event_type=>{if(!preview)return send({action:'event',event_type,token:ad.token},true).catch(()=>{});};
   const impression=()=>{if(seen)return;seen=true;emit('impression')};
   const click=()=>{if(clicked)return;clicked=true;impression();emit('click')};
   link.addEventListener('click',click);
