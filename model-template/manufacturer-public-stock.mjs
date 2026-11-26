@@ -38,6 +38,50 @@ export function renderManufacturerStock(root,make,items){
  }
  section.append(header,grid);root.before(section);return rows.length;
 }
+
+async function mountManufacturerProfile(root,make,generic){
+ const response=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_manufacturer_page_v1',{
+  method:'POST',
+  headers:{apikey:'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK','Content-Type':'application/json'},
+  body:JSON.stringify({p_make:make}),
+  signal:AbortSignal.timeout(8000)
+ });
+ if(!response.ok)return;
+ const profile=await response.json();
+ if(!profile||typeof profile.title!=='string'||typeof profile.intro!=='string')return;
+
+ const hero=document.querySelector(generic?'main .manufacturer-hero':'main .hero');
+ const title=hero?.querySelector('h1');
+ const intro=hero?.querySelector(generic?'#intro':'.lead,.intro');
+ if(title){
+  const lines=profile.title.split('\n');
+  title.replaceChildren(...lines.flatMap((line,index)=>index?[node('br'),document.createTextNode(line)]:[document.createTextNode(line)]));
+ }
+ if(intro)intro.textContent=profile.intro;
+ const visual=generic?hero?.querySelector('.hero-visual'):null;
+ if(visual&&typeof profile.logo_url==='string'&&profile.logo_url.startsWith('https://')){
+  const logo=node('img');
+  logo.alt=profile.make+' manufacturer logo';
+  logo.addEventListener('load',()=>visual.replaceChildren(logo),{once:true});
+  logo.src=profile.logo_url;
+ }
+
+ const sections=Array.isArray(profile.sections)?profile.sections:[];
+ let anchor=root;
+ for(const entry of sections){
+  if(!entry.title||!entry.body)continue;
+  const section=node('section');
+  section.className='section';
+  section.dataset.manufacturerEditorialSection=String(entry.number);
+  section.append(node('h2',entry.title));
+  for(const paragraph of entry.body.split(/\n\s*\n/).filter(Boolean)){
+   section.append(node('p',paragraph));
+  }
+  anchor.after(section);
+  anchor=section;
+ }
+}
+
 export async function mountManufacturerStock(){
  const path=location.pathname;
  const fixed={'/bmw-motorcycles.html':'BMW','/harley-davidson-motorcycles.html':'Harley-Davidson','/indian-motorcycles.html':'Indian Motorcycle'};
@@ -45,6 +89,8 @@ export async function mountManufacturerStock(){
  if(!make||document.querySelector('meta[name="robots"]')?.content.includes('noindex'))return;
  const root=document.querySelector('main #models')||document.querySelector('main #modelFamilies')?.closest('section');
  if(!root)return;
+ void mountManufacturerProfile(root,make,path==='/motorcycle-brand.html')
+  .catch(error=>console.warn('Manufacturer profile temporarily unavailable',error));
  // Archive navigation is independent of current stock availability.
  if(!document.querySelector('[data-manufacturer-archive-link]')){
   const nav=node('nav');nav.dataset.manufacturerArchiveLink='1';
