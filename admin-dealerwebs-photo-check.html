@@ -1,8 +1,68 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DealerWebs Photo Quality Check | AnyBike</title><meta name="robots" content="noindex,nofollow"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="/admin.js?v=202610071152"></script><link rel="stylesheet" href="/admin-shell.css?v=12001"><style>body{background:#080808;color:#fff;font:15px Arial}.content{max-width:1100px;margin:auto;padding:24px}.panel{background:#141414;border:1px solid #444;border-top:3px solid #ed1c24;border-radius:12px;padding:20px;margin:14px 0}button{background:#ed1c24;color:#fff;border:0;border-radius:7px;padding:13px 22px;font-weight:bold;cursor:pointer}.item{display:flex;align-items:center;gap:15px;margin:12px 0;border-bottom:1px solid #333;padding:12px 0}.item img{width:125px;max-height:100px;object-fit:contain}.item div{overflow-wrap:anywhere}small{color:#bbb}@media(max-width:600px){.item{display:block}}</style></head><body><div class="admin-shell"><div id="adminSidebar"></div><div class="admin-main"><div id="adminTopbar"></div><main class="admin-page-content content"><h1>DealerWebs photo resolution check</h1><p>Read-only test for Suzuki AB-S-000034. Checks whether the existing photo fetcher can retrieve larger originals. No new underwrite, uploads, approvals or cleaning.</p><section class="panel"><button id="run">Check three Suzuki photos</button><button id="upgrade" style="margin-left:10px;background:#303030" disabled>Import verified high-resolution photos</button><p id="status">Ready.</p><div id="results"></div></section><p><a style="color:white" href="/admin-bria-suzuki-pilot.html">Back to Bria test</a></p></main></div></div><script>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DealerWebs Stock Review | AnyBike</title><meta name="robots" content="noindex,nofollow"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="/admin.js?v=202610071152"></script><link rel="stylesheet" href="/admin-shell.css?v=12001"><style>body{background:#080808;color:#fff;font:15px Arial}.content{max-width:1100px;margin:auto;padding:24px}.panel{background:#141414;border:1px solid #444;border-top:3px solid #ed1c24;border-radius:12px;padding:20px;margin:14px 0}button{background:#ed1c24;color:#fff;border:0;border-radius:7px;padding:13px 22px;font-weight:bold;cursor:pointer}.item{display:flex;align-items:center;gap:15px;margin:12px 0;border-bottom:1px solid #333;padding:12px 0}.item img{width:125px;max-height:100px;object-fit:contain}.item div{overflow-wrap:anywhere}small{color:#bbb}@media(max-width:600px){.item{display:block}}</style></head><body><div class="admin-shell"><div id="adminSidebar"></div><div class="admin-main"><div id="adminTopbar"></div><main class="admin-page-content content"><h1>DealerWebs stock review</h1>
+<section id="dealerwebsBatch" class="panel" hidden>
+ <h2>Latest feed batch</h2>
+ <p id="batchSummary" role="status">Loading stock review…</p>
+ <button id="refreshBatch" type="button">Refresh</button>
+ <h3>Stock that needs review</h3>
+ <ul id="batchExceptions"></ul>
+ <h3>Live bikes using the AnyBike placeholder</h3>
+ <ul id="batchPhotos"></ul>
+</section>
+<h2>Photo resolution check</h2><p>Read-only test for Suzuki AB-S-000034. Checks whether the existing photo fetcher can retrieve larger originals. No new underwrite, uploads, approvals or cleaning.</p><section class="panel"><button id="run">Check three Suzuki photos</button><button id="upgrade" style="margin-left:10px;background:#303030" disabled>Import verified high-resolution photos</button><p id="status">Ready.</p><div id="results"></div></section><p><a style="color:white" href="/admin-bria-suzuki-pilot.html">Back to Bria test</a></p></main></div></div><script>
 const sb=getAdminSupabaseClient(),photos=["d6938954-61ce-4b7b-f250-3a95866d6500","6a21d3f7-13b2-493f-ce68-28d2471afa00","93442c88-4535-4923-1462-69c9f4ddaf00"],base="https://autocdn.co.uk/cdn-cgi/imagedelivery/JC4X6oe6GKVO4ZI4xd1Czg/",advert="https://www.5-ways.co.uk/used-bikes/suzuki/gsx-s1000/330200.htm";
 const report=document.getElementById("results"),status=document.getElementById("status");
 const dimensions=blob=>new Promise((resolve,reject)=>{const url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{resolve([img.naturalWidth,img.naturalHeight]);URL.revokeObjectURL(url)};img.onerror=()=>{URL.revokeObjectURL(url);reject(Error("Image cannot be decoded"))};img.src=url});
 document.getElementById("run").onclick=async()=>{const button=document.getElementById("run");button.disabled=true;report.replaceChildren();try{const {data}=await sb.auth.getSession(),token=data?.session?.access_token;if(!token)throw Error("Sign in to AnyBike Admin");const {data:allowed}=await sb.rpc("anybike_is_admin");if(allowed!==true)throw Error("Admin access required");for(let i=0;i<photos.length;i++){status.textContent="Checking photograph "+(i+1)+" of 3…";const row=document.createElement("div");row.className="item";const img=document.createElement("img"),info=document.createElement("div");row.append(img,info);report.append(row);try{const original=base+photos[i]+(i===2?"/largenew":"/smallnew");const response=await fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/fetch-dealer-advert-photo",{method:"POST",headers:{"Authorization":"Bearer "+token,"apikey":typeof SUPABASE_ANON_KEY!=="undefined"?SUPABASE_ANON_KEY:"","Content-Type":"application/json"},body:JSON.stringify({image_url:original,advert_url:advert})});if(!response.ok){const error=await response.json().catch(()=>({}));throw Error(error.error||"HTTP "+response.status)}const blob=await response.blob();const d=await dimensions(blob);img.src=URL.createObjectURL(blob);info.textContent="Photo "+(i+1)+": "+d[0]+" × "+d[1]+" px · "+Math.round(blob.size/1024)+" KB · "+blob.type;}catch(e){info.textContent="Photo "+(i+1)+": "+e.message;}}status.textContent="Check complete. Review the dimensions, then import the higher-resolution originals if suitable.";document.getElementById("upgrade").disabled=false}catch(e){status.textContent=e.message}finally{button.disabled=false}};
 document.getElementById("upgrade").onclick=async()=>{const btn=document.getElementById("upgrade");btn.disabled=true;status.textContent="Importing higher-resolution originals privately…";try{const {data,error}=await sb.functions.invoke("admin-upgrade-suzuki-photos",{body:{}});if(error||data?.error)throw Error(data?.error||error.message);status.textContent="Imported "+data.photos.length+" photos. "+data.photos.map(p=>"Photo "+p.photo+": "+p.width+" × "+p.height).join(" · ")+". All still awaiting Admin review.";}catch(e){status.textContent="Import failed: "+e.message}finally{btn.disabled=false}};
-(async()=>{const {data}=await sb.auth.getSession();if(!data?.session){location.replace("/admin-login.html?return="+encodeURIComponent(location.pathname));return}})();
+const batchReason={
+ model_engine_conflict:"Model and engine size conflict",dealer_connection_missing:"Dealer connection missing",
+ stock_record_missing:"Stock record missing",feed_identity_changed:"Feed model identity changed",
+ catalogue_match_missing:"Model match missing",verified_model_page_missing:"Published model page missing",
+ model_category_missing:"Model category missing",price_missing:"Price missing",
+ stock_withdrawn:"Stock withdrawn",registration_missing:"Registration missing",
+ duplicate_feed_registration:"Duplicate registration in feed",
+ registration_already_linked_or_requires_review:"Registration already exists and needs review",
+ stock_link_missing:"Stock link missing",dealer_stock_link_conflict:"Dealer stock link conflicts",
+ stock_not_available:"Bike unavailable or held",retail_release_disabled:"Retail release disabled",
+ awaiting_accepted_snapshot:"Waiting for an accepted snapshot",awaiting_public_projection:"Waiting for publication"
+};
+const photoStatus={waiting:"Queued",processing:"Processing",failed:"Needs review",not_queued:"Not queued"};
+const ukDate=new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",dateStyle:"medium",timeStyle:"short"});
+const formatBatchDate=value=>{const date=new Date(value);return value&&!Number.isNaN(date.valueOf())?ukDate.format(date):""};
+function renderBatchList(id,items,describe,empty){
+ const list=document.getElementById(id);
+ list.replaceChildren(...(items.length?items.map(describe):[empty]).map(text=>{
+  const item=document.createElement("li");item.textContent=text;return item;
+ }));
+}
+async function loadDealerWebsBatch(){
+ const button=document.getElementById("refreshBatch"),summary=document.getElementById("batchSummary");
+ button.disabled=true;
+ summary.textContent="Loading stock review…";
+ try{
+  const {data,error}=await sb.rpc("admin_dealerwebs_batch_status_v1");
+  if(error||!data)throw Error("Batch status unavailable");
+  const timestamp=formatBatchDate(data.last_changed_snapshot);
+  summary.textContent=data.live_count+" live bikes · "+data.placeholder_count+" using a placeholder"+
+   (timestamp?" · Last changed snapshot "+timestamp+" UK":"");
+  renderBatchList("batchExceptions",data.review||[],row=>
+   [row.dealer_name,[row.make,row.model].filter(Boolean).join(" "),batchReason[row.review_reason]||"Needs review"].filter(Boolean).join(" · "),
+   "No stock exceptions.");
+  renderBatchList("batchPhotos",data.photos||[],row=>{
+   const retry=formatBatchDate(row.retry_at);
+   return [row.make+" "+row.model,photoStatus[row.photo_status]||"Needs review",retry?"Retry "+retry+" UK":""].filter(Boolean).join(" · ");
+  },"No placeholder photos.");
+ }catch{
+  summary.textContent="DealerWebs stock review is unavailable. Try Refresh.";
+ }finally{button.disabled=false}
+}
+document.getElementById("refreshBatch").addEventListener("click",loadDealerWebsBatch);
+(async()=>{
+ const {data}=await sb.auth.getSession();
+ if(!data?.session){location.replace("/admin-login.html?return="+encodeURIComponent(location.pathname));return;}
+ const {data:allowed}=await sb.rpc("anybike_is_admin");
+ if(allowed!==true)return;
+ document.getElementById("dealerwebsBatch").hidden=false;
+ await loadDealerWebsBatch();
+})();
 </script></body></html>
