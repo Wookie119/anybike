@@ -106,7 +106,7 @@ async function mount(){
    for(const row of (Array.isArray(manifest.models)?manifest.models:[])){
     if(normalize(row.make)===normalize(make)&&typeof row.url==='string'&&
        row.url.startsWith('/models/')&&row.url.endsWith('.html')&&row.url.split('/').length===4)
-     {permanentRoutes.set(normalize(row.model),row.url);permanentNames.push(row.model);}
+     {if(!permanentRoutes.has(normalize(row.model))||[1,204].includes(Number(row.model_id)))permanentRoutes.set(normalize(row.model),row.url);if(![2,508].includes(Number(row.model_id)))permanentNames.push(row.model);}
    }
   }
  }catch(error){console.warn('Permanent model routes unavailable; keeping existing guide links',error)}
@@ -172,7 +172,7 @@ async function mount(){
  }
  // The public catalogue is the reviewed directory. Existing verified BMW
  // and Harley guide routes may also appear even before a catalogue refresh.
- const models=[...new Map([...publicModels.map(x=>x.model),...databaseModels.map(x=>x.model),...routes.map(x=>x.model),...permanentNames]
+ const models=[...new Map([...publicModels.filter(x=>![2,508].includes(Number(x.model_id))).map(x=>x.model),...databaseModels.map(x=>x.model),...routes.map(x=>x.model),...permanentNames]
   .filter(Boolean).map(name=>[normalize(name),name])).values()]
   .sort((a,b)=>a.localeCompare(b,'en',{numeric:true}));
  if(!models.length)return;
