@@ -46,7 +46,7 @@ async function mount(){
   if(response.ok){
    const data=await response.json();
    if(Array.isArray(data)&&data.length&&data.every(x=>typeof x==='string'&&x.trim()&&x.length<=80))
-    makes=[...new Map(data.map(x=>[normalize(x),x])).values()].sort((a,b)=>a.localeCompare(b,'en'));
+    makes=[...new Map([...makes,...data].map(x=>[normalize(x),x])).values()].sort((a,b)=>a.localeCompare(b,'en'));
   }
  }catch(error){console.warn('Canonical manufacturer directory unavailable; using reviewed public catalogue',error)}
 
@@ -142,18 +142,29 @@ async function mount(){
    const h=document.createElement('h3');h.textContent=category+' — additional models';head.append(h);
    const grid=document.createElement('div');grid.className='modelgrid';
    for(const entry of entries.sort((a,b)=>a.name.localeCompare(b.name,'en',{numeric:true}))){
-    const card=document.createElement('div');card.className='model model--text-only';
+    const card=document.createElement('div');card.className='model';
     const a=document.createElement('a');a.className='model-main';a.href=entry.url;
     const name=document.createElement('span');name.className='name';name.textContent=make+' '+entry.name;
     const hint=document.createElement('span');hint.className='hint';hint.textContent=category;
     const go=document.createElement('span');go.className='go';go.textContent='Explore model guide →';
-    const photo=document.createElement('span');photo.className='bmw-photo';
+    const photo=document.createElement('span');photo.className=make==='BMW'?'bmw-photo':'harley-photo';
     const img=document.createElement('img');img.src='/anybike-image-coming-soon.png';img.alt='AnyBike';img.loading='lazy';img.decoding='async';img.width=560;img.height=315;img.style.cssText='width:100%;aspect-ratio:16/9;object-fit:cover;display:block';photo.append(img);
-    a.append(name,hint,go);card.classList.remove('model--text-only');card.append(photo,a);grid.append(card);
+    a.append(name,hint,go);card.append(photo,a);grid.append(card);
    }
    sec.append(head,grid);extension.append(sec);
   }
   host.append(extension);
+  const categoryNav=document.querySelector('#models .navtags:not(.bmw-shortcuts):not([data-complete-catalogue-navigation])');
+  if(categoryNav){
+   categoryNav.querySelectorAll('[data-added-category]').forEach(node=>node.remove());
+   for(const [category] of groups){
+    const link=document.createElement('a');
+    link.href='#complete-category-'+normalize(category);
+    link.textContent=category+' — additional models';
+    link.dataset.addedCategory='1';
+    categoryNav.append(link);
+   }
+  }
  }
  if(isBrand&&['BMW','Harley-Davidson'].includes(make)){
   extendDedicatedLibrary();
