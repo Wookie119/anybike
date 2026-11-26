@@ -24,7 +24,8 @@ for(const token of [
  'nav.remove();return;',
  'const buyerActions=main.querySelector',
  "nav.dataset.completeCatalogueNavigation='1'",
- "const byModel=new Map(routes.map(x=>[normalize(x.model),x.url]))"
+ "const byModel=new Map(permanentRoutes)",
+ "if(!byModel.has(identity))byModel.set(identity,route.url)"
 ])assert(nav.includes(token),'Approved page navigation integration changed: '+token);
 assert(!nav.includes('if(!chosen.length){panel.remove();return;}'),'Shared navigation must never delete approved related-model sections');
 assert(nav.includes('if(!chosen.length)return;'),'Missing related metadata must preserve the approved editorial panel');
