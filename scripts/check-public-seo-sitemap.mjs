@@ -35,6 +35,9 @@ for(const url of locs){
  }
  if(!/<h1\b/i.test(html))issues.push('Missing H1: '+pathname);
 }
+const modelSitemap=fs.readFileSync('sitemap-motorcycle-models.xml','utf8');
+const modelLocs=[...modelSitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>m[1]);
+const discoverable=new Set([...locs,...modelLocs]);
 // Check that model guides linked from the approved BMW and Harley manufacturer pages are discoverable.
 for(const parent of ['bmw-motorcycles.html','harley-davidson-motorcycles.html']){
  const html=fs.readFileSync(parent,'utf8');
@@ -43,11 +46,13 @@ for(const parent of ['bmw-motorcycles.html','harley-davidson-motorcycles.html'])
   if(model===parent||!fs.existsSync(model))continue;
   const body=fs.readFileSync(model,'utf8');
   if(/<meta\b[^>]*content=["'][^"']*noindex/i.test(body))continue;
-  if(!locs.includes(host+model))issues.push('Published model linked from '+parent+' missing sitemap: '+model);
+  const canonical=body.match(/<link\b[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']+)["']/i)?.[1];
+  const aliasTarget=canonical?.startsWith(host+'models/')?canonical:null;
+  if(!discoverable.has(host+model)&&!(aliasTarget&&discoverable.has(aliasTarget)))issues.push('Published model linked from '+parent+' missing sitemap: '+model);
  }
 }
-for(const prefix of ['bmw-','harley-davidson-']){
- const matching=locs.filter(x=>x.startsWith(host+prefix));
+for(const prefix of ['bmw','harley-davidson']){
+ const matching=[...discoverable].filter(x=>x.startsWith(host+'models/'+prefix+'/'));
  if(matching.length<15)issues.push('Unexpectedly few '+prefix+' model guides in sitemap: '+matching.length);
 }
 if(issues.length){issues.forEach(x=>console.error('FAIL '+x));process.exitCode=1}
