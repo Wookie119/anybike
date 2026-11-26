@@ -735,8 +735,9 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const header=document.querySelector('main > .hero'),stock=$('internationalModelStock');
   if(header&&stock)header.after(stock);
   const stockTitle=stock.querySelector('h2'),stockIntro=stock.querySelector('p');
-  stockTitle.textContent=title+' motorcycles available internationally';
-  stockIntro.textContent='Only confirmed, published motorcycles matching this exact model are displayed. Ask AnyBike to source other years or specifications.';
+  stockTitle.textContent=title+' for sale';
+  stockIntro.textContent='';
+  stockIntro.hidden=true;
   const cards=$('internationalModelCards');
   cards.replaceChildren(node('p','Checking permitted exact-model stock…'));
   stock.dataset.stockFeedState='checking';
