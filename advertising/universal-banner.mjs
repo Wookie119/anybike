@@ -34,9 +34,15 @@ function ensureAdvertHoverStyles(){
  if(document.getElementById('anybike-ad-hover-outline'))return;
  const style=node('style');style.id='anybike-ad-hover-outline';
  style.textContent=[
-  'a.anybike-managed-ad-link{position:relative!important;}',
+  'a.anybike-managed-ad-link{position:relative!important;padding:0!important;overflow:hidden!important;}',
+  'a.anybike-managed-ad-link>picture{padding:0!important;margin:0!important;border:0!important;border-radius:0!important;}',
+  'a.anybike-managed-ad-link>img,a.anybike-managed-ad-link>picture>img{display:block!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;}',
+  '.anybike-published-multi-layout a.anybike-managed-ad-link{aspect-ratio:var(--anybike-ad-ratio);height:auto!important;border:0!important;}',
+  '.anybike-published-multi-layout a.anybike-managed-ad-link>img{position:absolute!important;inset:0;width:100%!important;height:100%!important;max-height:none!important;object-fit:fill!important;}',
   '.anybike-move-house-banner>a,.anybike-move-house-banner picture,.anybike-move-house-banner img,.anybike-published-multi-layout a,.anybike-published-multi-layout img{width:100%!important;max-width:100%!important;height:auto!important;min-width:0!important;box-sizing:border-box!important}',
   '.anybike-move-house-banner img,.anybike-published-multi-layout img{display:block!important;object-fit:contain!important;aspect-ratio:auto!important}',
+  '#stockGrid :is(.anybike-move-stock-ad,.anybike-multi-stock-ad)>a.anybike-managed-ad-link{display:block!important;width:100%!important;max-width:none!important;margin:0!important;border:0!important;box-sizing:border-box!important;}',
+  '#stockGrid :is(.anybike-move-stock-ad,.anybike-multi-stock-ad)>a.anybike-managed-ad-link :is(picture,img){position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;aspect-ratio:auto!important;object-fit:fill!important;}',
   'a.anybike-managed-ad-link::after{content:"";position:absolute;inset:0;border:2px solid #ed1c24;border-radius:inherit;box-sizing:border-box;pointer-events:none;opacity:0;transition:opacity .16s ease;z-index:5}',
   '@media(hover:hover){a.anybike-managed-ad-link:hover::after{opacity:1}}',
   'a.anybike-managed-ad-link:focus-visible::after{opacity:1}'
@@ -75,25 +81,6 @@ function buildMoveHouseCard(ad,companion=false){
  img.loading='lazy';img.decoding='async';img.style.cssText=stock
   ?'display:block;position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:fill;object-position:center;border-radius:0'
   :'display:block;width:100%;height:auto;max-width:100%;aspect-ratio:auto;object-fit:contain;border-radius:0';
- if(stock){
-  // The entire approved stock creative must fill the measured image slot.
-  // Some page styles force the <img> to retain its intrinsic 4:3 shape,
-  // leaving bands even when object-fit:fill is set. Once it has loaded,
-  // paint the SAME artwork directly onto the exact-size link surface.
-  // background-size:100% 100% preserves every word and logo (no crop).
-  const fillFromLoadedImage=()=>{
-   const src=https(img.currentSrc||img.src);
-   if(!src)return;
-   picture.style.setProperty('background','transparent','important');
-   link.style.setProperty('background-image','url('+JSON.stringify(src)+')','important');
-   link.style.setProperty('background-size','100% 100%','important');
-   link.style.setProperty('background-position','center','important');
-   link.style.setProperty('background-repeat','no-repeat','important');
-   img.style.setProperty('opacity','0','important');
-  };
-  img.addEventListener('load',fillFromLoadedImage);
-  if(img.complete&&img.naturalWidth>0)fillFromLoadedImage();
- }
  picture.append(source,img);link.append(picture);card.append(link);
  const disclosure=node('small',advertDisclosure(ad));
  disclosure.dataset.anybikeAdDisclosure='1';
@@ -609,14 +596,14 @@ function ensureAdaptivePublishedSlot(layout){
 
 // Stock advertising is a reusable card template. One to four distinct adverts
 // are distributed among the motorcycle results instead of forming a wide strip.
-function installStockPublishedLayout(layout){
+function installStockPublishedLayout(layout,preview=false){
  const grid=document.getElementById('stockGrid');
  if(!grid||location.pathname.toLowerCase()!=='/available-stock.html')return false;
  if(grid.__anybikePublishedStockLayout)return true;
  if(layout.some(ad=>ad.placement_key!=='stock_grid'||!['square','stock_card'].includes(ad.format)||!https(ad.image_url)||!https(ad.destination_url)||!ad.token))return false;
  ensureAdvertHoverStyles();
  const style=node('style');style.id='anybike-stock-multi-ad-css';
- style.textContent='.anybike-multi-stock-ad{position:relative;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important;align-self:start!important}.anybike-multi-stock-ad>a{display:block;position:relative;width:100%;min-width:0;overflow:hidden;border-radius:12px;background:#101010;clip-path:inset(0 round 12px)}.anybike-multi-stock-ad img{display:block;width:100%;height:100%;object-fit:contain;border-radius:12px}.anybike-multi-stock-ad small{position:absolute;top:100%;left:0;right:0;text-align:center;color:#aaa;font:11px/1.3 Arial,sans-serif;padding-top:3px}.anybike-multi-stock-ad a:hover{outline:2px solid #ed1c24;outline-offset:2px}';
+ style.textContent='.anybike-multi-stock-ad{position:relative;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important;align-self:start!important}.anybike-multi-stock-ad>a{display:block;position:relative;width:100%;min-width:0;overflow:hidden;border-radius:12px;background:#101010;clip-path:inset(0 round 12px)}.anybike-multi-stock-ad img{display:block;width:100%;height:100%;object-fit:fill}.anybike-multi-stock-ad small{position:absolute;top:100%;left:0;right:0;text-align:center;color:#aaa;font:11px/1.3 Arial,sans-serif;padding-top:3px}.anybike-multi-stock-ad a:hover{outline:2px solid #ed1c24;outline-offset:2px}';
  if(!document.getElementById(style.id))document.head.append(style);
  const cards=layout.map((ad,i)=>{
   const article=node('article'),link=node('a'),img=node('img'),caption=node('small');
@@ -655,7 +642,7 @@ function installStockPublishedLayout(layout){
     card.style.setProperty('height',bikeHeight+'px','important');
     card.style.setProperty('min-height',bikeHeight+'px','important');
     const link=card.querySelector(':scope > a');
-    if(link)link.style.height=bikeHeight+'px';
+    if(link)link.style.setProperty('height',bikeHeight+'px','important');
    }
    grid.style.setProperty('row-gap','24px');
   }
@@ -670,7 +657,7 @@ function installStockPublishedLayout(layout){
 function installPublishedLayout(layout,pagePath,preview=false){
  const stockPreview=preview===true&&pagePath==='/international-vq-motorcycle.html'&&location.pathname===pagePath&&new URLSearchParams(location.search).get('preview')==='dealerwebs'&&layout?.every(ad=>ad.slot_code==='AB-UK-STOCK-FOOTER');
  if(!Array.isArray(layout)||!layout.length||layout.length>4||(!stockPreview&&!isPublicUkCustomerPage()))return false;
- if(layout[0]?.placement_key==='stock_grid')return installStockPublishedLayout(layout);
+ if(layout[0]?.placement_key==='stock_grid')return installStockPublishedLayout(layout,preview);
  const candidate=ensureAdaptivePublishedSlot(layout);
  if(!candidate||candidate.childElementCount)return false;
  const permitted=new Set(["square","slim","stock_card","landscape","portrait"]);
@@ -691,7 +678,7 @@ function installPublishedLayout(layout,pagePath,preview=false){
   link.setAttribute('aria-label',String(ad.partner_name||'Advertiser')+' — visit website');
   img.src=https(ad.image_url);img.alt=typeof ad.alt_text==='string'?ad.alt_text:'';img.loading='lazy';img.decoding='async';
   const ratios={square:'1 / 1',slim:'3 / 1',stock_card:'4 / 3',landscape:'16 / 9',portrait:'4 / 5'};
-  img.style.aspectRatio=ratios[ad.format]||'auto';
+  link.style.setProperty('--anybike-ad-ratio',ratios[ad.format]);
   img.onerror=()=>{card.remove()};
   link.append(img);caption.textContent='Advertisement';card.append(link,caption);host.append(card);
   let seen=false,clicked=false;
@@ -749,6 +736,7 @@ export async function renderListingAdvertising(root,context){
  const audience=path==="/trade-opportunities.html"?"trade_dealer":path==="/international-vq-motorcycle.html"&&context.audience==="retail_public"?"retail_public":context.audience==="retail_private"?"retail_private":null;
  if(!audience)return;
  if(slots.some(slot=>!slot))return;
+ ensureAdvertHoverStyles();
  try{
   const payload=await send({action:"select_listing",page_path:path,country:context.country,audience,manufacturer:String(context.manufacturer||"").slice(0,80),model:String(context.model||"").slice(0,120)});
   if(!root.isConnected||root.__listingAdRequest!==request)return;
