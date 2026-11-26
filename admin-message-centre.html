@@ -551,6 +551,29 @@ function typeMatches(t,filter){return niceType(t.source_type).toLowerCase()===St
 function setFilter(filter,btn){activeFilter=filter;selectedIds.clear();document.querySelectorAll(".filters button").forEach(b=>b.classList.remove("active"));if(btn)btn.classList.add("active");renderThreads()}
 function getVisibleThreads(){const search=(document.getElementById("searchInput").value||"").toLowerCase();let rows=allThreads.slice();if(activeFilter==="all"){rows=rows.filter(t=>t.status!=="Archived"&&t.status!=="Deleted")}else if(activeFilter==="Archived"||activeFilter==="Deleted"){rows=rows.filter(t=>t.status===activeFilter)}else if(activeFilter==="Finance"||activeFilter==="Operations"){rows=rows.filter(t=>String(t.department||"").toLowerCase().includes(activeFilter.toLowerCase()));rows=rows.filter(t=>t.status!=="Deleted")}else{rows=rows.filter(t=>t.status===activeFilter||typeMatches(t,activeFilter));rows=rows.filter(t=>t.status!=="Deleted")}if(search){rows=rows.filter(t=>[t.customer_name,t.customer_email,t.customer_phone,t.country,t.department,t.subject,t.last_message,t.bike_make,t.bike_model,t.bike_year].join(" ").toLowerCase().includes(search))}return rows}
 function updateStats(){const active=allThreads.filter(t=>t.status!=="Deleted"&&t.status!=="Archived");document.getElementById("totalCount").textContent=active.length;document.getElementById("newCount").textContent=active.filter(t=>t.status==="New").length;document.getElementById("replyCount").textContent=active.filter(t=>t.status==="Needs Reply").length;document.getElementById("buyingCount").textContent=active.filter(t=>String(t.department||"").toLowerCase().includes("buying")||niceType(t.source_type)==="Sell Your Bike").length}
+async function renderUnclaimedStockEnquiries(list){
+  document.getElementById("unclaimedStockEnquiries")?.remove();
+  const {data,error}=await sb.rpc("admin_unclaimed_trade_feed_enquiries_v1");
+  if(error || !data?.length)return;
+  document.getElementById("unclaimedStockEnquiries")?.remove();
+  const panel=document.createElement("details");
+  panel.id="unclaimedStockEnquiries";
+  const summary=document.createElement("summary");
+  summary.textContent="Unclaimed dealership stock enquiries ("+data.length+(data.length===100?"+":"")+")";
+  panel.append(summary);
+  const links=document.createElement("ul");
+  for(const enquiry of data){
+    const row=document.createElement("li");
+    const link=document.createElement("a");
+    link.href="/admin-message-centre.html?thread="+encodeURIComponent(enquiry.thread_id);
+    link.textContent=(enquiry.dealership||"Dealership")+" · "+(enquiry.subject||"Stock enquiry");
+    row.append(link);
+    links.append(row);
+  }
+  panel.append(links);
+  list.before(panel);
+}
+
 async function loadThreads(){
   const list=document.getElementById("threadList");
   list.innerHTML='<div class="empty">Loading messages...</div>';
@@ -567,6 +590,8 @@ async function loadThreads(){
   }
 
   allThreads=data||[];
+  void renderUnclaimedStockEnquiries(list);
+
   enquiryDealLinkMap=new Map();
   dealLinkByIdMap=new Map();
   directDealByIdMap=new Map();
