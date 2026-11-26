@@ -110,6 +110,60 @@ async function mount(){
    }
   }
  }catch(error){console.warn('Permanent model routes unavailable; keeping existing guide links',error)}
+
+ // Extend dedicated manufacturer libraries without replacing licensed photos,
+ // editorial descriptions or existing family sections.
+ function extendDedicatedLibrary(){
+  if(!isBrand||!['BMW','Harley-Davidson'].includes(make))return;
+  const host=document.getElementById('modelFamilies');
+  if(!host)return;
+  host.querySelector('[data-complete-category-extension]')?.remove();
+  const existing=new Set();
+  for(const a of host.querySelectorAll('.model-main')){
+   const label=a.querySelector('.name')?.textContent?.trim()||'';
+   const name=label.startsWith(make+' ')?label.slice(make.length+1):label;
+   const url=permanentRoutes.get(normalize(name));
+   if(url){existing.add(normalize(name));a.href=url;}
+  }
+  const groups=new Map();
+  for(const row of publicModels){
+   const id=normalize(row.model),url=permanentRoutes.get(id);
+   if(!url||existing.has(id)||!row.category||row.category==='Other')continue;
+   existing.add(id);
+   if(!groups.has(row.category))groups.set(row.category,[]);
+   groups.get(row.category).push({name:row.model,url});
+  }
+  if(!groups.size)return;
+  const extension=document.createElement('div');
+  extension.dataset.completeCategoryExtension='1';
+  for(const [category,entries] of [...groups].sort((a,b)=>a[0].localeCompare(b[0]))){
+   const sec=document.createElement('section');sec.className='section';
+   sec.id='complete-category-'+normalize(category);
+   const head=document.createElement('div');head.className='sectionhead';
+   const h=document.createElement('h3');h.textContent=category+' — additional models';head.append(h);
+   const grid=document.createElement('div');grid.className='modelgrid';
+   for(const entry of entries.sort((a,b)=>a.name.localeCompare(b.name,'en',{numeric:true}))){
+    const card=document.createElement('div');card.className='model model--text-only';
+    const a=document.createElement('a');a.className='model-main';a.href=entry.url;
+    const name=document.createElement('span');name.className='name';name.textContent=make+' '+entry.name;
+    const hint=document.createElement('span');hint.className='hint';hint.textContent=category;
+    const go=document.createElement('span');go.className='go';go.textContent='Explore model guide →';
+    a.append(name,hint,go);card.append(a);grid.append(card);
+   }
+   sec.append(head,grid);extension.append(sec);
+  }
+  host.append(extension);
+ }
+ if(isBrand&&['BMW','Harley-Davidson'].includes(make)){
+  extendDedicatedLibrary();
+  const host=document.getElementById('modelFamilies');
+  if(host){
+   const observer=new MutationObserver(()=>{
+    if(!host.querySelector('[data-complete-category-extension]'))extendDedicatedLibrary();
+   });
+   observer.observe(host,{childList:true});
+  }
+ }
  const byModel=new Map(permanentRoutes);
  for(const route of routes){
   const identity=normalize(route.model);
