@@ -16,7 +16,7 @@ export function renderManufacturerStock(root,make,items){
  const rows=manufacturerStock(items,make);
  if(!root||!rows.length||document.querySelector('[data-manufacturer-live-stock]'))return 0;
  const section=node('section');section.dataset.manufacturerLiveStock='1';section.className='section';
- section.style.cssText='margin:24px 0;padding:18px;background:#151515;color:#fff;border:1px solid #444;border-left:3px solid '+(brandKey(make)==='harleydavidson'?'#f58220':'#ed1c24')+';border-radius:12px';
+ section.style.cssText='margin:24px 0;padding:18px;background:#151515;color:#fff;border:1px solid #444;border-left:3px solid '+(rows.find(row=>/^#[0-9a-f]{6}$/i.test(row.accent_hex||''))?.accent_hex||(brandKey(make)==='harleydavidson'?'#FF6600':'#ED1C24'))+';border-radius:12px';
  const header=node('div');header.style.cssText='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px';
  const title=node('h2',make+' motorcycles for sale');title.style.margin='0';
  const all=node('a','View all '+rows.length+' motorcycles →');all.href=liveStockLink(rows[0].make);all.style.cssText='color:#fff;text-decoration:underline;font-weight:700';
@@ -56,7 +56,18 @@ export async function mountManufacturerStock(){
   nav.append(archive);root.before(nav);
  }
  try{
-  const response=await fetch('https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/international-public-stock',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+  let token;
+  try{
+   const client=globalThis.supabase?.createClient?.(
+    'https://tuehtnezhdnkqbbhttgp.supabase.co',
+    'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
+   token=(await client?.auth.getSession())?.data?.session?.access_token;
+  }catch(error){console.warn('Optional stock session unavailable',error);}
+  const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/international-public-stock';
+  const response=await fetch(endpoint+(token?'?scope=uk':''),{
+   cache:'no-store',signal:AbortSignal.timeout(15000),
+   headers:token?{Authorization:'Bearer '+token}:{}
+  });
   if(!response.ok)return;
   const data=await response.json();renderManufacturerStock(root,make,data.items);
  }catch(error){console.warn('Manufacturer stock temporarily unavailable',error);}
