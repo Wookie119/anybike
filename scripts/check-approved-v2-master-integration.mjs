@@ -35,13 +35,14 @@ assert(renderer.includes("'@type':'Motorcycle'")&&!renderer.includes("'@type':'P
 assert(renderer.includes("meta[property=\"og:image\"]")&&
  renderer.includes("if(fig&&safePhoto(approvedHero))"),
  'Social imagery must use the exact model rights-approved photograph');
-const robots=read('robots.txt'),sitemap=read('sitemap.xml');
+const robots=read('robots.txt'),sitemap=read('sitemap.xml'),modelSitemap=read('sitemap-motorcycle-models.xml');
 assert(robots.includes('Allow: /')&&
- robots.includes('Sitemap: https://www.anybike.co.uk/sitemap.xml'),
+ robots.includes('Sitemap: https://www.anybike.co.uk/sitemap.xml')&&
+ robots.includes('Sitemap: https://www.anybike.co.uk/sitemap-motorcycle-models.xml'),
  'Google must be allowed to crawl indexed model guides');
-assert(sitemap.includes('https://www.anybike.co.uk/models/yamaha/mt-09.html')&&
- sitemap.includes('https://www.anybike.co.uk/bmw-r1300gs.html')&&
- !sitemap.includes('motorcycle-model-guide.html?make='),
+assert(modelSitemap.includes('https://www.anybike.co.uk/models/yamaha/mt-09.html')&&
+ modelSitemap.includes('https://www.anybike.co.uk/models/bmw/r-1300-gs.html')&&
+ ![sitemap,modelSitemap].some(xml=>xml.includes('motorcycle-model-guide.html?make=')),
  'The sitemap must publish permanent canonical model URLs, not duplicate query routes');
 assert(!html.includes('Suzuki RM250')&&!html.includes('BMW R 1300 GS'),
  'Master HTML must never contain model-specific example copy');
