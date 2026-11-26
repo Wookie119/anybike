@@ -16,9 +16,11 @@ export function canonicalStockMatches(item, page) {
   // When both labels are supplied, require exact normalized model identity;
   // missing labels may be legitimate for old feeds and are not used to infer IDs.
   const normalize = value => String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const modelLabel = item.publication_scope === 'uk_retail' && item.catalogue_model_name
+    ? item.catalogue_model_name : item.model;
   if (typeof page.model_name === 'string' && page.model_name.trim() &&
-      typeof item.model === 'string' && item.model.trim() &&
-      normalize(page.model_name) !== normalize(item.model)) return false;
+      typeof modelLabel === 'string' && modelLabel.trim() &&
+      normalize(page.model_name) !== normalize(modelLabel)) return false;
   if (typeof page.manufacturer_name === 'string' && page.manufacturer_name.trim() &&
       typeof item.make === 'string' && item.make.trim() &&
       normalize(page.manufacturer_name) !== normalize(item.make)) return false;
