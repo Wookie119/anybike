@@ -756,6 +756,18 @@ async function getGoogleServiceAccountToken(
 
 
 function readImageDimensions(bytes: Uint8Array): { width: number; height: number } | null {
+  if (bytes.length >= 30 && String.fromCharCode(...bytes.subarray(0, 4)) === "RIFF" &&
+      String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP") {
+    try {
+      let dimensions: { width: number; height: number } | null = null;
+      ImageMagick.read(bytes, (image) => {
+        dimensions = { width: image.width, height: image.height };
+      });
+      return dimensions;
+    } catch {
+      return null;
+    }
+  }
   if (bytes.length >= 24 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     return { width: view.getUint32(16, false), height: view.getUint32(20, false) };
