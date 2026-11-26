@@ -192,7 +192,7 @@ check('Shared enquiries and available stock remain available before research',()
  assert.match(renderer,/type:'model',id:canonicalId,restEndpoint:ENDPOINT,restKey:KEY/);
 });
 check('Verified-facts outages do not block exact-model stock or public enquiries',()=>{
- const factStart=renderer.indexOf('factCount=await installVerifiedModelFacts(');
+ const factStart=renderer.indexOf('factCount=await bounded(installVerifiedModelFacts(');
  const catchStart=renderer.indexOf("console.warn('Source-verified model research unavailable; continuing model page'");
  const stockStart=renderer.indexOf("fetch(ENDPOINT+'/functions/v1/international-public-stock'");
  assert(factStart>=0&&catchStart>factStart&&stockStart>catchStart);
