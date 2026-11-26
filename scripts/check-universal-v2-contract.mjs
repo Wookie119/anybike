@@ -156,7 +156,7 @@ check('Restricted public stock is exact-model, entitlement-verified and deduplic
  assert(!canonicalStockMatches({...item,model:'R 1250 GS'},page));
  assert.equal(stockForCanonicalModel([item,item,{...item,item_id:126}],page).length,2);
  assert.match(renderer,/res\.status===401\|\|res\.status===403/);
- assert.match(renderer,/stockForCanonicalModel\(data\.items,pageIdentity,6\)/);
+ assert.match(renderer,/stockForCanonicalModel\(data\.items,pageIdentity,Infinity\)/);
 });
 check('Guest enquiry is available before slow research, even without a visitor session',()=>{
  const form=renderer.indexOf("const form=$('internationalGuestRequestForm')");

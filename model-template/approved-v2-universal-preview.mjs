@@ -1412,17 +1412,35 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     // generations or trimmed catalogue aliases.
     const {stockForCanonicalModel}=await import('/model-template/canonical-public-stock-identity.mjs');
     const pageIdentity={catalog_model_id:canonicalId,manufacturer_name:make,model_name:model};
-    const matched=stockForCanonicalModel(data.items,pageIdentity,6);
-    for(const row of matched){
-     const key=String(row.item_id);
-     const a=node('a');a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(key);
-     if(validURL(row.image_url)){
-      const img=node('img');img.src=row.image_url;img.alt=title;img.loading='lazy';a.append(img);
-     }
-     a.append(node('strong',[title,row.year].filter(Boolean).join(' ')));
+    const matched=stockForCanonicalModel(data.items,pageIdentity,Infinity);
+    const visibleStockCount=6;
+    const appendCard=row=>{
+     const a=node('a');a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(String(row.item_id));
+     const placeholder='/anybike-image-coming-soon.png';
+     const img=node('img');img.src=validURL(row.image_url)?row.image_url:placeholder;
+     img.alt=validURL(row.image_url)?title:'Motorcycle photograph coming soon';
+     img.loading='lazy';
+     img.addEventListener('error',()=>{
+      img.src=placeholder;
+      img.alt='Motorcycle photograph coming soon';
+     },{once:true});
+     a.append(img,node('strong',[title,row.year].filter(Boolean).join(' ')));
      paragraph(a,Number(row.price)>0?'£'+Number(row.price).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}):'Price on request');
      a.append(node('span','View motorcycle →'));cards.append(a);
-     confirmedCount++;
+     return a;
+    };
+    matched.slice(0,visibleStockCount).forEach(appendCard);
+    confirmedCount=matched.length;
+    if(confirmedCount>visibleStockCount){
+     const showAll=node('button','Show all '+confirmedCount+' motorcycles','button secondary');
+     showAll.type='button';
+     showAll.setAttribute('aria-controls',cards.id);
+     showAll.addEventListener('click',()=>{
+      const extra=matched.slice(visibleStockCount).map(appendCard);
+      extra[0]?.focus();
+      showAll.remove();
+     },{once:true});
+     cards.after(showAll);
     }
    }
   }catch(e){feedState='unavailable';console.warn('Exact-model stock request failed; no substitute inventory displayed',e)}

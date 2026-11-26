@@ -43,7 +43,7 @@ for(const required of [
  'header.after(stock)',
  "res.status===401||res.status===403",
  "feedState='restricted'",
- 'stockForCanonicalModel(data.items,pageIdentity,6)',
+ 'stockForCanonicalModel(data.items,pageIdentity,Infinity)',
  "stock.dataset.stockFeedState=feedState"
 ]) assert(renderer.includes(required),'Exact-model stock runtime contract missing: '+required);
 assert(stockIdentity.includes("item.catalogue_identity_status !== 'verified'"),'Stock canonical identity verification missing');

@@ -59,7 +59,7 @@ const historyBridge=fs.readFileSync('model-template/approved-v2-dedicated-preser
 const r1250Archive=JSON.parse(fs.readFileSync('data/bmw-r1250gs-v2-preservation.json','utf8'));
 assert(r1250.includes('approved-v2-universal-preview.mjs'),'R1250 must use the actual universal V2 renderer');
 assert(r1250.indexOf('id="internationalModelStock"')<r1250.indexOf('id="generationPanel"'),'Stock must precede researched generations');
-assert(v2.includes('stockForCanonicalModel(data.items,pageIdentity,6)'),'Only verified exact catalogue model identity may produce stock');
+assert(v2.includes('stockForCanonicalModel(data.items,pageIdentity,Infinity)'),'Only verified exact catalogue model identity may produce stock');
 assert(v2.includes("res.status===401||res.status===403"),'Stock access policy must remain enforced');
 assert(v2.includes("feedState='restricted'"),'Restricted stock state must not show unauthorised motorcycles');
 assert(v2.includes('pendingStock.dataset.stockFeedState'), 'Temporary outages must not leave permanent loading');

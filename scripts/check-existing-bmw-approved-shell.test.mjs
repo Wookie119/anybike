@@ -99,7 +99,7 @@ test('dedicated BMW stock keeps authenticated ownership but displays above resea
  assert.ok(guide.includes('approved-v2-universal-preview.mjs')&&
   universal.includes('international-public-stock')&&
   universal.includes('res.status===401||res.status===403')&&
-  universal.includes('stockForCanonicalModel(data.items,pageIdentity,6)'),
+  universal.includes('stockForCanonicalModel(data.items,pageIdentity,Infinity)'),
   'Authenticated exact-model stock must remain protected by the V2 renderer');
  const css=fs.readFileSync('public-header.css','utf8');
  assert.ok(css.includes('#body [data-anybike-db-section="country_markets"]'),'Market layout is compact on model pages');

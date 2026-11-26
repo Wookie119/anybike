@@ -32,7 +32,7 @@ export function canonicalStockMatches(item, page) {
 }
 export function stockForCanonicalModel(items, page, limit = 6) {
   if (!Array.isArray(items)) return [];
-  const bounded = Number.isSafeInteger(limit) ? Math.max(0, Math.min(limit, 24)) : 6;
+  const bounded = limit === Infinity ? Infinity : Number.isSafeInteger(limit) ? Math.max(0, Math.min(limit, 24)) : 6;
   const seen = new Set();
   return items.filter(item => {
     if (!canonicalStockMatches(item, page)) return false;
