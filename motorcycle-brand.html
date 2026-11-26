@@ -567,7 +567,7 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
        const key=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
        for(const row of (Array.isArray(manifest.models)?manifest.models:[])){
          if(key(row.make)!==key(make)||!String(row.url||'').startsWith('/models/')||!String(row.url||'').endsWith('.html')||String(row.url).split('/').length!==4)continue;
-         permanentModelRoutes.set(key(row.model),row.url);
+         if(!permanentModelRoutes.has(key(row.model))||[1,204].includes(Number(row.model_id)))permanentModelRoutes.set(key(row.model),row.url);
        }
      }
    }catch(error){console.warn('Permanent model route lookup unavailable',error)}
@@ -587,6 +587,7 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
        for(const row of (Array.isArray(snapshot.models)?snapshot.models:[])){
          if(match(row.make)!==match(make)||!row.model)continue;
          const id=match(row.model);
+         if([2,508].includes(Number(row.model_id)))continue;
          byModel.set(id,{...byModel.get(id),...row,make:row.make,model:row.model});
        }
        data={...data,models:[...data.models.filter(x=>match(x.make)!==match(make)),...byModel.values()]};
@@ -698,11 +699,11 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
    ]);
    if(!catalogueResponse.ok||!routesResponse.ok)throw Error('Public catalogue unavailable');
    const catalogue=await catalogueResponse.json(),manifest=await routesResponse.json();
-   const routes=new Map((manifest.models||[]).filter(x=>key(x.make)===key(make)).map(x=>[key(x.model),x.url]));
+   const routes=new Map((manifest.models||[]).filter(x=>key(x.make)===key(make)).sort((a,b)=>Number([1,204].includes(Number(a.model_id)))-Number([1,204].includes(Number(b.model_id)))).map(x=>[key(x.model),x.url]));
    const approved=new Set(routes.keys());
    const groups=new Map();
    for(const row of (catalogue.models||[])){
-    if(key(row.make)!==key(make)||!approved.has(key(row.model)))continue;
+    if(key(row.make)!==key(make)||!approved.has(key(row.model))||[2,508].includes(Number(row.model_id)))continue;
     const category=String(row.category||'Other models').trim();
     if(!groups.has(category))groups.set(category,[]);
     if(!groups.get(category).some(x=>key(x)===key(row.model)))groups.get(category).push(row.model);
