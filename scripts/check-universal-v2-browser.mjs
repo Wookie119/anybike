@@ -269,7 +269,11 @@ try{
     assert.equal(await page.locator('#ukR1300ModelGallery article').count(),1,
      'Approved BMW model gallery must use the shared master slot');
     assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),origin+'/bmw-r1300gs.html');
-   }else assert.equal(await page.locator('#databaseHeroPhoto').isVisible(),false);
+   }else {
+    const hero=page.locator('#databaseHeroPhoto');
+    assert.equal(await hero.isVisible(),true,'Missing exact model photo must retain an honest hero fallback');
+    assert.match(await hero.getAttribute('data-anybike-hero-type'),/^(manufacturer-logo|anybike-placeholder)$/);
+   }
    if(make==='Suzuki'||make==='BMW'){
     const visible=page.locator('.anybike-v2-reviewed-universal-section');
     if(approvedResearch){

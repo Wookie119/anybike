@@ -20,7 +20,8 @@ for(const [make,model] of [['Honda','Africa Twin'],['Ducati','Panigale V4']])
  assert(modelRecords.some(g=>g.make===make&&g.model===model),make+' '+model+' guide data missing');
 assert(brand.includes('(make==="Honda"&&model==="Africa Twin CRF1100L")'),'Honda model routing missing');
 assert(brand.includes('(make==="Ducati"&&model==="Panigale V4")'),'Ducati model routing missing');
-assert(brand.includes('const href="/motorcycle-model-guide.html?make="'),'Model cards must use shared guide routing');
+assert.match(brand,/const href=permanentModelRoutes\.get\([^;]+\)\|\|"\/motorcycle-model-guide\.html\?make="/,
+ 'Model cards must prefer the permanent V2 route and retain a shared guide fallback');
 assert(brand.includes('const request="/bulk-buying-request.html?make="'),'Manufacturer sourcing must remain available');
 const seller=guide.indexOf('id="v2UkSelling"'),buyer=guide.indexOf('id="nextAction"');
 assert(seller>=0&&buyer>seller,'UK selling and international sourcing regions must survive');

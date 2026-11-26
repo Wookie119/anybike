@@ -159,12 +159,12 @@ check('Restricted public stock is exact-model, entitlement-verified and deduplic
  assert.match(renderer,/stockForCanonicalModel\(data\.items,pageIdentity,6\)/);
 });
 check('Guest enquiry is available before slow research, even without a visitor session',()=>{
- const form=renderer.indexOf("const form=$('internationalGuestRequestForm')");
+ const form=renderer.indexOf("form.addEventListener('submit'");
  const photos=renderer.indexOf("const publicMedia=async");
- const research=renderer.indexOf("await installVerifiedModelFacts");
+ const research=renderer.indexOf("await bounded(installVerifiedModelFacts(");
  assert(form>=0&&photos>form&&research>form,'Guest enquiry must initialize before model research and media');
  assert.match(renderer,/const optionalVisitorToken=async/);
- assert.match(renderer,/await client\?\.auth\?\.getSession\?\.\(\)/);
+ assert.match(renderer,/Promise\.resolve\(client\?\.auth\?\.getSession\?\.\(\)\)/);
  assert.match(renderer,/const reply=await res\.json\(\)\.catch\(\(\)=>null\)/);
 });
 check('Unexpected model failures do not leave stock permanently checking',()=>{
@@ -192,7 +192,7 @@ check('Shared enquiries and available stock remain available before research',()
  assert.match(renderer,/type:'model',id:canonicalId,restEndpoint:ENDPOINT,restKey:KEY/);
 });
 check('Verified-facts outages do not block exact-model stock or public enquiries',()=>{
- const factStart=renderer.indexOf('factCount=await installVerifiedModelFacts(');
+ const factStart=renderer.indexOf('factCount=await bounded(installVerifiedModelFacts(');
  const catchStart=renderer.indexOf("console.warn('Source-verified model research unavailable; continuing model page'");
  const stockStart=renderer.indexOf("fetch(ENDPOINT+'/functions/v1/international-public-stock'");
  assert(factStart>=0&&catchStart>factStart&&stockStart>catchStart);
