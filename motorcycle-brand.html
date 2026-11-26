@@ -556,7 +556,11 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
    if(!response.ok)throw Error("Catalogue unavailable");
    return response.json();
  };
- loadManufacturerCatalogue().then(async data=>{
+ loadManufacturerCatalogue().catch(async error=>{
+   const response=await fetch("/data/motorcycle-catalogue-master.json",{cache:"no-cache"});
+   if(!response.ok)throw error;
+   return response.json();
+ }).then(async data=>{
    // Partner-facing manufacturer cards must prefer the SAME permanent SEO
    // model URLs used by the universal V2 model navigation and sitemap.
    permanentModelRoutes.clear();
@@ -624,7 +628,7 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
    const modelGroups=document.getElementById("modelGroups");
    const categoryNav=document.getElementById("categoryNavigation");
    if(!modelGroups||!categoryNav)return;
-   const buildLink=(model)=>"/motorcycle-model-guide.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);
+   const buildLink=(model)=>permanentModelRoutes.get(String(model).toLowerCase().replace(/[^a-z0-9]/g,""))||"/motorcycle-model-guide.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);
    modelGroups.replaceChildren();categoryNav.replaceChildren();
    for(const [category,models] of entries){
      const section=document.createElement("section");
@@ -712,8 +716,8 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
    for(const row of (manifest.models||[])){
     if(key(row.make)!==key(make))continue;
     if([...groups.values()].some(names=>names.some(n=>key(n)===key(row.model))))continue;
-    if(!groups.has('Other models'))groups.set('Other models',[]);
-    groups.get('Other models').push(row.model);
+    // Uncategorised routes are not published as category cards until reviewed.
+    console.warn("Missing reviewed catalogue category",row.model_id);
    }
    if(!groups.size)throw Error('No published model routes');
    const cards=document.getElementById('categoryCards');
