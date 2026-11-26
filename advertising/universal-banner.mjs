@@ -274,6 +274,7 @@ function adoptLegacyMove(ad){
   // Auction grid has a dedicated portrait card; never replace it with the
   // generic landscape house banner or append a companion inside that card.
   if(location.pathname==='/trade-opportunities.html'&&link.closest('.move-trade-advert')){
+   if(!['www.movemotorcycles.co.uk','movemotorcycles.co.uk'].includes(new URL(destination).hostname))return;
    link.href=destination;link.rel='noopener sponsored';link.target='_blank';
    link.dataset.anybikeAdAuthorized='1';link.dataset.adCampaignId=ad.id;
    link.dataset.adSlotCode=templateAdSlotCode(ad);
@@ -787,5 +788,5 @@ export async function renderStockFooterPreview(root){
 // Re-authorize freshly rendered auction cards after asynchronous stock loading.
 export async function authorizeAuctionGridArtwork(root){
  if(location.pathname!=='/trade-opportunities.html'||!root?.isConnected)return;
- try{const {ad}=await send({action:'select_page',page_path:'/trade-opportunities.html',country:'GB'});if(!ad||ad.placement_key!=='existing_house'||!await validateAdvertArtwork(ad))return;const destination=https(ad.destination_url);if(!destination||new URL(destination).hostname.replace(/^www\\./,'')!=='movemotorcycles.co.uk')return;adoptLegacyMove({...ad,companion:null,paired_layout:false});}catch{/* advertising must not block auction listings */}
+ try{const {ad}=await send({action:'select_page',page_path:'/trade-opportunities.html',country:'GB'});if(!ad||ad.placement_key!=='existing_house'||!await validateAdvertArtwork(ad))return;const destination=https(ad.destination_url);if(!destination||!['www.movemotorcycles.co.uk','movemotorcycles.co.uk'].includes(new URL(destination).hostname))return;adoptLegacyMove({...ad,companion:null,paired_layout:false});}catch{/* advertising must not block auction listings */}
 }
