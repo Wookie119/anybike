@@ -558,8 +558,10 @@ export async function renderMoveHouseOnUkPage(options={}){
  try{
   const identity=route?JSON.parse(route.textContent||'null'):null;
   const id=Number(identity?.model_id);
-  request=Number.isSafeInteger(id)&&id>0?
-   {action:'select',model_id:id,country:'GB'}:
+  const modelId=Number(options.modelId);
+  request=Number.isSafeInteger(modelId)&&modelId>0?
+   {action:'select',model_id:modelId,market_targeting:true}:
+   Number.isSafeInteger(id)&&id>0?{action:'select',model_id:id,country:'GB'}:
    {action:'select_page',page_path:location.pathname==='/'?'/index.html':/^\/uk\/vmoto\.html$/i.test(location.pathname)?'/vmoto.html':location.pathname,country:'GB'};
  }catch{return;}
  try{
