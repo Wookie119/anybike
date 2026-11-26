@@ -277,6 +277,7 @@ function adoptLegacyMove(ad){
    link.href=destination;link.rel='noopener sponsored';link.target='_blank';
    link.dataset.anybikeAdAuthorized='1';link.dataset.adCampaignId=ad.id;
    link.dataset.adSlotCode=templateAdSlotCode(ad);
+   link.closest('.move-trade-advert').dataset.anybikeAdAuthorized='1';
    attachLegacyTracking(link,ad);
    return;
   }
@@ -781,4 +782,10 @@ export async function renderStockFooterPreview(root){
  if(location.pathname!=='/international-vq-motorcycle.html'||new URLSearchParams(location.search).get('preview')!=='dealerwebs'||!root?.classList.contains('dealer-preview'))return false;
  const slot=root.querySelector('[data-ad-slot="AB-UK-STOCK-FOOTER"]');if(!slot)return false;
  try{const {layout}=await send({action:'select_page',page_path:location.pathname,country:'GB'});if(!Array.isArray(layout)||!layout.length||!layout.every(ad=>ad.slot_code==='AB-UK-STOCK-FOOTER'))return false;return installPublishedLayout(layout,location.pathname,true);}catch{return false;}
+}
+
+// Re-authorize freshly rendered auction cards after asynchronous stock loading.
+export async function authorizeAuctionGridArtwork(root){
+ if(location.pathname!=='/trade-opportunities.html'||!root?.isConnected)return;
+ try{const {ad}=await send({action:'select_page',page_path:'/trade-opportunities.html',country:'GB'});if(!ad||ad.placement_key!=='existing_house'||!await validateAdvertArtwork(ad))return;const destination=https(ad.destination_url);if(!destination||new URL(destination).hostname.replace(/^www\\./,'')!=='movemotorcycles.co.uk')return;adoptLegacyMove({...ad,companion:null,paired_layout:false});}catch{/* advertising must not block auction listings */}
 }
