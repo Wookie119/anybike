@@ -1396,7 +1396,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   let feedState='unavailable',confirmedCount=0;
   try{
    const token=await optionalVisitorToken();
-   const res=await fetch(ENDPOINT+'/functions/v1/international-public-stock',
+   const res=await fetch(ENDPOINT+'/functions/v1/international-public-stock'+(token?'?scope=uk':''),
     {cache:'no-store',signal:AbortSignal.timeout(11000),headers:token?{Authorization:'Bearer '+token}:{}});
    if(res.status===401||res.status===403){
     feedState='restricted';
@@ -1435,12 +1435,8 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
    note.className='anybike-stock-status';cards.append(note);
   }
   stock.dataset.stockFeedState=feedState;
-  // UK view: keep the actual model research and sourcing CTAs, without
-  // an inappropriate "available internationally / access restricted" card.
-  // International view: retain stock, VAT-eligible inventory and the
-  // existing access state exactly as the stock service returned it.
   const confirmedUkVisitor=await ukPresentationPromise;
-  stock.hidden=confirmedUkVisitor;
+  stock.hidden=confirmedUkVisitor && !confirmedCount;
   // Keep the same functioning model enquiry form for all audiences, but do
   // not label a UK dealer's form as an international-buyer-only service.
   const enquiryAudienceIntro=$('internationalGuestRequest')?.querySelector('p');
