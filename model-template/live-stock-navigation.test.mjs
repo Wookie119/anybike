@@ -53,7 +53,8 @@ test('universal, BMW approved galleries and shared model guide use the same live
  const r1250=fs.readFileSync('bmw-r1250gs.html','utf8');
  const details=fs.readFileSync('international-vq-motorcycle.html','utf8');
  assert.match(details,/id="motorcycleDetailLiveBrowse"[^>]*hidden/,'Individual motorcycle detail must initially hide live-stock nav');
- assert.match(details,/renderLiveStockBrowse\(document\.getElementById\('motorcycleDetailLiveBrowse'\),catalog\.items/,'Detail page must reuse one buyer-safe stock response');
+ assert.match(details,/const browse=document\.getElementById\('motorcycleDetailLiveBrowse'\)/);
+ assert.match(details,/renderLiveStockBrowse\(browse,catalog\.items/,'Detail page must reuse one buyer-safe stock response');
  assert.match(details,/currentMake:publicBike\.make/,'Detail page must expand current manufacturer');
  assert.match(details,/\/public-header\.css\?v=20261107-live-stock-browse/);
  const shared=fs.readFileSync('public-header.js','utf8');
