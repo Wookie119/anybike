@@ -1,3 +1,4 @@
+import {brandMark,getStyle} from './riding-style.mjs';
 const api = 'https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/';
 const headers = {apikey: 'sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK'};
 const directory = document.querySelector('[data-popular-guides]');
@@ -17,10 +18,11 @@ function link(model, pill = false) {
 }
 
 async function populate() {
-  const [index, registry, featured] = await Promise.all([
+  const [index, registry, featured, style] = await Promise.all([
     read(api + 'rpc/public_anybike_universal_model_index_v1', {headers}),
     read('/data/universal-v2-model-routes.json'),
-    directory ? read(api + 'anybike_popular_model_guides_v1?select=model_id&order=position', {headers}) : []
+    directory ? read(api + 'anybike_popular_model_guides_v1?select=model_id&order=position', {headers}) : [],
+    groups.length ? getStyle('directory').catch(()=>null) : null
   ]);
   const paths = new Map(registry.models.filter(row => /^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(row.url)).map(row => [row.model_id, row.url]));
   const models = index.filter(row => paths.has(row.model_id)).map(row => ({...row, url: paths.get(row.model_id)}));
@@ -36,7 +38,9 @@ async function populate() {
     if (!matches.length || !list) continue;
     list.replaceChildren(...matches.map(row => {
       const item = document.createElement('li');
-      item.append(link(row));
+      const anchor = link(row);
+      if (style) anchor.insertAdjacentHTML('afterbegin', brandMark(row.make,style.logos));
+      item.append(anchor);
       return item;
     }));
   }

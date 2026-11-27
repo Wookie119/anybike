@@ -1234,7 +1234,7 @@ async function anybikeApplyPrivateCustomerMenu(user){
  if(!user||!window.sb?.from)return;
  try{
   const {data,error}=await window.sb.from("customer_profiles").select("customer_type").eq("id",user.id).maybeSingle();
-  if(error||data?.customer_type!=="uk_private")return;
+  if(error||!["uk_private","uk_private_customer"].includes(data?.customer_type))return;
   const links=[
    ["My Dashboard","/private-dashboard.html"],
    ["Sell My Motorbike","/uk-motorcycle-selling.html"],
@@ -1501,6 +1501,11 @@ async function setupPublicHeader(){
     renderNotificationList([]);
   }
 
+  if (window.sb?.rpc) {
+    import('/model-template/account-navigation.mjs')
+      .then(module => module.loadNavigation(window.sb,user,[logoutLink,mobileLogoutLink],savedLanguage))
+      .catch(() => { /* The built-in menu remains usable during a network outage. */ });
+  }
   logoutLink?.addEventListener("click",logoutCustomer);
   mobileLogoutLink?.addEventListener("click",logoutCustomer);
 
