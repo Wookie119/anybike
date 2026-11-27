@@ -114,7 +114,7 @@ async function mount(){
  // Extend dedicated manufacturer libraries without replacing licensed photos,
  // editorial descriptions or existing family sections.
  function extendDedicatedLibrary(){
-  if(!isBrand||!['BMW','Harley-Davidson'].includes(make))return;
+  if(!isBrand||make!=='BMW')return;
   const host=document.getElementById('modelFamilies');
   if(!host)return;
   host.querySelector('[data-complete-category-extension]')?.remove();
