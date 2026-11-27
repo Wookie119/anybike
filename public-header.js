@@ -93,7 +93,7 @@
     links.forEach(function(link){
       const href=String(link.getAttribute("href")||"");
       if(href.includes("public-header.css")){
-        link.setAttribute("href","/public-header.css?v=20261127-compact-manufacturers");
+        link.setAttribute("href","/public-header.css?v=20261127-manufacturer-scroll");
       }
     });
   }catch(e){}
@@ -815,6 +815,7 @@ async function loadPublicHeader(){
 
     holder.innerHTML = await headerRes.text();
     anybikeSetUpManufacturerMenuLogos(holder);
+    anybikeSetUpManufacturerMenuPosition(holder);
     
     try{await anybikeEnsureHeaderAuthClient();}catch(e){console.warn("Header authentication unavailable",e);}
     // Identify approved test accounts before slower navigation/profile setup.
@@ -857,18 +858,6 @@ async function loadPublicHeader(){
       host.appendChild(link);
     });
     anybikeShowPublicSignedInIdentity().catch(()=>{});
-    // Allow time to travel from the nav label to a manufacturer link.
-    document.querySelectorAll(".public-manufacturers-menu").forEach(function(menu){
-      if(menu.dataset.hoverDelayReady)return;
-      menu.dataset.hoverDelayReady="1";
-      let closeTimer=null;
-      menu.addEventListener("pointerenter",function(){clearTimeout(closeTimer);const nav=document.querySelector(".public-header");if(nav)menu.style.setProperty("--anybike-manufacturer-top",Math.round(nav.getBoundingClientRect().bottom)+"px");menu.classList.add("menu-open");});
-      menu.addEventListener("pointerleave",function(){clearTimeout(closeTimer);closeTimer=setTimeout(function(){if(!menu.matches(":hover")&&!menu.contains(document.activeElement))menu.classList.remove("menu-open");},650);});
-      menu.addEventListener("focusin",function(){clearTimeout(closeTimer);menu.classList.add("menu-open");});
-      menu.addEventListener("focusout",function(){clearTimeout(closeTimer);closeTimer=setTimeout(function(){if(!menu.contains(document.activeElement)&&!menu.matches(":hover"))menu.classList.remove("menu-open");},250);});
-    });
-    // Manufacturers uses the same hover/focus mega-menu behaviour as Markets.
-    // No pointer-enter pinning or background scroll lock.
     if(typeof window.AnyBikePublicStockVisible==="boolean") anybikeUpdatePublicStockMenu(window.AnyBikePublicStockVisible);
     setTimeout(anybikeEnsureCustomerNextAction,100);
 
@@ -877,6 +866,35 @@ async function loadPublicHeader(){
   }
 }
 
+
+function anybikeSetUpManufacturerMenuPosition(holder){
+  const header=holder.querySelector('.public-header');
+  const menu=header?.querySelector('.public-manufacturers-menu');
+  if(!menu)return;
+  let closeTimer;
+  const position=()=>{
+    const bottom=Math.max(0,Math.round(header.getBoundingClientRect().bottom));
+    menu.style.setProperty('--anybike-manufacturer-top',bottom+'px');
+  };
+  const open=()=>{
+    clearTimeout(closeTimer);
+    position();
+    menu.classList.add('menu-open');
+  };
+  const close=delay=>{
+    clearTimeout(closeTimer);
+    closeTimer=setTimeout(()=>{
+      if(!menu.matches(':hover, :focus-within'))menu.classList.remove('menu-open');
+    },delay);
+  };
+  menu.addEventListener('pointerenter',open);
+  menu.addEventListener('pointerleave',()=>close(650));
+  menu.addEventListener('focusin',open);
+  menu.addEventListener('focusout',()=>close(250));
+  const observer=new ResizeObserver(position);
+  observer.observe(header);
+  position();
+}
 
 function anybikeSetUpManufacturerMenuLogos(holder){
   const lists=[...holder.querySelectorAll('.manufacturers-list, .mobile-manufacturer-links')];
