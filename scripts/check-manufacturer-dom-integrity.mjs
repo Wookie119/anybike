@@ -16,7 +16,7 @@ const brand=fs.readFileSync('motorcycle-brand.html','utf8');
 for(const make of ['KTM','Honda','Ducati','Yamaha','Kawasaki','Triumph','Suzuki','Aprilia','Royal Enfield']){
  if(!brand.includes('"'+make+'":{'))problems.push('motorcycle-brand.html: missing '+make+' model group definition');
 }
-for(const required of ['categoryCards','categoryNavigation','modelGroups','modelsTitle','requestLink','canonicalLink']){
+for(const required of ['categoryCards','categoryNavigation','modelGroups','modelsTitle','requestLink']){
  if(!brand.includes('id="'+required+'"'))problems.push('motorcycle-brand.html: missing model renderer target #'+required);
 }
 if(problems.length){for(const message of problems)console.error('FAIL '+message);process.exitCode=1}

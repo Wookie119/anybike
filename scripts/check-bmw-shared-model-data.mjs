@@ -19,8 +19,14 @@ for(const [key,name] of [["bmw-r1300gs","R 1300 GS"],["bmw-r1250gs","R 1250 GS"]
  console.log("PASS",result.heading,"milestones:",result.milestones.length,"specifications:",result.specifications.length);
 }
 assert.throws(()=>normalizeModelGuide("bmw-unknown",{},{}));
-const preview=fs.readFileSync("bmw-r1300gs-v2.html","utf8");
-assert.ok(preview.includes('content="noindex,follow"'),"V2 preview must remain noindex");
+const target="bmw-r1300gs-v2-approved-20261102.html";
+const alias=fs.readFileSync("bmw-r1300gs-v2.html","utf8");
+assert.ok(alias.includes('content="noindex,follow"'),"V2 redirect must remain noindex");
+assert.ok(alias.includes('href="https://www.anybike.co.uk/'+target+'"'),"V2 redirect canonical must identify the approved preview");
+assert.ok(alias.includes('location.replace("/'+target+'"+location.search+location.hash)'),
+ "V2 redirect must preserve query parameters and fragments");
+const preview=fs.readFileSync(target,"utf8");
+assert.ok(preview.includes('content="noindex,follow"'),"Approved V2 preview must remain noindex");
 assert.ok(preview.includes('import("/model-template/bmw-model-data.mjs")'),"V2 must import the shared model adapter");
 assert.ok(preview.includes('.from("motorcycle_model_v2_editorial")'),"V2 must read Supabase editorial database");
 assert.ok(!preview.includes('fetch("/data/motorcycle-model-guides.json"'),"V2 must not load editorial JSON at runtime");

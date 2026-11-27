@@ -259,7 +259,12 @@ function fixFlag(iso,name){
   host.dataset.anybikeFlagReady="true";
   host.style.visibility="visible";
 }
-function fixHeroAlt(name){const img=document.querySelector(".hero-bike,.hero-media img");if(img)img.alt="Motorcycle sourcing and export support for buyers in "+name;}
+function fixHeroAlt(){
+  const img=document.querySelector(".hero-bike,.hero-media img");
+  if(!img)return;
+  const copiedIrishLocation=currentSlug()!=="ireland"&&/Cliffs of Moher/i.test(img.alt);
+  if(!img.hasAttribute("alt")||copiedIrishLocation)img.alt="Motorcycle";
+}
 function hasRealLocalBlock(){
   const cards=[...document.querySelectorAll(".port-grid .port-card,.port-grid article")];
   let real=0;
@@ -282,7 +287,8 @@ function hasRealLocalBlock(){
   });
   return real>=3;
 }
-function localSection(meta,name){
+function localSection(meta,country){
+  const name=country.replace(/^The /,'the ').replace(/^(Bahamas|Dominican Republic|Philippines|United Arab Emirates)$/,'the $1');
   const cities=(meta.cities||[]).slice(0,8);
   const regions=(meta.regions||[]).filter(x=>!cities.includes(x)).slice(0,6);
   const ports=(meta.ports||[]).slice(0,3);
@@ -318,12 +324,7 @@ function localSection(meta,name){
 }
 function installLocalSection(meta,name){
   if(!meta)return;
-  const authoritative=document.querySelector(".anybike-market-local-standard");
-  if(authoritative){
-    const expected=localSection(meta,name);
-    if(authoritative.outerHTML!==expected) authoritative.outerHTML=expected;
-    return;
-  }
+  if(document.querySelector(".anybike-market-local-standard"))return;
   if(hasRealLocalBlock())return;
 
   const grids=[...document.querySelectorAll(".port-grid")];
@@ -505,7 +506,7 @@ function run(){
   dedupeMarketEditorialCards();
   replaceEnglishBuyerCopy(iso,name);
   fixFlag(iso,name);
-  fixHeroAlt(name);
+  fixHeroAlt();
   installLocalSection(meta,name);
   removeLegacyShippingSections();
   enhanceExistingLocalLinks(name,meta);

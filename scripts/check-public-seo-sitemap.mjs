@@ -1,7 +1,6 @@
 // Run from repository root: node scripts/check-public-seo-sitemap.mjs
 // Prevent missing pages, private pages, noindex pages and duplicate URLs from entering sitemap.xml.
 import fs from 'node:fs';
-import path from 'node:path';
 const xml=fs.readFileSync('sitemap.xml','utf8');
 const locs=[...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>m[1]);
 const issues=[];
@@ -35,18 +34,20 @@ for(const url of locs){
  }
  if(!/<h1\b/i.test(html))issues.push('Missing H1: '+pathname);
 }
-// Check that model guides linked from the approved BMW and Harley manufacturer pages are discoverable.
+// Follow the declared canonical when an approved manufacturer links to a legacy model URL.
 for(const parent of ['bmw-motorcycles.html','harley-davidson-motorcycles.html']){
  const html=fs.readFileSync(parent,'utf8');
- const linked=[...html.matchAll(/href=["'](?:https:\/\/www\.anybike\.co\.uk)?\/?((?:bmw|harley-davidson)-[^"'?#]+\.html)(?:[?#][^"']*)?["']/gi)].map(m=>m[1]);
+ const linked=[...html.matchAll(/href=["'](?:https:\/\/www\.anybike\.co\.uk)?\/?((?:(?:bmw|harley-davidson)-|models\/(?:bmw|harley-davidson)\/)[^"'?#]+\.html)(?:[?#][^"']*)?["']/gi)].map(m=>m[1]);
  for(const model of new Set(linked)){
   if(model===parent||!fs.existsSync(model))continue;
   const body=fs.readFileSync(model,'utf8');
   if(/<meta\b[^>]*content=["'][^"']*noindex/i.test(body))continue;
-  if(!locs.includes(host+model))issues.push('Published model linked from '+parent+' missing sitemap: '+model);
+  const canonical=[...body.matchAll(/<link\b[^>]*>/gi)].map(x=>x[0]).find(x=>/\brel\s*=\s*["']canonical["']/i.test(x));
+  const target=canonical?.match(/\bhref\s*=\s*["']([^"']+)/i)?.[1]||host+model;
+  if(!locs.includes(target))issues.push('Canonical model linked from '+parent+' missing in sitemap: '+target);
  }
 }
-for(const prefix of ['bmw-','harley-davidson-']){
+for(const prefix of ['models/bmw/','models/harley-davidson/']){
  const matching=locs.filter(x=>x.startsWith(host+prefix));
  if(matching.length<15)issues.push('Unexpectedly few '+prefix+' model guides in sitemap: '+matching.length);
 }

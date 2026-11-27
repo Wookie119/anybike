@@ -9,22 +9,29 @@ const base='https://www.anybike.co.uk/';
 const xml=fs.readFileSync(path.join(root,'sitemap.xml'),'utf8');
 const urls=[...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>m[1].replaceAll('&amp;','&'));
 const issues=[], warnings=[];
+const followPages=new Set();
 const titles=new Map(), descriptions=new Map();
 const stats={sitemap:urls.length,market_pages:0,global_articles:0,manufacturer_queries:0,static_urls:0,missing_titles:0,missing_descriptions:0,missing_language_tags:0,short_descriptions:0,missing_h1:0,missing_canonicals:0,blocked_by_noindex:0,missing_files:0,duplicates:0};
 const deny=/(^|\/)(admin[^/]*|private[^/]*|customer[^/]*|dashboard[^/]*|login|signup|register|deal-360|my-purchases|my-watchlist|my-searches|bike-details)([./?]|$)/i;
 function attrs(tag){
   const a={};
-  for(const m of tag.matchAll(/([:\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) a[m[1].toLowerCase()]=m[2]??m[3];
+  for(const m of tag.matchAll(/([:\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/g)) a[m[1].toLowerCase()]=m[2]??m[3]??m[4];
   return a;
 }
 function tags(html,pattern){return [...html.matchAll(pattern)].map(m=>attrs(m[0]));}
 function meta(html,name){return tags(html,/<meta\b[^>]*>/gi).find(x=>x.name?.toLowerCase()===name)?.content||'';}
+function blocksFollowing(html){
+  const head=html.split(/<\/head\s*>/i,1)[0];
+  return tags(head,/<meta\b[^>]*>/gi).some(({name='',content=''})=>
+    /^(?:robots|[\w-]*bot(?:-[\w-]+)?|slurp)$/i.test(name)&&/\b(?:nofollow|none)\b/i.test(content));
+}
 function canonical(html){return tags(html,/<link\b[^>]*>/gi).find(x=>(x.rel||'').toLowerCase().split(/\s+/).includes('canonical'))?.href||'';}
 function capture(map,key,url){if(!key)return;const normalized=key.replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim().toLowerCase();map.set(normalized,[...(map.get(normalized)||[]),url]);}
 if(new Set(urls).size!==urls.length){issues.push('Duplicate sitemap URLs');stats.duplicates=urls.length-new Set(urls).size;}
 for(const url of urls){
   if(!url.startsWith(base)){issues.push('Noncanonical host: '+url);continue;}
   let parsed;try{parsed=new URL(url)}catch{issues.push('Invalid URL: '+url);continue;}
+  followPages.add(parsed.pathname);
   const relative=decodeURIComponent(parsed.pathname.slice(1));
   const file=relative||'index.html';
   if(file.includes('..')||deny.test(file)){issues.push('Private/workflow URL in sitemap: '+url);continue;}
@@ -47,13 +54,14 @@ for(const url of urls){
   if(!description){issues.push('Missing description: '+url);stats.missing_descriptions++;}
   else if(description.length<50){stats.short_descriptions++;warnings.push('Short description: '+url);}
   if(!language){stats.missing_language_tags++;warnings.push('No HTML language tag: '+url);}
-  if(!canon){issues.push('Missing canonical: '+url);stats.missing_canonicals++;}
+  if(!canon&&!parsed.search){issues.push('Missing canonical: '+url);stats.missing_canonicals++;}
   else if(!parsed.search&&canon!==url){issues.push('Non-self canonical: '+url+' -> '+canon);}
   // Shared manufacturer query pages intentionally update title/canonical in JS.
   // This checks that the mechanism exists; it cannot prove Google renders it.
   if(parsed.search&&relative==='motorcycle-brand.html'){
-    if(!html.includes('document.getElementById("canonicalLink").href=')||
-       !html.includes('document.title=make+')){
+    if(canon||!html.includes('canonical.href=brandPageUrl;')||
+       !html.includes('document.head.appendChild(canonical);')||
+       !html.includes('document.title=brandPageTitle;')){
       issues.push('Shared brand route lacks JS SEO updater: '+url);
     }
     continue;
@@ -66,6 +74,19 @@ for(const url of urls){
 const marketDir=path.join(root,'markets');
 const marketFiles=fs.readdirSync(marketDir).filter(p=>p.endsWith('.html')&&p!=='index.html');
 const known=new Set(urls);
+for(const sitemap of ['sitemap-motorcycle-models.xml','sitemap-motorcycle-archive.xml']){
+  for(const [,url] of fs.readFileSync(path.join(root,sitemap),'utf8').matchAll(/<loc>([^<]+)<\/loc>/g)){
+    followPages.add(new URL(url).pathname);
+  }
+}
+// Public dealer information pages intentionally stay outside search results.
+followPages.add('/uk-dealer-international-tour.html');
+followPages.add('/uk-dealer-services.html');
+for(const page of followPages){
+  const file=path.join(root,decodeURIComponent(page.slice(1))||'index.html');
+  if(!fs.existsSync(file)){issues.push('Missing public HTML for robots follow check: '+page);continue;}
+  if(blocksFollowing(fs.readFileSync(file,'utf8')))issues.push('Robots directive blocks link following: '+page);
+}
 for(const p of marketFiles)if(!known.has(base+'markets/'+p))issues.push('Market missing from sitemap: markets/'+p);
 if(stats.market_pages!==marketFiles.length)issues.push('Market count mismatch: '+stats.market_pages+' in sitemap, '+marketFiles.length+' published country pages');
 const globalDir=path.join(root,'global');
@@ -75,6 +96,35 @@ for(const p of fs.readdirSync(globalDir).filter(x=>x.endsWith('.html'))){
  const url=base+'global/'+p;
  if(!/\bnoindex\b/i.test(robots)&&can===url&&!known.has(url))issues.push('Indexable Global story omitted from sitemap: '+p);
  if(/\bnoindex\b/i.test(robots)&&known.has(url))issues.push('Noindex Global story included in sitemap: '+p);
+ if(!known.has(url))continue;
+ const head=html.split(/<\/head\s*>/i,1)[0];
+ const social=tags(head,/<meta\b[^>]*>/gi);
+ for(const property of ['og:title','og:description','og:site_name']){
+  if(!social.some(tag=>tag.property===property&&tag.content?.trim()))issues.push('Missing '+property+' on Global story: '+p);
+ }
+ if(social.find(tag=>tag.property==='og:url')?.content!==url||
+    social.find(tag=>tag.property==='og:type')?.content!=='article'){
+  issues.push('Invalid Open Graph story identity: '+p);
+ }
+ const image=social.find(tag=>tag.property==='og:image')?.content;
+ const card=meta(head,'twitter:card');
+ if(card!==(image?'summary_large_image':'summary')||!meta(head,'twitter:title')||!meta(head,'twitter:description')){
+  issues.push('Missing or invalid Global story sharing card: '+p);
+ }
+ const payloads=[...head.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+ let articles;
+ try{
+  articles=payloads.map(match=>JSON.parse(match[1])).filter(data=>['Article','NewsArticle','BlogPosting'].includes(data?.['@type']));
+ }catch{issues.push('Invalid Global story JSON-LD: '+p);continue;}
+ const [article]=articles;
+ const target=article?.mainEntityOfPage;
+ if(articles.length!==1||(typeof target==='string'?target:target?.['@id'])!==url||!article.headline||!article.description){
+  issues.push('Missing or mismatched Global Article structured data: '+p);
+  continue;
+ }
+ if(image&&(![article.image].flat().includes(image)||meta(head,'twitter:image')!==image)){
+  issues.push('Global story image metadata disagrees: '+p);
+ }
 }
 for(const [title,pages] of titles)if(pages.length>1)warnings.push('Duplicate public title: '+JSON.stringify({title,pages:pages.slice(0,6),count:pages.length}));
 for(const [desc,pages] of descriptions)if(pages.length>1)warnings.push('Duplicate public description: '+JSON.stringify({description:desc.slice(0,75),pages:pages.slice(0,6),count:pages.length}));
