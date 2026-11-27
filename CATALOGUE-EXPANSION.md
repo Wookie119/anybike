@@ -11,3 +11,7 @@ Baseline: previous catalogue audit reported 996 records across 52 manufacturers;
 ## Future marketplace integration
 
 Publish individual model pills alongside each completed model. Preserve stable canonical model IDs and routes for future motorcycle classifieds, motorcycles wanted, parts wanted and parts for sale, including discontinued models. Work in incremental batches with checkpoints suitable for hourly or overnight continuation. Do not publish empty historical pages or block live feeds. Future classifieds functionality is not part of the current implementation.
+
+## Mandatory model hero photography
+
+Every completed motorcycle model page, across all manufacturers and production eras, must have a real, rights-cleared hero photograph of the correct model and generation where identifiable. Preserve approved hero photographs. Prefer exact-model permitted DealerWebs/Pyramid photographs or appropriately licensed historical photographs. An AnyBike placeholder is a temporary fallback only and never satisfies editorial completion. Do not publish new empty historical pages; do not block live stock ingestion. Track existing missing hero photographs as remediation work.
