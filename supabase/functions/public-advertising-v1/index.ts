@@ -57,8 +57,8 @@ const buildCompanion=async(primary:Record<string,unknown>,companionId:string|nul
  country:meta.country,slot:meta.slot+"-B",exp:Date.now()+3600000})};
 };
 // Public multi-advert layouts are used only for eligible approved campaigns.
-// An incomplete or ineligible published layout safely falls back to the existing single advert.
-const publishedLayoutForPage=async(p:any,_candidates:any[],verifiedMarket:string|null,modelId:number|null=null)=>{
+// Each booking keeps its original tracking position when another booking expires.
+const publishedLayoutForPage=async(p:any,verifiedMarket:string|null,modelId:number|null=null)=>{
  if(verifiedMarket!=="GB"||!/^AB-[A-Z0-9-]+$/.test(String(p.slot_code||"")))return null;
  const {data:layout,error:le}=await db.from("advertising_slot_published_layouts")
   .select("slot_code,page_path,campaign_ids,artwork_formats,advert_count")
@@ -69,7 +69,7 @@ const publishedLayoutForPage=async(p:any,_candidates:any[],verifiedMarket:string
  if(ids.length!==layout.advert_count||formats.length!==ids.length||ids.length<1||ids.length>4||new Set(ids).size!==ids.length)return null;
  const {data:campaigns,error:ce}=await db.from("advertising_campaigns")
   .select("id,partner_id,status").in("id",ids);
- if(ce||campaigns?.length!==ids.length)return null;
+ if(ce||!campaigns?.length)return null;
  const owners=new Map(campaigns.map((c:any)=>[c.id,c]));
  const partnerIds=[...new Set(campaigns.map((c:any)=>c.partner_id))];
  const {data:masters,error:me}=await db.from("advertising_partner_artwork_library")
@@ -86,15 +86,15 @@ const publishedLayoutForPage=async(p:any,_candidates:any[],verifiedMarket:string
  // Still require the public approved creative projection, correct country and campaign dates.
  const {data:assigned,error:assignedError}=await db.from("public_advertising_creatives_v1")
   .select("*").in("id",ids);
- if(assignedError||!assigned||(modelId===null&&assigned.length!==ids.length))return null;
+ if(assignedError||!assigned?.length)return null;
  const byId=new Map(assigned.filter((a:any)=>matchCountry(a.countries,"GB")).map((a:any)=>[a.id,a]));
  const ready=[];
  for(let i=0;i<ids.length;i++){
   const c=owners.get(ids[i]),a=byId.get(ids[i]),format=formats[i];
-  if(modelId!==null&&(!c||c.status!=="active"||!a))continue;
-  if(!c||c.status!=="active"||!a||!["square","slim","stock_card","landscape","portrait"].includes(format))return null;
+  if(!["square","slim","stock_card","landscape","portrait"].includes(format))return null;
+  if(!c||c.status!=="active"||!a)continue;
   const art=artMap.get(c.partner_id+"|"+format);
-  if(!art||!a.destination_url?.startsWith("https://"))return null;
+  if(!art||!a.destination_url?.startsWith("https://"))continue;
   ready.push({id:a.id,slot_code:p.slot_code,placement_key:p.placement_key,partner_name:a.partner_name,format,image_url:art.public_url,
    alt_text:art.alt_text||a.alt_text||"",destination_url:a.destination_url,
    token:await sign({cid:a.id,mid:modelId,path:p.page_path,nonce:crypto.randomUUID(),
@@ -125,7 +125,7 @@ if(b.action==="select"){const id=Number(b.model_id);const verifiedMarket=await v
 if(!Number.isSafeInteger(id)||id<=0||b.country!=="GB")return response({ad:null});const {data:m,error:me}=await db.from("motorcycle_catalog_models").select("id,manufacturer,model,slug").eq("id",id).maybeSingle();if(me||!m)return response({ad:null});const {data:override,error:oe}=await db.from("advertising_model_overrides").select("campaign_id,suppressed").eq("catalogue_model_id",id).eq("placement","below_hero").maybeSingle();if(oe)throw oe;if(override?.suppressed)return response({ad:null});const path="/motorcycle-v2-master.html";const {data:placement,error:placementError}=await db.from("advertising_page_inventory").select("placement_enabled,excluded,placement_key,creative_format,slot_code,paired_layout,companion_campaign_id,market_scope,rotation_enabled,rotation_interval_minutes").eq("page_path",path).maybeSingle();if(placementError)throw placementError;if(!placement?.placement_enabled||placement.excluded||
  (verifiedMarket!=="GB"&&placement.market_scope!=="uk_site_house"))return response({ad:null});const {data:ads,error}=await db.from("public_advertising_creatives_v1").select("*").eq("placement","below_hero");if(error)throw error;const candidates=(ads||[]).filter(a=>(!override?.campaign_id||override.campaign_id===a.id)&&
  (verifiedMarket==="GB"||(a.campaign_category==="house"&&a.partner_kind==="transport"))&&matchCountry(a.countries,country)&&match(a.manufacturers,m.manufacturer)&&match(a.models,m.model)&&match(a.page_categories,"model")&&(!a.customer_types?.length)&&match(a.page_paths,path)&&a.destination_url?.startsWith("https://")&&a.desktop_image_url?.startsWith("https://")&&a.mobile_image_url?.startsWith("https://"));candidates.sort((a,b)=>Number(!!b.models?.length)-Number(!!a.models?.length)||Number(!!b.manufacturers?.length)-Number(!!a.manufacturers?.length)||b.priority-a.priority||a.id.localeCompare(b.id));if(!override?.campaign_id){
- const layout=await publishedLayoutForPage({...placement,page_path:path},candidates,verifiedMarket,id);
+ const layout=await publishedLayoutForPage({...placement,page_path:path},verifiedMarket,id);
  if(layout)return response({layout,ad:null});
 }
 const a=pickCampaign(candidates,!!placement.rotation_enabled,placement.rotation_interval_minutes);if(!a)return response({ad:null});const token=await sign({cid:a.id,mid:id,nonce:crypto.randomUUID(),country,slot:placement.slot_code+"-M"+id,exp:Date.now()+3600000});const artwork=await campaignCreative(a.id);const companion=placement.paired_layout&&verifiedMarket==="GB"?await buildCompanion(a,placement.companion_campaign_id,candidates,{country,mid:id,path,category:"model",slot:placement.slot_code+"-M"+id,make:m.manufacturer,model:m.model}):null;return response({ad:{id:a.id,slot_code:placement.slot_code,paired_layout:placement.paired_layout,companion,...artwork,placement_key:placement.placement_key,creative_format:placement.creative_format,partner_name:a.partner_name,headline:(a.headline_template||a.name).replaceAll("{{make}}",m.manufacturer).replaceAll("{{model}}",m.model),subheading:a.subheading,cta_text:a.cta_text,desktop_image_url:a.desktop_image_url,mobile_image_url:a.mobile_image_url,destination_url:a.destination_url,alt_text:a.alt_text,disclosure:a.disclosure,use_model_photo:a.use_model_photo,token}})}
@@ -144,7 +144,7 @@ if(p.placement_key==="stock_grid"){
    c.stock_card_image_url.startsWith("https://")).map(c=>c.id));
  for(let i=candidates.length-1;i>=0;i--)if(!ready.has(candidates[i].id))candidates.splice(i,1);
 }
-const published=await publishedLayoutForPage(p,candidates,verifiedMarket);if(published)return response({layout:published,ad:null});
+const published=await publishedLayoutForPage(p,verifiedMarket);if(published)return response({layout:published,ad:null});
 const a=pickCampaign(candidates,!!p.rotation_enabled,p.rotation_interval_minutes);if(!a)return response({ad:null});const token=await sign({cid:a.id,mid:null,path,nonce:crypto.randomUUID(),country,slot:p.slot_code,exp:Date.now()+3600000});const artwork=await campaignCreative(a.id);const companion=p.paired_layout&&verifiedMarket==="GB"?await buildCompanion(a,p.companion_campaign_id,candidates,{country,mid:null,path,category:p.page_category,slot:p.slot_code}):null;return response({ad:{id:a.id,slot_code:p.slot_code,paired_layout:p.paired_layout,companion,...artwork,placement_key:p.placement_key,creative_format:p.creative_format,partner_name:a.partner_name,headline:a.headline_template||a.name,subheading:a.subheading,cta_text:a.cta_text,desktop_image_url:a.desktop_image_url,mobile_image_url:a.mobile_image_url,destination_url:a.destination_url,alt_text:a.alt_text,disclosure:a.disclosure,token}})}
 // Listing positions are explicit published assignments, using the existing layout table.
 // The first rollout deliberately permits only approved house transport campaigns.
