@@ -75,6 +75,35 @@ for(const p of fs.readdirSync(globalDir).filter(x=>x.endsWith('.html'))){
  const url=base+'global/'+p;
  if(!/\bnoindex\b/i.test(robots)&&can===url&&!known.has(url))issues.push('Indexable Global story omitted from sitemap: '+p);
  if(/\bnoindex\b/i.test(robots)&&known.has(url))issues.push('Noindex Global story included in sitemap: '+p);
+ if(!known.has(url))continue;
+ const head=html.split(/<\/head\s*>/i,1)[0];
+ const social=tags(head,/<meta\b[^>]*>/gi);
+ for(const property of ['og:title','og:description','og:site_name']){
+  if(!social.some(tag=>tag.property===property&&tag.content?.trim()))issues.push('Missing '+property+' on Global story: '+p);
+ }
+ if(social.find(tag=>tag.property==='og:url')?.content!==url||
+    social.find(tag=>tag.property==='og:type')?.content!=='article'){
+  issues.push('Invalid Open Graph story identity: '+p);
+ }
+ const image=social.find(tag=>tag.property==='og:image')?.content;
+ const card=meta(head,'twitter:card');
+ if(card!==(image?'summary_large_image':'summary')||!meta(head,'twitter:title')||!meta(head,'twitter:description')){
+  issues.push('Missing or invalid Global story sharing card: '+p);
+ }
+ const payloads=[...head.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+ let articles;
+ try{
+  articles=payloads.map(match=>JSON.parse(match[1])).filter(data=>['Article','NewsArticle','BlogPosting'].includes(data?.['@type']));
+ }catch{issues.push('Invalid Global story JSON-LD: '+p);continue;}
+ const [article]=articles;
+ const target=article?.mainEntityOfPage;
+ if(articles.length!==1||(typeof target==='string'?target:target?.['@id'])!==url||!article.headline||!article.description){
+  issues.push('Missing or mismatched Global Article structured data: '+p);
+  continue;
+ }
+ if(image&&(![article.image].flat().includes(image)||meta(head,'twitter:image')!==image)){
+  issues.push('Global story image metadata disagrees: '+p);
+ }
 }
 for(const [title,pages] of titles)if(pages.length>1)warnings.push('Duplicate public title: '+JSON.stringify({title,pages:pages.slice(0,6),count:pages.length}));
 for(const [desc,pages] of descriptions)if(pages.length>1)warnings.push('Duplicate public description: '+JSON.stringify({description:desc.slice(0,75),pages:pages.slice(0,6),count:pages.length}));
