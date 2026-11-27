@@ -3416,3 +3416,7 @@ if(location.pathname==='/dealer-connect-stock.html'){
  if(!['/motorcycle-brand.html','/bmw-motorcycles.html','/harley-davidson-motorcycles.html','/indian-motorcycles.html'].includes(location.pathname))return;
  const script=document.createElement('script');script.type='module';script.src='/model-template/manufacturer-public-stock.mjs?v=20261124-1';document.head.append(script);
 })();
+
+if (['/bmw-motorcycles.html','/harley-davidson-motorcycles.html','/markets/sweden.html','/markets/reunion.html'].includes(location.pathname)) {
+  import('/model-template/catalogue-page-content.mjs').catch(()=>{});
+}

@@ -228,6 +228,7 @@
   if(modelSection&&root.contains(modelSection))
    modelSection.insertAdjacentElement('afterend',block);
   else root.appendChild(block);
+  window.dispatchEvent(new Event("anybikeMarketEditorialReady"));
  }
  if(document.readyState==='loading')
   document.addEventListener('DOMContentLoaded',mount,{once:true});
