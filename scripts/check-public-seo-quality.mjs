@@ -47,13 +47,14 @@ for(const url of urls){
   if(!description){issues.push('Missing description: '+url);stats.missing_descriptions++;}
   else if(description.length<50){stats.short_descriptions++;warnings.push('Short description: '+url);}
   if(!language){stats.missing_language_tags++;warnings.push('No HTML language tag: '+url);}
-  if(!canon){issues.push('Missing canonical: '+url);stats.missing_canonicals++;}
+  if(!canon&&!parsed.search){issues.push('Missing canonical: '+url);stats.missing_canonicals++;}
   else if(!parsed.search&&canon!==url){issues.push('Non-self canonical: '+url+' -> '+canon);}
   // Shared manufacturer query pages intentionally update title/canonical in JS.
   // This checks that the mechanism exists; it cannot prove Google renders it.
   if(parsed.search&&relative==='motorcycle-brand.html'){
-    if(!html.includes('document.getElementById("canonicalLink").href=')||
-       !html.includes('document.title=make+')){
+    if(canon||!html.includes('canonical.href=brandPageUrl;')||
+       !html.includes('document.head.appendChild(canonical);')||
+       !html.includes('document.title=brandPageTitle;')){
       issues.push('Shared brand route lacks JS SEO updater: '+url);
     }
     continue;
