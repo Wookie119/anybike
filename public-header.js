@@ -93,7 +93,7 @@
     links.forEach(function(link){
       const href=String(link.getAttribute("href")||"");
       if(href.includes("public-header.css")){
-        link.setAttribute("href","/public-header.css?v=20261122-categorized-nav1");
+        link.setAttribute("href","/public-header.css?v=20261127-manufacturer-menu");
       }
     });
   }catch(e){}
@@ -866,6 +866,7 @@ async function loadPublicHeader(){
       menu.addEventListener("focusin",function(){clearTimeout(closeTimer);menu.classList.add("menu-open");});
       menu.addEventListener("focusout",function(){clearTimeout(closeTimer);closeTimer=setTimeout(function(){if(!menu.contains(document.activeElement)&&!menu.matches(":hover"))menu.classList.remove("menu-open");},250);});
     });
+    anybikeSetUpManufacturerMenuLogos(holder);
     // Manufacturers uses the same hover/focus mega-menu behaviour as Markets.
     // No pointer-enter pinning or background scroll lock.
     if(typeof window.AnyBikePublicStockVisible==="boolean") anybikeUpdatePublicStockMenu(window.AnyBikePublicStockVisible);
@@ -876,6 +877,75 @@ async function loadPublicHeader(){
   }
 }
 
+
+function anybikeSetUpManufacturerMenuLogos(holder){
+  const lists=[...holder.querySelectorAll('.manufacturers-list, .mobile-manufacturer-links')];
+  if(!lists.length)return;
+  let menuData;
+  const read=async (path,format)=>{
+    const response=await fetch(path);
+    if(!response.ok)throw new Error('Manufacturer menu HTTP '+response.status);
+    return response[format]();
+  };
+  const populate=async list=>{
+    menuData??=Promise.allSettled([
+      read('/motorcycle-manufacturers.html','text'),
+      read('/data/manufacturer-logos.json?v=20261127-identity','json')
+    ]);
+    const [directory,logos]=await menuData;
+    const nameKey=name=>name.trim().toLowerCase();
+    if(directory.status==='fulfilled'){
+      const index=new DOMParser().parseFromString(directory.value,'text/html');
+      const links=new Map([...list.querySelectorAll('a')].map(link=>[nameKey(link.textContent),link]));
+      for(const entry of index.querySelectorAll('.brand-grid a.brand[href]')){
+        const name=entry.querySelector('strong')?.textContent.trim();
+        const href=entry.getAttribute('href');
+        if(!name||!href.startsWith('/')||href.startsWith('//')||links.has(nameKey(name)))continue;
+        const link=document.createElement('a');
+        link.href=href;
+        link.textContent=name;
+        const next=[...list.children].find(item=>item.textContent.trim().localeCompare(name,'en',{sensitivity:'base'})>0);
+        list.insertBefore(link,next||null);
+        links.set(nameKey(name),link);
+      }
+    }
+    if(logos.status!=='fulfilled')return;
+    const byName=new Map(Object.entries(logos.value).map(([name,logo])=>[nameKey(name),logo]));
+    for(const link of list.querySelectorAll('a')){
+      const logo=byName.get(nameKey(link.textContent));
+      if(!logo?.image)continue;
+      const badge=document.createElement('span');
+      badge.className='manufacturer-menu-logo';
+      badge.dataset.background=logo.background;
+      badge.hidden=true;
+      const image=document.createElement('img');
+      image.alt='';
+      image.decoding='async';
+      image.addEventListener('load',()=>{badge.hidden=false},{once:true});
+      badge.append(image);
+      link.prepend(badge);
+      image.src=logo.image;
+    }
+  };
+  for(const list of lists){
+    let opened=false;
+    const open=()=>{
+      if(opened)return;
+      opened=true;
+      populate(list).catch(error=>console.warn('Manufacturer menu logos unavailable',error));
+    };
+    const mobile=list.closest('.mobile-manufacturers-menu');
+    if(mobile){
+      mobile.addEventListener('toggle',()=>{if(mobile.open)open()});
+      if(mobile.open)open();
+    }else{
+      const menu=list.closest('.public-manufacturers-menu');
+      menu?.addEventListener('pointerenter',open,{once:true});
+      menu?.addEventListener('focusin',open,{once:true});
+      if(menu?.matches(':hover, :focus-within'))open();
+    }
+  }
+}
 
 function anybikeSortElementsByLabel(elements,getLabel){
   return [...elements].sort(function(a,b){
