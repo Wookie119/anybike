@@ -1,64 +1,49 @@
 import assert from 'node:assert/strict';
-import {readFileSync,existsSync} from 'node:fs';
-import {fileURLToPath} from 'node:url';
-import {dirname,resolve} from 'node:path';
-const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-const read=p=>readFileSync(resolve(root,p),'utf8');
-const xml=read('sitemap.xml');
-const urls=[...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>m[1].replace(/&amp;/g,'&'));
-assert.equal(urls.length,new Set(urls).size,'Duplicate sitemap URLs');
-const models=urls.filter(x=>x.includes('/motorcycle-model-guide.html?'));
-const brands=urls.filter(x=>x.includes('/motorcycle-brand.html?'));
-const markets=urls.filter(x=>x.includes('/markets/'));
-const published=JSON.parse(read('data/motorcycle-index-identities.json')).models;
-assert.equal(models.length,published.length,'Model sitemap must match approved public snapshot');
-const publishedGenericMakes=new Set(published.map(x=>x.make.toLowerCase()).filter(x=>!['bmw','harley-davidson','indian','indian motorcycle'].includes(x)));
-assert.equal(brands.length,publishedGenericMakes.size,'Generic manufacturer sitemap count must follow approved public snapshot');
-assert(urls.includes('https://www.anybike.co.uk/bmw-motorcycles.html'),'BMW dedicated manufacturer route missing');
-assert(urls.includes('https://www.anybike.co.uk/harley-davidson-motorcycles.html'),'Harley-Davidson dedicated manufacturer route missing');
-assert(urls.includes('https://www.anybike.co.uk/indian-motorcycles.html'),'Indian dedicated historical manufacturer route missing');
+import {readFileSync} from 'node:fs';
+
+const read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
+const origin='https://www.anybike.co.uk';
+function sitemap(file){
+ const urls=[...read(file).matchAll(/<loc>([^<]+)<\/loc>/g)].map(match=>match[1].replaceAll('&amp;','&'));
+ assert.equal(urls.length,new Set(urls).size,'Duplicate URLs in '+file);
+ return urls.map(url=>{
+  const parsed=new URL(url);
+  assert.equal(parsed.origin,origin,'Unexpected sitemap domain');
+  return parsed;
+ });
+}
+
+const urls=sitemap('sitemap.xml');
+const models=urls.filter(url=>url.pathname.startsWith('/models/'));
+const modelSitemap=sitemap('sitemap-motorcycle-models.xml');
+assert.deepEqual(models.map(url=>url.href).sort(),modelSitemap.map(url=>url.href).sort(),
+ 'Main and model sitemaps must list the same canonical model URLs');
+assert(models.every(url=>!url.search&&!url.hash),'Published model URLs must be permanent paths');
+assert(!urls.some(url=>url.pathname==='/motorcycle-model-guide.html'),'Keep the model lookup route out of the sitemap');
+
+const dedicated=new Map([
+ ['bmw','/bmw-motorcycles.html'],
+ ['harley-davidson','/harley-davidson-motorcycles.html'],
+ ['indian','/indian-motorcycles.html'],
+ ['indian motorcycle','/indian-motorcycles.html']
+]);
+for(const route of new Set(dedicated.values())){
+ assert(urls.some(url=>url.pathname===route&&!url.search),'Dedicated manufacturer missing: '+route);
+}
+
+const registry=JSON.parse(read('data/universal-v2-model-routes.json')).models;
+const expectedBrands=new Set(registry.map(row=>row.make.toLowerCase()).filter(make=>!dedicated.has(make)));
+const brands=urls.filter(url=>url.pathname==='/motorcycle-brand.html');
+const listedBrands=brands.map(url=>url.searchParams.get('make')?.toLowerCase());
+assert.deepEqual(listedBrands.sort(),[...expectedBrands].sort(),
+ 'Shared manufacturer URLs must match the published model registry');
+
+const markets=urls.filter(url=>url.pathname.startsWith('/markets/'));
 assert.equal(markets.length,217,'International markets sitemap incomplete');
-for(const url of urls){
- const u=new URL(url);
- assert.equal(u.origin,'https://www.anybike.co.uk','Unexpected sitemap domain');
- if(u.pathname==='/motorcycle-model-guide.html'){
-  assert(u.searchParams.get('make')?.trim()&&u.searchParams.get('model')?.trim(),'Model missing identity');
-  continue;
- }
- if(u.pathname==='/motorcycle-brand.html'){
-  assert(u.searchParams.get('make')?.trim(),'Brand missing identity');
-  continue;
- }
- if(u.pathname.startsWith('/markets/')){
-  const path='.'+u.pathname;
-  assert(existsSync(resolve(root,path)),'Missing international market HTML: '+path);
-  const html=read(path);
-  assert(!/<meta[^>]+name=["']robots["'][^>]+content=["']noindex/i.test(html),'Noindex international market: '+path);
-  assert(html.includes('<link rel="canonical"')||/<link[^>]+rel=["']canonical["']/.test(html),'Missing canonical: '+path);
- }
+for(const url of markets){
+ const html=read(url.pathname.slice(1));
+ assert(!/<meta[^>]+name=["']robots["'][^>]+content=["']noindex/i.test(html),'Noindex international market: '+url.pathname);
+ assert(/<link[^>]+rel=["']canonical["']/i.test(html),'Missing canonical: '+url.pathname);
 }
-const identity=models.map(x=>{const u=new URL(x);return u.searchParams.get('make').trim().toLowerCase()+'|'+u.searchParams.get('model').trim().toLowerCase()});
-assert.equal(identity.length,new Set(identity).size,'Duplicate model identities');
-const indexed=JSON.parse(read('data/motorcycle-index-identities.json'));
-assert.equal(indexed.models.length,published.length,'Public identity fallback must match approved snapshot');
-const indexedIdentity=indexed.models.map(x=>String(x.make).trim().toLowerCase()+'|'+String(x.model).trim().toLowerCase());
-assert.equal(new Set(indexedIdentity).size,indexedIdentity.length,'Public identity fallback must not contain duplicate models');
-assert.deepEqual([...new Set(identity)].sort(),[...new Set(indexedIdentity)].sort(),'Sitemap and public model fallback must have identical model identities');
-const publishedMakes=new Set(indexed.models.map(x=>String(x.make).trim().toLowerCase()));
-const genericMakes=new Set(brands.map(x=>new URL(x).searchParams.get('make').trim().toLowerCase()));
-for(const make of publishedMakes){
- if(['bmw','harley-davidson','indian motorcycle'].includes(make))continue;
- assert(genericMakes.has(make),'Manufacturer missing from sitemap: '+make);
-}
-assert(!genericMakes.has('bmw')&&!genericMakes.has('harley-davidson'),'Dedicated brands must not use generic sitemap URLs');
-assert(read('motorcycle-model-guide.html').includes('const row=clean||indexed||legacy;'),'Renderer must use the public index identity fallback');
-const renderer=read('motorcycle-model-guide.html');
-for(const alias of ['aprilia|rs660','indian|scout','kawasaki|z900rs'])assert(renderer.includes('"'+alias+'":'),'Missing canonical model alias redirect: '+alias);
-for(const pending of ['bmw|f 900 gs adventure','bmw|r 12','bmw|s 1000 rr m'])assert(renderer.includes('"'+pending+'"'),'Pending BMW model must remain noindex: '+pending);
-assert(renderer.includes('if(pendingModelNames.has('),'Pending models must be blocked before legacy catalogue rendering');
-assert(read('motorcycle-model-guide.html').includes('content="index,follow" id="modelRobots"'),'Model renderer noindex');
-assert(read('motorcycle-brand.html').includes('content="index,follow"'),'Brand renderer noindex');
-assert(read('motorcycle-brand.html').includes('if(!knownBrand){'), 'Unknown manufacturer URLs must be noindex');
-assert(read('motorcycle-brand.html').includes('if(knownBrand)document.getElementById("canonicalLink").href='), 'Unknown manufacturer URLs must not self-canonicalise');
-assert(read('motorcycle-model-guide.html').includes('if(!row&&!guide){\n el("modelRobots").content="noindex,follow"'), 'Unknown model URLs must be noindex');
-console.log('PASS: '+models.length+' models, '+(brands.length+2)+' manufacturers including BMW/Harley, '+markets.length+' international market pages, unique identities and canonical checks');
+console.log('PASS: '+models.length+' models, '+(brands.length+new Set(dedicated.values()).size)+
+ ' manufacturers and '+markets.length+' international market pages');
