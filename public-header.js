@@ -814,6 +814,7 @@ async function loadPublicHeader(){
     }
 
     holder.innerHTML = await headerRes.text();
+    anybikeSetUpManufacturerMenuLogos(holder);
     
     try{await anybikeEnsureHeaderAuthClient();}catch(e){console.warn("Header authentication unavailable",e);}
     // Identify approved test accounts before slower navigation/profile setup.
@@ -866,7 +867,6 @@ async function loadPublicHeader(){
       menu.addEventListener("focusin",function(){clearTimeout(closeTimer);menu.classList.add("menu-open");});
       menu.addEventListener("focusout",function(){clearTimeout(closeTimer);closeTimer=setTimeout(function(){if(!menu.contains(document.activeElement)&&!menu.matches(":hover"))menu.classList.remove("menu-open");},250);});
     });
-    anybikeSetUpManufacturerMenuLogos(holder);
     // Manufacturers uses the same hover/focus mega-menu behaviour as Markets.
     // No pointer-enter pinning or background scroll lock.
     if(typeof window.AnyBikePublicStockVisible==="boolean") anybikeUpdatePublicStockMenu(window.AnyBikePublicStockVisible);
@@ -913,7 +913,8 @@ function anybikeSetUpManufacturerMenuLogos(holder){
     const byName=new Map(Object.entries(logos.value).map(([name,logo])=>[nameKey(name),logo]));
     for(const link of list.querySelectorAll('a')){
       const logo=byName.get(nameKey(link.textContent));
-      if(!logo?.image)continue;
+      const existing=link.querySelector('.manufacturer-menu-logo');
+      if(!logo?.image||existing?.querySelector('img').getAttribute('src')===logo.image)continue;
       const badge=document.createElement('span');
       badge.className='manufacturer-menu-logo';
       badge.dataset.background=logo.background;
@@ -921,7 +922,10 @@ function anybikeSetUpManufacturerMenuLogos(holder){
       const image=document.createElement('img');
       image.alt='';
       image.decoding='async';
-      image.addEventListener('load',()=>{badge.hidden=false},{once:true});
+      image.addEventListener('load',()=>{
+        badge.hidden=false;
+        existing?.remove();
+      },{once:true});
       badge.append(image);
       link.prepend(badge);
       image.src=logo.image;
