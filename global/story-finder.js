@@ -112,3 +112,76 @@ loadVideo?.addEventListener('click',() => {
   loadVideo.replaceWith(frame);
   frame.focus();
 });
+
+const finder = document.getElementById('story-finder');
+const wideLayout = window.matchMedia('(min-width: 1041px)');
+function placeFinder(){
+  document.getElementById(wideLayout.matches ? 'front-main' : 'finder-home').append(finder);
+}
+wideLayout.addEventListener('change',placeFinder);
+placeFinder();
+
+const spotlight = document.getElementById('lead-spotlight');
+const choices = document.getElementById('lead-choices');
+const heritageLead = spotlight.querySelector('.lead-story');
+const categories = [['Race report','Racing'],['Model launch','Model launch'],['Rider story','Rider story']];
+const latest = [...document.querySelectorAll('#latest .news-item')]
+  .sort((a,b)=>b.dataset.published.localeCompare(a.dataset.published));
+const editions = categories.flatMap(([tag,label])=>{
+  const source = latest.find(article=>article.querySelector('.tag').textContent.endsWith(' · '+tag));
+  if(!source) return [];
+  const article = document.createElement('article');
+  article.className = 'lead-story';
+  const photo = source.querySelector('figure').cloneNode(true);
+  photo.classList.remove('news-photo');
+  photo.querySelector('img').loading = 'eager';
+  const copy = source.querySelector('.news-copy').cloneNode(true);
+  copy.className = 'lead-copy';
+  const heading = document.createElement('h2');
+  heading.append(...copy.querySelector('h3').childNodes);
+  copy.querySelector('h3').replaceWith(heading);
+  const storyLink = document.createElement('a');
+  storyLink.className = 'button';
+  storyLink.href = heading.querySelector('a').getAttribute('href');
+  storyLink.textContent = 'Read the story →';
+  const actions = document.createElement('div');
+  actions.className = 'link-actions';
+  actions.append(storyLink);
+  copy.append(actions);
+  article.append(photo,copy);
+  article.hidden = true;
+  spotlight.append(article);
+  return [{label,article,date:source.dataset.published}];
+}).sort((a,b)=>b.date.localeCompare(a.date));
+editions.push({label:'Burt Munro',article:heritageLead});
+const buttons = editions.map(({label})=>{
+  const button = document.createElement('button');
+  button.className = 'pill';
+  button.type = 'button';
+  button.textContent = label;
+  choices.append(button);
+  return button;
+});
+function showLead(selected){
+  editions.forEach(({article},index)=>{
+    article.hidden = index !== selected;
+    buttons[index].setAttribute('aria-pressed',String(index === selected));
+  });
+}
+buttons.forEach((button,index)=>button.addEventListener('click',()=>showLead(index)));
+choices.hidden = editions.length < 2;
+function revealHeritageLink(){
+  if(location.hash !== '#'+heritageLead.id) return false;
+  showLead(editions.length-1);
+  return true;
+}
+if(!revealHeritageLink()) showLead(0);
+window.addEventListener('hashchange',revealHeritageLink);
+
+const today = new Date().toLocaleDateString('en-CA',{timeZone:'Europe/London'});
+const events = [...document.querySelectorAll('[data-event-end]')];
+for(const event of events) event.hidden = event.dataset.eventEnd < today;
+if(events.every(event=>event.hidden)){
+  document.getElementById('upcoming-events').hidden = true;
+  document.querySelector('.desks a[href="#upcoming-events"]').hidden = true;
+}
