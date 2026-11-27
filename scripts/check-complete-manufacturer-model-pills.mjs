@@ -2,6 +2,7 @@
 // Run: node scripts/check-complete-manufacturer-model-pills.mjs
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {Script} from 'node:vm';
 const catalogue=JSON.parse(readFileSync('data/motorcycle-catalogue-master.json','utf8'));
 const script=readFileSync('motorcycle-complete-catalogue-navigation.js','utf8');
 const header=readFileSync('public-header.js','utf8');
@@ -44,7 +45,9 @@ for(const phrase of [
  "if(document.querySelector('main')){void mount();return;}",
  "observer.observe(document.documentElement,{childList:true,subtree:true});",
  'Public catalogue fallback unavailable; trying canonical Supabase directory',
- 'databaseModels.length?databaseModels:publicModels','const models=[...new Map([...(databaseModels.length?databaseModels:publicModels).map(x=>x.model),...routes.map(x=>x.model)]',
+ 'const models=[...new Map([...publicModels.filter(',
+ '...databaseModels.map(x=>x.model),...routes.map(x=>x.model),...permanentNames]',
+ '.filter(Boolean).map(name=>[normalize(name),name])).values()]',
  "rows.filter(x=>normalize(x.make)===normalize(make)",
  'const byModel=new Map(permanentRoutes)', 'if(!byModel.has(identity))byModel.set(identity,route.url)',
  "name=>byModel.get(normalize(name))||genericUrl(make,name)",
@@ -65,9 +68,33 @@ assert(brand.includes('for(const item of [...published,...liveModels])'),
  'Newly returned canonical models must take precedence over older published snapshot entries');
 assert(brand.includes('merged.set(item.model.trim().toLowerCase(),item)'),
  'Canonical duplicate model identities must be resolved during merge');
-assert(brand.includes('groups[category]=list.filter(name=>approved.has(match(name)))'),'Manufacturer cards must not mix stale curated names into the canonical model directory');
+assert(brand.includes('groups[category]=list.filter(name=>approved.has(match(name))&&match(matching.find(row=>match(row.model)===match(name))?.category)===match(category))'),'Manufacturer cards must not mix stale curated names into the canonical model directory');
 assert(guide.includes('motorcycle-model-guide.html')||guide.includes('id="nextAction"'),'Shared model guide missing');
 assert(!script.includes('international-public-stock'),'Pill navigation must never query private stock');
 assert(!script.includes("if(!rows.length)return;"),'Static catalogue outage must not suppress database model pills');
 assert(!script.includes('window.supabase?.createClient'),'Approved dedicated model route lookup must not depend on optional client library');
+const start=script.indexOf(' const byModel=new Map(permanentRoutes);');
+const end=script.indexOf(' if(!models.length)return;',start);
+assert(start>=0&&end>start,'Model directory merge is missing');
+const merge=new Script(script.slice(start,end)+'\n({models,byModel})');
+const modelRows=[
+ {model:'R 1300 GS',model_id:42},
+ {model:'R 80 G/S',model_id:45}
+];
+const permanentRoutes=new Map([['r1300gs','/models/bmw/r-1300-gs.html']]);
+for(const databaseModels of [[],[{model:'R 1300 GS MULTI'},modelRows[0]]]){
+ const merged=merge.runInNewContext({
+  permanentRoutes,
+  publicModels:modelRows,
+  databaseModels,
+  permanentNames:['R 1300 GS'],
+  routes:[{model:'R 1300 GS',url:'/bmw-r1300gs.html'},{model:'R 32',url:'/bmw-r32.html'}],
+  normalize:key
+ });
+ assert(merged.models.includes('R 80 G/S'),'A partial database response must retain reviewed offline identities');
+ assert.equal(merged.models.includes('R 1300 GS MULTI'),databaseModels.length>0,'Live names must join the directory');
+ assert.equal(merged.models.filter(model=>model==='R 1300 GS').length,1,'A published identity must appear once');
+ assert.equal(merged.byModel.get('r1300gs'),'/models/bmw/r-1300-gs.html','Prefer the permanent route over the legacy URL');
+ assert.equal(merged.byModel.get('r32'),'/bmw-r32.html','Retain the reviewed legacy fallback when needed');
+}
 console.log('PASS: '+models.length+' approved public model identities across '+manufacturers.size+' manufacturers; all manufacturer and model pages use shared same-make pill navigation.');
