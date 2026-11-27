@@ -7,3 +7,7 @@ Each model requires a canonical identity, category, permanent approved V2 guide,
 Start by reconciling all models produced during 2026–2016 across all manufacturers, including brands no longer trading. Include models whose production overlaps the window, without duplicating models across windows. Prepare researched historical additions privately before publication; do not generate empty public pages or placeholder-heavy manufacturer libraries. Keep live feed ingestion independent of editorial publication readiness. Then move backwards across all brands. Track evidence and gaps separately from published facts. Verify live presentation before declaring a batch complete. No Vercel involvement.
 
 Baseline: previous catalogue audit reported 996 records across 52 manufacturers; this is not a verified historical completeness count. Historical expansion has not yet begun.
+
+## Future marketplace integration
+
+Publish individual model pills alongside each completed model. Preserve stable canonical model IDs and routes for future motorcycle classifieds, motorcycles wanted, parts wanted and parts for sale, including discontinued models. Work in incremental batches with checkpoints suitable for hourly or overnight continuation. Do not publish empty historical pages or block live feeds. Future classifieds functionality is not part of the current implementation.
