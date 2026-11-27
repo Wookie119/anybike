@@ -215,7 +215,7 @@ footer{margin-top:auto;border-top:1px solid var(--line);color:#aaa;padding:18px 
         <div class="block-box" id="blockBox"></div>
 
         <label class="full"><span>Subject *</span><input id="subject" required></label>
-        <label class="full"><span>Message *</span><textarea id="message" required></textarea></label>
+        <label class="full"><span id="messageLabel">Message *</span><textarea id="message" required></textarea></label>
       </div>
 
       <div class="form-actions">
@@ -274,7 +274,8 @@ const journeys = [
   {key:"Buy a Motorcycle",icon:"🏍️",group:"Buyer",dept:"Bike Sales",priority:"Normal",title:"Source Used Motorcycles",desc:"Tell AnyBike what used motorcycle or motorcycles your business needs us to source from the UK.",tags:"Trade • Business • Export"},
   {key:"Sell / Supply a Motorcycle",icon:"💷",group:"Supply",dept:"Buying",priority:"Normal",title:"Sell / Supply to AnyBike",desc:"Offer one motorcycle, part-exchange stock or regular dealer supply directly to AnyBike for purchase.",tags:"Private Seller • Dealer • Supplier"},
   {key:"Motorcycle Dealer",icon:"🏢",group:"Trade",dept:"Business Development",priority:"Normal",title:"Dealer / Supplier Partnership",desc:"Supply motorcycles to AnyBike, discuss dealer-to-dealer purchasing, authorised stock/data connections or another commercial partnership.",tags:"Supply • Dealer Purchasing • Stock Data • Partnership"},
-  {key:"International Motorcycle Services",icon:"🌍",group:"International",dept:"Operations",priority:"Normal",title:"Export & UK Handover Services",desc:"Collection, inspection, export crating, shipping advice and delivery to UK ports or freight forwarders.",tags:"Collection • Inspection • Crating • Shipping"}
+  {key:"International Motorcycle Services",icon:"🌍",group:"International",dept:"Operations",priority:"Normal",title:"Export & UK Handover Services",desc:"Collection, inspection, export crating, shipping advice and delivery to UK ports or freight forwarders.",tags:"Collection • Inspection • Crating • Shipping"},
+  {key:"Pitch a story",intakeKey:"Motorcycle Dealer",icon:"📝",group:"AnyBike Global",dept:"Business Development",priority:"Normal",title:"Pitch a story",desc:"Send a short summary of your story or video and a link to your work. Include where it takes place and why it would interest motorcycle readers.",tags:"AnyBike Global • Stories & video"}
 ];
 
 function escapeHtml(value){
@@ -306,6 +307,9 @@ function checkboxGroup(label,name,options){
 }
 
 function dynamicMarkup(key){
+  if(key==="Pitch a story"){
+    return '<label><span>Link to your work *</span><input class="dynamic-input" data-label="Link to your work" id="pitchWork" type="url" pattern="https?://.+" required placeholder="https://"></label>';
+  }
   if(key==="Buy a Motorcycle"){
     return `<div class="dynamic-heading">Buying details</div>
       ${fieldSelect("Buying as","buyingAs",[{value:"Motorcycle Trade",text:"Motorcycle dealer / trader"},{value:"Business Buyer",text:"Business / professional buyer"},{value:"Importer / Wholesaler",text:"Importer / wholesaler"}],true)}
@@ -371,6 +375,11 @@ function selectJourney(key){
   document.getElementById("formIntro").textContent=selectedJourney.desc;
   document.getElementById("selectedPill").textContent=selectedJourney.group+" • "+selectedJourney.dept;
   document.getElementById("dynamicFields").innerHTML=dynamicMarkup(key);
+  const isPitch=key==="Pitch a story";
+  document.getElementById("messageLabel").textContent=isPitch?"Short story summary *":"Message *";
+  document.getElementById("message").placeholder=isPitch?"What’s the story, where does it take place, and why should we cover it?":"";
+  const subject=document.getElementById("subject");
+  if(isPitch || subject.value==="AnyBike Global story pitch")subject.value=isPitch?"AnyBike Global story pitch":"";
   document.getElementById("channelBox").classList.remove("show");
   document.getElementById("blockBox").classList.remove("show");
   document.getElementById("successBox").classList.remove("show");
@@ -522,7 +531,7 @@ ${getDynamicMessage()}`;
   const {data:submission,error:submitError}=await sb.rpc("public_submit_connect_enquiry_v1",{
     p_payload:{
       name,email,phone,subject,message:fullMessage,
-      journey:selectedJourney.key,
+      journey:selectedJourney.intakeKey||selectedJourney.key,
       country:countryInput||geoInfo.country||null,
       postcode:postcode||geoInfo.postcode||null,
       origin_url:originPageUrl,origin_title:originPageTitle,
@@ -611,6 +620,7 @@ function applyUrlPrefill(){
   const rawDestination=params.get("destination")||params.get("market");
 
   const journeyMap={
+    "pitch-story":"Pitch a story",
     dealer:"Motorcycle Dealer",
     trade:"Motorcycle Dealer",
     buy:"Buy a Motorcycle",
