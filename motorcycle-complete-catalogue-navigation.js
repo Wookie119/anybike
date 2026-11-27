@@ -142,7 +142,8 @@ async function mount(){
    const head=document.createElement('div');head.className='sectionhead';
    const h=document.createElement('h3');h.textContent=category+' — additional models';head.append(h);
    const bmwCategory={adventure:'adventure',offroad:'adventure',sports:'sports',sport:'sports',sporttouring:'sports',touring:'touring',roadster:'touring',nakedroadsters:'touring',heritagecruiser:'heritage',cruisers:'heritage',scooterelectric:'scooters'};
-   const target=make==='BMW'?host.querySelector('#'+(bmwCategory[normalize(category)]||'unmatched')+' .modelgrid'):null;
+   const harleyCategory={adventure:'adventure',cruisers:'cruisers',touring:'touring',trikes:'specialist',electricmotorcycles:'specialist',heritagehistoric:'specialist'};
+   const target=host.querySelector('#'+((make==='BMW'?bmwCategory:harleyCategory)[normalize(category)]||'unmatched')+' .modelgrid');
    const grid=target||document.createElement('div');grid.className='modelgrid';
    for(const entry of entries.sort((a,b)=>a.name.localeCompare(b.name,'en',{numeric:true}))){
     const card=document.createElement('div');card.className='model';card.dataset.addedModel='1';
