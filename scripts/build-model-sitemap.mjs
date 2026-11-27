@@ -1,37 +1,62 @@
 #!/usr/bin/env node
-// Rebuild only the model URL entries. Preserve manually curated routes and country pages.
+// Keep the two model URL lists in sync with the published V2 route registry.
 import {readFileSync,writeFileSync} from 'node:fs';
-import {fileURLToPath} from 'node:url';
-import {dirname,resolve} from 'node:path';
-const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-const sitemapPath=resolve(root,'sitemap.xml');
-const catalogue=JSON.parse(readFileSync(resolve(root,'data/motorcycle-index-identities.json'),'utf8'));
-const original=readFileSync(sitemapPath,'utf8');
-const encode=s=>encodeURIComponent(String(s).trim());
-const escapeXml=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const identities=new Map();
-for(const item of catalogue.models){
- const make=String(item.make||'').trim(),model=String(item.model||'').trim();
- if(!make||!model)throw Error('Blank make or model in published catalogue');
- const key=make.toLowerCase()+'|'+model.toLowerCase();
- if(identities.has(key))throw Error('Duplicate model identity: '+key);
- identities.set(key,{make,model});
+
+const base='https://www.anybike.co.uk';
+const files={
+ main:new URL('../sitemap.xml',import.meta.url),
+ models:new URL('../sitemap-motorcycle-models.xml',import.meta.url)
+};
+const read=file=>readFileSync(new URL(file,import.meta.url),'utf8');
+const registry=JSON.parse(read('../data/universal-v2-model-routes.json')).models;
+const routes=new Set(registry.map(row=>row.url));
+if(routes.size!==registry.length)throw Error('Duplicate published model routes');
+
+const canonical=new Map();
+for(const route of routes){
+ if(!/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(route))throw Error('Invalid model route: '+route);
+ const head=read('..'+route).split(/<\/head\s*>/i,1)[0];
+ const href=head.match(/<link id="modelCanonical" rel="canonical" href="([^"]+)"/)?.[1];
+ if(!href?.startsWith(base+'/models/')||!routes.has(href.slice(base.length))){
+  throw Error('Missing or unregistered canonical on '+route);
+ }
+ const robots=[...head.matchAll(/<meta\b[^>]*>/gi)].map(match=>match[0])
+  .filter(tag=>/\bname=["'](?:robots|[\w-]*bot(?:-[\w-]+)?)["']/i.test(tag));
+ if(robots.some(tag=>/\bcontent=["'][^"']*\b(?:noindex|none)\b/i.test(tag))){
+  throw Error('Published model route blocks indexing: '+route);
+ }
+ canonical.set(base+route,href);
 }
-const withoutModels=original.replace(/\s*<url>\s*<loc>https:\/\/www\.anybike\.co\.uk\/motorcycle-model-guide\.html\?make=[^<]*<\/loc>\s*<\/url>/g,'');
-const modelLines=[...identities.values()].sort((a,b)=>a.make.localeCompare(b.make)||a.model.localeCompare(b.model)).map(({make,model})=>{
- const url='https://www.anybike.co.uk/motorcycle-model-guide.html?make='+encode(make)+'&model='+encode(model);
- return '  <url><loc>'+escapeXml(url)+'</loc></url>';
-}).join('\n');
-const updated=withoutModels.replace(/\s*<\/urlset>\s*$/, '\n'+modelLines+'\n</urlset>\n');
-if(!updated.includes('</urlset>'))throw Error('Malformed sitemap; missing urlset close');
+for(const target of canonical.values()){
+ if(canonical.get(target)!==target)throw Error('Model canonical points to another alias: '+target);
+}
+const models=[...canonical].filter(([url,target])=>url===target).map(([url])=>url)
+ .sort((a,b)=>a.slice(0,-5).localeCompare(b.slice(0,-5),'en'));
+const modelSet=new Set(models);
+const main=read(files.main);
+const modelEntry=/\s*<url>\s*<loc>(https:\/\/www\.anybike\.co\.uk\/models\/[^<]+|https:\/\/www\.anybike\.co\.uk\/motorcycle-model-guide\.html\?[^<]+)<\/loc>[\s\S]*?<\/url>/g;
+const included=new Set();
+const retained=main.replace(modelEntry,(entry,url)=>{
+ if(!modelSet.has(url)||included.has(url))return '';
+ included.add(url);
+ return entry;
+});
+const entry=url=>'  <url><loc>'+url+'</loc></url>';
+const additions=models.filter(url=>!included.has(url));
+const expectedMain=additions.length
+ ? retained.replace(/\s*<\/urlset>\s*$/,'\n'+additions.map(entry).join('\n')+'\n</urlset>\n')
+ : retained;
+if(!/<\/urlset>\s*$/.test(expectedMain))throw Error('Invalid main sitemap');
+const expectedModels='<?xml version="1.0" encoding="UTF-8"?>\n'+
+ '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+models.map(entry).join('\n')+'\n</urlset>\n';
+
 if(process.argv.includes('--check')){
- const existing=[...original.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>m[1]);
- const expected=[...updated.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>m[1]);
- const actualModels=existing.filter(x=>x.includes('/motorcycle-model-guide.html?')).sort();
- const desiredModels=expected.filter(x=>x.includes('/motorcycle-model-guide.html?')).sort();
- if(JSON.stringify(actualModels)!==JSON.stringify(desiredModels))throw Error('Model sitemap is out of sync; run node scripts/build-model-sitemap.mjs');
- console.log('PASS: sitemap contains '+identities.size+' current model identities');
+ if(main!==expectedMain||read(files.models)!==expectedModels){
+  throw Error('Model sitemaps are out of sync. Run node scripts/build-model-sitemap.mjs');
+ }
+ console.log('PASS: both sitemaps contain all '+models.length+' canonical V2 model routes');
 }else{
- writeFileSync(sitemapPath,updated);
- console.log('Updated model sitemap from '+identities.size+' published identities');
+ writeFileSync(files.main,expectedMain);
+ writeFileSync(files.models,expectedModels);
+ console.log('Updated both sitemaps with '+models.length+' canonical V2 model routes');
 }
