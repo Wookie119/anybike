@@ -181,7 +181,7 @@ const researchedBMWModels=new Set(["S 1000 RR","R 1300 GS","M 1000 RR","R 1250 G
 // All BMW catalogue cards now open the ONE approved, Supabase-driven V2
 // template. Historical dedicated BMW URLs and their preserved research
 // remain available; this changes navigation only, not the archived pages.
-function link(model){return "/motorcycle-model-guide.html?make=BMW&model="+encodeURIComponent(model)}
+function link(model){if(model.replace(/\s/g,"").toUpperCase()==="F450GS")return "/models/bmw/f450-gs.html";return "/motorcycle-model-guide.html?make=BMW&model="+encodeURIComponent(model)}
 let modelDescriptions = {
   "R 1300 GS": "Modern flagship adventure motorcycle built for long-distance road riding and demanding mixed-surface journeys.",
   "R 1250 GS": "Versatile boxer-powered adventure tourer, known for all-day comfort and broad touring capability.",
@@ -240,8 +240,10 @@ let licensedBMWPhotos={
 "F 900 XR":{file:"BMW F 900 XR, Heck (2024-05-04 Sp ret).JPG",credit:"Lothar Spurzem (retouched registration)",license:"CC BY-SA 3.0 DE",licenseUrl:"https://creativecommons.org/licenses/by-sa/3.0/de/deed.en"}
 };
 function photoCreditLink(model){return licensedBMWPhotos[model]?'<a class="bmw-credit-link" href="#bmw-photo-credits">Photo credit ↗</a>':""}
-function photoForBMW(model){const p=licensedBMWPhotos[model];if(!p)return "";const src="https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(p.file).replace(/%20/g,"_")+"?width=560";return '<span class="bmw-photo"><img loading="lazy" decoding="async" width="560" height="350" src="'+esc(src)+'" alt="BMW '+esc(model)+' motorcycle — reference photograph" referrerpolicy="no-referrer"></span>'}
+function photoForBMW(model){const p=licensedBMWPhotos[model];if(!p)return '<span class="bmw-photo"><img loading="lazy" width="560" height="350" src="/anybike-image-coming-soon.png" alt="AnyBike image coming soon"></span>';const src="https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(p.file).replace(/%20/g,"_")+"?width=560";return '<span class="bmw-photo"><img loading="lazy" decoding="async" width="560" height="350" src="'+esc(src)+'" alt="BMW '+esc(model)+' motorcycle — reference photograph" referrerpolicy="no-referrer"></span>'}
 function renderBMWModelLibrary(){
+const adventure=curated.find(f=>f.key==="adventure");
+if(adventure&&!adventure.entries.some(m=>m[2].replace(/\s/g,"").toUpperCase()==="F450GS"))adventure.entries.push(["F450 GS","Adventure","F450 GS"]);
 document.getElementById("modelFamilies").innerHTML=curated.map(f=>'<section class="section" id="'+f.key+'"><div class="sectionhead"><div><h3>'+esc(f.label)+'</h3></div></div><div class="modelgrid">'+f.entries.map(m=>'<div class="model">'+photoForBMW(m[0])+'<a class="model-main" href="'+link(m[2])+'"><span class="name">BMW '+esc(m[0])+'</span><span class="hint">'+esc(m[1])+'</span><span class="model-description">'+esc(modelDescriptions[m[0]]||"Explore this BMW model and request sourcing from UK sellers.")+'</span><span class="go">'+("Explore BMW "+esc(m[0])+" model guide →")+'</span></a>'+photoCreditLink(m[0])+'</div>').join("")+'</div></section>').join("");
 
 const photoCreditsSection=document.createElement("section");photoCreditsSection.className="section bmw-credits-section";photoCreditsSection.id="bmw-photo-credits";photoCreditsSection.innerHTML='<h2>Photograph credits</h2><p class="footnote">Photographs are credited to their creators under the Creative Commons licences linked for each image. Images are displayed at reduced size. Follow the source links for full licence and photograph details.</p><ul class="bmw-credit-list">'+Object.entries(licensedBMWPhotos).map(([model,p])=>{const url="https://commons.wikimedia.org/wiki/File:"+encodeURIComponent(p.file).replace(/%20/g,"_");return '<li><strong>BMW '+esc(model)+'</strong> — '+esc(p.credit)+' · <a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Original photograph ↗</a> · <a href="'+(p.licenseUrl||("https://creativecommons.org/licenses/by-sa/"+p.license.split(" ").pop()+"/"))+'" target="_blank" rel="noopener noreferrer">'+esc(p.license)+' ↗</a></li>'}).join("")+'</ul>';document.getElementById("modelFamilies").appendChild(photoCreditsSection);
@@ -336,6 +338,6 @@ renderBMWModelLibrary();
 <script type="module" src="/model-template/public-manufacturer-model-index.mjs?v=20261109-1"></script>
 <script src="/global-manufacturer-stories.js?v=20261012"></script>
 <script src="/motorcycle-related-manufacturers.js?v=20261012"></script>
-<script defer src="/motorcycle-complete-catalogue-navigation.js?v=20261126-category-library"></script>
+<script defer src="/motorcycle-complete-catalogue-navigation.js?v=20261127-bmw-category-merge"></script>
 </body>
 </html>
