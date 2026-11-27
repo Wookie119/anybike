@@ -111,74 +111,21 @@ async function mount(){
   }
  }catch(error){console.warn('Permanent model routes unavailable; keeping existing guide links',error)}
 
- // Extend dedicated manufacturer libraries without replacing licensed photos,
- // editorial descriptions or existing family sections.
- function extendDedicatedLibrary(){
-  if(!isBrand||make!=='BMW')return;
-  const host=document.getElementById('modelFamilies');
-  if(!host)return;
-  host.querySelector('[data-complete-category-extension]')?.remove();
-  host.querySelectorAll('[data-added-model]').forEach(node=>node.remove());
-  const existing=new Set();
-  for(const a of host.querySelectorAll('.model-main')){
-   const label=a.querySelector('.name')?.textContent?.trim()||'';
-   const name=label.startsWith(make+' ')?label.slice(make.length+1):label;
-   const url=permanentRoutes.get(normalize(name));
-   if(url){existing.add(normalize(name));a.href=url;}
-  }
-  const groups=new Map();
-  for(const row of publicModels){
-   const id=normalize(row.model),url=permanentRoutes.get(id);
-   if(!url||existing.has(id)||!row.category||row.category==='Other')continue;
-   existing.add(id);
-   if(!groups.has(row.category))groups.set(row.category,[]);
-   groups.get(row.category).push({name:row.model,url});
-  }
-  const extension=document.createElement('div');
-  extension.dataset.completeCategoryExtension='1';
-  for(const [category,entries] of [...groups].sort((a,b)=>a[0].localeCompare(b[0]))){
-   const sec=document.createElement('section');sec.className='section';
-   sec.id='complete-category-'+normalize(category);
-   const head=document.createElement('div');head.className='sectionhead';
-   const h=document.createElement('h3');h.textContent=category+' — additional models';head.append(h);
-   const bmwCategory={adventure:'adventure',offroad:'adventure',sports:'sports',sport:'sports',sporttouring:'sports',touring:'touring',roadster:'touring',nakedroadsters:'touring',heritagecruiser:'heritage',cruisers:'heritage',scooterelectric:'scooters'};
-   const harleyCategory={adventure:'adventure',cruisers:'cruisers',touring:'touring',trikes:'specialist',electricmotorcycles:'specialist',heritagehistoric:'specialist'};
-   const target=host.querySelector('#'+((make==='BMW'?bmwCategory:harleyCategory)[normalize(category)]||'unmatched')+' .modelgrid');
-   const grid=target||document.createElement('div');grid.className='modelgrid';
-   for(const entry of entries.sort((a,b)=>a.name.localeCompare(b.name,'en',{numeric:true}))){
-    const card=document.createElement('div');card.className='model';card.dataset.addedModel='1';
-    const a=document.createElement('a');a.className='model-main';a.href=entry.url;
-    const name=document.createElement('span');name.className='name';name.textContent=make+' '+entry.name;
-    const hint=document.createElement('span');hint.className='hint';hint.textContent=category;
-    const go=document.createElement('span');go.className='go';go.textContent='Explore model guide →';
-    const photo=document.createElement('span');photo.className=make==='BMW'?'bmw-photo':'harley-photo';
-    const img=document.createElement('img');img.src='/anybike-image-coming-soon.png';img.alt='AnyBike';img.loading='lazy';img.decoding='async';img.width=560;img.height=315;img.style.cssText='width:100%;aspect-ratio:16/9;object-fit:cover;display:block';photo.append(img);
-    a.append(name,hint,go);card.append(photo,a);grid.append(card);
-   }
-   if(!target){sec.append(head,grid);extension.append(sec);}
-  }
-  host.append(extension);
-  const categoryNav=document.querySelector('#models .navtags:not(.bmw-shortcuts):not([data-complete-catalogue-navigation])');
-  if(categoryNav){
-   categoryNav.querySelectorAll('[data-added-category]').forEach(node=>node.remove());
-   for(const [category] of groups){
-    if(!extension.querySelector('#complete-category-'+normalize(category)))continue;
-    const link=document.createElement('a');
-    link.href='#complete-category-'+normalize(category);
-    link.textContent=category+' — additional models';
-    link.dataset.addedCategory='1';
-    categoryNav.append(link);
-   }
-  }
- }
+ // Preserve approved photographic libraries. Only update existing card links;
+ // additional models belong in the complete pill directory until researched.
  if(isBrand&&['BMW','Harley-Davidson'].includes(make)){
-  extendDedicatedLibrary();
   const host=document.getElementById('modelFamilies');
   if(host){
-   const observer=new MutationObserver(()=>{
-    if(!host.querySelector('[data-complete-category-extension]'))extendDedicatedLibrary();
-   });
-   observer.observe(host,{childList:true});
+   const refreshLinks=()=>{
+    for(const a of host.querySelectorAll('.model-main')){
+     const label=a.querySelector('.name')?.textContent?.trim()||'';
+     const name=label.startsWith(make+' ')?label.slice(make.length+1):label;
+     const url=permanentRoutes.get(normalize(name));
+     if(url)a.href=url;
+    }
+   };
+   refreshLinks();
+   new MutationObserver(refreshLinks).observe(host,{childList:true});
   }
  }
  const byModel=new Map(permanentRoutes);
