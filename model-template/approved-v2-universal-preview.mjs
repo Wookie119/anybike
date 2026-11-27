@@ -834,64 +834,32 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   if(!safePhoto(approvedHero)&&safePhoto(preservedExistingPhoto)&&
    str(preservedExistingPhoto.subject_category)==='whole_motorcycle')
    approvedHero=preservedExistingPhoto;
-  // Explicitly registered manufacturer marks only; no fuzzy lookup or
-  // inferred logo from an arbitrary brand's name. The same registry serves
-  // every model of that manufacturer. Logos are NOT motorcycle photographs.
-  // Manufacturer artwork is controlled by the central catalogue. Never guess image URLs.
-  const showRegisteredLogo=async()=>{
+  const showMissingModelPhoto=()=>{
    if(!fig)return;
-   const img=fig.querySelector('img'),caption=fig.querySelector('figcaption');
-   if(!img||!caption)return;
-   const wordmark=()=>{
-    img.hidden=false;img.style.display='';img.onerror=()=>{
-     img.hidden=true;img.style.display='none';img.onerror=null;
-    };
-    img.alt='AnyBike motorcycle image coming soon';
-    img.style.objectFit='contain';img.style.backgroundColor='#050404';
-    img.style.padding='0';img.style.boxSizing='border-box';
-    img.src='/anybike-image-coming-soon.png';
-    caption.textContent=make+' '+model+' · Motorcycle photograph coming soon';
-    caption.style.cssText='font-weight:900;font-size:clamp(24px,4vw,48px);padding:24px;text-align:center;color:#fff';
-    fig.dataset.anybikeHeroType='anybike-placeholder';fig.hidden=false;
-   };
-   wordmark();
-   try{
-    const response=await fetch(ENDPOINT+'/rest/v1/rpc/public_anybike_manufacturer_logo_v1',{
-     method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},
-     body:JSON.stringify({p_make:make}),signal:AbortSignal.timeout(3500)
-    });
-    if(!response.ok)throw Error('Manufacturer artwork unavailable');
-    const logo=await response.json();
-    if(!logo||normalize(logo.make)!==normalize(make)||!validURL(logo.logo_url)){wordmark();return;}
-    img.hidden=false;img.style.display='';caption.style.cssText='';
-    img.alt=make+' manufacturer logo';img.style.objectFit='contain';
-    img.style.backgroundColor='#fff';img.style.padding='12px';img.style.boxSizing='border-box';
-    caption.textContent=make+' manufacturer logo';
-    fig.dataset.anybikeHeroType='manufacturer-logo';
-    img.onerror=wordmark;fig.hidden=false;img.src=logo.logo_url;
-   }catch{wordmark();}
+   fig.querySelector('img')?.removeAttribute('src');
+   fig.dataset.anybikeHeroType='missing-photograph';
+   fig.hidden=true;
   };
   if(fig&&safePhoto(approvedHero)){
-   // Share/preview images are added only when the same exact-model photo
-   // passed the central image rights and identity checks.
-   let openGraphPhoto=document.querySelector('meta[property="og:image"]');
-   if(!openGraphPhoto){
-    openGraphPhoto=document.createElement('meta');
-    openGraphPhoto.setAttribute('property','og:image');
-    document.head.append(openGraphPhoto);
-   }
-   openGraphPhoto.content=approvedHero.image_url;
-   const img=fig.querySelector('img');
-   img.onerror=showRegisteredLogo;
-   img.alt=str(approvedHero.title)||title+' motorcycle';
-   const caption=fig.querySelector('figcaption');
+   const img=fig.querySelector('img'),caption=fig.querySelector('figcaption');
+   img.onerror=showMissingModelPhoto;
+   img.onload=()=>{
+    let openGraphPhoto=document.querySelector('meta[property="og:image"]');
+    if(!openGraphPhoto){
+     openGraphPhoto=document.createElement('meta');
+     openGraphPhoto.setAttribute('property','og:image');
+     document.head.append(openGraphPhoto);
+    }
+    openGraphPhoto.content=approvedHero.image_url;
+   };
+   img.alt=title+' motorcycle';
    caption.textContent=str(approvedHero.attribution)+' · ';
    sourceLink(caption,approvedHero.source_page_url,'Photograph attribution ↗');
    sourceLink(caption,approvedHero.licence_url,' · Licence ↗');
    fig.dataset.anybikeHeroType='photograph';
    fig.hidden=false;
    img.src=approvedHero.image_url;
-  }else if(fig){showRegisteredLogo();}
+  }else if(fig){showMissingModelPhoto();}
   // Never repeat the hero as a gallery card or display the same image twice.
   const galleryUrls=new Set(safePhoto(approvedHero)?[approvedHero.image_url]:[]);
   const galleryItems=approvedGallery.filter(photo=>{

@@ -34,3 +34,30 @@ if (figure && make) {
     })
     .catch(error => console.warn('Manufacturer photo temporarily unavailable', error));
 }
+
+const heading = document.querySelector('main .manufacturer-hero h1, main .hero h1');
+
+if (make && heading) {
+  fetch('/data/manufacturer-logos.json?v=20261127-identity')
+    .then(response => {
+      if (!response.ok) throw new Error('Manufacturer logo registry unavailable');
+      return response.json();
+    })
+    .then(logos => {
+      const name = Object.keys(logos).find(brand => brand.toLowerCase() === make.trim().toLowerCase());
+      if (!name) return;
+      const logo = logos[name];
+      const badge = document.createElement('a');
+      badge.className = 'manufacturer-logo';
+      badge.dataset.background = logo.background;
+      badge.href = logo.source;
+      const image = document.createElement('img');
+      image.alt = name === 'Honda' ? 'Honda motorcycle wing logo' : name + ' motorcycle manufacturer logo';
+      image.addEventListener('load', () => {
+        badge.append(image);
+        heading.before(badge);
+      }, {once: true});
+      image.src = logo.image;
+    })
+    .catch(error => console.warn('Manufacturer logo temporarily unavailable', error));
+}
