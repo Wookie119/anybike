@@ -19,6 +19,10 @@ h1{font-size:clamp(32px,4vw,60px);line-height:1.08;margin:0 0 12px;letter-spacin
 .brand-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-top:16px}
 .brand{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:17px;display:flex;flex-direction:column;min-height:153px}
 .brand[hidden],.group[hidden],#alphabet[hidden],#empty[hidden]{display:none!important}.brand:hover{border-color:var(--red)}.brand strong{font-size:20px}.brand span{color:#c5c5c5;font-size:14px;margin:7px 0}.brand em{color:var(--red);font-size:13px;font-weight:800;font-style:normal;margin-top:auto}
+.brand strong{display:flex;align-items:center;gap:10px;min-height:36px}
+.brand strong .directory-brand-logo{flex:0 0 56px;width:56px;height:36px;margin:0;padding:3px;border-radius:5px;background:#fff}
+.brand strong .directory-brand-logo[data-background="dark"]{background:#111}
+.directory-brand-logo img{display:block;width:100%;height:100%;object-fit:contain}
 #empty{color:#ddd;padding:20px;background:#151515;border-radius:10px}footer.index-end{padding:24px;border:1px solid #444;background:#151515;border-radius:14px;margin-top:36px}footer.index-end p{color:#c7c7c7}footer.index-end a{color:var(--red);font-weight:bold}
 @media(max-width:1050px){.brand-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:720px){.brand-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{padding:20px}}@media(max-width:520px){.brand-grid{grid-template-columns:1fr}main{width:calc(100% - 28px)}}
 
@@ -105,4 +109,28 @@ main{width:auto;max-width:1760px;margin:0 auto;padding:0 30px 70px}
 </main>
 <script>
 (function(){const search=document.getElementById("brandSearch"),cards=[...document.querySelectorAll(".brand")],groups=[...document.querySelectorAll(".group")],letters=groups.map(g=>g.id.slice(7));document.getElementById("alphabet").innerHTML=letters.map(x=>'<a href="#letter-'+x+'">'+x+'</a>').join("");search.addEventListener("input",()=>{const q=search.value.trim().toLowerCase();let shown=0;cards.forEach(card=>{const match=card.dataset.name.includes(q);card.hidden=!match;if(match)shown++});groups.forEach(group=>{group.hidden=![...group.querySelectorAll(".brand")].some(card=>!card.hidden)});document.getElementById("alphabet").hidden=!!q;document.getElementById("empty").hidden=shown!==0;});})();
+</script>
+<script>
+(async function loadDirectoryBrandLogos(){
+  try{
+    const response=await fetch('/data/manufacturer-logos.json?v=20261127-identity');
+    if(!response.ok)return;
+    const logos=await response.json();
+    for(const label of document.querySelectorAll('#brands .brand strong')){
+      const logo=logos[label.textContent.trim()];
+      if(!logo?.image)continue;
+      const badge=document.createElement('span');
+      badge.className='directory-brand-logo';
+      badge.dataset.background=logo.background;
+      const image=document.createElement('img');
+      image.alt='';
+      image.loading='lazy';
+      image.decoding='async';
+      image.addEventListener('error',()=>badge.remove(),{once:true});
+      badge.append(image);
+      label.prepend(badge);
+      image.src=logo.image;
+    }
+  }catch(error){console.warn('Manufacturer directory logos unavailable',error)}
+})();
 </script><script src="/public-header.js?v=20261011-mfg-index"></script></body></html>
