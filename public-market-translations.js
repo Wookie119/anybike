@@ -7,8 +7,15 @@
   function fmt(value,c,item){return String(value||"").replace(/\{country\}/g,c).replace(/\{item\}/g,item||"");}
   function txt(el,v){if(el&&v!=null)el.textContent=String(v);}
   function html(el,v){if(el&&v!=null)el.innerHTML=String(v);}
+  const transportSource=new WeakMap();
+  function transportText(el,value,preserveSource,language){
+    if(!el)return;
+    if(preserveSource&&!transportSource.has(el))transportSource.set(el,el.textContent);
+    txt(el,preserveSource&&language==="en"?transportSource.get(el):value);
+  }
   function apply(){
-    const d=dictionaries[lang()]||dictionaries.en,c=country();
+    const selected=lang(),language=dictionaries[selected]?selected:"en";
+    const d=dictionaries[language],c=country();
     const hero=document.querySelector(".hero");
     if(hero){txt(hero.querySelector(".eyebrow"),fmt(d.heroEyebrow,c));html(hero.querySelector("h1"),fmt(d.heroTitle,c));txt(hero.querySelector(".hero-lead"),fmt(d.heroLead,c));const b=hero.querySelectorAll(".btn-row a");txt(b[0],d.browse);txt(b[1],d.source);txt(b[2],d.contact);}
     const trust=document.querySelector(".trust-grid");
@@ -21,7 +28,22 @@
     if(models){const s=models.closest(".section"),h=s?.querySelector(".section-head");txt(h?.querySelector(".eyebrow"),d.modelsEye);txt(h?.querySelector("h2"),fmt(d.modelsTitle,c));txt(h?.querySelector("p"),d.modelsLead);const cards=models.querySelectorAll(".model-card");cards.forEach((card,i)=>{const model=(card.querySelector("h3")?.textContent||"").trim();if(i===cards.length-1){txt(card.querySelector("h3"),d.another);txt(card.querySelector("p"),d.anotherDesc);txt(card.querySelector(".model-link"),d.sourceDifferent);}else{txt(card.querySelector("p"),fmt(d.modelDesc,c,model));txt(card.querySelector(".model-link"),fmt(d.viewModel,c,model));}});}
     const stock=document.getElementById("stockGrid");if(stock){const h=stock.closest(".section")?.querySelector(".section-head");txt(h?.querySelector(".eyebrow"),d.stockEye);txt(h?.querySelector("h2"),d.stockTitle);txt(h?.querySelector("p"),d.stockLead);}
     const process=document.querySelector(".process-grid");if(process){const h=process.closest(".section")?.querySelector(".section-head");txt(h?.querySelector(".eyebrow"),d.processEye);txt(h?.querySelector("h2"),d.processTitle);process.querySelectorAll(".process-card").forEach((card,i)=>{txt(card.querySelector("strong"),d.processH[i]);txt(card.querySelector("small"),d.processP[i]);});}
-    const ports=document.querySelector(".port-grid");if(ports){const h=ports.closest(".section")?.querySelector(".section-head");txt(h?.querySelector(".eyebrow"),fmt(d.transportEye,c));txt(h?.querySelector("h2"),fmt(d.transportTitle,c));txt(h?.querySelector("p"),fmt(d.transportLead,c));ports.querySelectorAll(".port-card").forEach(card=>{const places=[...card.querySelectorAll(".area-list span")].map(x=>x.textContent.trim()).filter(Boolean),label=places.slice(0,2).join(" / ")||c;txt(card.querySelector("h3"),fmt(d.shippingTo,c,label));txt(card.querySelector("p"),fmt(d.portDesc,c,label));});}
+    const ports=document.querySelector(".port-grid");
+    if(ports){
+      const section=ports.closest(".section"),head=section?.querySelector(".section-head");
+      const preserveSource=section?.classList.contains("anybike-market-local-standard");
+      const write=(el,value)=>transportText(el,value,preserveSource,language);
+      write(head?.querySelector(".eyebrow"),fmt(d.transportEye,c));
+      write(head?.querySelector("h2"),fmt(d.transportTitle,c));
+      write(head?.querySelector("p"),fmt(d.transportLead,c));
+      ports.querySelectorAll(".port-card").forEach(card=>{
+        const places=[...card.querySelectorAll(".area-list span,.area-list a")]
+          .map(x=>x.textContent.replace(/\s*[↗→]\s*$/,"").trim()).filter(Boolean);
+        const label=places.slice(0,2).join(" / ")||c;
+        write(card.querySelector("h3"),fmt(d.shippingTo,c,label));
+        write(card.querySelector("p"),fmt(d.portDesc,c,label));
+      });
+    }
     const faq=document.querySelector(".faq");if(faq){const h=faq.closest(".section")?.querySelector(".section-head");txt(h?.querySelector(".eyebrow"),d.faqEye);txt(h?.querySelector("h2"),fmt(d.faqTitle,c));faq.querySelectorAll("details").forEach((detail,i)=>{const n=i%d.faqQ.length;txt(detail.querySelector("summary"),fmt(d.faqQ[n],c));txt(detail.querySelector("p"),fmt(d.faqA[n],c));});}
     const cta=document.querySelector(".cta");if(cta){txt(cta.querySelector(".eyebrow"),d.cta);txt(cta.querySelector("h2"),d.ready);txt(cta.querySelector("p"),d.ctaLead);const b=cta.querySelectorAll(".btn-row a");txt(b[0],d.browse);txt(b[1],d.source);txt(b[2],d.contact);}
     const footer=document.querySelector("footer");if(footer){const g=footer.querySelectorAll(".footer-grid > div");txt(g[0]?.querySelector("strong"),d.footerBrowse);txt(g[1]?.querySelector("strong"),d.footerMore);txt(g[2]?.querySelector("strong"),d.footerServices);txt(g[3]?.querySelector("strong"),d.footerMarkets);txt(footer.querySelector(".footer-bottom"),d.footerLine);}
