@@ -25,9 +25,12 @@ try{
      alt:image?.alt,src:image?.currentSrc||image?.src,loaded:!!image?.naturalWidth};
    });
    result.image=state;
-   if(state.hidden||!state.loaded)result.issues.push('HERO_NOT_VISIBLE_OR_NOT_LOADED');
-   if(state.kind==='manufacturer-logo'&&state.alt!==model.make+' manufacturer logo')result.issues.push('WRONG_MANUFACTURER_LOGO');
-   if(state.kind!=='manufacturer-logo'&&!state.alt?.toLowerCase().includes(model.model.toLowerCase()))result.issues.push('MODEL_PHOTO_IDENTITY_MISSING');
+   if(state.kind==='photograph'||state.kind==='exact-model-photo'){
+    if(state.hidden||!state.loaded)result.issues.push('HERO_NOT_VISIBLE_OR_NOT_LOADED');
+    if(!state.alt?.toLowerCase().includes(model.model.toLowerCase()))result.issues.push('MODEL_PHOTO_IDENTITY_MISSING');
+   }else if(state.kind!=='missing-photograph'||!state.hidden||state.loaded||state.src){
+    result.issues.push('HERO_MUST_SHOW_EXACT_MODEL_PHOTO_OR_STAY_HIDDEN');
+   }
   }catch(e){result.issues.push('BROWSER_ERROR_'+String(e.message||e).slice(0,160))}
   result.pass=result.issues.length===0;results.push(result);await page.close();
  }
@@ -35,4 +38,4 @@ try{
 await mkdir('artifacts/hero-regression',{recursive:true});
 await writeFile('artifacts/hero-regression/report.json',JSON.stringify(results,null,2));
 for(const x of results)console.log(x.model,x.pass?'PASS':x.issues.join(','));
-assert(results.every(x=>x.pass),'Every checked model must show an accurate-model photograph or a manufacturer logo');
+assert(results.every(x=>x.pass),'Every checked model must show an exact-model photograph or hide the unfilled image slot');
