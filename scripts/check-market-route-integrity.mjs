@@ -26,6 +26,12 @@ for(const filename of folderMarkets){
  const html=fs.readFileSync(file,'utf8');
  if(!sitemapFiles.has(filename))issues.push('Market page not discoverable in sitemap: '+filename);
  if(!/<h1\b/i.test(html))issues.push('Missing market heading: '+filename);
+ if(filename!=='canada.html'&&/Major Canadian gateways/i.test(html))
+  issues.push('Canadian transport heading on another market: '+filename);
+ if(filename!=='uae.html'&&/Khalifa Port|Port Khalid|Hamriyah|Saqr Port|Umm Al Quwain/i.test(html))
+  issues.push('UAE freight text on another market: '+filename);
+ if(filename==='south-africa.html'&&/\bthe South Africa\b/i.test(html))
+  issues.push('Incorrect South Africa wording: '+filename);
  const robots=[...html.matchAll(/<meta\b[^>]*>/gi)].map(x=>x[0])
   .find(x=>/\bname\s*=\s*['"]robots['"]/i.test(x))||'';
  if(/\bnoindex\b/i.test(robots))issues.push('Noindex market in public directory: '+filename);
