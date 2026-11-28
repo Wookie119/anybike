@@ -186,7 +186,10 @@ function groupHandover(sections, translate) {
   ]) {
     if (!parts.length) continue;
     const panel = element('section', '', 'country-handover-part' + className);
-    panel.append(element('h3',title),...parts);
+    if (!parts.some(part=>part.classList.contains('country-delivery-options'))) {
+      panel.append(element('h3',title));
+    }
+    panel.append(...parts);
     for (const part of parts) {
       for (const label of part.querySelectorAll('.eyebrow,.ab-market-eyebrow')) {
         if (label.textContent.trim().toLowerCase() === title.trim().toLowerCase()) label.remove();

@@ -306,6 +306,43 @@ function checkboxGroup(label,name,options){
   return `<div class="dynamic-heading">${escapeHtml(label)}</div><div class="checkbox-group" data-checkbox-group="${escapeHtml(name)}">${options.map(option=>`<label class="check-option"><input type="checkbox" name="${escapeHtml(name)}" value="${escapeHtml(option)}"><span>${escapeHtml(option)}</span></label>`).join("")}</div>`;
 }
 
+const deliveryOptionFields={
+  "UK port handover to my shipping agent":"uk-port",
+  "Collect and uncrate at my local port":"local-port",
+  "Deliver in a crate to my home":"address",
+  "Deliver in a crate to my workplace":"address",
+  "Help me choose":null
+};
+
+function overseasDeliveryFields(){
+  return `<div class="dynamic-heading" data-export-delivery hidden>Overseas delivery</div>
+    <div data-export-delivery hidden>${fieldSelect("How would you like your motorcycle delivered?","deliveryOption",Object.keys(deliveryOptionFields),true)}</div>
+    <div data-delivery-option="uk-port" hidden>${fieldInput("UK handover port","ukHandoverPort","If known")}</div>
+    <div data-delivery-option="uk-port" hidden>${fieldInput("Shipping agent or freight forwarder","deliveryAgent","Company and booking reference if known")}</div>
+    <div data-delivery-option="local-port" hidden>${fieldInput("Destination port","deliveryPort","Port name, if known")}</div>
+    <div data-delivery-option="address" hidden>${fieldInput("Delivery town or city and postcode","deliveryLocation","For the home or workplace delivery")}</div>
+    <div data-export-delivery hidden>${fieldInput("Delivery instructions","deliveryInstructions","Tell us what you need arranged, including any timing or access requirements")}</div>`;
+}
+
+function updateDeliveryFields(){
+  const country=document.getElementById("country").value.trim();
+  const service=document.getElementById("serviceRequired")?.value;
+  const overseas=selectedJourney?.key==="International Motorcycle Services"
+    ? ["Export Crating","Freight / Shipping Assistance","Delivery to UK Port","Delivery to Freight Forwarder","Managed overseas delivery"].includes(service)
+    : Boolean(country && !isUnitedKingdom(country));
+  const type=deliveryOptionFields[document.getElementById("deliveryOption")?.value];
+  for(const row of document.querySelectorAll("[data-export-delivery],[data-delivery-option]")){
+    const visible=Boolean(overseas && (!row.dataset.deliveryOption || row.dataset.deliveryOption===type));
+    row.hidden=!visible;
+    const control=row.querySelector("input,select");
+    if(control)control.disabled=!visible;
+  }
+  for(const row of document.querySelectorAll("[data-standard-delivery]")){
+    row.hidden=overseas;
+    row.querySelector("input").disabled=overseas;
+  }
+}
+
 function dynamicMarkup(key){
   if(key==="Pitch a story"){
     return '<label><span>Link to your work *</span><input class="dynamic-input" data-label="Link to your work" id="pitchWork" type="url" pattern="https?://.+" required placeholder="https://"></label>';
@@ -318,7 +355,8 @@ function dynamicMarkup(key){
       ${fieldInput("Maximum mileage","mileageWanted","e.g. 20,000 miles")}
       ${fieldInput("Budget","budget","e.g. £8,000 / €10,000",true)}
       ${fieldInput("Quantity","quantity","e.g. 1, 5, 20")}
-      ${fieldInput("Delivery / shipping requirements","shippingRequirements","Port, freight forwarder, destination city")}`;
+      <div data-standard-delivery>${fieldInput("Delivery / shipping requirements","shippingRequirements","Port, freight forwarder, destination city")}</div>
+      ${overseasDeliveryFields()}`;
   }
   if(key==="Sell / Supply a Motorcycle"){
     return `<div class="dynamic-heading">Motorcycle supply details</div>
@@ -354,12 +392,13 @@ function dynamicMarkup(key){
   }
   if(key==="International Motorcycle Services"){
     return `<div class="dynamic-heading">International service requirement</div>
-      ${fieldSelect("Service required","serviceRequired",["Motorcycle Collection","Inspection","Export Documentation","Export Crating","Freight / Shipping Assistance","Delivery to UK Port","Delivery to Freight Forwarder","Other International Requirement"],true)}
+      ${fieldSelect("Service required","serviceRequired",["Motorcycle Collection","Inspection","Export Documentation","Export Crating","Freight / Shipping Assistance","Delivery to UK Port","Delivery to Freight Forwarder","Managed overseas delivery","Other International Requirement"],true)}
       ${fieldInput("Motorcycle / motorcycles","serviceMotorcycles","Make/model or number of motorcycles")}
       ${fieldInput("Current UK location","collectionLocation","Town / postcode if known")}
       ${fieldInput("Destination country","serviceDestination","Country")}
-      ${fieldInput("Destination city / port","servicePort","If known")}
-      ${fieldInput("Freight forwarder / shipping company","freightForwarder","If already appointed")}`;
+      <div data-standard-delivery>${fieldInput("Destination city / port","servicePort","If known")}</div>
+      <div data-standard-delivery>${fieldInput("Freight forwarder / shipping company","freightForwarder","If already appointed")}</div>
+      ${overseasDeliveryFields()}`;
   }
   return "";
 }
@@ -385,6 +424,9 @@ function selectJourney(key){
   document.getElementById("successBox").classList.remove("show");
   const buyingAs=document.getElementById("buyingAs");
   if(buyingAs)buyingAs.addEventListener("change",updateBuyerChannel);
+  document.getElementById("serviceRequired")?.addEventListener("change",updateDeliveryFields);
+  document.getElementById("deliveryOption")?.addEventListener("change",updateDeliveryFields);
+  updateDeliveryFields();
   setSuggestedSubject();
   updateBuyerChannel();
   document.getElementById("formPanel").scrollIntoView({behavior:"smooth",block:"start"});
@@ -427,7 +469,10 @@ function updateBuyerChannel(){
   channelBox.classList.add("show");
 }
 
-document.getElementById("country").addEventListener("input",updateBuyerChannel);
+document.getElementById("country").addEventListener("input",()=>{
+  updateBuyerChannel();
+  updateDeliveryFields();
+});
 
 function setSuggestedSubject(){
   const subject=document.getElementById("subject");
@@ -449,7 +494,7 @@ async function loadGeoInfo(){
 
 function getDynamicMessage(){
   const rows=[];
-  document.querySelectorAll(".dynamic-input").forEach(input=>rows.push(input.dataset.label+": "+(input.value||"-")));
+  document.querySelectorAll(".dynamic-input:not(:disabled)").forEach(input=>rows.push(input.dataset.label+": "+(input.value||"-")));
   document.querySelectorAll("[data-checkbox-group]").forEach(group=>{
     const values=Array.from(group.querySelectorAll('input[type="checkbox"]:checked')).map(input=>input.value);
     rows.push("Dealer intentions: "+(values.length?values.join(", "):"-"));
@@ -561,6 +606,7 @@ ${getDynamicMessage()}`;
     marketPrompt.style.display=(originMarketSlug || !isUnitedKingdom(countryInput||geoInfo.country||"")) ? "block" : "none";
   }
   document.getElementById("connectForm").reset();
+  updateDeliveryFields();
   btn.disabled=false;
   buyerChannel="";
   document.getElementById("channelBox").classList.remove("show");
@@ -635,10 +681,16 @@ function applyUrlPrefill(){
   if(journeyMap[journey]){
     selectJourney(journeyMap[journey]);
   }
+  if(selectedJourney?.key==="International Motorcycle Services" && params.get("delivery")==="1"){
+    document.getElementById("serviceRequired").value="Freight / Shipping Assistance";
+    updateDeliveryFields();
+  }
 
   if(rawDestination){
     const cleanDestination=rawDestination.replaceAll("-"," ");
     document.getElementById("country").value=cleanDestination;
+    const serviceDestination=document.getElementById("serviceDestination");
+    if(serviceDestination)serviceDestination.value=cleanDestination;
 
     if(!journeyMap[journey] || journeyMap[journey]==="Buy a Motorcycle"){
       if(!selectedJourney || selectedJourney.key!=="Buy a Motorcycle"){
@@ -647,6 +699,7 @@ function applyUrlPrefill(){
       document.getElementById("subject").value="Motorcycle buying enquiry - "+cleanDestination;
       updateBuyerChannel();
     }
+    updateDeliveryFields();
   }
 }
 
