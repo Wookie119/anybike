@@ -115,7 +115,7 @@ function searchActions(rows, onClick, translate) {
   const list = node('ul');
   list.className = 'country-search-results';
   const compare = node('a',translate('Compare selected', 'Comparer la sélection'));
-  compare.className = 'btn';
+  compare.className = 'btn btn-primary';
   compare.hidden = true;
   const choices = new Set();
   const hint = node('p',translate('Select 2–4 motorcycles to compare.', 'Sélectionnez 2 à 4 motos à comparer.'));
@@ -131,7 +131,7 @@ function searchActions(rows, onClick, translate) {
     const item = node('li');
     item.append(node('h3',name));
     const actions = node('div');
-    actions.className = 'country-pills';
+    actions.className = 'country-pills country-search-actions';
     const guide = node('a',translate('View guide', 'Voir le guide'));
     guide.href = row.url;
     guide.setAttribute('aria-label',(translate('View guide for ', 'Voir le guide '))+name);
@@ -155,7 +155,7 @@ function searchActions(rows, onClick, translate) {
     item.append(actions);
     list.append(item);
   }
-  return [hint,list,compare];
+  return {list, hint, compare};
 }
 
 export function countryModelSearch(data) {
@@ -180,6 +180,11 @@ export function countryModelSearch(data) {
   form.append(label,row);
   const status = node('p');
   status.setAttribute('role','status');
+  const summary = node('div');
+  summary.className = 'country-search-summary';
+  const compareControls = node('div');
+  compareControls.className = 'country-search-compare';
+  summary.append(status,compareControls);
   const results = node('div');
   results.setAttribute('aria-label',copy.results);
   const browse = node('a',copy.browse);
@@ -192,13 +197,14 @@ export function countryModelSearch(data) {
   const riding = node('a',translate('Browse by Riding Style', 'Parcourir par style'));
   riding.href = '/motorcycle-types.html';
   navigation.append(browse,compare,riding);
-  wrap.append(heading,form,status,results,navigation);
+  wrap.append(heading,form,summary,results,navigation);
   let request = 0;
   form.addEventListener('submit',async event => {
     event.preventDefault();
     const current = ++request;
     const query = search.value.trim();
     results.replaceChildren();
+    compareControls.replaceChildren();
     if (!query) { status.textContent = copy.empty; return; }
     status.textContent = copy.loading;
     try {
@@ -207,7 +213,13 @@ export function countryModelSearch(data) {
       const ids = new Set(exact.map(row => row.model_id));
       const unique = ids.size === 1 ? [...ids][0] : null;
       if (unique) record(data.slug,unique);
-      if (matches.length) results.append(...searchActions(matches,id => { if (id !== unique) record(data.slug,id); },translate));
+      if (matches.length) {
+        const {list, hint, compare} = searchActions(matches,id => {
+          if (id !== unique) record(data.slug,id);
+        },translate);
+        results.append(list);
+        compareControls.append(hint,compare);
+      }
       status.textContent = matches.length ? copy.results + ' (' + matches.length + ')' : copy.empty;
     } catch {
       if (current === request) status.textContent = copy.failed;
