@@ -194,7 +194,7 @@ def build(slug, tags, folder, fixtures=None, staging=False):
         target = folder / path.lstrip("/")
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_suffix(".tmp")
-        temporary.write_text(markup)
+        temporary.write_text("\n".join(line.rstrip() for line in markup.splitlines()) + "\n", encoding="utf-8")
         temporary.replace(target)
         print(target)
     if fixtures is None and not staging:

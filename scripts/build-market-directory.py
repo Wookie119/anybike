@@ -14,7 +14,10 @@ ROUTE = re.compile(r"(/(?:[a-z]{2}/)?markets/([a-z0-9-]+)\.html)")
 
 
 def language_label(tag):
-    return {"en": "English", "fr": "Français", "sv": "Svenska"}.get(tag.split("-")[0], tag)
+    return {
+        "da": "Dansk", "en": "English", "fi": "Suomi", "fr": "Français",
+        "nb": "Norsk bokmål", "sv": "Svenska",
+    }.get(tag.split("-")[0], tag)
 
 
 def refresh_directory(folder, sitemap_text):
