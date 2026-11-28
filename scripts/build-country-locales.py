@@ -69,7 +69,18 @@ def global_cards(data, prefix):
         title = html.escape(story["title"])
         summary = html.escape(story.get("summary") or "")
         article_locale = html.escape(story.get("articleLocale", "en"), quote=True)
-        cards.append(f'''<article class="country-global-story"><div class="country-global-story-copy">
+        figure = ""
+        image = safe_url(story.get("image") or "", story["url"]) if story.get("image") else None
+        source = safe_url(story.get("source") or "", story["url"]) if story.get("source") else None
+        licence_url = safe_url(story.get("licenceUrl") or "", story["url"]) if story.get("licenceUrl") else None
+        if image and source and licence_url and story.get("credit") and story.get("licence"):
+            if prefix and image.startswith("/"):
+                image = prefix + image
+            resized = {"sv": "skalad bild", "fr": "image redimensionnée"}.get(data["locale"], "resized image")
+            note = " · " + resized if story.get("resized") else ""
+            figure = f'''<figure><img src="{html.escape(image, quote=True)}" alt="{html.escape(story.get('alt') or '', quote=True)}" loading="lazy" decoding="async">
+<figcaption><a href="{html.escape(source, quote=True)}">{html.escape(story['credit'])}</a> · <a href="{html.escape(licence_url, quote=True)}">{html.escape(story['licence'])}</a>{note}</figcaption></figure>'''
+        cards.append(f'''<article class="country-global-story">{figure}<div class="country-global-story-copy">
 <h3><a href="{prefix}{story['url']}" hreflang="{article_locale}">{title}</a></h3>
 <p>{summary}</p></div></article>''')
     return f'<div class="country-global-stories">{"".join(cards)}</div>' if cards else ""

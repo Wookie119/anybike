@@ -86,6 +86,10 @@ function storyPanel(data, copy) {
       photo.loading = 'lazy';
       const credit = element('figcaption');
       credit.append(link(story.credit, story.source), ' · ', link(story.licence, story.licenceUrl));
+      if (story.resized) {
+        const resized = {sv:'skalad bild',fr:'image redimensionnée'}[data.locale] || 'resized image';
+        credit.append(' · ' + resized);
+      }
       figure.append(photo, credit);
       article.append(figure);
     }

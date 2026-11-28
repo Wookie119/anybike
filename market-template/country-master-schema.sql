@@ -89,7 +89,8 @@ returns jsonb language sql stable security definer set search_path='' as $$
         'locale',p.locale,'articleLocale','en',
         'image',media.media->>'src','alt',case when p.locale='en' then media.media->>'alt' else t.image_alt end,
         'credit',media.media->>'credit',
-        'source',media.media->>'source','licence',media.media->>'licence','licenceUrl',media.media->>'licenceUrl'
+        'source',media.media->>'source','licence',media.media->>'licence','licenceUrl',media.media->>'licenceUrl',
+        'resized',media.media->'resized'
       )) as card
     from public.motorcycle_global_stories_v1 s
     cross join page p
@@ -104,8 +105,10 @@ returns jsonb language sql stable security definer set search_path='' as $$
     from (
       select distinct on (r.currency_code) r.currency_code,r.units_per_gbp,r.valid_until
       from anybike_publishing.country_display_rates r
-      join anybike_publishing.country_market_display_currencies enabled using (currency_code)
-      where enabled.market_slug=p_slug and r.effective_at<=now()
+      where r.effective_at<=now() and (r.currency_code='USD' or exists (
+        select 1 from anybike_publishing.country_market_display_currencies enabled
+        where enabled.market_slug=p_slug and enabled.currency_code=r.currency_code
+      ))
       order by r.currency_code,r.effective_at desc
     ) latest
     where latest.valid_until>now()
@@ -115,8 +118,10 @@ returns jsonb language sql stable security definer set search_path='' as $$
     'preferredDisplayCurrency',market.default_currency,
     'displayCurrencies',coalesce((
       select jsonb_agg(currency_code order by currency_code)
-      from anybike_publishing.country_market_display_currencies
-      where market_slug=p_slug
+      from (
+        select currency_code from anybike_publishing.country_market_display_currencies where market_slug=p_slug
+        union select 'USD'
+      ) enabled
     ),'[]'::jsonb),
     'currencyRates',rates.values,
     'currencyRateExpiry',rates.expiry,

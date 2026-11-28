@@ -3,6 +3,20 @@ const languagePreferences = new Map();
 let displayCurrency;
 const referenceRequests = new Map();
 
+function selectedCountryCurrency(data, rates) {
+  const preferred = displayCurrency || savedCountryPreference('anybikeCountryDisplayCurrency');
+  if (Object.hasOwn(rates, preferred)) return preferred;
+  return Object.hasOwn(rates, data.defaultCurrency) ? data.defaultCurrency : 'GBP';
+}
+
+export function formatCountryPrice(amount, locale, currency, approximate = false) {
+  const format = new Intl.NumberFormat(locale, {
+    maximumFractionDigits: approximate ? 0 : 2,
+    minimumFractionDigits: approximate || Number.isInteger(amount) ? 0 : 2
+  });
+  return format.format(amount) + '\u00a0' + currency;
+}
+
 function savedCountryPreference(key) {
   try { return localStorage.getItem(key); } catch { return null; }
 }
@@ -50,20 +64,18 @@ export function countryPrice(amount, locale) {
   const el = document.createElement('p');
   el.dataset.countryPriceGbp = amount;
   el.dataset.countryPriceLocale = locale;
-  el.textContent = new Intl.NumberFormat(locale,{style:'currency',currency:'GBP',maximumFractionDigits:0}).format(amount);
+  el.textContent = formatCountryPrice(Number(amount), locale, 'GBP');
   return el;
 }
 
 export function updateCountryPrices(root, data) {
   const rates = availableCountryRates(data);
-  const selected = displayCurrency || savedCountryPreference('anybikeCountryDisplayCurrency')
-    || data.defaultCurrency;
-  const code = Object.hasOwn(rates,selected) ? selected : 'GBP';
+  const code = selectedCountryCurrency(data, rates);
   for (const element of root.querySelectorAll('[data-country-price-gbp]')) {
     const original = Number(element.dataset.countryPriceGbp);
-    const format = currency => new Intl.NumberFormat(data.locale,{style:'currency',currency,maximumFractionDigits:0});
-    element.textContent = code === 'GBP' ? format('GBP').format(original) :
-      '≈ ' + format(code).format(original * rates[code]) + ' · ' + format('GBP').format(original);
+    const gbp = formatCountryPrice(original, data.locale, 'GBP');
+    element.textContent = code === 'GBP' ? gbp :
+      '≈ ' + formatCountryPrice(original * rates[code], data.locale, code, true) + ' · ' + gbp;
   }
 }
 
@@ -97,9 +109,7 @@ export function mountMarketPreferences(root, data, reload, {fixedLocale} = {}) {
       option.value = option.textContent = code;
       select.append(option);
     }
-    select.value = displayCurrency || savedCountryPreference('anybikeCountryDisplayCurrency')
-      || data.defaultCurrency || 'GBP';
-    if (!select.value) select.value = 'GBP';
+    select.value = selectedCountryCurrency(data, rates);
     select.addEventListener('change',()=>{
       displayCurrency = select.value;
       saveCountryPreference('anybikeCountryDisplayCurrency',select.value);
