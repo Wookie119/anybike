@@ -105,7 +105,7 @@ function commercialMounts(data) {
 
 export function render(main, data) {
   const copy = labels[data.locale] || labels.en;
-  document.documentElement.lang = data.locale;
+  main.lang = data.locale;
   document.title = data.title;
   document.querySelector('meta[name="description"]').content = data.description;
   const mounts = commercialMounts(data);
@@ -243,6 +243,7 @@ async function load(main) {
   } catch {
     if (locale !== requestedLocale(params)) return;
     const copy = labels[locale] || labels.en;
+    main.lang = locale;
     const notice = element('div', '', 'wrap section');
     notice.append(link(copy.unavailable, market));
     main.replaceChildren(notice, storyPanel({}, copy));
