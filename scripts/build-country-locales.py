@@ -78,7 +78,11 @@ def country_page(slug, primary, tag, records, preview, staging=False):
     if preview:
         body = re.sub(r' src="/(assets/[^"]+)"', lambda match: f' src="{css}{match[1]}"', body)
         body = re.sub(r' href="/(?!/)', f' href="{ORIGIN}/', body)
-    dynamic = "" if preview else '<script type="module" src="/market-template/market-master.mjs"></script>'
+    dynamic = ""
+    if not preview:
+        snapshot = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
+        dynamic = f'''<script type="application/json" id="country-page-snapshot">{snapshot}</script>
+<script type="module" src="/market-template/market-master.mjs"></script>'''
     translation = ' data-country-translation' if tag != primary else ''
     nav_prefix = ORIGIN if preview else ""
     global_block = f'''<section class="country-global" aria-labelledby="static-country-global" data-country-section="global">

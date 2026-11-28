@@ -36,14 +36,17 @@ const strings = {
 };
 
 function searchCopy(data) {
-  if (!data.ui) return strings[data.locale] || strings.en;
+  const fallback = strings[data.locale] || strings.en;
+  if (!data.ui) return fallback;
   const translate = countryCopy(data);
   return {
     ...Object.fromEntries(Object.entries(strings.en)
       .filter(([, value]) => typeof value === 'string')
-      .map(([key, value]) => [key, translate(value)])),
-    popular: market => translate('Popular motorcycles in ') + market,
-    suggested: market => translate('Motorcycle guides for ') + market
+      .map(([key, value]) => [key, data.ui[value] ? translate(value) : fallback[key]])),
+    popular: market => data.ui['Popular motorcycles in ']
+      ? translate('Popular motorcycles in ') + market : fallback.popular(market),
+    suggested: market => data.ui['Motorcycle guides for ']
+      ? translate('Motorcycle guides for ') + market : fallback.suggested(market)
   };
 }
 

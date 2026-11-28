@@ -368,12 +368,17 @@ async function load(main, focusLanguage = false) {
   if (locale) query.set('p_locale',locale);
   const endpoint = api + 'rpc/public_anybike_country_master_v1?' + query;
   try {
-    const response = await fetch(endpoint, {headers, signal: AbortSignal.timeout(9000)});
-    let data = response.ok ? await response.json() : null;
-    if (!data || data.slug !== slug || !Array.isArray(data.sections) || !data.sections.length) throw Error('Market not available');
+    const valid = data => data?.slug === slug && Array.isArray(data.sections) && data.sections.length > 0
+      && (!fixedLocale || data.locale === fixedLocale)
+      && (!main.hasAttribute('data-country-translation') || data.translationStatus === 'reviewed');
+    const response = await fetch(endpoint, {headers, signal: AbortSignal.timeout(fixedLocale ? 3500 : 9000)})
+      .catch(() => null);
+    let data = response?.ok ? await response.json().catch(() => null) : null;
+    if (fixedLocale && !valid(data)) {
+      data = JSON.parse(document.getElementById('country-page-snapshot')?.textContent || 'null');
+    }
+    if (!valid(data)) throw Error('Market not available');
     if (locale !== activeLanguage()) return;
-    if (fixedLocale && data.locale !== fixedLocale) return;
-    if (main.hasAttribute('data-country-translation') && data.translationStatus !== 'reviewed') return;
     data = await withCountryReferenceRates(data);
     if (locale !== activeLanguage()) return;
     const navigation = main.querySelector('[data-country-site-navigation]');
