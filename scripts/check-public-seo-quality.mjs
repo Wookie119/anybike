@@ -4,7 +4,7 @@
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import {legacyModelCanonical} from './legacy-model-canonical.mjs';
+import {legacyModelCanonical,legacyModelRoutes} from './legacy-model-canonical.mjs';
 
 const root=process.cwd();
 const origin='https://www.anybike.co.uk';
@@ -14,8 +14,7 @@ const urls=[...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>m[1].replaceAll('&am
 const issues=[], warnings=[];
 const followPages=new Set();
 const outgoingLinks=new Map();
-const dedicatedModels=JSON.parse(fs.readFileSync(path.join(root,'data/approved-dedicated-model-routes.json'),'utf8')).models;
-const legacyModelLinks=new Map(dedicatedModels.map(({url})=>[url,legacyModelCanonical(url)]));
+const legacyModelLinks=new Map(legacyModelRoutes.map(({url})=>[url,legacyModelCanonical(url)]));
 const titles=new Map(), descriptions=new Map();
 const stats={sitemap:urls.length,market_pages:0,global_articles:0,manufacturer_queries:0,static_urls:0,missing_titles:0,missing_descriptions:0,missing_language_tags:0,short_descriptions:0,missing_h1:0,missing_canonicals:0,blocked_by_noindex:0,missing_files:0,duplicates:0};
 const deny=/(^|\/)(admin[^/]*|private[^/]*|customer[^/]*|dashboard[^/]*|login|signup|register|deal-360|my-purchases|my-watchlist|my-searches|bike-details)([./?]|$)/i;

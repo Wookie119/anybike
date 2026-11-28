@@ -4,12 +4,16 @@ import {readFileSync} from 'node:fs';
 import {normalizeModelIdentity} from '../model-template/approved-v2-route-identity.mjs';
 
 const read=file=>JSON.parse(readFileSync(new URL('../data/'+file,import.meta.url),'utf8')).models;
-const legacy=read('approved-dedicated-model-routes.json');
+export const legacyModelRoutes=[
+ ...read('approved-dedicated-model-routes.json'),
+ // Existing SEO alias outside the approved dedicated V2 preservation rollout.
+ {url:'/harley-davidson-xr1000.html',make:'Harley-Davidson',model:'XR1000'}
+];
 const permanent=read('universal-v2-model-routes.json');
 const key=row=>normalizeModelIdentity(row.make)+'|'+normalizeModelIdentity(row.model);
 
 export function legacyModelCanonical(route){
- const source=legacy.find(row=>row.url==='/'+route.replace(/^\//,''));
+ const source=legacyModelRoutes.find(row=>row.url==='/'+route.replace(/^\//,''));
  if(!source)throw Error('Unregistered legacy model URL: '+route);
  const matches=permanent.filter(row=>key(row)===key(source));
  if(matches.length!==1)throw Error('Expected one permanent URL for '+route);

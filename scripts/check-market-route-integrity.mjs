@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {legacyModelCanonical} from './legacy-model-canonical.mjs';
+import {legacyModelCanonical,legacyModelRoutes} from './legacy-model-canonical.mjs';
 
 const root=process.cwd();
 const marketFolder=path.join(root,'markets');
@@ -20,9 +20,8 @@ const folderMarkets=fs.readdirSync(marketFolder)
 const issues=[];
 const origin='https://www.anybike.co.uk';
 const publishedModels=new Set(locs.filter(url=>url.startsWith(origin+'/models/')));
-const dedicatedModels=JSON.parse(fs.readFileSync(path.join(root,'data/approved-dedicated-model-routes.json'),'utf8')).models;
-const modelAliases=new Map(dedicatedModels.map(({url})=>[url,legacyModelCanonical(url)]));
-const dedicatedByName=new Map(dedicatedModels.map(({make,model,url})=>[make+' '+model,url]));
+const modelAliases=new Map(legacyModelRoutes.map(({url})=>[url,legacyModelCanonical(url)]));
+const dedicatedByName=new Map(legacyModelRoutes.map(({make,model,url})=>[make+' '+model,url]));
 const standardisation=fs.readFileSync(path.join(root,'market-page-standardisation.js'),'utf8');
 const fallbackModels=standardisation.match(/const MARKET_GUIDE_MODELS=\[([\s\S]*?)\];/)?.[1]||'';
 const modelLinks=[...fallbackModels.matchAll(/\["([^"]+)","([^"]+)"\]/g)];

@@ -3,6 +3,8 @@
 // inventing or substituting another model's live inventory.
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import {hasLegacyModelCanonical,legacyModelRoutes} from './legacy-model-canonical.mjs';
+const aliases=new Set(legacyModelRoutes.map(({url})=>url));
 const files=fs.readdirSync('.').filter(file=>
  /^(bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(file) &&
  !/(?:motorcycles|backup|preview|development|approved|-v2)\b/.test(file));
@@ -10,8 +12,14 @@ let covered=0,dedicated=0,shared=0;
 for(const file of files){
  const html=fs.readFileSync(file,'utf8');
  assert(html.includes('/public-header.js'),file+' missing shared public model renderer');
- assert(html.includes('https://www.anybike.co.uk/'+file),
-   file+' missing correct exact-page canonical URL');
+ const canonicals=[...html.matchAll(/<link\b[^>]*rel="canonical"[^>]*href="([^"]+)"[^>]*>/gi)];
+ const route='/'+file;
+ if(aliases.has(route)){
+  assert(hasLegacyModelCanonical(html,route),file+' missing canonical URL for the registered model');
+ }else{
+  assert.deepEqual(canonicals.map(([,href])=>href),['https://www.anybike.co.uk'+route],
+   file+' missing correct self canonical URL');
+ }
  assert(html.includes('name="robots" content="index,follow"'),
    file+' missing approved indexability metadata');
  // Customer entry points are actionable links, not merely an occurrence of

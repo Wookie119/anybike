@@ -23,10 +23,10 @@ test('database manufacturer route index never inserts another make or a fabricat
 });
 
 test('all manufacturer frontends reuse the same database model index without changing approved page content',()=>{
- const module='/model-template/public-manufacturer-model-index.mjs?v=20261109-1';
+ const module=/<script type="module" src="\/model-template\/public-manufacturer-model-index\.mjs(?:\?v=[\w-]+)?"><\/script>/;
  for(const page of ['bmw-motorcycles.html','harley-davidson-motorcycles.html','motorcycle-brand.html']){
   const html=fs.readFileSync(page,'utf8');
-  assert.ok(html.includes('<script type="module" src="'+module+'"></script>'),page);
+  assert.match(html,module,page+' shared model index');
   assert.ok(html.includes('/public-header.js'),page+' approved header remains');
   assert.ok(html.includes('motorcycle-related-manufacturers.js'),page+' original manufacturer links remain');
  }

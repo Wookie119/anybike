@@ -2,11 +2,10 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
-import {hasLegacyModelCanonical,legacyModelCanonical} from './legacy-model-canonical.mjs';
+import {hasLegacyModelCanonical,legacyModelCanonical,legacyModelRoutes} from './legacy-model-canonical.mjs';
 
 const read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const origin='https://www.anybike.co.uk';
-const legacy=JSON.parse(read('data/approved-dedicated-model-routes.json')).models;
 const permanent=JSON.parse(read('data/universal-v2-model-routes.json')).models;
 const sitemap=read('sitemap.xml');
 const renderer=read('model-template/approved-v2-universal-preview.mjs');
@@ -39,7 +38,7 @@ async function renderCanonical(path,href,approvedDedicatedRoute,identity){
  return canonicalNode.href;
 }
 
-for(const {url} of legacy){
+for(const {url} of legacyModelRoutes){
  const preferred=legacyModelCanonical(url);
  const route=new URL(preferred).pathname;
  const before=read(url.slice(1));
@@ -53,6 +52,10 @@ for(const {url} of legacy){
   const schema=JSON.parse(before.match(/<script type="application\/ld\+json">([^<]+)<\/script>/)[1]);
   assert.equal(schema.url,preferred,'Protected R 1300 GS structured data canonical');
  }
+ if(url==='/harley-davidson-xr1000.html'){
+  const article=JSON.parse(before.match(/<script type="application\/ld\+json">([^<]+)<\/script>/)[1]);
+  assert.equal(article.mainEntityOfPage,preferred,'XR1000 article structured data canonical');
+ }
  for(const [path,html] of [[url,before],[route,after]]){
   const head=html.split('</head>',1)[0];
   assert(head.includes('property="og:url" content="'+preferred+'"'),path+' social URL');
@@ -62,4 +65,4 @@ for(const {url} of legacy){
 const example=permanent.find(row=>row.url==='/models/suzuki/rm250.html');
 assert.equal(await renderCanonical('/motorcycle-model-guide.html',origin+'/motorcycle-manufacturers.html',null,example),
  origin+example.url,'Exact query route should resolve to permanent model');
-console.log('PASS: '+legacy.length+' model URL pairs agree in source, rendered metadata and sitemap');
+console.log('PASS: '+legacyModelRoutes.length+' model URL pairs agree in source, rendered metadata and sitemap');
