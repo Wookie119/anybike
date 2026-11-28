@@ -14,7 +14,7 @@ const isPublicUkCustomerPage=()=>{
  const path=location.pathname.toLowerCase();
  // UK dealer/private customer workspaces are approved advertising surfaces;
  // account status never controls whether an eligible UK advert can be shown.
- if(['/customer-dashboard.html','/my-selling.html','/my-dealership.html','/my-purchases.html'].includes(path))return true;
+ if(['/customer-dashboard.html','/my-selling.html','/my-dealership.html','/my-purchases.html','/international-markets.html'].includes(path))return true;
  if(/^\/(?:admin(?:-|\/)|markets\/|international-)/.test(path))return false;
  // Account, transactional and private workflow pages are not public advert inventory.
  if(/^\/(?:customer-|my-|dealer-manage-|dealer-connect-|shipper-|seller-|private-dashboard|dashboard|underwrite|proforma|purchase-order|final-invoice|verify-account|confirm-email|authorised-stock-test|international-stock-preview)/.test(path))return false;
@@ -552,7 +552,7 @@ export async function renderMoveHouseOnUkPage(options={}){
  try{
   const result=await send(request);
   if(Array.isArray(result?.layout)&&result.layout.length){installPublishedLayout(result.layout,request.page_path||location.pathname);return}
-  if(location.pathname==='/customer-dashboard.html'||!result?.ad||!await validateAdvertArtwork(result.ad))return;
+  if(['/customer-dashboard.html','/international-markets.html'].includes(location.pathname)||!result?.ad||!await validateAdvertArtwork(result.ad))return;
   const ad=await verifiedCompanion(result.ad);
   setupStockAdvertRedraw(ad);
   installMoveHouse(ad);
