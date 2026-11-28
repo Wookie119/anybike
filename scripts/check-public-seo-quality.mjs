@@ -3,13 +3,17 @@
 // This verifies every sitemap entry, all published market pages and all public Global articles.
 import fs from 'node:fs';
 import path from 'node:path';
+import {legacyModelCanonical} from './legacy-model-canonical.mjs';
 
 const root=process.cwd();
-const base='https://www.anybike.co.uk/';
+const origin='https://www.anybike.co.uk';
+const base=origin+'/';
 const xml=fs.readFileSync(path.join(root,'sitemap.xml'),'utf8');
 const urls=[...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>m[1].replaceAll('&amp;','&'));
 const issues=[], warnings=[];
 const followPages=new Set();
+const dedicatedModels=JSON.parse(fs.readFileSync(path.join(root,'data/approved-dedicated-model-routes.json'),'utf8')).models;
+const legacyModelLinks=new Map(dedicatedModels.map(({url})=>[url,legacyModelCanonical(url)]));
 const titles=new Map(), descriptions=new Map();
 const stats={sitemap:urls.length,market_pages:0,global_articles:0,manufacturer_queries:0,static_urls:0,missing_titles:0,missing_descriptions:0,missing_language_tags:0,short_descriptions:0,missing_h1:0,missing_canonicals:0,blocked_by_noindex:0,missing_files:0,duplicates:0};
 const deny=/(^|\/)(admin[^/]*|private[^/]*|customer[^/]*|dashboard[^/]*|login|signup|register|deal-360|my-purchases|my-watchlist|my-searches|bike-details)([./?]|$)/i;
@@ -85,7 +89,14 @@ followPages.add('/uk-dealer-services.html');
 for(const page of followPages){
   const file=path.join(root,decodeURIComponent(page.slice(1))||'index.html');
   if(!fs.existsSync(file)){issues.push('Missing public HTML for robots follow check: '+page);continue;}
-  if(blocksFollowing(fs.readFileSync(file,'utf8')))issues.push('Robots directive blocks link following: '+page);
+  const html=fs.readFileSync(file,'utf8');
+  if(blocksFollowing(html))issues.push('Robots directive blocks link following: '+page);
+  for(const [,href] of html.matchAll(/<a\b[^>]*\bhref\s*=\s*["']([^"']+)["']/gi)){
+    const target=URL.parse(href,new URL(page,base));
+    if(target?.origin!==origin)continue;
+    const canonicalLink=legacyModelLinks.get(target.pathname);
+    if(canonicalLink)issues.push('Legacy model link on '+page+': '+href+' -> '+canonicalLink);
+  }
 }
 for(const p of marketFiles)if(!known.has(base+'markets/'+p))issues.push('Market missing from sitemap: markets/'+p);
 if(stats.market_pages!==marketFiles.length)issues.push('Market count mismatch: '+stats.market_pages+' in sitemap, '+marketFiles.length+' published country pages');
