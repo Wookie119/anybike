@@ -56,6 +56,25 @@ def render_node(record, path, kind=None):
     return start + "".join(render_node(child, path) for child in record.get("children", [])) + f"</{tag}>"
 
 
+def global_cards(data, prefix):
+    def published_cards(key):
+        return [story for story in data.get(key, [])
+                if story.get("locale") == data["locale"] and story.get("title")
+                and re.fullmatch(r"/global/[a-z0-9-]+[.]html", story.get("url", ""))]
+
+    regional = published_cards("localStories")
+    stories = regional or published_cards("worldwideStories")
+    cards = []
+    for story in stories[:3]:
+        title = html.escape(story["title"])
+        summary = html.escape(story.get("summary") or "")
+        article_locale = html.escape(story.get("articleLocale", "en"), quote=True)
+        cards.append(f'''<article class="country-global-story"><div class="country-global-story-copy">
+<h3><a href="{prefix}{story['url']}" hreflang="{article_locale}">{title}</a></h3>
+<p>{summary}</p></div></article>''')
+    return f'<div class="country-global-stories">{"".join(cards)}</div>' if cards else ""
+
+
 def country_page(slug, primary, tag, records, preview, staging=False):
     language = tag.split("-")[0]
     data = records[tag]
@@ -87,7 +106,8 @@ def country_page(slug, primary, tag, records, preview, staging=False):
     nav_prefix = ORIGIN if preview else ""
     global_block = f'''<section class="country-global" aria-labelledby="static-country-global" data-country-section="global">
 <header class="country-global-masthead"><h2 id="static-country-global">AnyBike <span>Global</span></h2>
-<a class="btn" href="{nav_prefix}/anybike-global.html">{ui("Explore AnyBike Global")}</a></header></section>'''
+<a class="btn" href="{nav_prefix}/anybike-global.html">{ui("Explore AnyBike Global")}</a></header>
+{global_cards(data, nav_prefix)}</section>'''
     if any(section["kind"] == "global" for section in data["sections"]):
         global_block = ""
     return f'''<!doctype html>

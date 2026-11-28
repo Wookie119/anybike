@@ -54,6 +54,18 @@ revoke all on anybike_publishing.country_market_preferences,
   anybike_publishing.country_market_display_currencies, anybike_publishing.country_display_rates
   from public, anon, authenticated;
 
+create table anybike_publishing.country_global_card_translations (
+  story_url text not null check (story_url ~ '^/global/[a-z0-9-]+[.]html$'),
+  locale text not null check (locale ~ '^[a-z]{2}$' and locale <> 'en'),
+  title text not null check (length(trim(title)) > 0),
+  summary text not null check (length(trim(summary)) > 0),
+  image_alt text,
+  published boolean not null default false,
+  primary key (story_url, locale)
+);
+alter table anybike_publishing.country_global_card_translations enable row level security;
+revoke all on anybike_publishing.country_global_card_translations from public, anon, authenticated;
+
 -- Read-only projection of reviewed public content. Reuses country-scoped Global assignments.
 create function public.public_anybike_country_master_v1(p_slug text, p_locale text default null)
 returns jsonb language sql stable security definer set search_path='' as $$
@@ -73,13 +85,19 @@ returns jsonb language sql stable security definer set search_path='' as $$
   ), stories as (
     select s.id, media.media is not null as illustrated,
       jsonb_strip_nulls(jsonb_build_object(
-        'url',s.story_url,'title',s.headline,'summary',s.summary,
-        'image',media.media->>'src','alt',media.media->>'alt','credit',media.media->>'credit',
+        'url',s.story_url,'title',coalesce(t.title,s.headline),'summary',coalesce(t.summary,s.summary),
+        'locale',p.locale,'articleLocale','en',
+        'image',media.media->>'src','alt',case when p.locale='en' then media.media->>'alt' else t.image_alt end,
+        'credit',media.media->>'credit',
         'source',media.media->>'source','licence',media.media->>'licence','licenceUrl',media.media->>'licenceUrl'
       )) as card
     from public.motorcycle_global_stories_v1 s
+    cross join page p
     left join anybike_publishing.riding_story_media media on media.story_url=s.story_url
+    left join anybike_publishing.country_global_card_translations t
+      on t.story_url=s.story_url and t.locale=p.locale and t.published
     where s.editorial_status='published' and s.story_url ~ '^/global/[a-z0-9-]+[.]html$'
+      and (p.locale='en' or t.story_url is not null)
   ), rates as (
     select coalesce(jsonb_object_agg(latest.currency_code, latest.units_per_gbp),'{}'::jsonb) as values,
            coalesce(jsonb_object_agg(latest.currency_code, latest.valid_until),'{}'::jsonb) as expiry

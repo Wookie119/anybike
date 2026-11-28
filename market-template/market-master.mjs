@@ -61,7 +61,8 @@ export function chooseStories(local, worldwide) {
 }
 
 function storyPanel(data, copy) {
-  const {regional, stories} = chooseStories(data.localStories, data.worldwideStories);
+  const matching = stories => stories?.filter(story => story.locale === data.locale || (data.locale === 'en' && !story.locale));
+  const {regional, stories} = chooseStories(matching(data.localStories), matching(data.worldwideStories));
   const section = element('section', '', 'country-global');
   section.setAttribute('aria-labelledby', 'country-global-heading');
   const heading = element('h2', 'AnyBike ');
@@ -90,7 +91,9 @@ function storyPanel(data, copy) {
     }
     const copy = element('div', '', 'country-global-story-copy');
     const heading = element('h3');
-    heading.append(link(story.title, story.url));
+    const title = link(story.title, story.url);
+    if (story.articleLocale) title.hreflang = story.articleLocale;
+    heading.append(title);
     copy.append(heading, element('p', story.summary));
     article.append(copy);
     grid.append(article);
