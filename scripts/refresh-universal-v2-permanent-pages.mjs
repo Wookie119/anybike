@@ -4,9 +4,11 @@
 // DealerWebs readiness: refresh all permanent model URLs in one audited batch.
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import {modelManufacturerRoutes,withStaticModelSeo} from './build-static-model-seo.mjs';
 const read=p=>fs.readFileSync(p,'utf8');
 const routes=JSON.parse(read('data/universal-v2-model-routes.json')).models;
 const master=read('motorcycle-v2-master.html');
+const manufacturers=modelManufacturerRoutes();
 const names=['approved-v2-preview-style.css','approved-v2-universal-preview.mjs','approved-v2-dynamic-navigation.mjs'];
 const version=(html,name)=>html.split(name+'?v=')[1]?.split(/["'<>]/)[0];
 const target=Object.fromEntries(names.map(name=>[name,version(master,name)]));
@@ -27,8 +29,8 @@ for(const route of routes){
  const original=html;
  const routeMain=html.match(/<main>[\s\S]*?<\/main>/)?.[0];
  assert(routeMain,'Missing universal main shell '+route.url);
- // The approved master is the only source of page structure. Preserve SEO
- // metadata, route identity and all model-specific database content.
+ // Start with the approved structure, then restore the model-specific SEO copy.
+ // Preserve route identity and all model-specific database content.
  if(routeMain!==masterMain)html=html.replace(routeMain,masterMain);
  const routeStyle=html.match(/<style>[\s\S]*?<\/style>/)?.[0];
  assert(routeStyle,'Missing approved styling '+route.url);
@@ -54,6 +56,8 @@ for(const route of routes){
   const target=canonical?.replace('https://www.anybike.co.uk','');
   assert(html.includes('location.replace(')&&routes.some(row=>row.url===target),
    'Invalid canonical alias '+route.url);
+ }else{
+  html=withStaticModelSeo(html,route,manufacturers);
  }
  if(html!==original)changes.push({path,html});
 }

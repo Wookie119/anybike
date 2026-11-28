@@ -4,6 +4,7 @@
 // These checks do not assert that 123-reg is deployed or that browser QA passed.
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import {modelSeoLayout} from './build-static-model-seo.mjs';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const header=read('public-header.js');
@@ -34,7 +35,9 @@ check('Every permanent model page has the exact approved master HTML and style',
  const manifest=JSON.parse(read('data/universal-v2-model-routes.json'));
  for(const model of manifest.models){
   const page=read(model.url.slice(1));
-  assert.equal(page.match(/<main>[\s\S]*?<\/main>/)?.[0],masterMain,'Different template '+model.url);
+  const pageMain=page.match(/<main>[\s\S]*?<\/main>/)?.[0];
+  assert(pageMain,'Missing model template '+model.url);
+  assert.equal(modelSeoLayout(pageMain),masterMain,'Different template '+model.url);
   assert.equal(page.match(/<style>[\s\S]*?<\/style>/)?.[0],masterStyle,'Different styling '+model.url);
  }
 });

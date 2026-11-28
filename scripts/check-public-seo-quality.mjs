@@ -1,6 +1,7 @@
 // AnyBike public SEO quality guard. Read-only, no files or pages are rewritten.
 // Run: node scripts/check-public-seo-quality.mjs
 // This verifies every sitemap entry, all published market pages and all public Global articles.
+import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {legacyModelCanonical} from './legacy-model-canonical.mjs';
@@ -168,3 +169,4 @@ if(!sharedBrandNoindex&&stats.manufacturer_queries!==0)
  warnings.push('Shared manufacturer query URLs need individually verified indexability and canonical URLs before publication.');
 console.log(JSON.stringify({result:issues.length?'FAIL':'PASS',stats,errors:issues.slice(0,100),warnings_count:warnings.length,warnings_sample:warnings.slice(0,20)},null,2));
 if(issues.length)process.exitCode=1;
+else execFileSync(process.execPath,[path.join(root,'scripts/build-static-model-seo.mjs'),'--check'],{stdio:'inherit'});

@@ -499,6 +499,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   const enquiry='/bulk-buying-request.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
   const manufacturer=normalize(make)==='bmw'?'/bmw-motorcycles.html':
    normalize(make)==='harley davidson'?'/harley-davidson-motorcycles.html':
+   ['indian','indian motorcycle'].includes(normalize(make))?'/indian-motorcycles.html':
    '/motorcycle-brand.html?make='+encodeURIComponent(make);
   // Access is read-only and subject to the table's existing publication RLS.
   // Filtering on both JSONB identity fields prevents cross-model leakage.
