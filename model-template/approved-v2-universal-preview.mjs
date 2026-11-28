@@ -6,6 +6,7 @@
    Missing research produces no empty box. Existing live routes are untouched.
 */
 import {installVerifiedModelFacts,approvedResearchSectionHeading} from '/model-template/public-verified-model-facts.mjs?v=20261115-research-runtime20';
+import {mountOverseasDeliveryFields,withOverseasDeliveryDetails} from '/model-template/overseas-delivery-enquiry.mjs';
 const ENDPOINT='https://tuehtnezhdnkqbbhttgp.supabase.co';
 const KEY='sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK';
 // Network reads must not hold the entire public model page indefinitely.
@@ -721,6 +722,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   }
   for(const option of form.querySelectorAll('select[name="kind"] option'))option.textContent=option.value;
   $('v2FormSubmit').textContent='Send enquiry →';
+  mountOverseasDeliveryFields(form,$('v2FormSubmit'));
   form.addEventListener('submit',async event=>{
    event.preventDefault();
    const button=$('v2FormSubmit');button.disabled=true;status.textContent='Sending enquiry…';
@@ -730,7 +732,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
     const token=await optionalVisitorToken();
     const res=await fetch(ENDPOINT+'/functions/v1/international-guest-enquiry',{
      method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},
-     body:JSON.stringify({...values,make,model,page:location.href})
+     body:JSON.stringify({...withOverseasDeliveryDetails(values),make,model,page:location.href})
     });
     const reply=await res.json().catch(()=>null);
     if(!res.ok||!reply?.ok)throw Error(typeof reply?.error==='string'?reply.error:'Could not confirm enquiry delivery. Please retry or contact AnyBike.');
