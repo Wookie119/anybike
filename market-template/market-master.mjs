@@ -180,14 +180,17 @@ function groupHandover(sections, translate) {
   if (!destinations.length && !uk.length) return null;
   const group = element('section', '', 'country-journey-card country-handover');
   group.append(element('h2', translate('Transport & handover', 'Transport et remise')));
-  for (const [parts,title] of [
-    [destinations,translate('Destination planning', 'Planification à destination')],
-    [uk,translate('UK collection & handover', 'Collecte et remise au Royaume-Uni')]
+  for (const [parts,title,className] of [
+    [destinations,translate('Destination planning', 'Planification à destination'),''],
+    [uk,translate('UK collection & handover', 'Collecte et remise au Royaume-Uni'),' country-handover-uk']
   ]) {
     if (!parts.length) continue;
-    const panel = element('section', '', 'country-handover-part');
+    const panel = element('section', '', 'country-handover-part' + className);
     panel.append(element('h3',title),...parts);
     for (const part of parts) {
+      for (const label of part.querySelectorAll('.eyebrow,.ab-market-eyebrow')) {
+        if (label.textContent.trim().toLowerCase() === title.trim().toLowerCase()) label.remove();
+      }
       part.querySelectorAll('.section-head h2,.ab-market-head h2').forEach(heading => {
         const subheading = element('h4',heading.textContent);
         heading.replaceWith(subheading);
