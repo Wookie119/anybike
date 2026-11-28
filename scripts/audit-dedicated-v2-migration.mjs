@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Read-only inventory of dedicated pages that still require V2 convergence.
 // Never destroy editorial research just to achieve visual parity.
+import {hasLegacyModelCanonical} from './legacy-model-canonical.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 const root=path.resolve(import.meta.dirname,'..');
@@ -18,7 +19,7 @@ const rows=approved.map(({url,make,model})=>{
   stock_module:/internationalModelStock|public-exact-model-stock|international-public-stock/.test(html),
   enquiries:/bulk-buying-request|internationalGuestRequestForm|guest-enquiry/.test(html),
   photography:/(?:<figure|<img |approved-model-hero|licensed-photo)/i.test(html),
-  canonical:html.includes('rel="canonical"')&&html.includes('https://www.anybike.co.uk'+url),
+  canonical:hasLegacyModelCanonical(html,url),
   v2_style_only:html.includes('public-header.js')&&!html.includes(renderer),
   research_scripts:scripts.filter(src=>/research|model|shell/.test(src)).length
  };

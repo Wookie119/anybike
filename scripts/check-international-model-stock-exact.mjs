@@ -2,6 +2,7 @@
 // Batch regression: a model page may show ONLY its own sale stock above research.
 // This deliberately exercises the matching code embedded in public-header.js.
 // Never substitute R 1300 RT, R 1250 RS or another model on an R 1250 GS page.
+import {hasLegacyModelCanonical} from './legacy-model-canonical.mjs';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
@@ -96,7 +97,7 @@ for(const file of models){
  assert(html.includes('<h1')||file==='motorcycle-variant.html','Model heading missing: '+file);
 }
 const protectedLegacyV2=fs.readFileSync('bmw-r1300gs-v2.html','utf8');
-assert(protectedR1300.includes('href="https://www.anybike.co.uk/bmw-r1300gs.html"'),
+assert(hasLegacyModelCanonical(protectedR1300,'/bmw-r1300gs.html'),
  'Protected BMW R 1300 GS canonical missing');
 assert(protectedLegacyV2.includes('bmw-r1300gs-v2-approved-20261102.html'),
  'Approved historical V2 reference canonical missing');

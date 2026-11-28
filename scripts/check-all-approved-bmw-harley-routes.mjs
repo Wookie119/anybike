@@ -1,5 +1,6 @@
 // Approved dedicated route manifest: all 27 BMW + 18 exact-model Harley
 // source pages. Read-only; does not imply live deployment or buyer entitlement.
+import {hasLegacyModelCanonical} from './legacy-model-canonical.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const bmw=readFileSync(new URL('./check-bmw-approved-model-route-parity.mjs',import.meta.url),'utf8');
@@ -17,8 +18,7 @@ const allRoutes=[...bmwRoutes,...harleyRoutes.map(x=>x.file)];
 assert.equal(new Set(allRoutes).size,45,'Duplicate dedicated motorcycle URL');
 for(const route of allRoutes){
  const html=readFileSync(new URL('../'+route,import.meta.url),'utf8');
- assert(html.includes('https://www.anybike.co.uk/'+route),
-  route+' has incorrect self canonical');
+ assert(hasLegacyModelCanonical(html,route),route+' has incorrect permanent canonical');
  assert(html.includes('/public-header.js'),
   route+' missing shared authorised stock loader');
  assert(html.includes('name="robots" content="index,follow"'),

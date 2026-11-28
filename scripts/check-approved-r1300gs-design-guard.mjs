@@ -4,7 +4,7 @@ const html=readFileSync(new URL('../bmw-r1300gs.html',import.meta.url),'utf8');
 const generic=readFileSync(new URL('../motorcycle-model-guide.html',import.meta.url),'utf8');
 const shared=readFileSync(new URL('../model-template/public-verified-model-facts.mjs',import.meta.url),'utf8');
 const required=[
- ['canonical original guide','https://www.anybike.co.uk/bmw-r1300gs.html'],
+ ['canonical model guide','rel="canonical" href="https://www.anybike.co.uk/models/bmw/r-1300-gs.html"'],
  ['approved hero photograph','class="recovered-hero-photo"'],
  ['R 1300 editorial design','id="r1300-editorial-refinement"'],
  ['exact-model international stock','id="internationalModelStock"'],

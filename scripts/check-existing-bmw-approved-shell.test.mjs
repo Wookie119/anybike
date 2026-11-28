@@ -1,3 +1,4 @@
+import {hasLegacyModelCanonical} from './legacy-model-canonical.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -28,7 +29,7 @@ test('26 existing BMW URLs use V2 or retain the approved legacy shell and canoni
   assert.ok(s.includes('id="body"'),path+' research');
   assert.ok(s.includes('/public-header.js'),path+' shared stock renderer');
   assert.ok(s.includes('name="robots" content="index,follow"'),path+' indexability');
-  assert.ok(s.includes('https://www.anybike.co.uk/'+path),path+' existing canonical');
+  assert.ok(hasLegacyModelCanonical(s,path),path+' permanent canonical');
  }
 });
 test('stock is independent, development follows specifications, R1250 gallery stays intact',()=>{

@@ -3,6 +3,7 @@
  * Read-only; checks all 27 dedicated BMW routes, never writes HTML.
  * Source parity is not a deployed-page screenshot or a buyer stock permission test.
  */
+import {hasLegacyModelCanonical} from './legacy-model-canonical.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
@@ -25,11 +26,11 @@ for(const path of routes){
   ['id="body"','research container'],
   ['id="generationPanel"','generation panel'],
   ['id="nextAction"','next action'],
-  ['https://www.anybike.co.uk/'+path,'canonical URL'],
   ['name="robots" content="index,follow"','indexability metadata']
  ];
  for(const [needle,what] of required)
   assert(html.includes(needle),path+' missing '+what);
+ assert(hasLegacyModelCanonical(html,path),path+' missing permanent canonical');
  assert.match(html,/enquir/i,path+' missing enquiry functionality');
  assert(!html.includes('data-anybike-universal-stage="true"'),
   path+' unexpectedly activated unapproved staged page');

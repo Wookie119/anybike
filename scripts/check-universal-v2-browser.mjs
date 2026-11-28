@@ -243,11 +243,8 @@ try{
     'Development panel must follow the model-year timeline');
    if(routeName.startsWith('models/')){
     const permanentCanonical=await page.locator('link[rel=canonical]').getAttribute('href');
-    const canonicalPath=new URL(permanentCanonical).pathname;
-    const approvedDedicatedCanonical=make==='Harley-Davidson'&&model==='Fat Boy'?
-     '/harley-davidson-fat-boy.html':null;
-    assert(canonicalPath==='/'+routeName||canonicalPath===approvedDedicatedCanonical,
-     'Permanent model URL must keep its own SEO canonical or an approved dedicated canonical');
+    assert.equal(permanentCanonical,'https://www.anybike.co.uk/'+routeName,
+     'The rendered canonical must match the permanent URL in the sitemap');
     const identity=await page.locator('#anybikeV2RouteIdentity').textContent();
     const parsed=JSON.parse(identity);
     assert.equal(parsed.make,make);
@@ -257,7 +254,7 @@ try{
    }
    if(routeName==='motorcycle-model-guide.html'){
     const canonical=await page.locator('link[rel=canonical]').getAttribute('href');
-    assert(canonical===origin+'/motorcycle-model-guide.html?make='+
+    assert(canonical==='https://www.anybike.co.uk/motorcycle-model-guide.html?make='+
      encodeURIComponent(make)+'&model='+encodeURIComponent(model)||
      (/^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(new URL(canonical).pathname)),
      'Guide must canonicalize to its exact-model permanent route or established guide URL');
@@ -268,7 +265,7 @@ try{
     assert.equal(await page.locator('#databaseHeroPhoto').isVisible(),true);
     assert.equal(await page.locator('#ukR1300ModelGallery article').count(),1,
      'Approved BMW model gallery must use the shared master slot');
-    assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),origin+'/bmw-r1300gs.html');
+    assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),'https://www.anybike.co.uk/models/bmw/r-1300-gs.html');
    }else assert.equal(await page.locator('#databaseHeroPhoto').isVisible(),false);
    if(make==='Suzuki'||make==='BMW'){
     const visible=page.locator('.anybike-v2-reviewed-universal-section');

@@ -4,6 +4,7 @@
 // Source equality is not a substitute for role-specific Playwright checks.
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {hasLegacyModelCanonical} from './legacy-model-canonical.mjs';
 const routes=JSON.parse(readFileSync('data/approved-dedicated-model-routes.json','utf8')).models;
 const master=readFileSync('motorcycle-v2-master.html','utf8');
 const reference='/bmw-r1300gs.html';
@@ -24,7 +25,7 @@ async function check(route){
    signal:controller.signal,headers:{'Cache-Control':'no-cache',Accept:'text/html'}});
   if(!response.ok)throw Error('HTTP '+response.status);
   const html=await response.text();
-  if(!html.includes('href="'+base+path+'"'))throw Error('Wrong or missing exact canonical');
+  if(!hasLegacyModelCanonical(html,path))throw Error('Wrong or missing model canonical');
   if(!html.includes('id="heading">'+route.make+' '+route.model+'</h1>'))
    throw Error('Wrong static model identity');
   if(!html.includes('src="'+expectedVersion+'"'))
@@ -48,6 +49,7 @@ try{
   headers:{'Cache-Control':'no-cache',Accept:'text/html'}});
  if(!response.ok)throw Error('HTTP '+response.status);
  const html=await response.text();
+ if(!hasLegacyModelCanonical(html,reference))throw Error('Wrong or missing model canonical');
  if(!html.includes('id="ukR1300ModelGallery"')||
     html.includes('src="'+expectedVersion+'"'))
   throw Error('Protected original R 1300 GS reference was modified');

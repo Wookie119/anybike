@@ -26,10 +26,8 @@ for(const path of [
 ])execFileSync(process.execPath,['--check',new URL('../'+path,import.meta.url).pathname]);
 assert(html.includes('name="robots" content="index,follow"'),
  'Valid-model universal master must be eligible for indexing');
-assert(renderer.includes('public_anybike_manufacturer_model_routes_v1')&&
- renderer.includes('new URL(approvedDedicatedRoute,location.origin)')&&
- renderer.includes('if(!approvedDedicatedRoute&&exact.length===1)canonical='),
- "A model\'s canonical must prefer its existing approved route and otherwise use the universal URL");
+execFileSync(process.execPath,[new URL('./check-model-canonical-consistency.mjs',import.meta.url).pathname],
+ {stdio:'inherit'});
 assert(renderer.includes("'@type':'Motorcycle'")&&!renderer.includes("'@type':'Product'"),
  'Model schema must describe research without inventing a product offer');
 assert(renderer.includes("meta[property=\"og:image\"]")&&
@@ -40,7 +38,8 @@ assert(robots.includes('Allow: /')&&
  robots.includes('Sitemap: https://www.anybike.co.uk/sitemap.xml'),
  'Google must be allowed to crawl indexed model guides');
 assert(sitemap.includes('https://www.anybike.co.uk/models/yamaha/mt-09.html')&&
- sitemap.includes('https://www.anybike.co.uk/bmw-r1300gs.html')&&
+ sitemap.includes('https://www.anybike.co.uk/models/bmw/r-1300-gs.html')&&
+ !sitemap.includes('https://www.anybike.co.uk/bmw-r1300gs.html')&&
  !sitemap.includes('motorcycle-model-guide.html?make='),
  'The sitemap must publish permanent canonical model URLs, not duplicate query routes');
 assert(!html.includes('Suzuki RM250')&&!html.includes('BMW R 1300 GS'),

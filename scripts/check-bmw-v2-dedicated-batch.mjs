@@ -3,6 +3,7 @@
 // Compare the actual section structure with the protected shared master.
 // Complex BMW pages remain deliberately untouched until their unique galleries
 // and research have been migrated, not merely restyled.
+import {hasLegacyModelCanonical} from './legacy-model-canonical.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
@@ -30,7 +31,7 @@ for(const row of bmw){
  assert(html.includes('approved-v2-dynamic-navigation.mjs'),'Shared navigation missing '+row.url);
  assert(html.includes('id="v2UkSellAction"'),'UK seller link missing '+row.url);
  assert(html.includes('name="robots" content="index,follow"'),'Model should be indexable '+row.url);
- assert(html.includes('https://www.anybike.co.uk'+row.url),'Exact canonical missing '+row.url);
+ assert(hasLegacyModelCanonical(html,row.url),'Exact canonical missing '+row.url);
  assert(html.includes('id="heading">BMW '+row.model+'</h1>'),'Wrong model heading '+row.url);
  assert(!html.includes('approved-bmw-page-shell.mjs'),'Old renderer must not run alongside V2 '+row.url);
  migrated++;

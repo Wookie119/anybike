@@ -614,25 +614,19 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   window.__anybikeV2Editorial=guide;
   window.dispatchEvent(new Event('anybike:v2-model-identity-ready'));
 
-  // Shared indexable metadata: where an existing approved canonical
-  // public model route exists, keep it as the preferred URL. Otherwise the
-  // unique make/model master URL is its own canonical. Never use an editorial
-  // draft's unapproved canonical metadata or cross-model URLs.
   const pageTitle=title+' | Motorcycle History & Specifications | AnyBike';
   const description=str(guide?.page_metadata?.description)||
    'Explore '+title+' motorcycle model information, available verified research and UK sourcing options with AnyBike.';
-  // Keep the existing indexed generic URL when rendering the SAME V2 master
-  // at its established route; retain approved dedicated BMW/Harley canonicals.
-  const canonicalPath=approvedDedicatedRoute||
-   (location.pathname==='/motorcycle-model-guide.html'?
-    '/motorcycle-model-guide.html':'/motorcycle-v2-master.html');
-  const masterUrl=approvedDedicatedRoute?
-   new URL(approvedDedicatedRoute,location.origin):
-   new URL(canonicalPath+'?make='+
-    encodeURIComponent(make)+'&model='+encodeURIComponent(model),location.origin);
-  let canonical=masterUrl.href;
-  // The permanent catalogue URL is canonical for generic/query-string
-  // routes. Existing reviewed dedicated BMW/Harley URLs still win below.
+  const canonicalNode=$('modelCanonical');
+  // Published model pages and their aliases declare the preferred URL in the
+  // source HTML. Keep that URL independent of catalogue or editorial fetches.
+  const declaredCanonical=approvedDedicatedRoute&&canonicalNode?.getAttribute('href');
+  const canonicalPath=location.pathname==='/motorcycle-model-guide.html'
+   ?'/motorcycle-model-guide.html':'/motorcycle-v2-master.html';
+  let canonical=declaredCanonical||new URL((approvedDedicatedRoute||canonicalPath)+
+   (approvedDedicatedRoute?'':'?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model)),
+   'https://www.anybike.co.uk').href;
+  // Lookup URLs can resolve only to an exact published identity.
   if(!approvedDedicatedRoute){
    try{
     const response=await fetch('/data/universal-v2-model-routes.json',{cache:'no-cache'});
@@ -642,50 +636,9 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
       Number(row.model_id)===canonicalId&&
       normalize(row.make)===normalize(make)&&normalize(row.model)===normalize(model)&&
       /^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/.test(String(row.url||'')));
-     if(matches.length===1)canonical=new URL(matches[0].url,location.origin).href;
+     if(matches.length===1)canonical=new URL(matches[0].url,'https://www.anybike.co.uk').href;
     }
    }catch(error){console.warn('Permanent model canonical unavailable',error);}
-  }
-
-  try{
-   let routes=null;
-   if(client){
-    try{
-     const {data,error}=await bounded(client.rpc('public_anybike_manufacturer_model_routes_v1',{p_make:make}),2500);
-     if(error)throw error;
-     if(Array.isArray(data))routes=data;
-    }catch(error){console.warn('Supabase JS canonical routes unavailable',error);}
-   }
-   if(!routes){
-    const response=await fetch(ENDPOINT+'/rest/v1/rpc/public_anybike_manufacturer_model_routes_v1',{
-     method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},
-     body:JSON.stringify({p_make:make}),cache:'no-store',signal:AbortSignal.timeout(3500)
-    });
-    if(response.ok){
-     const data=await response.json();
-     if(Array.isArray(data))routes=data;
-    }
-   }
-   if(routes){
-    const exact=routes.filter(item=>normalize(item.make)===normalize(make)&&
-     normalize(item.model)===normalize(model)&&
-     /^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(String(item.url||'')));
-    if(!approvedDedicatedRoute&&exact.length===1)canonical=new URL(exact[0].url,location.origin).href;
-   }
-  }catch(e){console.warn('Canonical published route lookup unavailable',e)}
-  // Existing approved BMW/Harley model URLs retain SEO priority even when
-  // a new universal /models/ route also serves the same motorcycle.
-  if(permanentRouteModelId!==null){
-   try{
-    const response=await fetch('/data/approved-dedicated-model-routes.json',{cache:'no-cache'});
-    if(response.ok){
-     const dedicated=await response.json();
-     const exact=arr(dedicated?.models).filter(row=>
-      normalize(row.make)===normalize(make)&&normalize(row.model)===normalize(model)&&
-      /^\/(?:bmw|harley-davidson)-[a-z0-9-]+\.html$/.test(String(row.url||'')));
-     if(exact.length===1)canonical=new URL(exact[0].url,location.origin).href;
-    }
-   }catch(error){console.warn('Existing model canonical unavailable',error);}
   }
   document.title=pageTitle;
   const setMeta=(selector,value)=>{
@@ -698,7 +651,7 @@ if(!wantMake||!wantModel||wantMake.length>90||wantModel.length>120){
   setMeta('meta[property="og:url"]',canonical);
   setMeta('meta[name="twitter:title"]',pageTitle);
   setMeta('meta[name="twitter:description"]',description);
-  const canonicalNode=$('modelCanonical');if(canonicalNode)canonicalNode.href=canonical;
+  if(canonicalNode&&!declaredCanonical)canonicalNode.href=canonical;
   const schemaNode=$('modelStructuredData');
   if(schemaNode)schemaNode.textContent=JSON.stringify({
    '@context':'https://schema.org','@type':'WebPage',

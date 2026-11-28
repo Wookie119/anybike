@@ -1,6 +1,7 @@
 // Dedicated BMW and Harley page quality guard.
 // Never replace researched model pages with an empty generic shell merely to
 // satisfy a shared-template layout or asset-version regression.
+import {hasLegacyModelCanonical} from './legacy-model-canonical.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const read=p=>readFileSync(p,'utf8');
@@ -17,7 +18,7 @@ for(const {make,model,url} of routes){
  const html=read(url.slice(1));
  assert(html.includes('id="heading">'+make+' '+model+'</h1>'),
   'Missing model-specific heading; do not replace with generic master: '+url);
- assert(html.includes('href="https://www.anybike.co.uk'+url+'"'),
+ assert(hasLegacyModelCanonical(html,url),
   'Model-specific canonical missing: '+url);
  assert(html.includes('name="robots" content="index,follow"'),
   'Model page inadvertently deindexed: '+url);
