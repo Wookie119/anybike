@@ -552,7 +552,7 @@ export async function renderMoveHouseOnUkPage(options={}){
  try{
   const result=await send(request);
   if(Array.isArray(result?.layout)&&result.layout.length){installPublishedLayout(result.layout,request.page_path||location.pathname);return}
-  if(!result?.ad||!await validateAdvertArtwork(result.ad))return;
+  if(location.pathname==='/customer-dashboard.html'||!result?.ad||!await validateAdvertArtwork(result.ad))return;
   const ad=await verifiedCompanion(result.ad);
   setupStockAdvertRedraw(ad);
   installMoveHouse(ad);
@@ -680,7 +680,7 @@ function installPublishedLayout(layout,pagePath,preview=false){
   const ratios={square:'1 / 1',slim:'3 / 1',stock_card:'4 / 3',landscape:'16 / 9',portrait:'4 / 5'};
   link.style.setProperty('--anybike-ad-ratio',ratios[ad.format]);
   img.onerror=()=>{card.remove()};
-  link.append(img);caption.textContent='Advertisement';card.append(link,caption);host.append(card);
+  link.append(img);caption.textContent=advertDisclosure(ad);card.append(link,caption);host.append(card);
   let seen=false,clicked=false;
   const emit=event_type=>{if(!preview)return send({action:'event',event_type,token:ad.token},true).catch(()=>{});};
   const impression=()=>{if(seen)return;seen=true;emit('impression')};
