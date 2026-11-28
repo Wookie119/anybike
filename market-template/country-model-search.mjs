@@ -1,5 +1,8 @@
 import {api, headers} from '../model-template/riding-style.mjs';
 
+import {stockForCanonicalModel} from '../model-template/canonical-public-stock-identity.mjs';
+
+const publishedStock = new URL('/functions/v1/international-public-stock', api).href;
 const registryPath = '/data/universal-v2-model-routes.json';
 const modelPath = /^\/models\/[a-z0-9-]+\/[a-z0-9-]+\.html$/;
 let registryRequest;
@@ -10,14 +13,14 @@ const strings = {
     empty: 'No model guides match. Try a make or model name.', failed: 'Search is temporarily unavailable.',
     browse: 'Browse all motorcycle guides', popular: market => 'Popular motorcycles in ' + market,
     suggested: market => 'Motorcycle guides for ' + market,
-    demand: 'Based on recent searches on this market page.', results: 'Matching motorcycle guides'
+    demand: 'Based on recent searches on this market page.', stock: 'Matching Available Stock', stockEmpty: 'No matching motorcycles in Available Stock at the moment.', stockUnavailable: 'Matching stock is temporarily unavailable.', results: 'Matching motorcycle guides'
   },
   fr: {
     title: 'Trouver une moto', prompt: 'Rechercher par marque ou modèle', search: 'Rechercher', loading: 'Recherche des guides moto…',
     empty: 'Aucun guide ne correspond. Essayez une marque ou un modèle.', failed: 'La recherche est momentanément indisponible.',
     browse: 'Voir tous les guides moto', popular: market => 'Motos populaires · ' + market,
     suggested: market => 'Guides moto · ' + market,
-    demand: 'D’après les recherches récentes sur cette page de marché.', results: 'Guides moto correspondants'
+    demand: 'D’après les recherches récentes sur cette page de marché.', stock: 'Motos disponibles correspondant aux recherches', stockEmpty: 'Aucune moto disponible ne correspond pour le moment.', stockUnavailable: 'Le stock correspondant est momentanément indisponible.', results: 'Guides moto correspondants'
   }
 };
 
@@ -132,6 +135,56 @@ export function countryModelSearch(data) {
   return wrap;
 }
 
+export function stockForPopularModels(items, rankedModels) {
+  const matches = new Map();
+  for (const model of rankedModels) {
+    const identity = {catalog_model_id:model.model_id, manufacturer_name:model.make, model_name:model.model};
+    for (const item of stockForCanonicalModel(items,identity,3)) {
+      matches.set(String(item.item_id),item);
+    }
+  }
+  return [...matches.values()].slice(0,8);
+}
+
+async function addMatchingStock(section, models, copy, locale) {
+  const heading = node('h3',copy.stock);
+  const holder = node('div');
+  section.append(heading,holder);
+  try {
+    // Reuse the visitor-facing feed so country pages apply the same public access rules.
+    const response = await fetch(publishedStock,{
+      signal:AbortSignal.timeout(9000),credentials:'omit',cache:'no-store'
+    });
+    const payload = response.ok ? await response.json() : null;
+    if (!Array.isArray(payload?.items)) throw Error('Published stock unavailable');
+    const matches = stockForPopularModels(payload.items,models);
+    if (!matches.length) { holder.append(node('p',copy.stockEmpty)); return; }
+    holder.className = 'stock-grid';
+    const gbp = new Intl.NumberFormat(locale,{style:'currency',currency:'GBP'});
+    for (const item of matches) {
+      const card = node('a');
+      card.className = 'stock-card';
+      card.href = '/international-vq-motorcycle.html?id=' + encodeURIComponent(item.item_id);
+      const name = [item.make,item.model,item.year].filter(Boolean).join(' · ');
+      const photo = node('img');
+      photo.alt = name;
+      photo.loading = 'lazy';
+      photo.src = '/anybike-image-coming-soon.png';
+      try {
+        const url = new URL(item.image_url);
+        if (url.protocol === 'https:' && !url.username && !url.password) photo.src = url.href;
+      } catch { /* Keep the existing image placeholder. */ }
+      photo.addEventListener('error',() => { photo.src = '/anybike-image-coming-soon.png'; },{once:true});
+      const body = node('div');
+      body.className = 'stock-copy';
+      body.append(node('h4',name));
+      if (Number.isFinite(Number(item.price)) && Number(item.price)>0) body.append(node('p',gbp.format(item.price)));
+      card.append(photo,body);
+      holder.append(card);
+    }
+  } catch { holder.append(node('p',copy.stockUnavailable)); }
+}
+
 export async function loadPopularModels(main, data) {
   const copy = strings[data.locale] || strings.en;
   const existing = main.querySelector('[data-country-section="model_guides"] .section-head h2');
@@ -150,5 +203,6 @@ export async function loadPopularModels(main, data) {
     section.className = 'wrap country-popular-models';
     section.append(node('h2',copy.popular(data.market)),node('p',copy.demand),guideList(rows));
     anchor.after(section);
+    await addMatchingStock(section, rows, copy, data.locale);
   } catch { /* The reviewed model guides stay available if signal data is unavailable. */ }
 }

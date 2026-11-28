@@ -12,3 +12,5 @@ One renderer reads reviewed market records from the existing Supabase project. I
 ## Search demand
 
 Install `country-search-schema.sql` after the master schema. The shared search reads the published model-route registry. A clear model match or a chosen search result contributes a signal for the market page being browsed. Free text stays in the browser. Supabase stores only the market slug, catalogue model ID and hour. Repeats for the same model and market within an hour collapse into one signal. Public rankings use the last 30 days and require three observed hours across at least two dates. Reviewed model guides stay visible as suggestions while a market builds up enough signals.
+
+The ranked models also show matching listings from the existing public Available Stock feed. Cards require an eligible, verified canonical model match. A market with signals but no matching listings still shows its ranked model guides.
