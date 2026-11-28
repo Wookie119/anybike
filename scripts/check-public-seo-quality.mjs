@@ -12,6 +12,7 @@ const xml=fs.readFileSync(path.join(root,'sitemap.xml'),'utf8');
 const urls=[...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>m[1].replaceAll('&amp;','&'));
 const issues=[], warnings=[];
 const followPages=new Set();
+const outgoingLinks=new Map();
 const dedicatedModels=JSON.parse(fs.readFileSync(path.join(root,'data/approved-dedicated-model-routes.json'),'utf8')).models;
 const legacyModelLinks=new Map(dedicatedModels.map(({url})=>[url,legacyModelCanonical(url)]));
 const titles=new Map(), descriptions=new Map();
@@ -91,13 +92,28 @@ for(const page of followPages){
   if(!fs.existsSync(file)){issues.push('Missing public HTML for robots follow check: '+page);continue;}
   const html=fs.readFileSync(file,'utf8');
   if(blocksFollowing(html))issues.push('Robots directive blocks link following: '+page);
-  for(const [,href] of html.matchAll(/<a\b[^>]*\bhref\s*=\s*["']([^"']+)["']/gi)){
-    const target=URL.parse(href,new URL(page,base));
+  const source=html.replace(/<!--[\s\S]*?-->|<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
+  const links=new Set();
+  for(const {href,rel} of tags(source,/<a\b[^>]*>/gi)){
+    if(!href)continue;
+    const target=URL.parse(href.replaceAll('&amp;','&'),new URL(page,base));
     if(target?.origin!==origin)continue;
     const canonicalLink=legacyModelLinks.get(target.pathname);
     if(canonicalLink)issues.push('Legacy model link on '+page+': '+href+' -> '+canonicalLink);
+    if(rel?.toLowerCase().split(/\s+/).includes('nofollow'))continue;
+    const make=target.pathname==='/motorcycle-brand.html'&&target.searchParams.get('make');
+    const destination=origin+target.pathname+(make?'?make='+encodeURIComponent(make):'');
+    if(known.has(destination))links.add(destination);
   }
+  outgoingLinks.set(page,links);
 }
+const discovered=new Set([base]);
+for(const url of discovered){
+  for(const link of outgoingLinks.get(new URL(url).pathname)||[])discovered.add(link);
+}
+const unreachable=urls.filter(url=>!discovered.has(url));
+stats.unreachable_sitemap_pages=unreachable.length;
+for(const url of unreachable)issues.push('Sitemap page has no crawlable link path from the homepage: '+url);
 for(const p of marketFiles)if(!known.has(base+'markets/'+p))issues.push('Market missing from sitemap: markets/'+p);
 if(stats.market_pages!==marketFiles.length)issues.push('Market count mismatch: '+stats.market_pages+' in sitemap, '+marketFiles.length+' published country pages');
 const globalDir=path.join(root,'global');
