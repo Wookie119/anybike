@@ -14,6 +14,8 @@ from runpy import run_path
 
 exporter = run_path(str(Path(__file__).with_name("export-country-master.py")))
 ATTRIBUTES, TAGS, safe_url = (exporter[name] for name in ("ATTRIBUTES", "TAGS", "safe_url"))
+directory_builder = run_path(str(Path(__file__).with_name("build-market-directory.py")))
+refresh_directory, language_label = (directory_builder[name] for name in ("refresh_directory", "language_label"))
 
 ORIGIN = "https://www.anybike.co.uk"
 SUPABASE = "https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_anybike_country_master_v1"
@@ -98,8 +100,7 @@ def country_page(slug, primary, tag, records, preview, staging=False):
         url = market_path(slug, primary, alternate)
         alternates.append(f'<link rel="alternate" hreflang="{alternate}" href="{ORIGIN}{url}">')
         if alternate != tag:
-            other = alternate.split("-")[0]
-            label = {"en": "English", "sv": "Svenska", "fr": "Français"}.get(other, alternate)
+            label = language_label(alternate)
             href = posixpath.relpath(url, posixpath.dirname(path)) if preview else url
             switches.append(f'<a class="btn" hreflang="{alternate}" lang="{alternate}" href="{href}">{label}</a>')
     body = "".join(render_node(section["content"], path, section["kind"]) for section in data["sections"])
@@ -197,6 +198,8 @@ def build(slug, tags, folder, fixtures=None, staging=False):
         temporary.replace(target)
         print(target)
     if fixtures is None and not staging:
+        if (folder / "international-markets.html").exists():
+            refresh_directory(folder, sitemap_text)
         temporary = sitemap.with_suffix(".tmp")
         temporary.write_text(sitemap_text)
         temporary.replace(sitemap)
