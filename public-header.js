@@ -61,7 +61,7 @@
     if(!window.location.pathname.toLowerCase().includes("/markets/"))return;
     if(document.querySelector('script[data-anybike-market-standard="true"]'))return;
     const s=document.createElement("script");
-    s.src="/market-page-standardisation.js?v=20261103catalogue1";
+    s.src="/market-page-standardisation.js?v=20261128-canonical-models";
     s.defer=true;
     s.dataset.anybikeMarketStandard="true";
     document.head.appendChild(s);

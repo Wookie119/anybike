@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {legacyModelCanonical} from './legacy-model-canonical.mjs';
 
 const root=process.cwd();
 const marketFolder=path.join(root,'markets');
@@ -17,6 +18,21 @@ const sitemapMarkets=locs.filter(x=>x.startsWith(prefix)&&/^https:\/\/www\.anybi
 const folderMarkets=fs.readdirSync(marketFolder)
  .filter(name=>name!=='index.html'&&/^[a-z0-9-]+\.html$/.test(name));
 const issues=[];
+const origin='https://www.anybike.co.uk';
+const publishedModels=new Set(locs.filter(url=>url.startsWith(origin+'/models/')));
+const dedicatedModels=JSON.parse(fs.readFileSync(path.join(root,'data/approved-dedicated-model-routes.json'),'utf8')).models;
+const modelAliases=new Map(dedicatedModels.map(({url})=>[url,legacyModelCanonical(url)]));
+const dedicatedByName=new Map(dedicatedModels.map(({make,model,url})=>[make+' '+model,url]));
+const standardisation=fs.readFileSync(path.join(root,'market-page-standardisation.js'),'utf8');
+const fallbackModels=standardisation.match(/const MARKET_GUIDE_MODELS=\[([\s\S]*?)\];/)?.[1]||'';
+const modelLinks=[...fallbackModels.matchAll(/\["([^"]+)","([^"]+)"\]/g)];
+if(!modelLinks.length)issues.push('Missing shared market model navigation');
+for(const [,name,href] of modelLinks){
+ const legacy=dedicatedByName.get(name);
+ const url=new URL(href,origin).href;
+ if(!publishedModels.has(url)||(legacy&&modelAliases.get(legacy)!==url))
+  issues.push('Shared market guide must link to the indexed model: '+name+' -> '+href);
+}
 if(sitemapMarkets.length!==217)issues.push('Expected 217 canonical country URLs; found '+sitemapMarkets.length);
 if(new Set(sitemapMarkets).size!==sitemapMarkets.length)issues.push('Duplicate market URLs in sitemap');
 if(new Set(folderMarkets).size!==folderMarkets.length)issues.push('Duplicate market filenames');
@@ -25,6 +41,14 @@ for(const filename of folderMarkets){
  const file=path.join(marketFolder,filename);
  const html=fs.readFileSync(file,'utf8');
  if(!sitemapFiles.has(filename))issues.push('Market page not discoverable in sitemap: '+filename);
+ for(const [,href] of html.matchAll(/<a\b[^>]*\bhref\s*=\s*["']([^"']+)["']/gi)){
+  const target=URL.parse(href,prefix+filename);
+  if(target?.origin!==origin)continue;
+  const preferred=modelAliases.get(target.pathname);
+  if(preferred)issues.push('Legacy model link in '+filename+': '+href+' -> '+preferred);
+  if(target.pathname.startsWith('/models/')&&!publishedModels.has(origin+target.pathname))
+   issues.push('Unlisted model link in '+filename+': '+href);
+ }
  if(!/<h1\b/i.test(html))issues.push('Missing market heading: '+filename);
  if(filename!=='canada.html'&&/Major Canadian gateways/i.test(html))
   issues.push('Canadian transport heading on another market: '+filename);
@@ -48,6 +72,6 @@ if(issues.length){
  process.exitCode=1;
 }else{
  assert.equal(sitemapMarkets.length,217);
- console.log('PASS: 217 indexed market routes exist with headings, permitted robots and matching canonicals.');
+ console.log('PASS: 217 indexed market routes exist with headings, permitted robots, matching canonicals and published model links.');
  console.log('NOTE: Repository checks do not constitute a live HTTP or country editorial review.');
 }

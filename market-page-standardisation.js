@@ -402,12 +402,12 @@ function styleEnhancements(){
 /* Shared public motorcycle-guide navigation for international market pages.
    These are editorial links, not claims of stock availability or local demand. */
 const MARKET_GUIDE_MODELS=[
- ["BMW R 1300 GS","/bmw-r1300gs.html"],["BMW R 1250 GS","/bmw-r1250gs.html"],
- ["BMW S 1000 RR","/bmw-s1000rr.html"],["BMW F 900 GS","/bmw-f900gs.html"],
- ["Harley-Davidson Fat Boy","/harley-davidson-fat-boy.html"],
- ["Harley-Davidson Road Glide","/harley-davidson-road-glide.html"],
- ["Harley-Davidson Street Glide","/harley-davidson-street-glide.html"],
- ["Harley-Davidson Pan America 1250","/harley-davidson-pan-america-1250.html"]
+ ["BMW R 1300 GS","/models/bmw/r-1300-gs.html"],["BMW R 1250 GS","/models/bmw/r-1250-gs.html"],
+ ["BMW S 1000 RR","/models/bmw/s-1000-rr.html"],["BMW F 900 GS","/models/bmw/f-900-gs.html"],
+ ["Harley-Davidson Fat Boy","/models/harley-davidson/fat-boy.html"],
+ ["Harley-Davidson Road Glide","/models/harley-davidson/road-glide.html"],
+ ["Harley-Davidson Street Glide","/models/harley-davidson/street-glide.html"],
+ ["Harley-Davidson Pan America 1250","/models/harley-davidson/pan-america-1250.html"]
 ];
 const MARKET_GUIDE_MAKES=[
  ["BMW","/bmw-motorcycles.html"],["Harley-Davidson","/harley-davidson-motorcycles.html"],
