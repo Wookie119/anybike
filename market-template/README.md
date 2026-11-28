@@ -8,3 +8,7 @@ One renderer reads reviewed market records from the existing Supabase project. I
 - AnyBike Global uses the published story assigned to that market, then published worldwide cards, then a direct link to Global. The Silverpilen record needs its live article, Sweden assignment and credited media set before it appears as the local example.
 - Commercial positions are hidden until a future service supplies eligible content. The inline advert position refers to the existing planned `AB-COUNTRY-CONTENT` named space. Register a central advertising slot before activating the footer. Connect classifieds to the approved country inventory when its launch is authorised.
 - Keep the existing country URLs in service until each market's data and rendering have passed review. This preview entry point is excluded from indexing.
+
+## Search demand
+
+Install `country-search-schema.sql` after the master schema. The shared search reads the published model-route registry. A clear model match or a chosen search result contributes a signal for the market page being browsed. Free text stays in the browser. Supabase stores only the market slug, catalogue model ID and hour. Repeats for the same model and market within an hour collapse into one signal. Public rankings use the last 30 days and require three observed hours across at least two dates. Reviewed model guides stay visible as suggestions while a market builds up enough signals.

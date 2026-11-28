@@ -1,3 +1,4 @@
+import {countryModelSearch, loadPopularModels} from './country-model-search.mjs';
 import {api, headers} from '../model-template/riding-style.mjs';
 
 const tags = new Set('section div header article aside nav h1 h2 h3 h4 p strong em b i small span a img figure figcaption ul ol li dl dt dd details summary br hr blockquote table caption thead tbody tr th td'.split(' '));
@@ -131,6 +132,7 @@ export function render(main, data) {
   const display = document.createDocumentFragment();
   for (const section of sections) {
     display.append(section);
+    if (section.dataset.countrySection === "hero") display.append(countryModelSearch(data));
     if (section === global) {
       for (const key of ['ad-after-global', 'classifieds']) {
         if (mounts.has(key)) display.append(mounts.get(key));
@@ -240,6 +242,7 @@ async function load(main) {
     if (locale !== requestedLocale(params)) return;
     render(main, data);
     loadMarketFeeds(main, data);
+    loadPopularModels(main, data);
   } catch {
     if (locale !== requestedLocale(params)) return;
     const copy = labels[locale] || labels.en;
